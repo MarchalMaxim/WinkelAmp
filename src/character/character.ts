@@ -277,9 +277,9 @@ export class CharacterEngine {
   private prevSpec = new Float32Array(0);
   private fluxHeight = NaN;
   private lastOnsetTime = -1;
-  /** Melody register (0..1, smoothed), NaN when there has been no tune for a while. */
+  /** Melody register (0..1, smoothed; NaN before the first tune) and how present the tune is (0..1). */
   private melReg = NaN;
-  private melQuiet = 0;
+  private melW = 0;
   /** This update's melody frame (for events). */
   private mel: MelodyFrame | null = null;
   private rnd: () => number;
@@ -307,12 +307,14 @@ export class CharacterEngine {
     musicDt = Number.isFinite(musicDt) ? clamp(musicDt, 0, 0.25) : dt;
     this.lastDt = dt;
     this.trackMelody(melody, dt);
+    const dReg = val(d.register);
+    const sizeReg = Number.isFinite(this.melReg) ? dReg + this.melW * (this.melReg - dReg) : NaN;
     const presenceTarget = 1 - val(d.silence);
     this.presence += alpha(dt, presenceTarget > this.presence ? 0.5 : 1.2) * (presenceTarget - this.presence);
     const p = this.presence;
 
     // 1. Axes: descriptors (+ tags) → targets, gated by presence, then smoothed.
-    const target = descriptorAxes(d, this.melReg);
+    const target = descriptorAxes(d, sizeReg);
     const ev = tags ? tagEvidence(tags) : null;
     let change = 0;
     for (const k of AXES) {
@@ -456,19 +458,18 @@ export class CharacterEngine {
   // ── internals ──
 
   /**
-   * Smooths the tune's register (τ ≈ 1 s while voiced) so the size axis doesn't
-   * chatter with voicing flicker; held through gaps between phrases, forgotten
-   * after 2 s without a tune (the spectrum's register takes over again).
+   * Smooths the tune's register (τ ≈ 1 s while voiced) and its presence (τ ≈ 1.5 s
+   * towards 1 while voiced, 0 otherwise), so the size axis glides between the
+   * tune's register and the spectrum's instead of stepping with voicing flicker.
    */
   private trackMelody(m: MelodyFrame | null, dt: number) {
     this.mel = m;
-    if (m?.voiced && Number.isFinite(m.pitch)) {
-      const h = midiHeight(m.pitch);
+    const voiced = !!m?.voiced && Number.isFinite(m.pitch);
+    if (voiced) {
+      const h = midiHeight(m!.pitch);
       this.melReg = Number.isFinite(this.melReg) ? this.melReg + alpha(dt, 1) * (h - this.melReg) : h;
-      this.melQuiet = 0;
-    } else if ((this.melQuiet += dt) > 2) {
-      this.melReg = NaN;
     }
+    this.melW += alpha(dt, 1.5) * ((voiced ? 1 : 0) - this.melW);
   }
 
   /**
