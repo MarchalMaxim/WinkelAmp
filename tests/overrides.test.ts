@@ -23,7 +23,7 @@ const SCRIPT: Script = {
   ],
 };
 const player = new ScriptPlayer(SCRIPT);
-const USER: Look = { palette: ['#ff0000', '#00ff00', '#0000ff', '#ffffff'], trails: 0.9, warp: 0.7, mirror: 8, glow: 0.3 };
+const USER: Look = { palette: ['#ff0000', '#00ff00', '#0000ff', '#ffffff'], trails: 0.9, warp: 0.7, mirror: 8, glow: 0.3, melt: 0 };
 const ids = (d: StageDirectives) => d.cast.map((m) => m.spec.id).sort();
 
 describe('Overrides', () => {
@@ -93,6 +93,15 @@ describe('Overrides', () => {
     const out = o.apply(player.at(30), USER);
     expect(out.scene).toBe('Picked');
     expect(ids(out)).toEqual(['w']);
+  });
+
+  it('a held scene keeps its melt, which has no knob in the drawer; the last shown melt otherwise', () => {
+    const o = new Overrides();
+    o.apply({ ...player.at(5), look: { ...player.at(5).look, melt: 0.4 } }, USER);
+    o.pauseScript();
+    expect(o.apply(player.at(6), USER).look.melt).toBe(0.4);
+    o.pauseScript({ scene: 'Casket', cast: [], melt: 0.6 });
+    expect(o.apply(player.at(7), USER).look).toEqual({ ...USER, melt: 0.6 });
   });
 
   it('reset (a track change) clears the pins and resumes the script', () => {

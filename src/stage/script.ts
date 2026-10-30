@@ -9,6 +9,7 @@
 import {
   DEFAULT_PARAMS,
   STYLES,
+  type AccentKind,
   type CastMember,
   type ElementParams,
   type ElementSpec,
@@ -25,6 +26,7 @@ const REGIONS = ['full', 'top', 'bottom', 'left', 'right', 'center'];
 const MIRRORS = [1, 2, 4, 6, 8, 12];
 const STUDIES = ['ember', 'basalt', 'sugar', 'mist'];
 const ACTIONS = ['scene', 'enter', 'exit', 'accent', 'ramp'] as const;
+const ACCENTS: AccentKind[] = ['flash', 'shock', 'swell', 'cut'];
 /** The keys each kind of cue may have besides `at` and `snap`. */
 const CUE_KEYS: Record<(typeof ACTIONS)[number], string[]> = {
   scene: ['scene', 'transition'],
@@ -34,7 +36,7 @@ const CUE_KEYS: Record<(typeof ACTIONS)[number], string[]> = {
   ramp: ['ramp'],
 };
 /** Look values that interpolate (mirror and palette are discrete). */
-const RAMP_LOOK = ['trails', 'warp', 'glow'];
+const RAMP_LOOK = ['trails', 'warp', 'glow', 'melt'];
 const RAMP_ELEMENT = ['intensity', 'size'];
 /** Scene changes are triggered by the music and must finish within 2 s (the global transition rule). */
 const MAX_BLEND = 2;
@@ -91,7 +93,7 @@ class Checker {
   }
 
   look(path: string, v: unknown): void {
-    if (!this.object(path, v, ['palette', 'trails', 'warp', 'mirror', 'glow'])) return;
+    if (!this.object(path, v, ['palette', 'trails', 'warp', 'mirror', 'glow', 'melt'])) return;
     const p = v.palette;
     if (Array.isArray(p)) {
       if (p.length !== 4) this.bad(`${path}.palette`, `a fixed palette has exactly 4 colors, got ${p.length}`);
@@ -99,7 +101,7 @@ class Checker {
     } else if (p !== undefined && p !== 'mood' && p !== 'notes') {
       this.bad(`${path}.palette`, `must be "mood", "notes" or an array of 4 hex colors, got ${show(p)}`);
     }
-    for (const k of ['trails', 'warp', 'glow']) if (v[k] !== undefined) this.unit(`${path}.${k}`, v[k]);
+    for (const k of ['trails', 'warp', 'glow', 'melt']) if (v[k] !== undefined) this.unit(`${path}.${k}`, v[k]);
     if (v.mirror !== undefined) this.member(`${path}.mirror`, v.mirror, MIRRORS, 'mirror');
   }
 
@@ -225,7 +227,7 @@ export function validateScript(json: unknown): { ok: true; script: Script } | { 
     } else if (action === 'accent') {
       const a = cue.accent;
       if (c.object(`${path}.accent`, a, ['kind', 'color', 'strength'])) {
-        c.member(`${path}.accent.kind`, a.kind, ['flash', 'shock', 'swell'], 'accent');
+        c.member(`${path}.accent.kind`, a.kind, ACCENTS, 'accent');
         if (a.color !== undefined) c.hex(`${path}.accent.color`, a.color);
         if (a.strength !== undefined) c.unit(`${path}.accent.strength`, a.strength);
       }

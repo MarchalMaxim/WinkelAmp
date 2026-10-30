@@ -4,17 +4,19 @@
  * carry their own history — the melody's 4 s trail, expanding rings, the scope —
  * and would only smear into filled discs and bands under full feedback):
  *
- *   feedback  F = max(scene, crisp · ECHO, warp(F_prev) · persist)
+ *   feedback  F = max(scene, crisp · ECHO, cut(melt(warp(F_prev))) · persist)
  *   combine   D = max(F, crisp)          (crisp shows sharp, its echoes faint)
  *   glow      bloom of D (the Living Canvas's Kawase chain)
- *   final     mirror → accents → tone map → fluid layers → × dim → sRGB
+ *   final     shake → mirror → accents → tone map → fluid layers → scars → × dim → sRGB
  *
  * Feedback is a max, not a sum: a static scene is a fixed point of it, so when
  * the music stops (musicDt = 0 → persist = 1, no warp) the picture is exactly
  * frozen instead of brightening or fading frame by frame. Persistence and warp are
- * per music second, so trails also don't depend on the frame rate.
+ * per music second, so trails also don't depend on the frame rate. Melt and cuts
+ * (cut.ts) move the history by whole texels, so their reads stay exact too.
  */
 import { BLOOM_DOWN, BLOOM_PRE, BLOOM_UP } from '../visual/living/shaders';
+import { type Cut, MELT_COLUMNS, SCAR_LIFE, type Scar } from './cut';
 import { createPair, createProgram, createTarget, deletePair, deleteTarget, formats, type GL, type Pair, type Program, QUAD_VS, type Target } from './gl';
 import type { Accent, Look } from './types';
 
@@ -26,6 +28,15 @@ uniform sampler2D uScene, uCrisp, uPrev;
 uniform float uEcho;
 uniform float uPersist, uZoom, uRot, uAspect;
 uniform bool uIdentity;
+uniform float uMeltK, uTime;  // melt · musicDt · target height (0: no melt this frame), music time
+uniform vec4 uCut;            // this frame's cut: point (uv), direction (aspect space)
+uniform float uCutD;          // its shove in texels (0: none)
+uniform vec2 uRes;
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
 void main() {
   vec3 prev = vec3(0.0);
   if (uPersist > 0.0) {
@@ -37,7 +48,21 @@ void main() {
       p = mat2(c, -s, s, c) * p / uZoom;
       uv = p / vec2(uAspect, 1.0) + 0.5;
     }
+    if (uMeltK > 0.0) {
+      // Melt (cut.ts meltShift): each column reads whole texels from above, dithered per column and frame.
+      float col = floor(vUv.x * ${MELT_COLUMNS.toFixed(1)});
+      float speed = 0.1833 * (1.0 + 0.5 * sin(col * 0.37 + uTime * 0.7) + 0.5 * sin(col * 1.1));
+      float jitter = min(0.999, hash12(vec2(col + 0.5, fract(uTime * 7.31) * 113.0)));
+      uv.y += floor(uMeltK * speed + jitter) / uRes.y;
+    }
     vec2 inside = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+    if (uCutD > 0.0) {
+      // Cut (cut.ts cutShift): each side of the line shoved its own way along it, by whole texels.
+      // What slides in from past the edge is the edge itself (the sketch kept the old picture there).
+      vec2 p = (vUv - uCut.xy) * vec2(uAspect, 1.0);
+      float side = uCut.z * p.y - uCut.w * p.x >= 0.0 ? 1.0 : -1.0;
+      uv = clamp(uv - floor(side * uCutD * uCut.zw + 0.5) / uRes, 0.5 / uRes, 1.0 - 0.5 / uRes);
+    }
     prev = texture(uPrev, uv).rgb * uPersist * inside.x * inside.y;
   }
   outColor = vec4(max(max(texture(uScene, vUv).rgb, texture(uCrisp, vUv).rgb * uEcho), prev), 1.0);
@@ -60,8 +85,12 @@ uniform float uGain0, uGain1, uGlow, uDim, uTime, uAspect;
 uniform int uMirror;
 uniform vec4 uAcc[4];     // kind (0 flash, 1 shock, 2 swell, -1 none), strength, age, -
 uniform vec3 uAccCol[4];
+uniform vec4 uScar[4];    // a cut's line: point (uv), direction (aspect space)
+uniform vec2 uScarB[4];   // its age (music seconds; -1: none), strength
+uniform vec3 uScarCol[4];
 uniform vec2 uRes;
 const float ACCENT_LIFE = 1.5;
+const float SCAR_LIFE = ${SCAR_LIFE.toFixed(2)};
 vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 vec3 toSrgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -92,6 +121,14 @@ void main() {
   float aberr = 0.0;
   vec3 flash = vec3(0.0);
   vec2 q = (uv - 0.5) * vec2(uAspect, 1.0);
+  // A cut jolts the picture: a small shake, gone in ~0.3 s (its age is music time, so silence holds it).
+  for (int i = 0; i < 4; i++) {
+    vec2 b = uScarB[i];
+    if (b.x < 0.0) continue;
+    float amp = (6.0 + 8.0 * b.y) / 720.0 * exp(-b.x / 0.1);
+    vec2 j = vec2(hash12(vec2(b.x * 61.0, 1.7)), hash12(vec2(b.x * 61.0, 9.3))) * 2.0 - 1.0;
+    uv += j * amp / vec2(uAspect, 1.0);
+  }
   for (int i = 0; i < 4; i++) {
     vec4 a = uAcc[i];
     if (a.x < -0.5) continue;
@@ -127,6 +164,19 @@ void main() {
   vec3 l0 = toLinear(texture(uLayer0, uv).rgb) * uGain0;
   vec3 l1 = toLinear(texture(uLayer1, uv).rgb) * uGain1;
   col = 1.0 - (1.0 - col) * (1.0 - clamp(l0, 0.0, 1.0)) * (1.0 - clamp(l1, 0.0, 1.0));
+  // Scars: a thin bright line on each cut, over everything, where the (mirrored) picture was sliced.
+  float px = uRes.y / 720.0;
+  for (int i = 0; i < 4; i++) {
+    vec2 b = uScarB[i];
+    if (b.x < 0.0) continue;
+    float al = clamp(1.0 - b.x / SCAR_LIFE, 0.0, 1.0);
+    vec2 p = (uv - uScar[i].xy) * vec2(uAspect, 1.0);
+    float dist = abs(uScar[i].z * p.y - uScar[i].w * p.x) * uRes.y;
+    float halfW = 0.5 * (1.0 + 5.0 * al) * px;
+    float line = 1.0 - smoothstep(halfW - 0.75, halfW + 0.75, dist);
+    col = mix(col, uScarCol[i], line * al);
+    col += uScarCol[i] * exp(-dist / (5.0 * px)) * 0.3 * al * al;
+  }
   col *= mix(1.0, smoothstep(1.3, 0.3, length(q)), 0.25);
   col *= uDim;
   vec3 o = toSrgb(clamp(col, 0.0, 1.0));
@@ -138,11 +188,13 @@ void main() {
 const BLOOM_LEVELS = 6;
 /** How bright a crisp element's own trail starts in the feedback. */
 const ECHO = 0.3;
-const ACCENT_KIND = { flash: 0, shock: 1, swell: 2 } as const;
+/** The accents the final pass shapes itself (a cut is a scar, which the stage hands over separately). */
+const ACCENT_KIND: Record<Exclude<Accent['kind'], 'cut'>, number> = { flash: 0, shock: 1, swell: 2 };
 
 export interface FinishParams {
   look: Look;
   accents: Accent[];
+  scars: Scar[];
   layers: { tex: WebGLTexture; gain: number }[];
   dim: number;
   time: number;
@@ -242,9 +294,11 @@ export class StagePost {
   /**
    * Folds the scene into the feedback buffer. `musicDt` drives everything: trails
    * last ~0.03…1.2 music seconds with `look.trails`, and the old image zooms and turns
-   * by `look.warp × musicDt` (direction from the gesture's swirl).
+   * by `look.warp × musicDt` (direction from the gesture's swirl). Its columns slide
+   * down by `look.melt × musicDt` (music time `time` varies their speeds), and `cut`,
+   * when one fired this frame, slices it once.
    */
-  feedback(look: Look, musicDt: number, swirl: number) {
+  feedback(look: Look, musicDt: number, swirl: number, time: number, cut: Cut | null) {
     const gl = this.gl;
     const tau = 0.03 + 1.2 * Math.pow(Math.min(1, Math.max(0, look.trails)), 2);
     const persist = musicDt > 0 ? Math.exp(-musicDt / tau) : 1;
@@ -262,6 +316,12 @@ export class StagePost {
     gl.uniform1f(u.uRot, rot);
     gl.uniform1f(u.uAspect, this.w / this.h);
     gl.uniform1i(u.uIdentity, zoom === 1 && rot === 0 ? 1 : 0);
+    const melt = Number.isFinite(look.melt) ? Math.min(1, Math.max(0, look.melt)) : 0;
+    gl.uniform1f(u.uMeltK, melt * musicDt * this.h);
+    gl.uniform1f(u.uTime, time);
+    gl.uniform2f(u.uRes, this.w, this.h);
+    gl.uniform4f(u.uCut, cut?.x ?? 0, cut?.y ?? 0, cut?.dx ?? 1, cut?.dy ?? 0);
+    gl.uniform1f(u.uCutD, cut ? cut.d * this.h : 0);
     this.target(this.fb.write, this.w, this.h);
     this.quad();
     this.fb.swap();
@@ -323,12 +383,24 @@ export class StagePost {
     gl.uniform1i(u.uMirror, f.look.mirror);
     const acc = new Float32Array(16).fill(-1);
     const col = new Float32Array(12);
-    f.accents.slice(-4).forEach((a, i) => {
-      acc.set([ACCENT_KIND[a.kind] ?? -1, Math.max(0, a.strength), Math.max(0, a.age), 0], i * 4);
-      col.set(a.color.map((c) => Math.pow(Math.min(1, Math.max(0, c)), 2.2)), i * 3);
+    const lin = (c: number[]) => c.map((v) => Math.pow(Math.min(1, Math.max(0, v)), 2.2));
+    f.accents.filter((a) => a.kind !== 'cut').slice(-4).forEach((a, i) => {
+      acc.set([ACCENT_KIND[a.kind as keyof typeof ACCENT_KIND] ?? -1, Math.max(0, a.strength), Math.max(0, a.age), 0], i * 4);
+      col.set(lin(a.color), i * 3);
     });
     gl.uniform4fv(u.uAcc, acc);
     gl.uniform3fv(u.uAccCol, col);
+    const line = new Float32Array(16);
+    const sb = new Float32Array(8).fill(-1);
+    const sc = new Float32Array(12);
+    f.scars.slice(-4).forEach((s, i) => {
+      line.set([s.cut.x, s.cut.y, s.cut.dx, s.cut.dy], i * 4);
+      sb.set([Math.max(0, s.age), Math.min(1, Math.max(0, s.strength))], i * 2);
+      sc.set(lin(s.color), i * 3);
+    });
+    gl.uniform4fv(u.uScar, line);
+    gl.uniform2fv(u.uScarB, sb);
+    gl.uniform3fv(u.uScarCol, sc);
     this.target(null, outW, outH);
     this.quad();
   }

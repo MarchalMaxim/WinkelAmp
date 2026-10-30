@@ -9,13 +9,16 @@
  *   stage.render(frame);               // once per animation frame
  */
 import type { Rgb } from '../character/types';
+import { type Cut, cutAt, freshCuts, SCAR_LIFE, type Scar } from './cut';
 import { ELEMENTS } from './elements';
-import { detectCaps, fin, parseColor, rng, SpriteBatch, StrokeBatch, type Caps, type GL } from './gl';
+import { clamp01, detectCaps, fin, parseColor, rng, SpriteBatch, StrokeBatch, type Caps, type GL } from './gl';
 import { StagePost } from './post';
 import type { CastMember, ElementType, StageElement, StageFrame, StageShared } from './types';
 
 /** Draw order. Additive, so it only matters for hand-offs: the melody's ink reaches a fluid drawn after it. */
 const ORDER: ElementType[] = ['bloom', 'bass', 'pulse', 'wave', 'sparks', 'melody', 'fluid'];
+/** Scars on screen at most (the final pass has four slots). */
+const MAX_SCARS = 4;
 /** Elements that carry their own history: drawn sharp, with only a faint echo in the feedback (see post.ts). */
 const CRISP = new Set<ElementType>(['melody', 'pulse', 'wave']);
 /** Render pixels at most (scene + feedback + bloom); the canvas itself stays at full size. */
@@ -70,6 +73,10 @@ export class Stage {
   private last: { fr: StageFrame } | null = null;
   /** clock.time of the last rendered frame (a number, not the frame: the app may reuse one frame object). */
   private lastTime = -Infinity;
+  /** Cuts on screen, aging on music time. */
+  private scars: Scar[] = [];
+  /** Fire times of the script's cut accents already sliced (cut.ts freshCuts). */
+  private seenCuts = new Set<number>();
 
   constructor(readonly canvas: HTMLCanvasElement, opts: StageOptions = {}) {
     const gl = canvas.getContext('webgl2', {
@@ -94,6 +101,7 @@ export class Stage {
       ink: [],
       fluidLevel: opts.fluidLevel,
       layers: [],
+      cuts: [],
     };
     canvas.addEventListener('webglcontextlost', this.onLost);
     this.resize();
@@ -153,6 +161,7 @@ export class Stage {
     s.fluid = cast.some((m) => m.spec.type === 'fluid' && m.presence > 0.01);
     s.ink.length = 0;
     s.layers.length = 0;
+    s.cuts.length = 0;
 
     this.post.beginScene();
     const order = cast.slice().sort((a, b) => ORDER.indexOf(a.spec.type) - ORDER.indexOf(b.spec.type));
@@ -165,14 +174,40 @@ export class Stage {
       el.draw(fr, m);
     }
     gl.disable(gl.BLEND);
-    this.post.feedback(fr.directives.look, Math.max(0, fin(fr.musicDt)), fin(fr.gesture.swirl));
+    const musicDt = Math.max(0, fin(fr.musicDt));
+    const cut = this.cut(fr, musicDt);
+    this.post.feedback(fr.directives.look, musicDt, fin(fr.gesture.swirl), time, cut);
     this.finish(fr);
     this.last = { fr };
   }
 
+  /**
+   * Ages the scars, then turns this frame's cut requests (slash elements, the
+   * script's fresh cut accents) into cuts: each leaves a scar, the strongest
+   * slices the history now, on the frame of the attack.
+   */
+  private cut(fr: StageFrame, musicDt: number): Cut | null {
+    if (musicDt > 0) {
+      for (const sc of this.scars) sc.age += musicDt;
+      this.scars = this.scars.filter((sc) => sc.age < SCAR_LIFE);
+    }
+    const asks = [
+      ...this.shared.cuts,
+      ...freshCuts(fr.directives.accents, this.seenCuts, musicDt).map((a) => ({ strength: a.strength, color: a.color, scale: 1 })),
+    ];
+    let slice: Cut | null = null;
+    for (const a of asks) {
+      const c = cutAt(this.shared.rand, fr.directives.look.mirror, this.shared.aspect, fin(a.strength), a.scale ?? 1);
+      this.scars.push({ cut: c, color: a.color, strength: clamp01(fin(a.strength)), age: 0 });
+      if (!slice || c.d > slice.d) slice = c;
+    }
+    if (this.scars.length > MAX_SCARS) this.scars = this.scars.slice(-MAX_SCARS);
+    return slice;
+  }
+
   private finish(fr: StageFrame) {
     this.post.finish(this.width, this.height, {
-      look: fr.directives.look, accents: fr.directives.accents, layers: this.shared.layers,
+      look: fr.directives.look, accents: fr.directives.accents, scars: this.scars, layers: this.shared.layers,
       dim: fin(fr.clock.dim), time: fin(fr.clock.time),
     });
   }
@@ -195,11 +230,13 @@ export class Stage {
     return px;
   }
 
-  /** Drops every element instance (syncCast recreates the cast) and clears the trails. */
+  /** Drops every element instance (syncCast recreates the cast) and clears the trails and scars. */
   private forget() {
     for (const el of this.live.values()) el.dispose();
     this.live.clear();
     this.post.clearHistory();
+    this.scars = [];
+    this.seenCuts.clear();
   }
 
   private syncCast(cast: CastMember[]) {

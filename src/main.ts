@@ -159,7 +159,7 @@ function chooseScene(c: SceneChoice) {
   else {
     const lib = LIBRARY.find((s) => s.name === c);
     if (!lib) return;
-    overrides.pauseScript({ scene: lib.name, cast: lib.elements.map((e) => ({ spec: normalizeSpec(e), presence: 1 })) });
+    overrides.pauseScript({ scene: lib.name, cast: lib.elements.map((e) => ({ spec: normalizeSpec(e), presence: 1 })), melt: lib.look?.melt });
     toast(lib.name);
   }
   choice = stage ? c : 'classic';

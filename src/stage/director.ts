@@ -241,6 +241,7 @@ export class LiveDirector {
       trails: a.trails + (b.trails - a.trails) * p,
       warp: a.warp + (b.warp - a.warp) * p,
       glow: a.glow + (b.glow - a.glow) * p,
+      melt: a.melt + (b.melt - a.melt) * p,
     };
   }
 

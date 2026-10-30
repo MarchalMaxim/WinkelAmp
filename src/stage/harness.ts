@@ -13,6 +13,7 @@ import { emptyFeatures } from '../audio/features';
 import { ARCHETYPES } from '../character/archetypes';
 import { noteRgb } from '../character/palette';
 import { neutralDescriptors, type ArchetypeId, type Gesture, type Material, type SoundEvent } from '../character/types';
+import { CUT_COLOR } from './cut';
 import { Stage } from './stage';
 import { normalizeSpec } from './script';
 import { type Accent, DEFAULT_LOOK, type ElementSpec, type Look, type MelodyFrame, type StageFrame } from './types';
@@ -252,7 +253,8 @@ export class Song {
     const accents: Accent[] = [];
     for (const a of this.c.accents ?? []) {
       const age = lt - a.at;
-      if (age >= 0 && age < 1.5) accents.push({ kind: a.kind, color: a.color ?? [1, 1, 1], strength: a.strength ?? 1, age });
+      // Fire times count loops: each pass's accent is a new one (a cut slices again).
+      if (age >= 0 && age < 1.5) accents.push({ kind: a.kind, color: a.color ?? (a.kind === 'cut' ? CUT_COLOR : [1, 1, 1]), strength: a.strength ?? 1, age, at: Math.round((t - lt) / LOOP) * LOOP + a.at });
     }
     const weight = WEIGHT[this.c.archetype] ?? 0.5;
     return {

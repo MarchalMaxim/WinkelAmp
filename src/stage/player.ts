@@ -12,6 +12,7 @@
  * that interrupt each other (an exit mid-fade-in, a scene change mid-ramp)
  * continue smoothly instead of jumping.
  */
+import { CUT_COLOR } from './cut';
 import { normalizeSpec } from './script';
 import {
   DEFAULT_LOOK,
@@ -77,8 +78,9 @@ interface LookState {
   trails: Glide;
   warp: Glide;
   glow: Glide;
+  melt: Glide;
 }
-const LOOK_GLIDES = ['trails', 'warp', 'glow'] as const;
+const LOOK_GLIDES = ['trails', 'warp', 'glow', 'melt'] as const;
 
 /** The fold's working state; built fresh by every `at()` call. */
 interface State {
@@ -150,7 +152,7 @@ export class ScriptPlayer {
   at(t: number): StageDirectives {
     const s: State = {
       scene: '',
-      look: { base: { before: DEFAULT_LOOK, after: DEFAULT_LOOK, at: 0 }, trails: steady(DEFAULT_LOOK.trails), warp: steady(DEFAULT_LOOK.warp), glow: steady(DEFAULT_LOOK.glow) },
+      look: { base: { before: DEFAULT_LOOK, after: DEFAULT_LOOK, at: 0 }, trails: steady(DEFAULT_LOOK.trails), warp: steady(DEFAULT_LOOK.warp), glow: steady(DEFAULT_LOOK.glow), melt: steady(DEFAULT_LOOK.melt) },
       stage: new Map(),
     };
     const accents: Accent[] = [];
@@ -160,7 +162,7 @@ export class ScriptPlayer {
       for (const [id, m] of s.stage) if (gone(m, c)) s.stage.delete(id);
       const cue = this.script.timeline[i];
       if ('accent' in cue) {
-        if (t - c < ACCENT_LIFE) accents.push(accent(cue.accent, t - c));
+        if (t - c < ACCENT_LIFE) accents.push(accent(cue.accent, t - c, c));
       } else this.apply(s, cue, c);
     }
 
@@ -180,6 +182,7 @@ export class ScriptPlayer {
       trails: glideAt(s.look.trails, t),
       warp: glideAt(s.look.warp, t),
       glow: glideAt(s.look.glow, t),
+      melt: glideAt(s.look.melt, t),
     };
     return { source: 'scripted', scene: s.scene, look, cast, accents };
   }
@@ -252,6 +255,8 @@ function snap(at: number, grid: number[]): number {
   return best;
 }
 
-function accent(a: AccentCue, age: number): Accent {
-  return { kind: a.kind, color: a.color ? rgb(a.color) : [1, 1, 1], strength: a.strength ?? 1, age };
+function accent(a: AccentCue, age: number, at: number): Accent {
+  // A cut's scar defaults to the casket sketch's pale yellow; the rest flash white.
+  const color = a.color ? rgb(a.color) : a.kind === 'cut' ? CUT_COLOR : [1, 1, 1];
+  return { kind: a.kind, color: [color[0], color[1], color[2]], strength: a.strength ?? 1, age, at };
 }

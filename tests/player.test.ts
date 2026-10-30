@@ -203,13 +203,13 @@ describe('ScriptPlayer', () => {
   it('accent window', () => {
     const p = new ScriptPlayer(script([{ at: 0, scene: 'a' }, { at: 30, accent: { kind: 'shock', color: '#ff8000', strength: 0.5 } }, { at: 40, accent: { kind: 'flash' } }]));
     expect(p.at(29.99).accents).toEqual([]);
-    expect(p.at(30).accents).toEqual([{ kind: 'shock', color: [1, 128 / 255, 0], strength: 0.5, age: 0 }]);
+    expect(p.at(30).accents).toEqual([{ kind: 'shock', color: [1, 128 / 255, 0], strength: 0.5, age: 0, at: 30 }]);
     const a = p.at(31.4).accents;
     expect(a).toHaveLength(1);
     expect(a[0].age).toBeCloseTo(1.4, 9);
     expect(p.at(31.6).accents).toEqual([]);
     // Defaults: white, full strength; `#rgb` shorthand parses too.
-    expect(p.at(40).accents).toEqual([{ kind: 'flash', color: [1, 1, 1], strength: 1, age: 0 }]);
+    expect(p.at(40).accents).toEqual([{ kind: 'flash', color: [1, 1, 1], strength: 1, age: 0, at: 40 }]);
   });
 
   it('ramp', () => {
@@ -244,7 +244,7 @@ describe('ScriptPlayer', () => {
     expect(h.palette).toEqual(['#000', '#111', '#222', '#333']);
     expect(h.mirror).toBe(6);
     // A scene without a look gets the default look, not the previous scene's.
-    expect(p.at(40).look).toEqual({ palette: 'mood', trails: 0.5, warp: 0.2, mirror: 1, glow: 0.6 });
+    expect(p.at(40).look).toEqual({ palette: 'mood', trails: 0.5, warp: 0.2, mirror: 1, glow: 0.6, melt: 0 });
   });
 
   it('snapping', () => {

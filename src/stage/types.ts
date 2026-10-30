@@ -111,6 +111,8 @@ export interface Look {
   mirror: 1 | 2 | 4 | 6 | 8 | 12;
   /** 0..1 */
   glow: number;
+  /** 0..1: the picture slides down in columns, dripping off the screen (0 = still). */
+  melt: number;
 }
 
 /** A named set of elements with a look. */
@@ -119,12 +121,15 @@ export interface SceneDef {
   elements: ElementSpec[];
 }
 
+/** The accents a script can fire: `cut` slices the picture along a line and shoves the halves apart. */
+export type AccentKind = 'flash' | 'shock' | 'swell' | 'cut';
+
 /** One timeline entry: exactly one action at song time `at` (seconds). `snap: false` keeps `at` off the onset/beat grid. */
 export type Cue = { at: number; snap?: boolean } & (
   | { scene: string; transition?: { kind: 'cut' | 'blend'; duration?: number } }
   | { enter: ElementSpec; fade?: number }
   | { exit: string; fade?: number }
-  | { accent: { kind: 'flash' | 'shock' | 'swell'; color?: string; strength?: number } }
+  | { accent: { kind: AccentKind; color?: string; strength?: number } }
   | { ramp: { target: string /* 'look.trails' | '<elementId>.intensity' | '<elementId>.size' */; to: number; duration: number } }
 );
 
@@ -176,12 +181,14 @@ export interface CastMember {
 }
 
 export interface Accent {
-  kind: 'flash' | 'shock' | 'swell';
+  kind: AccentKind;
   /** RGB, 0..1 per channel. */
   color: [number, number, number];
   strength: number;
   /** Seconds since it fired. */
   age: number;
+  /** Song seconds it fired at: who it is (a cut slices once, however long it stays listed). */
+  at: number;
 }
 
 /** What the script player or the live director hands the compositor each frame. */
@@ -247,6 +254,18 @@ export interface StageShared {
   fluidLevel?: number;
   /** Full-screen layers composited after the feedback (the fluid's own finished picture: sRGB values). */
   layers: { tex: WebGLTexture; gain: number }[];
+  /** Cuts asked for this frame (a slash on a chord): the stage slices the picture once, after the elements draw. */
+  cuts: CutRequest[];
+}
+
+/** A cut an element asks the stage for. */
+export interface CutRequest {
+  /** 0..1: how far the halves are shoved apart. */
+  strength: number;
+  /** The scar's color, sRGB 0..1. */
+  color: [number, number, number];
+  /** Multiplies the shove (an element's size). */
+  scale?: number;
 }
 
 export interface StageElement {
@@ -258,4 +277,4 @@ export interface StageElement {
 }
 
 export const DEFAULT_PARAMS: ElementParams = { intensity: 0.7, size: 0.5, region: 'full', color: 'mood', style: '' };
-export const DEFAULT_LOOK: Look = { palette: 'mood', trails: 0.5, warp: 0.2, mirror: 1, glow: 0.6 };
+export const DEFAULT_LOOK: Look = { palette: 'mood', trails: 0.5, warp: 0.2, mirror: 1, glow: 0.6, melt: 0 };
