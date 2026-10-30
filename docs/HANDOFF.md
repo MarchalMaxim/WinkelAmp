@@ -45,9 +45,9 @@ cd ref-audio && git sparse-checkout set --no-cone '/audio/*.ogg' && git checkout
 - All six corpus recordings come up *Scripted · <title>*; after a seek into the prelude's climax the stage
   shows the scene the script names there; the prelude's pp chorale doesn't dim.
 - `waltz.ogg` (not in the corpus) runs Live and changes scene at 19 s and 34 s.
-- Pause: the picture dims to the floor within ~6 s and holds perfectly still. The music clock glides on for
-  about 2.7 s (≈ 1.7 music seconds) before it stops: the silence detector waits that long to tell a pause from
-  a rest.
+- Pause: the music clock stops at once and the picture holds perfectly still, then dims from ~1.5 s to the
+  floor by ~4.5 s (fixed in this build: the clock used to glide on for ~2.7 s while the silence detector made
+  up its mind; a pause is now known, not inferred).
 - Held MIDI keys over a paused song cast the melody thread at the key's pitch (fixed in this build: the paused
   song's last note used to win). A held key whose synth has decayed (or with "Keys make sound" off) counts as
   silence after ~1–3 s, so the picture freezes and dims under a held key.
