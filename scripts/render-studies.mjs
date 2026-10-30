@@ -4,12 +4,14 @@
 //
 //   node scripts/render-studies.mjs [outDir] [--seconds 45] [--only ember,mist] [--live]
 //
+// outDir defaults to <OS temp>/studies-out, outside the repo: rendered audio is never committed.
 // --seconds 0 renders each piece's full length. --live also plays every study
 // for a few seconds in a real AudioContext to check the live scheduler.
 // Needs ffmpeg on PATH for the spectrograms (skipped otherwise).
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
@@ -24,7 +26,7 @@ const opt = (name, def) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : def;
 };
-const OUT = path.resolve(args[0] && !args[0].startsWith('--') ? args[0] : 'studies-out');
+const OUT = path.resolve(args[0] && !args[0].startsWith('--') ? args[0] : path.join(os.tmpdir(), 'studies-out'));
 const SECONDS = Number(opt('--seconds', 45));
 const ONLY = opt('--only', '')?.split(',').filter(Boolean) ?? [];
 const LIVE = args.includes('--live');
