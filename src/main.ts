@@ -201,6 +201,8 @@ const changes = new ChangeDetector();
 const EMPTY: StageDirectives = { source: 'live', scene: '', look: STAGE_LOOK, cast: [], accents: [] };
 /** The director's last word: held while paused or silent (it must not run then). */
 let liveDirectives = EMPTY;
+/** What the stage was last handed (for end-to-end checks). */
+let shown = EMPTY;
 /** A structure change the director has not seen yet (it may arrive in a rest). */
 let pendingChange: Change | null = null;
 /** Fraction of the last ~2 s with a voiced melody. */
@@ -753,12 +755,15 @@ function frame(now: number) {
   // Song streams: a study's own score, a corpus recording's data, or live analysis.
   const songTime = followStudy() ?? engine.songTime;
   const fr = feed.frame(songTime, engine.chain.spectrum.magnitudes, f, d);
-  const melody = fr.melody.voiced ? fr.melody : keyMelody() ?? fr.melody;
+  // A paused song stands still on its last note (live tracker or score alike), but that note
+  // isn't sounding: it is no tune, and the keys played over the pause must be the melody.
+  const song = engine.state.playing ? fr.melody : { ...fr.melody, voiced: false, noteOn: false };
+  const melody = song.voiced ? song : keyMelody() ?? song;
   keyDown = false;
   lastMelody = melody;
   const events = feedLive ? character.events(f, d) : fr.events;
   if (keyEvents.length) events.push(...keyEvents.splice(0));
-  const dir = directives(songTime, melody, dt);
+  const dir = (shown = directives(songTime, melody, dt));
 
   if (!classicMode() && stage) {
     engine.pcm.latest(wave);
@@ -819,7 +824,7 @@ requestAnimationFrame(frame);
 Object.assign(window, {
   winkel: {
     engine, renderer, clock, character, overrides, applyLook, getLook: () => look, start, chooseScene,
-    stage: () => stage, mode: () => (classicMode() ? 'classic' : 'stage'), show: () => show?.title ?? null,
+    stage: () => stage, directives: () => shown, melody: () => lastMelody, mode: () => (classicMode() ? 'classic' : 'stage'), show: () => show?.title ?? null,
     note: (n: number, velocity = 0.8) => midiCallbacks.note(n, velocity),
   },
 });
