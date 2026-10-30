@@ -27,3 +27,29 @@ export interface MelodyFrame {
   /** A note started this frame (it was confirmed this frame: live notes are backdated to their start). */
   noteOn: boolean;
 }
+
+/** A stretch of a piece with one character (harmony, register, texture, loudness). Song seconds. */
+export interface Section {
+  start: number;
+  end: number;
+  /** 0..1: how strongly the music changes at `start` (0 for the first section). */
+  novelty: number;
+}
+
+/** The low end coming back hard after a stripped-back moment. */
+export interface Drop {
+  /** Song seconds: where the bass came in. */
+  time: number;
+  /** 0..1: how much louder the bass is than its recent average. */
+  strength: number;
+}
+
+/** One analysis row for structure detection (descriptor values are 0..1, chroma peak-normalised). */
+export interface StructureRow {
+  chroma: ArrayLike<number>;
+  loudness: number;
+  register: number;
+  brightness: number;
+  onsetRate: number;
+  sustain: number;
+}
