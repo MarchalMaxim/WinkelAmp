@@ -385,4 +385,26 @@ describe('one code path, any frame rate, any sample rate', () => {
       expect(Math.abs(a[k] - b[k]), k).toBeLessThan(0.08);
     }
   });
+
+  it('onHop sees every hop in order, with the live features and the melody frame', () => {
+    const pcm = secs(1.5);
+    addTone(pcm, 0, 1.5, midiHz(69), 0.3, steady(1.5));
+    const seen: number[] = [];
+    let chromaA = 0;
+    let frames = 0;
+    const r = analyzeOffline(pcm, SR, {
+      melody: true,
+      onHop: (h, chain, mel) => {
+        seen.push(h);
+        if (h === 60) chromaA = chain.features.chroma[9];
+        if (mel) frames++;
+      },
+    });
+    expect(seen).toEqual(Array.from({ length: r.times.length }, (_, i) => i));
+    expect(chromaA).toBe(1); // A4: pitch class 9 is the peak of the peak-normalised chroma
+    expect(frames).toBe(r.times.length);
+    let none = 0;
+    analyzeOffline(pcm, SR, { onHop: (_, __, mel) => (none += mel ? 1 : 0) });
+    expect(none).toBe(0);
+  });
 });

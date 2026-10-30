@@ -138,6 +138,12 @@ export interface OfflineOptions extends ChainOptions {
   onProgress?: (fraction: number) => void;
   /** Also run the live MelodyTracker and keep every hop's salience (for extractMelody). */
   melody?: boolean;
+  /**
+   * Called after every hop with the chain as it stands (full Features with chroma
+   * and spectrum, descriptor internals) and the tracker's frame (null without
+   * `melody`): per-hop data the result doesn't keep, without a second pass.
+   */
+  onHop?: (hop: number, chain: AnalysisChain, melody: MelodyFrame | null) => void;
 }
 
 export interface OfflineMelody {
@@ -204,13 +210,16 @@ export function analyzeOffline(pcm: Float32Array, sampleRate: number, opts: Offl
     features.push(snapshotFeatures(chain.features));
     descriptors.push({ ...neutralDescriptors(), ...chain.descriptors });
     onsets[h] = chain.descriptorExtractor.debug.onset ? 1 : 0;
+    let frame: MelodyFrame | null = null;
     if (tracker && melody) {
-      melody.frames.push(tracker.update(chain.spectrum.magnitudes, sampleRate, chain.spectrum.fftSize, times[h]));
+      frame = tracker.update(chain.spectrum.magnitudes, sampleRate, chain.spectrum.fftSize, times[h]);
+      melody.frames.push(frame);
       const view = salBuf.subarray(h * SALIENCE_BINS, (h + 1) * SALIENCE_BINS);
       view.set(tracker.salience);
       melody.salience.push(view);
       melody.latency = tracker.latency;
     }
+    opts.onHop?.(h, chain, frame);
     const pct = Math.floor((h / hops) * 20);
     if (opts.onProgress && pct !== lastReport) {
       lastReport = pct;
