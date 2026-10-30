@@ -16,6 +16,7 @@ import { KeySynth } from './control/keysynth';
 import { MidiPanel } from './ui/midi-panel';
 import { MOTIONS } from './mapping';
 import { fifthsPosition } from './visual/color';
+import { MusicClock } from './stage/clock';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const body = document.body;
@@ -28,6 +29,9 @@ let look: Look = loadCurrentLook();
 let saved: SavedLook[] = loadSavedLooks();
 let motion = {} as Motion;
 let recorder: Recorder | null = null;
+/** Music time: scenes move only while there is music (or a key / tap pokes them). */
+const clock = new MusicClock();
+let clockPoke = 0;
 
 // ---------- Look ----------
 
@@ -198,6 +202,7 @@ stage.addEventListener('pointerdown', (e) => {
   stage.setPointerCapture(e.pointerId);
   const p = toCenter(e);
   Object.assign(renderer.pointer, p, { down: true });
+  clockPoke = 1;
   renderer.burst(p.x, p.y, look, engine.extractor.features, motion);
 });
 stage.addEventListener('pointermove', (e) => Object.assign(renderer.pointer, toCenter(e)));
@@ -381,6 +386,7 @@ const midi = new MidiController(MIDI_TARGETS, {
     const x = (fifthsPosition(note % 12) - 0.5) * window.innerWidth * 0.7;
     const y = (0.5 - height) * window.innerHeight * 0.8;
     renderer.burst(x, y, look, engine.extractor.features, motion, note % 12, velocity);
+    clockPoke = Math.max(clockPoke, velocity);
     poke();
   },
   bend(v) {
@@ -422,7 +428,16 @@ function frame(now: number) {
   // Pitch bend leans into the picture.
   motion.zoom += Math.max(0, bend) * 1.5;
   motion.spin += bend * 0.8;
-  renderer.render(f, motion, look, dt);
+  const d = engine.descriptors;
+  clock.advance({
+    level: d.loudness, // absolute-ish: auto-gained f.level reads steady room noise as loud
+    onset: f.onset ? f.onsetStrength : 0,
+    flux: 0.5 * (d.harmonicChange + d.pitchMotion),
+    silence: d.silence,
+    poke: clockPoke,
+  }, dt);
+  clockPoke = 0;
+  renderer.render({ ...f, time: clock.time }, motion, look, dt);
 
   const palette = PALETTES.find((p) => p.id === look.palette) ?? PALETTES[0];
   const noteColor = hsl(soundColor(palette, f.note, 1, 0.8));
@@ -451,4 +466,4 @@ function frame(now: number) {
 requestAnimationFrame(frame);
 
 // Handy for debugging and for the screenshot script.
-Object.assign(window, { winkel: { engine, renderer, applyLook, getLook: () => look, start } });
+Object.assign(window, { winkel: { engine, renderer, clock, applyLook, getLook: () => look, start } });

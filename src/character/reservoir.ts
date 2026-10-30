@@ -286,7 +286,13 @@ export class GestureReservoir {
     for (let i = 0; i < this.phase.length; i++) this.phase[i] = this.rnd() * Math.PI * 2;
   }
 
+  /**
+   * One step of `dt` seconds of MUSIC time (MusicClock): with dt = 0 the whole
+   * reservoir — state, oscillators, noise, whitening, smoothing — holds still, so
+   * the gesture freezes with the music.
+   */
   update(d: Descriptors, f: Features, ctx: GestureContext, dt: number): Gesture {
+    if (dt <= 0) return this.gesture;
     dt = clamp(Number.isFinite(dt) ? dt : 1 / 60, 1e-4, 0.1);
     const pace = clamp(ctx.pace, 0, 1);
     const agit = clamp(ctx.agitation, 0, 1);

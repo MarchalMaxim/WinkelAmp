@@ -576,6 +576,29 @@ describe('reservoir (echo-state network)', () => {
     }
   });
 
+  it('reservoir frozen when musicDt is 0', () => {
+    const e = new CharacterEngine(7);
+    const f = emptyFeatures();
+    f.level = 0.7;
+    f.bass = 0.6;
+    run(e, CASES.fire, 3, 60, f); // moving: musicDt defaults to dt
+    const x0 = e.gesture().x;
+    const y0 = e.gesture().y;
+    expect(Math.abs(x0) + Math.abs(y0)).toBeGreaterThan(0);
+    for (let i = 0; i < 120; i++) {
+      // The music keeps changing; only music time stands still.
+      f.level = 0.3 + 0.6 * ((i * 7) % 10) / 10;
+      f.beat = i % 8 === 0 ? 1 : 0;
+      const ch = e.update(i % 40 < 20 ? CASES.fire : CASES.serene, null, f, 1 / 60, 0);
+      expect(e.gesture().x).toBe(x0);
+      expect(e.gesture().y).toBe(y0);
+      expect(Number.isFinite(ch.axes.energy)).toBe(true);
+    }
+    // …and it moves again once music time runs.
+    e.update(CASES.fire, null, f, 1 / 60, 1 / 60);
+    expect(e.gesture().x !== x0 || e.gesture().y !== y0).toBe(true);
+  });
+
   it('is cheap (< 0.3 ms per frame)', () => {
     const r = new GestureReservoir(1);
     const f = emptyFeatures();

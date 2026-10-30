@@ -5,7 +5,7 @@
  *
  * Usage, once per animation frame, in this order:
  *
- *   const ch = engine.update(descriptors, tags, features, dt);  // tags: null is fine
+ *   const ch = engine.update(descriptors, tags, features, dt, musicDt);  // tags: null is fine
  *   const mat = engine.material();   // what the picture is made of
  *   const g = engine.gesture();      // organic motion
  *   const evs = engine.events(features, descriptors);  // onsets + sustained ticks
@@ -283,8 +283,14 @@ export class CharacterEngine {
     this.computeMaterial();
   }
 
-  update(d: Descriptors, tags: NeuralTags | null, f: Features, dt: number): Character {
+  /**
+   * `dt`: wall seconds since the last update (axes, blend and words smooth on it).
+   * `musicDt`: music-time seconds (MusicClock.advance) — the gesture reservoir moves
+   * only on music time, so silence freezes the motion. Defaults to `dt`.
+   */
+  update(d: Descriptors, tags: NeuralTags | null, f: Features, dt: number, musicDt = dt): Character {
     dt = clamp(Number.isFinite(dt) ? dt : 1 / 60, 1e-4, 0.25);
+    musicDt = Number.isFinite(musicDt) ? clamp(musicDt, 0, 0.25) : dt;
     this.lastDt = dt;
     const presenceTarget = 1 - val(d.silence);
     this.presence += alpha(dt, presenceTarget > this.presence ? 0.5 : 1.2) * (presenceTarget - this.presence);
@@ -359,7 +365,7 @@ export class CharacterEngine {
     const pa = alpha(dt, PALETTE_TAU);
     for (const id of ARCHETYPE_IDS) this.palWeights[id] += pa * (this.weights[id] ** PALETTE_GAMMA / (pSum || 1) - this.palWeights[id]);
     this.computeMaterial(val(d.noisiness));
-    this.reservoir.update(d, f, this.axes, dt);
+    this.reservoir.update(d, f, this.axes, musicDt);
     this.trackFlux(f);
 
     return {
