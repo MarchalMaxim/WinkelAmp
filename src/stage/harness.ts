@@ -56,6 +56,11 @@ const el = (type: ElementSpec['type'], style = '', params: ElementSpec['params']
 
 export const CASES: Record<string, Case> = {
   'melody-ribbon': { archetype: 'gold', cast: [el('melody', 'ribbon')] },
+  // The thread under each kind of mirror: its head must stay on screen.
+  'melody-m2': { archetype: 'gold', look: { mirror: 2 }, cast: [el('melody', 'ribbon')] },
+  'melody-m4': { archetype: 'gold', look: { mirror: 4 }, cast: [el('melody', 'ribbon')] },
+  'melody-m6': { archetype: 'sugar', look: { mirror: 6 }, cast: [el('melody', 'beads')] },
+  'melody-m12': { archetype: 'gold', look: { mirror: 12 }, cast: [el('melody', 'ribbon')] },
   'melody-beads': { archetype: 'gold', cast: [el('melody', 'beads')] },
   'melody-ink': { archetype: 'lament', cast: [el('melody', 'ink')] },
   'melody-notes': { archetype: 'storm', cast: [el('melody', 'ribbon', { color: 'note' })] },
@@ -338,6 +343,22 @@ requestAnimationFrame(loop);
       if (m > max) max = m;
     }
     return { changed: changed / (now.length / 4), max };
+  },
+  /** The brightest luma (0..255) on screen within `r` (screen heights) of stage point (x, y): is the picture lit there? */
+  lumaAt(x: number, y: number, r = 0.012) {
+    const px = stage.pixels();
+    const [w, h] = stage.info().canvas;
+    const cx = x * (w - 1);
+    const cy = y * (h - 1);
+    const R = Math.max(1, Math.round(r * h));
+    let best = 0;
+    for (let j = Math.max(0, Math.round(cy - R)); j <= Math.min(h - 1, Math.round(cy + R)); j++) {
+      for (let i = Math.max(0, Math.round(cx - R)); i <= Math.min(w - 1, Math.round(cx + R)); i++) {
+        const k = (j * w + i) * 4;
+        best = Math.max(best, px[k] * 0.2126 + px[k + 1] * 0.7152 + px[k + 2] * 0.0722);
+      }
+    }
+    return best;
   },
   /**
    * For `cols` columns across the picture: the height (0 bottom … 1 top) of the

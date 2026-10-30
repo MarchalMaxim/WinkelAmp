@@ -51,7 +51,9 @@ cd ref-audio && git sparse-checkout set --no-cone '/audio/*.ogg' && git checkout
 - Held MIDI keys over a paused song cast the melody thread at the key's pitch (fixed in this build: the paused
   song's last note used to win). A held key whose synth has decayed (or with "Keys make sound" off) counts as
   silence after ~1–3 s, so the picture freezes and dims under a held key.
-- Under a mirror-6 scene a low key's melody is cropped away (see COMPOSING.md, *Known behaviours*).
+- Under a mirror the melody lays itself out inside the part the mirror keeps (head on the centre line under 2
+  and 4, a ring round the centre under 6 and up), so its current note stays on screen at any pitch (see
+  COMPOSING.md, *Known behaviours*).
 
 ## Open items (from the build ledger, none blocking)
 

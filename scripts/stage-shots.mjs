@@ -11,7 +11,9 @@
 // 8/255 in any channel. Noisy silence: the same, but the feed keeps sending noise
 // events, onsets, beat hits and a noise waveform; no pixel may change. Track change:
 // song time restarts at 0 on the same stage; the picture must match a fresh stage's.
-// --no-silence skips all three. Exits non-zero when any check fails.
+// --no-silence skips all three. Melody under a mirror: for melody-ribbon and melody-m2,
+// -m4, -m6, -m12, the screen is lit where the thread's layout puts its head (the note
+// sounding now). Exits non-zero when any check fails.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -91,6 +93,24 @@ try {
       if (!ok) failed = true;
     }
     console.log('shot', c);
+  }
+
+  // The melody's head under each mirror: on screen, where the thread's layout puts the note
+  // sounding now (the held E4, 4.55–7 s), the picture must be lit. A mirror shows only part
+  // of the frame, and used to fold the head away (mirror 2 kept x ≤ 0.5, the head was at 0.8).
+  for (const [c, mirror] of [['melody-ribbon', 1], ['melody-m2', 2], ['melody-m4', 4], ['melody-m6', 6], ['melody-m12', 12]]) {
+    if (!only.includes(c)) continue;
+    await page.evaluate((c) => window.harness.set(c), c);
+    await advanceTo(6);
+    const r = await page.evaluate(async (mirror) => {
+      const { melodyLayout, pitchHeight } = await import('/src/stage/elements/melody.ts');
+      const [w, h] = window.harness.info().render;
+      const [x, y] = melodyLayout('full', mirror, w / h)(0, pitchHeight(64));
+      return { x, y, lit: window.harness.lumaAt(x, y) };
+    }, mirror);
+    const ok = r.lit > 100;
+    if (!ok) failed = true;
+    console.log(`melody head under mirror ${mirror}: luma ${r.lit.toFixed(0)} at (${r.x.toFixed(3)}, ${r.y.toFixed(3)}) → ${ok ? 'PASS' : 'FAIL'}`);
   }
 
   if (sheet.length > 1) {

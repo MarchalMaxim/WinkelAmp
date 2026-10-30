@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { chordOf, chordRgb } from '../src/stage/elements/bloom';
-import { pitchHeight } from '../src/stage/elements/melody';
+import { melodyLayout, pitchHeight } from '../src/stage/elements/melody';
 import { trigger } from '../src/stage/elements/wave';
 import { ELEMENTS } from '../src/stage/elements';
 import { ease, parseColor, regionRect, styleOf } from '../src/stage/gl';
 import { reconcile } from '../src/stage/stage';
 import { normalizeSpec } from '../src/stage/script';
-import { type CastMember, type ElementType, STYLES } from '../src/stage/types';
+import { type CastMember, type ElementType, type Region, STYLES } from '../src/stage/types';
 
 const member = (id: string, type: ElementType): CastMember => ({ spec: normalizeSpec({ id, type }), presence: 1 });
 
@@ -93,5 +93,67 @@ describe('stage helpers', () => {
     expect(w[i - 1]).toBeLessThan(0);
     expect(w[i]).toBeGreaterThanOrEqual(0);
     expect(trigger(new Float32Array(2048))).toBe(0);
+  });
+});
+
+/** The final pass's mirrorUv (src/stage/post.ts), in JS: the point of the frame that shows at `p`. */
+function fold([x, y]: [number, number], mirror: number, aspect: number): [number, number] {
+  if (mirror === 2) return [0.5 - Math.abs(x - 0.5), y];
+  if (mirror === 4) return [0.5 - Math.abs(x - 0.5), 0.5 - Math.abs(y - 0.5)];
+  if (mirror > 4) {
+    const px = (x - 0.5) * aspect;
+    const py = y - 0.5;
+    const seg = (2 * Math.PI) / mirror;
+    const t = Math.atan2(py, px) + Math.PI / 2;
+    let a = t - seg * Math.floor(t / seg); // GLSL mod
+    a = Math.abs(a - seg * 0.5) + Math.PI / 2 - seg * 0.5;
+    const r = Math.hypot(px, py);
+    return [(r * Math.cos(a)) / aspect + 0.5, r * Math.sin(a) + 0.5];
+  }
+  return [x, y];
+}
+
+describe('melody layout under a mirror', () => {
+  const REGIONS: Region[] = ['full', 'top', 'bottom', 'left', 'right', 'center'];
+  const MIRRORS = [1, 2, 4, 6, 8, 12];
+
+  // A point is on screen where it was drawn exactly when the mirror shows it in place.
+  it('draws the whole thread (head and 4 s of trail) where the mirror shows it', () => {
+    for (const mirror of MIRRORS) {
+      for (const region of REGIONS) {
+        for (const aspect of [16 / 9, 4 / 3, 1, 9 / 16]) {
+          const place = melodyLayout(region, mirror, aspect);
+          for (let age = 0; age <= 4; age += 0.25) {
+            for (let h = 0; h <= 1; h += 0.125) {
+              const p = place(age, h);
+              const q = fold(p, mirror, aspect);
+              const where = `mirror ${mirror}, ${region}, aspect ${aspect.toFixed(2)}, age ${age}, height ${h}: (${p.map((v) => v.toFixed(3))})`;
+              expect(Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]), where).toBeLessThan(1e-6);
+              expect(Math.min(...p), where).toBeGreaterThanOrEqual(0);
+              expect(Math.max(...p), where).toBeLessThanOrEqual(1);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps the plain layout without a mirror: the head at 0.8 across the region, higher notes higher', () => {
+    const place = melodyLayout('top', 1, 16 / 9);
+    expect(place(0, 0)[0]).toBeCloseTo(0.8);
+    expect(place(4, 0)[0]).toBeCloseTo(0);
+    expect(place(0, 1)[1]).toBeGreaterThan(place(0, 0)[1]);
+    expect(place(0, 0)[1]).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('puts the head on the seam under 2 and 4, and straight above the centre under a kaleidoscope', () => {
+    for (const mirror of [2, 4]) for (const region of REGIONS) expect(melodyLayout(region, mirror, 16 / 9)(0, 0.5)[0]).toBeCloseTo(0.5);
+    for (const mirror of [6, 8, 12]) {
+      const place = melodyLayout('full', mirror, 16 / 9);
+      expect(place(0, 0.5)[0]).toBeCloseTo(0.5);
+      // Higher notes further out.
+      expect(place(0, 1)[1]).toBeGreaterThan(place(0, 0)[1]);
+      expect(place(0, 0)[1]).toBeGreaterThan(0.5);
+    }
   });
 });

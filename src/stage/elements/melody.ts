@@ -7,16 +7,21 @@
  *   ribbon  a smooth glowing band
  *   beads   one glowing bead per note, its size growing with the note's duration
  *   ink     dye poured into the fluid when one is on stage, otherwise dry brush strokes
+ *
+ * Under a mirror the thread lays itself out inside the part of the frame the mirror
+ * keeps (melodyLayout), so the note sounding now is always on screen.
  */
 import { MELODY_RANGE } from '../../audio/melody';
 import type { SoundEvent } from '../../character/types';
 import { Brush, clamp01, ease, elementColor, fin, regionRect, scale, Shape, sizeK, type StrokePoint, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { type CastMember, type Region, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
 
 /** Music seconds of trail. */
 const LIFE = 4;
 /** Head position across the region. */
 const HEAD = 0.8;
+/** Under a kaleidoscope: the ring's radius (in screen heights) for the lowest and the highest pitch. */
+const RING: [number, number] = [0.1, 0.45];
 /** A pitch move larger than this (semitones) between frames is a leap: the stroke breaks. */
 const LEAP = 2.5;
 
@@ -38,6 +43,46 @@ interface Bead {
 
 /** MIDI → 0..1 over MELODY_RANGE. */
 export const pitchHeight = (midi: number) => clamp01((midi - MELODY_RANGE[0]) / (MELODY_RANGE[1] - MELODY_RANGE[0]));
+
+/** Where the thread is drawn: (age in music seconds, 0 = the note sounding now; pitch height 0..1) → stage x, y. */
+export type MelodyPlace = (age: number, height: number) => [number, number];
+
+/** A region's extent on a mirrored axis, fitted into the kept [0, 0.5]: its part there, or (too little there) all of it squeezed in. */
+const fit = (lo: number, hi: number): [number, number] =>
+  Math.min(hi, 0.5) - lo >= 0.25 ? [lo, Math.min(hi, 0.5)] : [lo / 2, hi / 2];
+
+/**
+ * The thread's layout. The post pass's mirror shows only part of the frame, reflected
+ * (2: the left half, 4: the bottom-left quarter, 6 and up: a wedge above the centre), so
+ * the thread is laid out inside that part, or the note sounding now is never on screen:
+ *   1     the region, the head at HEAD across it, the past scrolling left;
+ *   2, 4  the region fitted into the kept half / quarter, the head on the vertical seam:
+ *         one head on the centre line, the past flowing out both ways (under 4 the
+ *         highest notes meet in the middle);
+ *   6+    round the centre, whatever the region: pitch is the radius, and time runs round
+ *         the wedge from its upright edge, so the reflections close the thread into a ring
+ *         with a head on each of `mirror` spokes, one straight above the centre.
+ */
+export function melodyLayout(region: Region, mirror: number, aspect: number): MelodyPlace {
+  if (mirror > 4) {
+    /** The kept wedge: half of one 2π / mirror segment. */
+    const sweep = Math.PI / mirror;
+    return (age, h) => {
+      const a = Math.PI / 2 - (age / LIFE) * sweep;
+      const r = RING[0] + (RING[1] - RING[0]) * h;
+      return [0.5 + (r * Math.cos(a)) / aspect, 0.5 + r * Math.sin(a)];
+    };
+  }
+  let [x0, y0, x1, y1] = regionRect(region);
+  let head = HEAD;
+  if (mirror === 2 || mirror === 4) {
+    [x0, x1] = fit(x0, x1);
+    head = 1;
+  }
+  if (mirror === 4) [y0, y1] = fit(y0, y1);
+  const hx = x0 + (x1 - x0) * head;
+  return (age, h) => [hx - (age / LIFE) * (hx - x0), y0 + (y1 - y0) * (0.06 + 0.88 * h)];
+}
 
 export class Melody implements StageElement {
   readonly type = 'melody' as const;
@@ -92,24 +137,25 @@ export class Melody implements StageElement {
     const style = styleOf(prm.style, STYLES.melody);
     const gain = member.presence * prm.intensity;
     if (gain < 0.002) return;
-    const [x0, y0, x1, y1] = regionRect(prm.region);
-    const headX = x0 + (x1 - x0) * HEAD;
     const now = fr.clock.time;
+    // The mirror the post pass applies this frame (pins included), so the head is never folded away.
+    const place = melodyLayout(prm.region, fr.directives.look.mirror, s.aspect);
+    /** Where a point of the tune, drawn at music time t with pitch p, is now. */
+    const at = (t: number, p: number) => place(now - t, pitchHeight(p));
     const k = sizeK(prm.size);
-    const xAt = (t: number) => headX - ((now - t) / LIFE) * (headX - x0);
-    const yAt = (p: number) => y0 + (y1 - y0) * (0.06 + 0.88 * pitchHeight(p));
     const fade = (t: number) => Math.pow(clamp01(1 - (now - t) / LIFE), 1.3);
     const colorAt = (p: number, bright: number) => scale(vivid(elementColor(prm.color, s, 0.55 + 0.45 * pitchHeight(p), p)), bright);
 
     if (style === 'beads') {
       // A faint thread through the notes keeps the contour readable between beads.
-      this.thread(xAt, yAt, fade, colorAt, gain * 0.35, 0.0018 * k);
+      this.thread(at, fade, colorAt, gain * 0.35, 0.0018 * k);
       for (const b of this.beads) {
         const dur = Math.max(0, b.t1 - b.t0);
         const r = (0.012 + 0.032 * Math.sqrt(Math.min(2.5, dur))) * k * (0.6 + 0.4 * s.react) * (0.7 + 0.5 * b.s);
         const a = fade(b.t1) * gain * (0.6 + 0.8 * b.s);
-        s.sprites.add(xAt(b.t0), yAt(b.p), r, r, 0, colorAt(b.p, a * 1.6), Shape.Bead);
-        s.sprites.add(xAt(b.t0), yAt(b.p), r * 2.4, r * 2.4, 0, colorAt(b.p, a * 0.25), Shape.Glow);
+        const [x, y] = at(b.t0, b.p);
+        s.sprites.add(x, y, r, r, 0, colorAt(b.p, a * 1.6), Shape.Bead);
+        s.sprites.add(x, y, r * 2.4, r * 2.4, 0, colorAt(b.p, a * 0.25), Shape.Glow);
       }
       s.sprites.flush();
       return;
@@ -119,17 +165,17 @@ export class Melody implements StageElement {
       // Ink feeds the fluid at the head (SoundEvent: pan/height in the fluid's emitter space).
       const mel = fr.melody;
       if (mel.voiced && Number.isFinite(mel.pitch)) {
-        const y = yAt(mel.pitch);
+        const [x, y] = at(now, mel.pitch);
         const c = colorAt(mel.pitch, 1);
         const ev: SoundEvent = {
-          height: clamp01((y - 0.07) / 0.84), pan: Math.max(-1, Math.min(1, (headX - 0.5) / 0.38)),
+          height: clamp01((y - 0.07) / 0.84), pan: Math.max(-1, Math.min(1, (x - 0.5) / 0.38)),
           strength: clamp01(fin(mel.salience) * gain * 1.3), note: ((Math.round(mel.pitch) % 12) + 12) % 12,
           color: c, onset: mel.noteOn,
         };
         s.ink.push(ev);
       }
       // A thin bright line still shows exactly where the tune is.
-      this.thread(xAt, yAt, fade, colorAt, gain * 0.5, 0.0015 * k);
+      this.thread(at, fade, colorAt, gain * 0.5, 0.0015 * k);
       return;
     }
 
@@ -149,7 +195,8 @@ export class Melody implements StageElement {
         ? (0.006 + 0.03 * p.s) * k * (0.4 + 0.6 * f) * (0.6 + 0.4 * s.react)
         : (0.003 + 0.016 * p.s * prm.intensity) * k * (0.35 + 0.65 * f) * (0.6 + 0.4 * s.react);
       const bright = gain * f * (ink ? 1.4 : 0.9 + 2 * p.s);
-      run.push({ x: xAt(p.t), y: yAt(p.p), w, c: colorAt(p.p, bright), core: ink ? 0 : 1.2 });
+      const [x, y] = at(p.t, p.p);
+      run.push({ x, y, w, c: colorAt(p.p, bright), core: ink ? 0 : 1.2 });
     }
     flushRun();
     s.strokes.flush(ink ? Brush.Ink : Brush.Glow);
@@ -157,14 +204,15 @@ export class Melody implements StageElement {
     const last = this.pts[this.pts.length - 1];
     if (!ink && last && Number.isFinite(last.p)) {
       const r = (0.01 + 0.03 * last.s) * k;
-      s.sprites.add(xAt(last.t), yAt(last.p), r, r, 0, colorAt(last.p, gain * (0.8 + 1.5 * last.s)), Shape.Glow, 0.3);
+      const [x, y] = at(last.t, last.p);
+      s.sprites.add(x, y, r, r, 0, colorAt(last.p, gain * (0.8 + 1.5 * last.s)), Shape.Glow, 0.3);
       s.sprites.flush();
     }
   }
 
   /** A thin line through the recent contour. */
   private thread(
-    xAt: (t: number) => number, yAt: (p: number) => number, fade: (t: number) => number,
+    at: (t: number, p: number) => [number, number], fade: (t: number) => number,
     colorAt: (p: number, b: number) => [number, number, number], gain: number, w: number,
   ) {
     let run: StrokePoint[] = [];
@@ -174,7 +222,8 @@ export class Melody implements StageElement {
         run = [];
         continue;
       }
-      run.push({ x: xAt(p.t), y: yAt(p.p), w, c: colorAt(p.p, gain * fade(p.t)), core: 1 });
+      const [x, y] = at(p.t, p.p);
+      run.push({ x, y, w, c: colorAt(p.p, gain * fade(p.t)), core: 1 });
     }
     if (run.length >= 2) this.shared.strokes.add(run);
     this.shared.strokes.flush();

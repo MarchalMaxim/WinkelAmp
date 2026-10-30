@@ -68,7 +68,7 @@ Every element follows one stream of the music. Up to four on stage at once.
 
 | Element | Follows | Styles (first = default) | Use it for |
 |---|---|---|---|
-| `melody` | the predominant melody: pitch, note on/off, duration (precomputed for a scripted song, so it is exact and on time) | `ribbon` a smooth glowing band · `beads` one bead per note, bigger for longer notes · `ink` dye poured into a fluid when one is on stage, else dry brush strokes | whenever a clear tune is present. Higher notes sit higher; the last ~4 s of the phrase stay visible |
+| `melody` | the predominant melody: pitch, note on/off, duration (precomputed for a scripted song, so it is exact and on time) | `ribbon` a smooth glowing band · `beads` one bead per note, bigger for longer notes · `ink` dye poured into a fluid when one is on stage, else dry brush strokes | whenever a clear tune is present. Higher notes sit higher (further out under a kaleidoscope mirror); the last ~4 s of the phrase stay visible |
 | `bass` | the bass level and the music's weight | `orbs` three soft bodies that swell with the bass · `tides` swells rolling along the bottom | heavy, low, dark music; a bass line that matters |
 | `sparks` | onsets and high notes (bursts where they sound) | `stars` twinkling points (star-shaped when the material is angular) · `dust` many tiny slow motes · `embers` warm streaks that rise | quick high notes, staccato, pizzicato, sparkle; `dust` for quiet texture |
 | `bloom` | the harmony: chord root on the circle of fifths → hue, minor cooler and paler, cross-fades on chord changes | `fields` large soft clouds · `aurora` curtains hanging from the top | harmony-led, sustained, lush passages; a colour bed |
@@ -155,8 +155,13 @@ clear. Copy, then make them yours.
 - `fluid` plus `bloom` both at high intensity wash the top centre to white: keep one of them ≤ 0.5.
 - With `color: "note"` or palette `"notes"`, `bass`, `pulse` and `wave` still tint by the live note.
 - `mirror` keeps one part of the frame and reflects it: `2` the left half, `4` the bottom-left quarter, `6` and up
-  a wedge at the top centre. Whatever sits outside that part vanishes: a high melody is lost under mirror 4, a
-  low one under mirror 6 or more. Check the region of each element against the mirror in the preview.
+  a wedge at the top centre. The `melody` lays itself out inside that part, so the note sounding now is always
+  on screen: under `2` and `4` its region is fitted into the kept half or quarter and its head sits on the
+  vertical centre line, the past flowing out both ways (under `4` the highest notes meet in the middle); under
+  `6` and up it circles the centre whatever its region, pitch as the radius (higher further out), time running
+  round, with a head on each of `mirror` spokes, one straight up. Every other element keeps its region, and
+  whatever of it sits outside the kept part vanishes (a `top` element under `4`, a `right` one under `2`).
+  Check the regions against the mirror in the preview.
 - A bloom with `color: "mood"` tints the palette about 85 % toward the hue of the chord sounding, so it follows
   the harmony more than the palette. For a bloom in the scene's own colours, give it a fixed colour.
 - The `fluid`'s colours follow the character's material as well as the palette: a fixed palette tames it but
