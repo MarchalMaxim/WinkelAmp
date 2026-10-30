@@ -27,7 +27,8 @@ export class Swarm implements Scene {
   draw(fr: Frame) {
     const { ctx, f, m, r, w, h, t, pointer } = fr;
     if (!this.seeded) this.seed(w, h);
-    const k = Math.min(2, fr.dt * 60);
+    // Frames' worth of music time: 0 in silence, so the swarm holds still (a tap pokes the clock).
+    const k = Math.min(2, fr.musicDt * 60);
     const speed = (0.08 + m.speed * 0.5) * k;
     const kick = f.onset ? (0.6 + f.onsetStrength * 2.5) * (0.4 + m.size) : 0;
     const scale = 2.6 / r;

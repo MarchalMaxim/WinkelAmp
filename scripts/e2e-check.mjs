@@ -15,6 +15,7 @@
 //    prelude played again and left to decode is recognised;
 //  - waltz.ogg runs Live, and the director changes scene at least once within 60 s;
 //  - pause: the music clock stops, the picture freezes and dims; play brings it back;
+//  - Classic (the no-WebGL2 fallback): each of its four scenes holds still on pause;
 //  - played MIDI keys (winkel.note) cast the melody element and its head follows the key;
 //  - the browser fingerprint of a 12-minute track takes < 3 s;
 //  - no console errors or page exceptions.
@@ -295,6 +296,45 @@ try {
     await sleep(2500);
     const back = await w(() => window.winkel.clock.dim);
     check(back > 0.9, `play brings the picture back (dim ${back.toFixed(2)})`);
+
+    // ---- Classic (the fallback without WebGL2): every scene holds still on pause ----
+    // Read from the canvas itself (the CSS dim doesn't count). Held means exactly the last frame
+    // before the pause: not moving on, and not collapsing its trails into a brighter still.
+    const classicFrame = () => w(() => {
+      const c = document.getElementById('stage');
+      window.e2eClassic = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    });
+    /** Mean change (0..255 per channel) since the last classicFrame(). */
+    const classicChange = () => w(() => {
+      const a = window.e2eClassic;
+      const c = document.getElementById('stage');
+      const b = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let d = 0;
+      for (let i = 0; i < a.length; i += 4) d += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+      return d / (a.length * 0.75);
+    });
+    await w(() => window.winkel.chooseScene('classic'));
+    for (const scene of ['bloom', 'swarm', 'ribbons', 'pulse']) {
+      await w((scene) => window.winkel.applyLook({ ...window.winkel.getLook(), scene }), scene);
+      await w(() => window.winkel.engine.seek(12 / window.winkel.engine.state.duration));
+      await sleep(2500);
+      await classicFrame();
+      await sleep(400);
+      const moving = await classicChange();
+      // Read the frame and pause in one task: no frame is drawn in between.
+      await w(() => {
+        const c = document.getElementById('stage');
+        window.e2eClassic = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        return window.winkel.engine.togglePlay();
+      });
+      await sleep(2500);
+      const held = await classicChange();
+      await still(`classic-${scene}-paused`);
+      check(held < 0.05 && moving > 4 * held,
+        `Classic ${scene} holds its last frame on pause (mean change: ${moving.toFixed(2)} over 0.4 s playing, ${held.toFixed(3)} over 2.5 s paused)`);
+      await playPause();
+    }
+    await w(() => window.winkel.chooseScene('auto'));
   }
 
   // ---- A long unscripted file: Live; the fingerprint of 12 minutes takes < 3 s ----

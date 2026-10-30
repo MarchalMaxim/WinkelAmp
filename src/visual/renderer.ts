@@ -4,8 +4,12 @@
  *   2. scene     – drawn into an offscreen layer, plus the user's ink
  *   3. mirror    – the layer's first wedge copied around the circle (kaleidoscope)
  *   4. composite – added onto the screen like light, with a cheap bloom glow
+ *
+ * Everything moves on music time (MusicClock), as on the stage: in silence the last
+ * picture holds exactly (scene, trails, tunnel drift, jolts); only the trails' fade
+ * while music plays and the user's ink run on the wall clock.
  */
-import type { Features } from '../audio/features';
+import { emptyFeatures, type Features } from '../audio/features';
 import type { Motion } from '../mapping';
 import type { Look } from '../settings';
 import { hsl, PALETTES, soundColor, type Hsl } from './color';
@@ -53,6 +57,11 @@ export class Renderer {
   private shakeY = 0;
   private drift = 0;
 
+  /** The sound of the last frame with music time: what the scene draws while the clock stands still. */
+  private held: { f: Features; m: Motion } | null = null;
+  /** The look (and zoom) the canvas was last drawn with; '' = not drawn since a clear. */
+  private drawnFor = '';
+
   /** Mouse-wheel zoom. */
   userZoom = 1;
   /** Horizontal shift of the visual's center (CSS px), e.g. to make room for a panel. */
@@ -81,8 +90,17 @@ export class Renderer {
     this.glowA[0].height = Math.ceil(H / 4);
     this.glowB[0].width = Math.ceil(W / 12);
     this.glowB[0].height = Math.ceil(H / 12);
+    this.clear();
+  }
+
+  /** A black canvas (after a resize, or when Classic is shown again): the next frame draws, music or not. */
+  clear() {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.globalAlpha = 1;
+    this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, W, H);
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawnFor = '';
   }
 
   /** Converts a screen point (relative to center) into the layer's first mirror wedge. */
@@ -167,7 +185,44 @@ export class Renderer {
     this.ink = this.ink.filter((p) => p.life > 0);
   }
 
-  render(f: Features, m: Motion, look: Look, dt: number) {
+  /**
+   * The sound a scene draws from: this frame's while music time runs, else the last
+   * music frame's (no onset): room noise, or the auto-gained spectrum of a quiet room,
+   * must not move or recolor a frozen picture.
+   */
+  private sound(f: Features, m: Motion, musicDt: number) {
+    if (musicDt > 0 || !this.held) {
+      const h = (this.held ??= { f: emptyFeatures(), m: { ...m } });
+      // Own copies of the arrays: the analysis chain rewrites its own in place.
+      const copy = (to: Float32Array, from: Float32Array) => {
+        const out = to.length === from.length ? to : new Float32Array(from.length);
+        out.set(from);
+        return out;
+      };
+      const { chroma, spectrum, waveform } = h.f;
+      Object.assign(h.f, f, {
+        onset: false, chroma: copy(chroma, f.chroma), spectrum: copy(spectrum, f.spectrum), waveform: copy(waveform, f.waveform),
+      });
+      Object.assign(h.m, m);
+    }
+    return musicDt > 0 ? { f, m } : this.held!;
+  }
+
+  /**
+   * Draws a frame. Every motion runs on `musicDt` (music seconds; 0 in silence, so the
+   * picture holds still); wall `dt` only fades the trails, eases the offset and moves
+   * what the user paints.
+   */
+  render(live: Features, liveMotion: Motion, look: Look, dt: number, musicDt: number) {
+    // In silence the last picture holds exactly, unless something the user did (ink, another
+    // look, the drawer's offset, a resize) needs a frame; that frame skips the feedback, since
+    // a still scene redrawn over its own trails only builds up toward white.
+    const still = musicDt <= 0;
+    const drawFor = `${look.scene}|${look.palette}|${look.mirror}|${look.trails}|${look.drift}|${this.userZoom}`;
+    const settled = Math.abs(this.offsetTarget - this.offsetX) < 0.5;
+    if (still && drawFor === this.drawnFor && !this.ink.length && !this.pointer.down && settled) return;
+    this.drawnFor = drawFor;
+    const { f, m } = this.sound(live, liveMotion, musicDt);
     const { ctx, dpr, w, h } = this;
     const W = this.canvas.width;
     const H = this.canvas.height;
@@ -176,6 +231,8 @@ export class Renderer {
     this.offsetX += (this.offsetTarget - this.offsetX) * Math.min(1, dt * 4);
     const cx = W / 2 + this.offsetX * dpr;
     const cy = H / 2;
+    /** Frames' worth (at 60 fps) of music time. */
+    const mk = Math.min(3, musicDt * 60);
 
     // 1. Feedback.
     const [, fbCtx] = this.fb;
@@ -187,11 +244,12 @@ export class Renderer {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     const keep60 = 0.3 + look.trails * 0.66;
-    const keep = Math.pow(keep60, Math.min(3, dt * 60));
-    this.drift += dt * (look.drift * 0.15 + m.spin * 0.05) * (look.drift > 0.02 ? 1 : 0);
-    const zoom = 1 + look.drift * (0.008 + m.zoom * 0.03);
+    const keep = still ? 0 : Math.pow(keep60, Math.min(3, dt * 60));
+    this.drift += musicDt * (look.drift * 0.15 + m.spin * 0.05) * (look.drift > 0.02 ? 1 : 0);
+    // The tunnel's zoom and turn per frame of music: none while the clock stands still.
+    const zoom = Math.pow(1 + look.drift * (0.008 + m.zoom * 0.03), mk);
     ctx.translate(cx, cy);
-    ctx.rotate(Math.sin(this.drift) * 0.012 * look.drift);
+    ctx.rotate(Math.sin(this.drift) * 0.012 * look.drift * mk);
     ctx.scale(zoom, zoom);
     ctx.translate(-cx, -cy);
     ctx.globalAlpha = keep;
@@ -208,7 +266,7 @@ export class Renderer {
     lctx.setTransform(dpr * this.userZoom, 0, 0, dpr * this.userZoom, W / 2, H / 2);
     const pointerLayer = this.fold(this.pointer.x, this.pointer.y, look.mirror);
     const fr: Frame = {
-      ctx: lctx, w: w / this.userZoom, h: h / this.userZoom, r, f, m, palette, dt, t: f.time,
+      ctx: lctx, w: w / this.userZoom, h: h / this.userZoom, r, f, m, palette, dt, musicDt, t: f.time,
       pointer: { ...pointerLayer, down: this.pointer.down },
     };
     const scene = this.scenes[look.scene] ?? this.scenes.bloom;
@@ -254,8 +312,10 @@ export class Renderer {
       this.shakeX = (Math.random() - 0.5) * shake;
       this.shakeY = (Math.random() - 0.5) * shake;
     }
-    this.shakeX *= 0.8;
-    this.shakeY *= 0.8;
+    // An onset jolt settles in music time (held, not moving, while the clock stands still).
+    const settle = Math.pow(0.8, mk);
+    this.shakeX *= settle;
+    this.shakeY *= settle;
     // Exposure: the more light the feedback loop keeps (long trails, tunnel drift),
     // the less each frame adds, so colors build up instead of blowing out to white.
     const exposure = Math.min(1, 0.45 + 1.6 * (1 - keep60) - look.drift * 0.15);

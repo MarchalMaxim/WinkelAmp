@@ -739,6 +739,8 @@ function directives(songTime: number, melody: MelodyFrame, dt: number): StageDir
 let lastCharacter = character.update(engine.descriptors, null, engine.extractor.features, 1 / 60, 0);
 let badgeText = '';
 let classicDim = 1;
+/** Classic was the picture last frame (shown again, it starts from a clean canvas). */
+let classicShown = false;
 let last = performance.now();
 let hudBpm = '';
 function frame(now: number) {
@@ -789,10 +791,13 @@ function frame(now: number) {
       f, d, character: ch, material: character.material(), gesture: character.gesture(),
       melody, events, beat: fr.beat, chroma: f.chroma, wave, wild: look.wild, pointer, directives: dir,
     });
+    classicShown = false;
   } else {
-    // Classic scenes move on music time; their trails keep fading on wall time (frozen, the
-    // additive feedback would only build up), and the picture dims in silence like the stage.
-    renderer.render({ ...f, time: clock.time }, motion, look, dt);
+    // Classic moves on music time like the stage: in silence it holds its last picture (shown
+    // anew, it draws one still first, not a stale one), and it dims like the stage.
+    if (!classicShown) renderer.clear();
+    classicShown = true;
+    renderer.render({ ...f, time: clock.time }, motion, look, dt, musicDt);
     if (Math.abs(clock.dim - classicDim) > 0.005) classicCanvas.style.opacity = String((classicDim = clock.dim));
   }
   pointerWas.x = pointer.x;

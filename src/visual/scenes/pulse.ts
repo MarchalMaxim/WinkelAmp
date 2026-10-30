@@ -20,18 +20,18 @@ export class Pulse implements Scene {
   private phase = 0;
 
   draw(fr: Frame) {
-    const { ctx, f, m, r, dt } = fr;
-    this.phase += dt * (m.spin * 0.6);
+    const { ctx, f, m, r, musicDt } = fr;
+    this.phase += musicDt * (m.spin * 0.6);
     ctx.globalCompositeOperation = 'lighter';
 
     if (f.onset) {
       this.rings.push({ r: r * 0.08, c: colorNow(fr), width: 2 + f.bass * 14 * (0.4 + m.size), life: 1 });
       if (this.rings.length > 40) this.rings.shift();
     }
-    const grow = r * (0.35 + m.speed * 1.1) * dt;
+    const grow = r * (0.35 + m.speed * 1.1) * musicDt;
     for (const ring of this.rings) {
       ring.r += grow * (0.6 + ring.life);
-      ring.life -= dt * 0.45;
+      ring.life -= musicDt * 0.45;
       if (ring.life <= 0) continue;
       ctx.beginPath();
       ctx.arc(0, 0, ring.r, 0, Math.PI * 2);

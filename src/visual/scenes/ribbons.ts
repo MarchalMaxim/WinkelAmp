@@ -12,9 +12,9 @@ export class Ribbons implements Scene {
   private tilt = 0;
 
   draw(fr: Frame) {
-    const { ctx, f, m, r, w, dt } = fr;
-    this.phase += dt * (0.4 + m.speed * 2.5);
-    this.tilt += dt * (m.spin - 0.15) * 0.25;
+    const { ctx, f, m, r, w, musicDt } = fr;
+    this.phase += musicDt * (0.4 + m.speed * 2.5);
+    this.tilt += musicDt * (m.spin - 0.15) * 0.25;
     const wave = f.waveform;
     const span = Math.hypot(w, fr.h) * 0.6;
     ctx.save();
