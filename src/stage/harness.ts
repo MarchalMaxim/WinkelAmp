@@ -127,11 +127,17 @@ export class Song {
   t = 0;
   wave = new Float32Array(2048);
   private hatSeed = 1;
+  private noiseSeed = 1;
 
   constructor(private c: Case) {}
 
-  /** The next frame: music when `silent` is false, else held silence (musicDt = 0, no events). */
-  frame(silent: boolean): StageFrame {
+  /**
+   * The next frame: music when `silent` is false, else held silence (musicDt = 0, no events).
+   * `noise` makes the silence a noisy room: the clock stays frozen (as MusicClock's does below
+   * its level gate) but the feed still reports onsets, high events, beat hits, a stray voiced
+   * pitch and a noise waveform, with the pulse clarity still high, as smoothed descriptors are.
+   */
+  frame(silent: boolean, noise = false): StageFrame {
     const prev = this.t;
     if (!silent) this.t += DT;
     const t = this.t;
@@ -144,7 +150,22 @@ export class Song {
     let melody: MelodyFrame = { pitch: NaN, voiced: false, salience: 0, note: null, noteOn: false };
     let beat = { phase: (lt / 0.5) % 1, hit: false, strength: 0 };
 
-    if (silent) {
+    if (silent && noise) {
+      const r = () => (this.noiseSeed = (this.noiseSeed * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 2048; i++) this.wave[i] = (r() - 0.5) * 0.04;
+      d.silence = 0.9;
+      d.pulseClarity = 0.8;
+      f.level = 0.02 + 0.03 * r();
+      f.bass = 0.15 * r();
+      f.note = Math.floor(r() * 12);
+      if (r() < 0.4) {
+        f.onset = true;
+        f.onsetStrength = 0.4 + 0.5 * r();
+      }
+      if (r() < 0.4) events.push({ height: 0.6 + 0.35 * r(), pan: r() * 2 - 1, strength: 0.5 + 0.5 * r(), note: f.note, color: noteRgb(f.note), onset: r() < 0.6 });
+      if (r() < 0.3) beat = { phase: 0, hit: true, strength: 0.9 };
+      if (r() < 0.5) melody = { pitch: 60 + 24 * r(), voiced: true, salience: 0.3, note: null, noteOn: r() < 0.3 };
+    } else if (silent) {
       this.wave.fill(0);
       d.silence = 1;
     } else {
@@ -260,8 +281,8 @@ let paused = false;
 let captured: Uint8Array | null = null;
 addEventListener('resize', () => stage.resize());
 
-function step(silent = false) {
-  stage.render(song.frame(silent));
+function step(silent = false, noise = false) {
+  stage.render(song.frame(silent, noise));
 }
 
 function loop() {
@@ -293,6 +314,14 @@ requestAnimationFrame(loop);
   /** `n` frames of held silence: musicDt = 0, no events, a flat waveform. */
   silence(n: number) {
     for (let i = 0; i < n; i++) step(true);
+  },
+  /** `n` frames of a noisy room: musicDt = 0, yet noise events, onsets, beat hits and a noise waveform. */
+  noise(n: number) {
+    for (let i = 0; i < n; i++) step(true, true);
+  },
+  /** A track change on the same stage: song time (so clock.time) restarts at 0, as after MusicClock.reset(). */
+  newTrack() {
+    song = new Song(CASES[name]);
   },
   capture() {
     captured = stage.pixels();

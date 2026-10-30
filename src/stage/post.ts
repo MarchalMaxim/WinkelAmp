@@ -224,6 +224,16 @@ export class StagePost {
     }
   }
 
+  /** Forgets the trails: clears the feedback pair to zero, as a freshly allocated one is. */
+  clearHistory() {
+    const gl = this.gl;
+    gl.clearColor(0, 0, 0, 0);
+    for (const t of [this.fb.read, this.fb.write]) {
+      this.target(t, this.w, this.h);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+  }
+
   /** Binds the trailed (`crisp` = false) or the crisp element target, without clearing. */
   bindScene(crisp: boolean) {
     this.target(crisp ? this.crisp : this.scene, this.w, this.h);

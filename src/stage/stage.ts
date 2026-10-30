@@ -68,6 +68,8 @@ export class Stage {
   private width = 0;
   private height = 0;
   private last: { fr: StageFrame } | null = null;
+  /** clock.time of the last rendered frame (a number, not the frame: the app may reuse one frame object). */
+  private lastTime = -Infinity;
 
   constructor(readonly canvas: HTMLCanvasElement, opts: StageOptions = {}) {
     const gl = canvas.getContext('webgl2', {
@@ -136,6 +138,12 @@ export class Stage {
     if (this.canvas.width !== this.width || this.canvas.height !== this.height) this.width = 0;
     this.resize();
 
+    // Music time went backward: a new track (MusicClock.reset()). Elements stamp their history
+    // with music time and assume it only grows, so start every one afresh and forget the trails.
+    const time = fin(fr.clock.time);
+    if (time < this.lastTime) this.forget();
+    this.lastTime = time;
+
     const cast = fr.directives.cast;
     this.syncCast(cast);
     const s = this.shared;
@@ -185,6 +193,13 @@ export class Stage {
     const px = new Uint8Array(this.width * this.height * 4);
     gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
     return px;
+  }
+
+  /** Drops every element instance (syncCast recreates the cast) and clears the trails. */
+  private forget() {
+    for (const el of this.live.values()) el.dispose();
+    this.live.clear();
+    this.post.clearHistory();
   }
 
   private syncCast(cast: CastMember[]) {

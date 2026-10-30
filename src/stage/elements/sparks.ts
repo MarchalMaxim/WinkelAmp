@@ -71,8 +71,9 @@ export class Sparks implements StageElement {
     };
     const speed = (style === 'embers' ? 0.12 : 0.22) * sizeK(prm.size);
 
-    // Spawning (presence gates it: a fading element stops throwing new sparks).
-    if (member.presence > 0.05) {
+    // Spawning (presence gates it: a fading element stops throwing new sparks). Only while the
+    // music moves: with the clock frozen a spark would never age, so a cough would hang in the air.
+    if (member.presence > 0.05 && fr.musicDt > 0) {
       for (const e of fr.events) {
         if (!(e.height > 0.55)) continue;
         const ex = x0 + w * clamp01(0.5 + fin(e.pan) * 0.42);

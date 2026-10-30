@@ -8,7 +8,10 @@
 // Silence check: after music, 2 s of held silence (musicDt = 0, no events, flat
 // waveform, dim held at 1 — the clock's dimming is tested in tests/clock.test.ts),
 // then two captures 1 s apart; fewer than 1 % of pixels may change by more than
-// 8/255 in any channel. Exits non-zero when it fails.
+// 8/255 in any channel. Noisy silence: the same, but the feed keeps sending noise
+// events, onsets, beat hits and a noise waveform; no pixel may change. Track change:
+// song time restarts at 0 on the same stage; the picture must match a fresh stage's.
+// --no-silence skips all three. Exits non-zero when any check fails.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -116,6 +119,39 @@ try {
       const ok = d.changed < 0.01;
       if (!ok) failed = true;
       console.log(`silence ${c}: ${(d.changed * 100).toFixed(3)} % of pixels changed (largest channel change ${d.max}/255) → ${ok ? 'PASS' : 'FAIL'}`);
+    }
+    // A noisy room: the clock is frozen, but the feed keeps reporting noise events, onsets,
+    // beat hits and a noise waveform. Nothing may change: not one pixel over 8/255.
+    for (const c of ['all', 'sugar', 'abyss', 'wave-line', 'sparks-stars', 'pulse-rings']) {
+      await page.evaluate((c) => window.harness.set(c), c);
+      await advanceTo(4.3);
+      await page.evaluate(() => window.harness.silence(120));
+      await page.evaluate(() => window.harness.capture());
+      await page.evaluate(() => window.harness.noise(60));
+      await shot(`noise-${c}`);
+      const d = await page.evaluate(() => window.harness.diff(8));
+      const ok = d.changed === 0;
+      if (!ok) failed = true;
+      console.log(`noisy silence ${c}: ${(d.changed * 100).toFixed(3)} % of pixels changed (largest channel change ${d.max}/255) → ${ok ? 'PASS' : 'FAIL'}`);
+    }
+  }
+
+  // Track change: clock.time drops back to 0 on the same stage. After 30 silent frames the
+  // picture must match a fresh stage's after the same 30 frames: no stale rings, notes, trails.
+  if (!flag('no-silence')) {
+    for (const c of ['sugar', 'all', 'melody-ribbon', 'pulse-rings', 'abyss']) {
+      await page.evaluate((c) => window.harness.set(c), c);
+      await advanceTo(6);
+      await page.evaluate(() => window.harness.newTrack());
+      await page.evaluate(() => window.harness.silence(30));
+      await page.evaluate(() => window.harness.capture());
+      await shot(`track-${c}`);
+      await page.evaluate((c) => window.harness.set(c), c);
+      await page.evaluate(() => window.harness.silence(30));
+      const d = await page.evaluate(() => window.harness.diff(8));
+      const ok = d.changed === 0;
+      if (!ok) failed = true;
+      console.log(`track change ${c}: ${(d.changed * 100).toFixed(3)} % of pixels differ from a fresh stage (largest channel change ${d.max}/255) → ${ok ? 'PASS' : 'FAIL'}`);
     }
   }
 

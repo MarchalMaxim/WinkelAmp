@@ -25,6 +25,13 @@ export class Wave implements StageElement {
   readonly type = 'wave' as const;
   private shared!: StageShared;
   private peak = 0.2;
+  /**
+   * The waveform and level last seen while the music moved. With the clock frozen the
+   * scope holds this instead of the live feed, so room noise can't make it jitter.
+   * Starts flat: a scope born in silence (or after a track change) is a still line.
+   */
+  private held = new Float32Array(SPAN * 2);
+  private level = 0;
 
   init(_gl: WebGL2RenderingContext, shared: StageShared) {
     this.shared = shared;
@@ -32,7 +39,13 @@ export class Wave implements StageElement {
 
   draw(fr: StageFrame, member: CastMember) {
     const s = this.shared;
-    const w = fr.wave;
+    if (fr.musicDt > 0) {
+      const live = fr.wave;
+      if (live.length !== this.held.length) this.held = new Float32Array(live.length);
+      this.held.set(live);
+      this.level = clamp01(fin(fr.f.level));
+    }
+    const w = this.held;
     let pk = 0;
     for (let i = 0; i < w.length; i++) pk = Math.max(pk, Math.abs(fin(w[i])));
     this.peak = ease(this.peak, pk, fr.musicDt, pk > this.peak ? 0.05 : 0.8);
@@ -44,8 +57,8 @@ export class Wave implements StageElement {
     const norm = 0.9 / Math.max(0.08, this.peak);
     const start = trigger(w);
     const n = Math.min(SPAN, w.length - start);
-    const level = clamp01(fin(fr.f.level));
-    const c = vivid(elementColor(prm.color, s, 0.92, fr.f.note), 0.5);
+    const level = this.level;
+    const c =vivid(elementColor(prm.color, s, 0.92, fr.f.note), 0.5);
     const bright = gain * (0.7 + 0.9 * level);
     const width = (0.0022 + 0.003 * level) * k;
     const sample = (j: number) => {

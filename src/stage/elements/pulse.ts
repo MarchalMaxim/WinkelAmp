@@ -67,7 +67,8 @@ export class Pulse implements StageElement {
     const clear = fin(fr.d.pulseClarity) >= CLARITY;
     this.vis = clear ? ease(this.vis, 1, dm, 0.3) : ease(this.vis, 0, dm, 0.15);
     if (dm > 0) this.env *= Math.exp(-dm * (style === 'flash' ? 7 : 5));
-    if (fr.beat.hit && clear) {
+    // Only while the music moves: with the clock frozen a ring would never expand or fade.
+    if (fr.beat.hit && clear && dm > 0) {
       const st = clamp01(fin(fr.beat.strength) || 1);
       this.env = Math.max(this.env, st);
       this.rings.push({ t: now, s: st });
