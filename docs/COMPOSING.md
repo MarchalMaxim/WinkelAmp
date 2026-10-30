@@ -75,6 +75,8 @@ Every element follows one stream of the music. Up to four on stage at once.
 | `pulse` | the beat (hidden while pulse clarity < 0.3) | `rings` a ring from the region's centre · `grid` a throbbing lattice · `flash` the region lights up | music with a clear, steady beat (dance, march, ragtime). Not for rubato |
 | `wave` | the raw waveform (an oscilloscope) | `line` across the region · `circle` wrapped round its centre | the fine detail of a single voice or a drone; electronic textures |
 | `fluid` | the overall character: the Living Canvas (fluid, sparks, aura), its material set by the mood | `living` | atmosphere, turbulence, a full-screen bed; heavy and stormy music |
+| `slash` | strong attacks (onsets, on the frame they sound): each one cuts the picture (see the `cut` accent). Draws nothing itself | `chords` only loud, chord-like attacks (three or more pitch classes, or bass and treble at once), at most one cut per 120 ms · `every` any onset above a lower threshold | a section where the chords should do the cutting: panic, horror, a climax that tears. `intensity` lowers the threshold (at 0.7 a fff piano climax cuts on about every big chord), `size` scales the shove, `color` the scar (`mood`: a sickly pale yellow) |
+| `drip` | onsets: streaks falling from the top of the region, accelerating | `paint` the palette's mid and highlight · `tar` its shadow, near black | the picture running, dripping off the screen; with `look.melt`. `intensity` → how many, `size` → how wide |
 
 **Element params** (all optional; defaults in brackets):
 
@@ -87,12 +89,16 @@ Every element follows one stream of the music. Up to four on stage at once.
 **The look** (per scene; all optional, defaults in brackets): `palette` [`mood`] (`mood` follows the
 character engine, `notes` colours by pitch class, or four fixed colours shadow → highlight), `trails` 0..1
 [0.5] (how long the feedback lingers), `warp` 0..1 [0.2] (how much the feedback drifts and swirls), `mirror`
-[1] (kaleidoscope: 1, 2, 4, 6, 8 or 12), `glow` 0..1 [0.6]. A scene's look starts from these defaults, not from
-the previous scene.
+[1] (kaleidoscope: 1, 2, 4, 6, 8 or 12), `glow` 0..1 [0.6], `melt` 0..1 [0] (the picture slides down in thin
+columns, each at its own slowly changing speed, dripping off the screen; 0.6 is a steady ooze, 1 a collapse).
+A scene's look starts from these defaults, not from the previous scene.
 
 **Accents** (one moment, ~1.5 s): `flash` (the picture lights up in `color`, decaying fast), `shock` (a ring
 of displacement rushing out from the centre, with a colour split), `swell` (the whole picture breathes up and
-back). `strength` 0..1 [1], `color` [white].
+back), `cut` (the picture is sliced along a straight line at a random angle and the two halves are shoved
+apart along it, ~14–40 px at 720 p by `strength`, so everything already on screen carries a scar; a thin
+bright line flashes on the cut and fades in ~0.9 s; a small jolt). `strength` 0..1 [1], `color` [white; a
+`cut`'s scar: pale yellow].
 
 ## 4. Heuristics
 
@@ -107,6 +113,7 @@ back). `strength` 0..1 [1], `color` [white].
 | Legato / sustain | round, continuous | `melody` `ribbon`, `bloom`, `fluid`, long `trails` |
 | Fast tempo / dense onsets | quick, busy | more sparks, `pulse` if the beat is clear, lower `trails` |
 | Irregular rhythm, dissonance | erratic, agitated, rough | `fluid`, high `warp`, `shock` accents |
+| Violent, hammered chords; panic, disgust | torn, sliced, oozing | `slash`, `drip`, `look.melt`, `cut` accents (the Casket) |
 | Major + fast | happy: light, saturated, warm | gold/white palettes, `bloom` `fields`, `flash` on the beat |
 | Minor + slow | sad: dark, desaturated, blue | grey-blue palettes, `ink`, `dust`, long trails, low `glow` |
 | Noisy / bright timbre | rough texture, sparkle | `sparks` `dust`, `wave` |
@@ -126,6 +133,7 @@ clear. Copy, then make them yours.
 | storm (stormy, driving) | Tempest | `fluid` 0.9, `bass` `tides`, `sparks` `stars`, `melody` `ink` | trails 0.6, warp 0.8, glow 0.6 |
 | machine (mechanical, pulsing) | Circuit | `pulse` `grid`, `wave` `line`, `sparks` `dust`, `bass` `orbs` | trails 0.3, warp 0.1, mirror 4, glow 0.8 |
 | lament (mournful, grey) | Rain | `bloom` `fields` 0.4, `melody` `ribbon`, `sparks` `dust`, `fluid` 0.4 | trails 0.7, warp 0.15, glow 0.4 |
+| storm / fire / abyss blend (panic, disgust) | Casket | `slash` `chords`, `drip` `paint` 0.7, `bass` `orbs` bottom 0.45, `melody` `ink` (no fluid) | trails 0.85, warp 0.1, glow 0.5, melt 0.6 |
 
 ### Pacing and shape
 
@@ -143,6 +151,8 @@ clear. Copy, then make them yours.
 - **Build-ups are ramps**: raise `<id>.intensity`, `look.glow` or `look.trails` over the crescendo, then cut or
   accent on its arrival.
 - **Cut on a real drop or a hard arrival; blend otherwise.** Blends finish within 2 s.
+- **Cuts are the most violent thing on stage**: for panic, horror, a climax that tears; not for a pretty peak.
+  A `slash` for the section where the chords should tear the picture, a single `cut` accent for one blow.
 - **Mirror** is strong seasoning: `2` or `4` for a formal, symmetrical moment, `6`–`12` for toy-like or
   hypnotic music. Changing it changes the whole picture, so do it at a scene change.
 - **Silence is part of the show**: when the music stops the picture freezes and slowly dims. Don't cue into a
@@ -153,6 +163,12 @@ clear. Copy, then make them yours.
 - `melody`, `pulse` and `wave` draw sharp, with only a faint (~30 %) echo in the feedback: `trails` and `warp`
   barely affect them. For a lingering, smeared melody use `ink` with a `fluid`.
 - `fluid` plus `bloom` both at high intensity wash the top centre to white: keep one of them ≤ 0.5.
+- `melt` and cuts act on the feedback, the picture's memory: trailed elements (`bass`, `sparks`, `bloom`,
+  `drip`) and the faint echoes of the sharp ones melt and are sliced; what an element redraws every frame (the
+  `melody`'s current thread, a `bass` orb) shows whole again at once, and the `fluid`, laid over everything
+  after the feedback, neither melts nor cuts and hides both where it is bright. For the casket, use `ink`
+  without a `fluid`, and long `trails` so the scars stay. A cut lands, and its scar shows, in the part of the
+  picture a `mirror` keeps.
 - With `color: "note"` or palette `"notes"`, `bass`, `pulse` and `wave` still tint by the live note.
 - `mirror` keeps one part of the frame and reflects it: `2` the left half, `4` the bottom-left quarter, `6` and up
   a wedge at the top centre. The `melody` lays itself out inside that part, so the note sounding now is always
@@ -205,8 +221,8 @@ and **exactly one** action:
 | scene | `{ "at": 36, "scene": "glitter", "transition": { "kind": "blend", "duration": 2 } }` | `transition` optional: `blend` [default, 1.5 s, at most 2 s] or `cut` (instant). Elements not in the new scene fade out over the blend |
 | enter | `{ "at": 10.7, "enter": { "id": "tune", "type": "melody", "params": { "style": "beads" } }, "fade": 1 }` | `fade` [0.8 s] |
 | exit | `{ "at": 60, "exit": "plucks", "fade": 2 }` | `fade` [1.2 s]; the id must be in some scene or entered earlier |
-| accent | `{ "at": 97.2, "accent": { "kind": "flash", "color": "#fff4d6", "strength": 1 } }` | `flash`, `shock`, `swell`; lasts ~1.5 s |
-| ramp | `{ "at": 70, "ramp": { "target": "harmony.intensity", "to": 0.6, "duration": 20 } }` | targets: `look.trails`, `look.warp`, `look.glow`, `<id>.intensity`, `<id>.size`; `to` 0..1 |
+| accent | `{ "at": 97.2, "accent": { "kind": "flash", "color": "#fff4d6", "strength": 1 } }` | `flash`, `shock`, `swell`, `cut`; lasts ~1.5 s (a `cut` slices once, on its frame) |
+| ramp | `{ "at": 70, "ramp": { "target": "harmony.intensity", "to": 0.6, "duration": 20 } }` | targets: `look.trails`, `look.warp`, `look.glow`, `look.melt`, `<id>.intensity`, `<id>.size`; `to` 0..1 |
 
 **Timing.** In a recording script each cue's time snaps to the nearest detected onset or beat within 120 ms,
 so a hand-written time that is slightly off still lands on the music; `"snap": false` keeps it exactly where
