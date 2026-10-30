@@ -53,7 +53,8 @@ button {
   flex: none;
 }
 
-#stage {
+#stage,
+#stage-gl {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -61,6 +62,12 @@ button {
   display: block;
   cursor: crosshair;
   touch-action: none;
+}
+
+/* One picture at a time. Hidden, not removed: both keep their size, so switching is instant. */
+body:not(.classic) #stage,
+body.classic #stage-gl {
+  visibility: hidden;
 }
 
 /* ---------- Interface fading ---------- */
@@ -76,7 +83,8 @@ body.welcoming .ui {
   pointer-events: none;
 }
 
-body.idle #stage {
+body.idle #stage,
+body.idle #stage-gl {
   cursor: none;
 }
 
@@ -259,6 +267,33 @@ body.hide-ui .transport {
   opacity: 0.15;
 }
 
+.badge {
+  color: var(--text);
+  cursor: default;
+  max-width: min(46vw, 520px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge b {
+  font-weight: 700;
+}
+
+.badge span {
+  color: var(--muted);
+}
+
+/* Paused: the badge is the way back to the show. */
+.badge.paused {
+  cursor: pointer;
+  border-color: var(--accent);
+}
+
+.badge.paused:hover {
+  background: rgba(255, 209, 102, 0.14);
+}
+
 /* ---------- Panel ---------- */
 
 .panel-toggle {
@@ -338,6 +373,47 @@ body.panel-closed .panel {
 .close-panel:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.scene-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.scene-chip {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.scene-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text);
+}
+
+.scene-chip[aria-checked='true'] {
+  border-color: var(--accent);
+  background: rgba(255, 209, 102, 0.14);
+  color: #fff;
+}
+
+.scene-chip:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.panel h3.sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 8px;
 }
 
 .scenes {
@@ -848,6 +924,21 @@ input[type='range']::-moz-range-thumb {
   width: 90px;
 }
 
+/* Calm ↔ Wild: the one feel control outside the drawer. */
+.wild {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wild input {
+  width: 120px;
+}
+
 #record {
   color: var(--accent-2);
 }
@@ -870,6 +961,12 @@ input[type='range']::-moz-range-thumb {
   .src span:last-child,
   .volume {
     display: none;
+  }
+  .wild input {
+    width: 80px;
+  }
+  .badge {
+    max-width: 40vw;
   }
   .panel {
     width: auto;

@@ -8,8 +8,10 @@
     <meta name="description" content="See your music. WinkelAmp turns sound and rhythm into movement and color." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff4d6d'/%3E%3Cstop offset='.5' stop-color='%23ffd166'/%3E%3Cstop offset='1' stop-color='%234cc9f0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='url(%23g)' stroke-width='5'/%3E%3C/svg%3E" />
   </head>
-  <body class="welcoming">
-    <canvas id="stage" aria-label="Music visualization. Click to splash color, drag to paint."></canvas>
+  <body class="welcoming panel-closed">
+    <!-- Two pictures, one shown: the stage (WebGL2) by default, the Classic v1 scenes (Canvas2D) on request or as the fallback. -->
+    <canvas id="stage-gl" aria-label="Music visualization. Drag to paint."></canvas>
+    <canvas id="stage" aria-label="Music visualization (Classic). Click to splash color, drag to paint."></canvas>
 
     <!-- First screen: three ways in. -->
     <section id="welcome" class="welcome">
@@ -19,8 +21,8 @@
         <div class="starts">
           <button class="start" data-start="demo">
             <span class="start-icon" data-icon="spark"></span>
-            <span class="start-title">Play the demo groove</span>
-            <span class="start-sub">Hear-and-see in one click</span>
+            <span class="start-title">Play the demos</span>
+            <span class="start-sub">Four character studies and a groove</span>
           </button>
           <button class="start" data-start="file">
             <span class="start-icon" data-icon="music"></span>
@@ -33,7 +35,7 @@
             <span class="start-sub">Sing, clap, or play from your phone</span>
           </button>
         </div>
-        <p class="welcome-tip">Tip: once it plays, <b>click</b> to splash color and <b>drag</b> to paint with sound.</p>
+        <p class="welcome-tip">Tip: once it plays, <b>drag</b> to paint with sound. Everything else waits in <b>Tweak</b>.</p>
       </div>
     </section>
 
@@ -48,16 +50,22 @@
         <span class="beat-light" id="beat-light"></span>
         <span id="bpm">– BPM</span>
       </div>
+      <!-- Who decides what is on stage: a composed script, or the live director; then the mood in words. -->
+      <button id="mode-badge" class="readout badge" title="Who runs the show, and the mood of the music">
+        <b id="mode-name">Live</b><span id="mode-words"></span>
+      </button>
     </header>
 
-    <button id="panel-toggle" class="panel-toggle ui" aria-expanded="true" aria-controls="panel">
-      <span data-icon="sliders"></span><span>Look</span>
+    <button id="panel-toggle" class="panel-toggle ui" aria-expanded="false" aria-controls="panel">
+      <span data-icon="sliders"></span><span>Tweak</span>
     </button>
 
-    <aside id="panel" class="panel ui" aria-label="Look controls">
+    <aside id="panel" class="panel ui" aria-label="Tweak">
       <section>
-        <h2>Scene <button class="close-panel" id="panel-close" title="Hide this panel" aria-label="Hide this panel"><span data-icon="x"></span></button></h2>
-        <div class="scenes" id="scenes" role="radiogroup" aria-label="Scene"></div>
+        <h2>Scene <button class="close-panel" id="panel-close" title="Hide this drawer" aria-label="Hide this drawer"><span data-icon="x"></span></button></h2>
+        <div class="scene-chips" id="stage-scenes" role="radiogroup" aria-label="Stage scene"></div>
+        <h3 class="sub">Classic</h3>
+        <div class="scenes" id="scenes" role="radiogroup" aria-label="Classic scene"></div>
       </section>
 
       <section>
@@ -66,10 +74,6 @@
       </section>
 
       <section class="sliders">
-        <label class="slider">
-          <span class="slider-ends"><span>Calm</span><b>Mood</b><span>Wild</span></span>
-          <input type="range" id="wild" min="0" max="1" step="0.01" />
-        </label>
         <label class="slider">
           <span class="slider-ends"><span>Crisp</span><b>Trails</b><span>Dreamy</span></span>
           <input type="range" id="trails" min="0" max="1" step="0.01" />
@@ -130,6 +134,11 @@
       </div>
 
       <div class="tools">
+        <label class="wild" title="Calm ↔ Wild: how strongly the picture reacts">
+          <span>Calm</span>
+          <input type="range" id="wild" min="0" max="1" step="0.01" aria-label="Calm to wild" />
+          <span>Wild</span>
+        </label>
         <label class="volume" title="Volume">
           <span data-icon="volume"></span>
           <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" aria-label="Volume" />
@@ -162,7 +171,7 @@
           <h3>With the keyboard</h3>
           <ul>
             <li><kbd>Space</kbd> play / pause</li>
-            <li><kbd>1</kbd>–<kbd>4</kbd> scenes</li>
+            <li><kbd>1</kbd>–<kbd>4</kbd> Classic scenes</li>
             <li><kbd>R</kbd> surprise me</li>
             <li><kbd>M</kbd> next mirror</li>
             <li><kbd>H</kbd> hide the interface</li>
