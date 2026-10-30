@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toolbox round 2</title>
+<style>
+  :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --on: #b43a2a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 18px 16px 32px; }
+  h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
+  p.sub { margin: 0 0 14px; color: var(--dim); }
+  .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 8px; }
+  button { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #5a4b4f; }
+  .time { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 92px; }
+  .track { position: relative; height: 10px; border-radius: 4px; background: #1b171b; cursor: pointer; margin-bottom: 14px; }
+  .head { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .tool { border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; cursor: pointer; background: #110e11; }
+  .tool.on { border-color: var(--on); background: #1d1013; }
+  .tool b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .tool .tag { font-size: 11px; color: var(--on); margin-left: 6px; font-weight: 500; }
+  .tool span { color: var(--dim); font-size: 13px; }
+  .err { color: #ff8a7a; font-size: 12px; }
+  .params { margin-top: 7px; display: grid; gap: 3px; }
+  .prm { display: grid; grid-template-columns: 92px 1fr 84px; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
+  .prm input { width: 100%; accent-color: var(--on); }
+  .prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
+  .rate { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+  .rate button { padding: 2px 8px; font-size: 12px; color: var(--dim); }
+  .rate button.picked { color: var(--fg); border-color: var(--on); background: #2a1418; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Toolbox, round 2: switch tools on and off, and mix them</h1>
+  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that tool. Throwaway sketches, not app code.</p>
+  <div class="stage"><canvas id="c" width="1280" height="720"></canvas></div>
+  <div class="bar">
+    <button id="play">▶ Play</button>
+    <span id="moments" style="display:contents"></span>
+    <span class="time" id="time">0:00</span>
+    <button id="export" title="Copies your ratings and slider settings so you can paste them to Claude">Copy ratings + settings</button>
+    <span id="songs" style="margin-left:auto;display:flex;gap:6px"></span>
+  </div>
+  <div class="track" id="track"><div class="head" id="head"></div></div>
+  <div class="tools" id="tools"></div>
+</main>
+<audio id="a" preload="auto"></audio>
+<script>
+// Songs: ?song=b5 switches. Moments carry the Prelude's mood names, which some tools read (e.g. how many shapes spawn).
+const SONGS = {
+  prelude: { title: 'Rachmaninoff: Prelude in C♯ minor', audio: 'prelude.mp3', notes: 'notes.js', dur: 232.1,
+    moments: [[0, 'dread', 'Dread'], [83, 'agitato', 'Agitato'], [124, 'casket', 'The casket'], [176, 'return', 'Return'], [208, 'agitato']] },
+  b5: { title: 'Beethoven: Symphony No. 5, I', audio: 'beethoven5.mp3', notes: 'notes-b5.js', dur: 424.8,
+    // My guesses from the note density; the hard stops at 1:20 and 2:40 are the motto's fermatas.
+    moments: [[0, 'casket', 'Fate knocks'], [20, 'agitato'], [80, 'casket', 'Repeat'], [100, 'agitato'], [160, 'casket', 'Development'], [180, 'agitato'],
+      [258, 'return', 'Oboe’s lament'], [275, 'agitato', 'Recapitulation'], [340, 'casket', 'Coda']] },
+};
+const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
+const SONG = SONGS[SONG_ID];
+document.getElementById('a').src = SONG.audio;
+document.write(`<script src="${SONG.notes}"><\/script>`);
+</script>
+<script>
+// Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
+window.TOOLS = [];
+</script>
+<script src="tools/squares.js"></script>
+<script src="tools/flee.js"></script>
+<script src="tools/current.js"></script>
+<script src="tools/strings.js"></script>
+<script src="tools/murmuration.js"></script>
+<script src="tools/ripples.js"></script>
+<script src="tools/rorschach.js"></script>
+<script src="tools/kandinsky.js"></script>
+<script src="tools/moire.js"></script>
+<script src="tools/fields.js"></script>
+<script src="tools/marbling.js"></script>
+<script src="tools/brush.js"></script>
+<script src="tools/blocks.js"></script>
+<script src="tools/riley.js"></script>
+<script src="tools/halftone.js"></script>
+<script src="tools/fifths.js"></script>
+<script src="tools/suprematism.js"></script>
+<script src="tools/contours.js"></script>
+<script src="tools/tunnel.js"></script>
+<script src="tools/scribble.js"></script>
+<script src="tools/pointillism.js"></script>
+<script src="tools/casket.js"></script>
+<script>
+const W = 1280, H = 720, DUR = SONG.dur;
+const fmt0 = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+document.getElementById('moments').innerHTML = SONG.moments.filter((m) => m[2]).map(([t, , label]) => `<button data-t="${t}">${label} (${fmt0(t)})</button>`).join('');
+document.getElementById('songs').innerHTML = Object.entries(SONGS).map(([id, s]) => `<button onclick="location.search='?song=${id}'" style="${id === SONG_ID ? 'border-color:var(--on)' : ''}">${s.title}</button>`).join('');
+const c = document.getElementById('c'), g = c.getContext('2d');
+const audio = document.getElementById('a');
+
+// Chords: notes whose onsets fall within 40 ms of each other are one attack.
+const CHORDS = [];
+for (const [s, e, m, v] of NOTES) {
+  const last = CHORDS[CHORDS.length - 1];
+  if (last && s - last.t < 0.04) { last.notes.push({ m, v, d: e - s }); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m); }
+  else CHORDS.push({ t: s, notes: [{ m, v, d: e - s }], vel: v, lo: m, hi: m });
+}
+const MOMENTS = SONG.moments;
+
+/** What every tool gets each frame. */
+const ctx = {
+  g, W, H, canvas: c,
+  t: 0,          // song seconds (audio clock)
+  dt: 0,         // song seconds since last frame; 0 when paused (freeze!)
+  now: 0,        // wall seconds (only for things that should keep moving while paused: nothing should)
+  moment: 'dread',
+  level: 0,      // 0..1 smoothed loudness from recent attack velocities
+  rate: 0,       // attacks per second, smoothed
+  rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
+  /** Notes sounding at song time t: [{ m, v, start, end }]. */
+  sounding() { const out = []; for (let i = lo(ctx.t - 8); i < NOTES.length && NOTES[i][0] <= ctx.t; i++) { const [s, e, m, v] = NOTES[i]; if (e > ctx.t) out.push({ m, v, start: s, end: e }); } return out; },
+  /** Highest note sounding now, or null. */
+  top() { let b = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
+  /** MIDI → 0..1 (piano range 21..108). */
+  pitch01: (m) => Math.max(0, Math.min(1, (m - 21) / 87)),
+};
+function lo(t) { let a = 0, b = NOTES.length; while (a < b) { const k = (a + b) >> 1; if (NOTES[k][0] < t) a = k + 1; else b = k; } return a; }
+
+// ?only=flee,squares picks the tools (for the shot script).
+const only = new URLSearchParams(location.search).get('only');
+const active = new Set(only ? only.split(',') : TOOLS.filter((x) => x.on).map((x) => x.id));
+const errors = {};
+const RATES = ['love it', 'keep', 'needs work', 'drop'];
+let ratings = {}; try { ratings = JSON.parse(localStorage.getItem('wa-ratings') || '{}'); } catch {}
+// Parameters: a tool lists params [{ key, label, min, max, step?, value, drive? }] and reads ctx.p('key') each frame.
+// The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
+const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
+let PST = {}; try { PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
+const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
+// Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
+const BROWSER = /Edg\//.test(navigator.userAgent) ? 'edge' : /Electron|Claude/.test(navigator.userAgent) ? 'claude-pane' : 'chrome';
+let syncT = 0;
+const sync = () => { clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
+const saveP = () => { try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
+ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
+ctx.p = (key) => {
+  const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
+  const s = pst(tool, q); let v = s.base;
+  if (s.drive) v += (s.drive[0] === '+' ? 1 : -1) * s.depth * (q.max - q.min) * (ctx.feat[s.drive.slice(1)] - (s.drive.endsWith('pitch') ? 0.5 : 0));
+  return Math.max(q.min, Math.min(q.max, v));
+};
+const safe = (tool, fn, ...a) => { ctx.tool = tool; try { tool[fn]?.(...a); } catch (e) { if (!errors[tool.id]) { errors[tool.id] = String(e); render(); console.error(tool.id, e); } } };
+
+function render() {
+  const box = document.getElementById('tools'); box.innerHTML = '';
+  for (const tool of TOOLS) {
+    const d = document.createElement('div'); d.className = 'tool' + (active.has(tool.id) ? ' on' : '');
+    d.innerHTML = `<b>${tool.name}${tool.tag ? `<span class="tag">${tool.tag}</span>` : ''}</b><span>${tool.blurb}</span>${errors[tool.id] ? `<div class="err">${errors[tool.id]}</div>` : ''}`
+      + (tool.params ? `<div class="params">${tool.params.map((q) => { const st = pst(tool, q); return `<label class="prm"><span>${q.label}</span><input type="range" data-k="${q.key}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}"><select data-k="${q.key}">${DRIVES.map((d) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${d ? d[0] + ' ' + d.slice(1) : 'fixed'}</option>`).join('')}</select></label>`; }).join('')}</div>` : '')
+      + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
+    d.querySelectorAll('[data-k]').forEach((el) => {
+      el.onclick = (ev) => ev.stopPropagation();
+      el.oninput = () => { const q = tool.params.find((x) => x.key === el.dataset.k), st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else st.base = Number(el.value); saveP(); };
+    });
+    d.onclick = (ev) => {
+      const r = ev.target.dataset?.r;
+      if (r) { ratings[tool.id] = ratings[tool.id] === r ? undefined : r; try { localStorage.setItem('wa-ratings', JSON.stringify(ratings)); } catch {} sync(); render(); return; }
+      active.has(tool.id) ? active.delete(tool.id) : (active.add(tool.id), safe(tool, 'reset', ctx)); render();
+    };
+    box.append(d);
+  }
+}
+
+let ci = 0, lastT = 0;
+function reset(t) {
+  lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
+  ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  for (const tool of TOOLS) safe(tool, 'reset', ctx);
+}
+function seek(t) { audio.currentTime = t; reset(t); if (audio.paused) audio.play(); }
+
+function frame() {
+  requestAnimationFrame(frame);
+  const t = audio.currentTime;
+  document.getElementById('time').textContent = `${fmt(t)} / ${fmt(DUR)}`;
+  document.getElementById('head').style.left = `${(t / DUR) * 100}%`;
+  if (Math.abs(t - lastT) > 0.5) reset(t);
+  ctx.t = t; ctx.now = performance.now() / 1000;
+  ctx.dt = audio.paused ? 0 : Math.min(0.05, Math.max(0, t - lastT));
+  lastT = t;
+  if (ctx.dt === 0) return; // silence/pause freezes the picture
+  let m = MOMENTS[0][1]; for (const [s, n] of MOMENTS) if (t >= s) m = n; ctx.moment = m;
+  ctx.level *= Math.pow(0.5, ctx.dt / 0.8); ctx.rate *= Math.pow(0.5, ctx.dt / 1.0);
+  const fired = [];
+  while (ci < CHORDS.length && CHORDS[ci].t <= t) { const ch = CHORDS[ci++]; fired.push(ch); ctx.level = Math.max(ctx.level, ch.vel / 115); ctx.rate += 1 / 1.44; }
+  { const snd = ctx.sounding(), f = ctx.feat, k = 1 - Math.pow(0.5, ctx.dt / 0.25);
+    let top = null, bass = 0; for (const n of snd) { if (!top || n.m > top.m) top = n; if (n.m < 50) bass += n.v / 127; }
+    f.level = ctx.level; f.rate = Math.min(1, ctx.rate / 8);
+    f.pitch += ((top ? ctx.pitch01(top.m) : f.pitch) - f.pitch) * k; f.bass += (Math.min(1, bass / 2) - f.bass) * k; f.density += (Math.min(1, snd.length / 10) - f.density) * k; }
+  // Shared background: fade toward black. A tool may paint its own on top.
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, W, H);
+  // An 8-bit fade sticks at ~4/255 and leaves grey ghosts: a light colour-burn takes the last few levels to black.
+  g.globalCompositeOperation = 'color-burn'; g.fillStyle = 'rgb(252,252,252)'; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'source-over';
+  for (const tool of TOOLS) {
+    if (!active.has(tool.id)) continue;
+    for (const ch of fired) safe(tool, 'onChord', ch, ctx);
+    g.save(); safe(tool, 'frame', ctx); g.restore();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
+  }
+}
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+document.getElementById('play').onclick = () => (audio.paused ? audio.play() : audio.pause());
+audio.onplay = () => (document.getElementById('play').textContent = '❚❚ Pause');
+audio.onpause = () => (document.getElementById('play').textContent = '▶ Play');
+document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
+document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
+document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
+render(); reset(0); frame(); sync(); // sends what this browser already has as soon as the page opens
+</script>
+</body>
+</html>

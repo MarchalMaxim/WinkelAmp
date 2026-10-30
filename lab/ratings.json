@@ -1,0 +1,2204 @@
+{
+ "claude-pane": {
+  "at": "2026-10-30T23:02:01.311Z",
+  "ratings": {
+   "squares": "love it",
+   "flee": "keep",
+   "current": "keep",
+   "strings": "needs work",
+   "murmuration": "needs work",
+   "shatter": "needs work",
+   "ripples": "keep",
+   "lightning": "needs work",
+   "rorschach": "love it",
+   "casket": "love it"
+  },
+  "params": {
+   "squares": {
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "life": {
+     "base": 1.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "blur": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 50,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shake": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "flee": {
+    "exp": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hes": {
+     "base": 0.55,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "twitch": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "mix": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "streak": {
+     "base": 0.8,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "reg": {
+     "base": 57,
+     "drive": "",
+     "depth": 0.5
+    },
+    "threat": {
+     "base": 0.8,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "flock": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pal": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "current": {
+    "threads": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 0.9,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "braid": {
+     "base": 70,
+     "drive": "",
+     "depth": 0.5
+    },
+    "steer": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "curl": {
+     "base": 3.5,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "visc": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hue": {
+     "base": 350,
+     "drive": "",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 1,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "persist": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "strings": {
+    "bend": {
+     "base": 0.32,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weave": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sway": {
+     "base": 46,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 0.4,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "tangle": {
+     "base": 0.45,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 1.1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "snap": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "murmuration": {
+    "coh": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "panic": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "trail": {
+     "base": 9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "form": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "colour": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.6,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "melody": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shards": {
+     "base": 5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "burst": {
+     "base": 100,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "ripples": {
+    "geom": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "speed": {
+     "base": 0.8,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 1.3,
+     "drive": "-density",
+     "depth": 0.5
+    },
+    "echo": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "dash": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 0.9,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "glow": {
+     "base": 0.6,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "family": {
+     "base": 0.75,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "rorschach": {
+    "sym": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ink": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sizeBy": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 50,
+     "drive": "",
+     "depth": 0.5
+    },
+    "origin": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "soak": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.8,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "spatter": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "breathe": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 9,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "rim": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "paper": {
+     "base": 0.25,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "kandinsky": {
+    "sharp": {
+     "base": 0.3,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "hollow": {
+     "base": 0.6,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "warmth": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "centre": {
+     "base": 58,
+     "drive": "",
+     "depth": 0.5
+    },
+    "blend": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "lines": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "gravity": {
+     "base": 0,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "order": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 6,
+     "drive": "-density",
+     "depth": 0.5
+    }
+   },
+   "moire": {
+    "spacing": {
+     "base": 8,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "fields": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "form": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "turn": {
+     "base": 1.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tension": {
+     "base": 0.5,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.3,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "jolt": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.7,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "blend": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fields": {
+    "count": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "cols": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "feather": {
+     "base": 0.75,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "harmony": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warmth": {
+     "base": -0.2,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "sat": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "breath": {
+     "base": 0.45,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "flare": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bands": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "marbling": {
+    "size": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "gaps": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "scatter": {
+     "base": 0.32,
+     "drive": "",
+     "depth": 0.5
+    },
+    "comb": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "tines": {
+     "base": 7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 130,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 0.12,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fill": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 12,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "brush": {
+    "width": {
+     "base": 1.1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "dry": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "reach": {
+     "base": 5,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "smooth": {
+     "base": 0.55,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "span": {
+     "base": 130,
+     "drive": "",
+     "depth": 0.5
+    },
+    "nib": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flick": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "gesture": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "blocks": {
+    "block": {
+     "base": 72,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 0.6,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "count": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tear": {
+     "base": 0.8,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 8,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "smear": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hold": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "settle": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "base": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "riley": {
+    "form": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 16,
+     "drive": "",
+     "depth": 0.5
+    },
+    "angle": {
+     "base": 90,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "lens": {
+     "base": 0.3,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "wave": {
+     "base": 2,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "kink": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "vib": {
+     "base": 0.15,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "pal": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "light": {
+     "base": 0.4,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "halftone": {
+    "grid": {
+     "base": 20,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "rot": {
+     "base": 15,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flip": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "speed": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 1.9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "contrast": {
+     "base": 0.45,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "standing": {
+     "base": 0.6,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "hueA": {
+     "base": 356,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hueB": {
+     "base": 44,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fifths": {
+    "radius": {
+     "base": 0.88,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 1.2,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 9,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bow": {
+     "base": 0.3,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "sink": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "follow": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spin": {
+     "base": 0,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "glow": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "func": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fill": {
+     "base": 0.2,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "suprematism": {
+    "count": {
+     "base": 22,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 0.25,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "temp": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tilt": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 0.7,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "register": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.85,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "life": {
+     "base": 9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "flip": {
+     "base": 0.35,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "contours": {
+    "count": {
+     "base": 7,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 1.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "res": {
+     "base": 9,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 0.9,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.9,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 2.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.72,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sign": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "tunnel": {
+    "speed": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "curve": {
+     "base": 2.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "spin": {
+     "base": 0.1,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "surge": {
+     "base": 1.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "trail": {
+     "base": 0.35,
+     "drive": "-density",
+     "depth": 0.5
+    },
+    "mouth": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "echoes": {
+     "base": 3,
+     "drive": "-density",
+     "depth": 0.5
+    }
+   },
+   "scribble": {
+    "speed": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "loops": {
+     "base": 0.5,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "press": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "jitter": {
+     "base": 0.3,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "scratch": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pens": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 3.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ink": {
+     "base": 0.33,
+     "drive": "",
+     "depth": 0.5
+    },
+    "red": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "paper": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "pointillism": {
+    "dot": {
+     "base": 4.5,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "burst": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 30,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 8,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sat": {
+     "base": 0.72,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hue": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "range": {
+     "base": 0.42,
+     "drive": "",
+     "depth": 0.5
+    },
+    "comp": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   }
+  }
+ },
+ "chrome": {
+  "at": "2026-10-30T23:44:26.739Z",
+  "ratings": {
+   "squares": "love it",
+   "flee": "love it",
+   "current": "love it",
+   "strings": "love it",
+   "murmuration": "needs work",
+   "shatter": "needs work",
+   "ripples": "drop",
+   "lightning": "needs work",
+   "rorschach": "love it",
+   "casket": "love it",
+   "kandinsky": "love it",
+   "moire": "drop",
+   "fields": "keep",
+   "marbling": "needs work"
+  },
+  "params": {
+   "squares": {
+    "size": {
+     "base": 1.507,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "life": {
+     "base": 1.817,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "blur": {
+     "base": 1.29,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 46,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shake": {
+     "base": 1.08,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "flee": {
+    "exp": {
+     "base": 4,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "hes": {
+     "base": 0.6,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "twitch": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "mix": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "streak": {
+     "base": 1.53,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "reg": {
+     "base": 59,
+     "drive": "",
+     "depth": 0.5
+    },
+    "threat": {
+     "base": 0.8,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "flock": {
+     "base": 1,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "pal": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "current": {
+    "threads": {
+     "base": 5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 0.9,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "braid": {
+     "base": 38,
+     "drive": "",
+     "depth": 0.5
+    },
+    "steer": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "curl": {
+     "base": 3.5,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "visc": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hue": {
+     "base": 350,
+     "drive": "",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 0.72,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "persist": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "strings": {
+    "bend": {
+     "base": 0.32,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weave": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sway": {
+     "base": 46,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 0.4,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "tangle": {
+     "base": 0.45,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 1.1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "snap": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "murmuration": {
+    "coh": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "panic": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "trail": {
+     "base": 9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "form": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "colour": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.6,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "melody": {
+     "base": 1.41,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shards": {
+     "base": 5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "burst": {
+     "base": 125,
+     "drive": "-rate",
+     "depth": 0.5
+    }
+   },
+   "ripples": {
+    "geom": {
+     "base": 2.88,
+     "drive": "",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 0.78,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "speed": {
+     "base": 0.8,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 1.3,
+     "drive": "-density",
+     "depth": 0.5
+    },
+    "echo": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "dash": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 2.31,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "glow": {
+     "base": 0.6,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "family": {
+     "base": 0.75,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "rorschach": {
+    "sym": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ink": {
+     "base": 2.27,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.652,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sizeBy": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 50,
+     "drive": "",
+     "depth": 0.5
+    },
+    "origin": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "soak": {
+     "base": 3,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.8,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "spatter": {
+     "base": 3,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "breathe": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 13,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "rim": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "paper": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "kandinsky": {
+    "sharp": {
+     "base": 0.48,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "hollow": {
+     "base": 0.6,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "warmth": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "centre": {
+     "base": 58,
+     "drive": "",
+     "depth": 0.5
+    },
+    "blend": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "lines": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "gravity": {
+     "base": 0,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "order": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 6,
+     "drive": "-density",
+     "depth": 0.5
+    }
+   },
+   "moire": {
+    "spacing": {
+     "base": 28,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "fields": {
+     "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "form": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "turn": {
+     "base": 1.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tension": {
+     "base": 0.5,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.3,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "jolt": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.7,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "blend": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fields": {
+    "count": {
+     "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "cols": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "feather": {
+     "base": 0.75,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "harmony": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warmth": {
+     "base": -0.2,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "sat": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "breath": {
+     "base": 0.45,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "flare": {
+     "base": 1.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bands": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "marbling": {
+    "size": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "gaps": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "scatter": {
+     "base": 0.32,
+     "drive": "",
+     "depth": 0.5
+    },
+    "comb": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "tines": {
+     "base": 7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 130,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fill": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 12,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "brush": {
+    "width": {
+     "base": 2.595,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "dry": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "reach": {
+     "base": 5.74,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "smooth": {
+     "base": 0.55,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "span": {
+     "base": 130,
+     "drive": "",
+     "depth": 0.5
+    },
+    "nib": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flick": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "gesture": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "blocks": {
+    "block": {
+     "base": 72,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 0.6,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "count": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tear": {
+     "base": 0.8,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 8,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "smear": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hold": {
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "settle": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "base": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "riley": {
+    "form": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 16,
+     "drive": "",
+     "depth": 0.5
+    },
+    "angle": {
+     "base": 90,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "lens": {
+     "base": 0.3,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "wave": {
+     "base": 2,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "kink": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "vib": {
+     "base": 0.15,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "pal": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "light": {
+     "base": 0.4,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "halftone": {
+    "grid": {
+     "base": 20,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "rot": {
+     "base": 15,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flip": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "speed": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 1.9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "contrast": {
+     "base": 0.45,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "standing": {
+     "base": 0.6,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "hueA": {
+     "base": 356,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hueB": {
+     "base": 44,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fifths": {
+    "radius": {
+     "base": 0.88,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 1.2,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 9,
+     "drive": "",
+     "depth": 0.5
+    },
+    "bow": {
+     "base": 0.3,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "sink": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "follow": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spin": {
+     "base": 0,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "glow": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "func": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fill": {
+     "base": 0.2,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "suprematism": {
+    "count": {
+     "base": 22,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 0.25,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "temp": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tilt": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pull": {
+     "base": 0.7,
+     "drive": "+density",
+     "depth": 0.5
+    },
+    "register": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.85,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "life": {
+     "base": 9,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "flip": {
+     "base": 0.35,
+     "drive": "+level",
+     "depth": 0.5
+    }
+   },
+   "contours": {
+    "count": {
+     "base": 7,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 1.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "res": {
+     "base": 9,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flow": {
+     "base": 0.9,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "warp": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.9,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "decay": {
+     "base": 2.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "heat": {
+     "base": 0.72,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sign": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "tunnel": {
+    "speed": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "curve": {
+     "base": 2.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "drift": {
+     "base": 0.45,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "spin": {
+     "base": 0.1,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "shape": {
+     "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "surge": {
+     "base": 1.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "trail": {
+     "base": 0.35,
+     "drive": "-density",
+     "depth": 0.5
+    },
+    "mouth": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "echoes": {
+     "base": 3,
+     "drive": "-density",
+     "depth": 0.5
+    }
+   },
+   "scribble": {
+    "speed": {
+     "base": 1,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "loops": {
+     "base": 0.5,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "press": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "jitter": {
+     "base": 0.3,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "scratch": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pens": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 3.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ink": {
+     "base": 0.33,
+     "drive": "",
+     "depth": 0.5
+    },
+    "red": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "paper": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "pointillism": {
+    "dot": {
+     "base": 4.5,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "burst": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 30,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fade": {
+     "base": 8,
+     "drive": "-rate",
+     "depth": 0.5
+    },
+    "bleed": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "sat": {
+     "base": 0.72,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hue": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "range": {
+     "base": 0.42,
+     "drive": "",
+     "depth": 0.5
+    },
+    "comp": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "layout": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    }
+   }
+  }
+ }
+}

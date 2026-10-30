@@ -5,3 +5,9 @@ dist
 .superpowers/
 study/
 studies-out/
+
+# The lab plays local recordings; their audio and the notes transcribed from them stay out of git.
+lab/*.mp3
+lab/*.wav
+lab/*.ogg
+lab/notes*.js
