@@ -59,6 +59,20 @@ export interface StudyScore {
 export interface StudyPlayer extends Playable {
   /** Length of one pass through the piece, seconds. */
   readonly duration: number;
+  /** The seed the first loop is composed from (loop k plays compose(seed + 101·k)). */
+  readonly seed: number;
+  /**
+   * The loop sounding at `position` (seconds since start(), like `position`): its
+   * index, where it began on that clock, and its score. Asked by time because the
+   * scheduler composes the next loop while the last one's tail still sounds.
+   */
+  passAt(position: number): StudyPass;
+}
+
+export interface StudyPass {
+  loop: number;
+  start: number;
+  score: StudyScore;
 }
 
 export interface Study {
@@ -75,8 +89,16 @@ export interface Study {
    * melody events for a scripted study.
    */
   melodyVoices: string[];
+  /**
+   * Melody onsets this close (s) count as one (see melodyLine): Basalt rolls its chords
+   * over up to ~70 ms; Mist's pad voices enter up to 0.6 s apart.
+   */
+  melodyCluster: number;
+  /** The seed a player's first loop uses unless told otherwise (the one the studies are rendered and scripted with). */
+  seed: number;
   compose(seed: number): StudyScore;
-  create(ctx: BaseAudioContext, destination: AudioNode): StudyPlayer;
+  /** `opts.seed` pins the first loop's score (a scripted performance); later loops re-seed from it for variety. */
+  create(ctx: BaseAudioContext, destination: AudioNode, opts?: { seed?: number }): StudyPlayer;
 }
 
 const LOOKAHEAD = 0.25;
@@ -147,6 +169,8 @@ abstract class ScorePlayer implements StudyPlayer {
   private next: StudyScore;
   private prep = [0, 0];
   private warned = false;
+  /** The last few loops, oldest first, with their start on the position clock (see passAt). */
+  private passes: StudyPass[] = [];
 
   constructor(
     protected ctx: BaseAudioContext,
@@ -154,7 +178,7 @@ abstract class ScorePlayer implements StudyPlayer {
     rig: RigOpts,
     readonly title: string,
     private compose: (seed: number) => StudyScore,
-    private seed: number,
+    readonly seed: number,
   ) {
     this.rig = new Rig(ctx, destination, rig);
     this.cur = compose(seed);
@@ -171,6 +195,12 @@ abstract class ScorePlayer implements StudyPlayer {
 
   get position() {
     return this.playing ? Math.max(0, this.ctx.currentTime - this.startedAt) : 0;
+  }
+
+  passAt(position: number): StudyPass {
+    let p = this.passes[0] ?? { loop: 0, start: 0, score: this.cur };
+    for (const q of this.passes) if (q.start <= position) p = q;
+    return p;
   }
 
   protected abstract play(ev: Ev, t: number, out: Out): void;
@@ -192,6 +222,7 @@ abstract class ScorePlayer implements StudyPlayer {
     this.prep = [0, 0];
     const t0 = this.ctx.currentTime + 0.1;
     this.startedAt = this.loopStart = t0;
+    this.passes = [{ loop: 0, start: 0, score: this.cur }];
     this.setup(this.out);
     if ('startRendering' in this.ctx) {
       // Offline render: no timers. Schedule in chunks at suspend points, so only the
@@ -246,6 +277,8 @@ abstract class ScorePlayer implements StudyPlayer {
         this.next = this.compose(this.seed + 101 * (this.loop + 1));
         this.idx = 0;
         this.prep = [this.prep[1], 0];
+        this.passes.push({ loop: this.loop, start: this.loopStart - this.startedAt, score: this.cur });
+        if (this.passes.length > 3) this.passes.shift();
         if (!this.cur.events.length) return;
       }
       const ev = this.cur.events[this.idx];
@@ -410,8 +443,8 @@ class EmberPlayer extends ScorePlayer {
   private crackle: AudioBuffer;
   private rng = mulberry32(5);
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore) {
-    super(ctx, dest, { reverbSeconds: 2.2, reverbBrightness: 0.6, wet: 0.5, gain: 1.9, seed: 11 }, title, compose, 1);
+  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore, seed: number) {
+    super(ctx, dest, { reverbSeconds: 2.2, reverbBrightness: 0.6, wet: 0.5, gain: 1.9, seed: 11 }, title, compose, seed);
     // Sparse, heavy-tailed pops: mostly tiny ticks, sometimes a loud snap.
     const sr = ctx.sampleRate;
     this.crackle = ctx.createBuffer(1, sr * 3, sr);
@@ -820,8 +853,8 @@ export function composeBasalt(seed: number): StudyScore {
 class BasaltPlayer extends ScorePlayer {
   private piano: PianoBank;
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore) {
-    super(ctx, dest, { reverbSeconds: 3.6, reverbBrightness: 0.3, wet: 0.45, gain: 2.7, seed: 23 }, title, compose, 3);
+  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore, seed: number) {
+    super(ctx, dest, { reverbSeconds: 3.6, reverbBrightness: 0.3, wet: 0.45, gain: 2.7, seed: 23 }, title, compose, seed);
     // Bass strings a little more inharmonic than a textbook piano: that's where the bell-like toll comes from.
     this.piano = new PianoBank(ctx, { inharmonicity: 1.4, ringScale: 0.75, sampleRate: 24000 });
   }
@@ -971,8 +1004,8 @@ export function composeSugar(seed: number): StudyScore {
 class SugarPlayer extends ScorePlayer {
   private rng = mulberry32(9);
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore) {
-    super(ctx, dest, { reverbSeconds: 1.8, reverbBrightness: 0.85, wet: 0.55, gain: 1.8, seed: 31 }, title, compose, 7);
+  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore, seed: number) {
+    super(ctx, dest, { reverbSeconds: 1.8, reverbBrightness: 0.85, wet: 0.55, gain: 1.8, seed: 31 }, title, compose, seed);
   }
 
   protected play(ev: Ev, t: number, out: Out) {
@@ -1125,8 +1158,8 @@ export function composeMist(seed: number): StudyScore {
 class MistPlayer extends ScorePlayer {
   private rng = mulberry32(13);
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore) {
-    super(ctx, dest, { reverbSeconds: 4.5, reverbBrightness: 0.4, wet: 0.7, gain: 0.2, seed: 41 }, title, compose, 11);
+  constructor(ctx: BaseAudioContext, dest: AudioNode, title: string, compose: (s: number) => StudyScore, seed: number) {
+    super(ctx, dest, { reverbSeconds: 4.5, reverbBrightness: 0.4, wet: 0.7, gain: 0.2, seed: 41 }, title, compose, seed);
   }
 
   protected play(ev: Ev, t: number, out: Out) {
@@ -1259,6 +1292,9 @@ const TITLE = {
   mist: 'Character study — Mist',
 };
 
+/** Each study's pinned seed: what it plays unless told otherwise, and what renders and scripts are made from. */
+const SEED = { ember: 1, basalt: 3, sugar: 7, mist: 11 };
+
 export const STUDIES: Study[] = [
   {
     id: 'ember',
@@ -1266,8 +1302,10 @@ export const STUDIES: Study[] = [
     blurb: 'Erratic like fire: flickering tremolo, ricochet sparks, sudden swells, D minor and chromatic.',
     archetype: 'fire',
     melodyVoices: ['mel'],
+    melodyCluster: 0.03,
+    seed: SEED.ember,
     compose: composeEmber,
-    create: (ctx, dest) => new EmberPlayer(ctx, dest, TITLE.ember, composeEmber),
+    create: (ctx, dest, opts) => new EmberPlayer(ctx, dest, TITLE.ember, composeEmber, opts?.seed ?? SEED.ember),
   },
   {
     id: 'basalt',
@@ -1275,8 +1313,10 @@ export const STUDIES: Study[] = [
     blurb: 'Dark and blunt: massive low piano chords and tolling octaves, slow and heavy.',
     archetype: 'abyss',
     melodyVoices: ['pno'],
+    melodyCluster: 0.08,
+    seed: SEED.basalt,
     compose: composeBasalt,
-    create: (ctx, dest) => new BasaltPlayer(ctx, dest, TITLE.basalt, composeBasalt),
+    create: (ctx, dest, opts) => new BasaltPlayer(ctx, dest, TITLE.basalt, composeBasalt, opts?.seed ?? SEED.basalt),
   },
   {
     id: 'sugar',
@@ -1284,8 +1324,10 @@ export const STUDIES: Study[] = [
     blurb: 'Whimsical, tiny and quick: celesta and music box, pizzicato, sparkling runs.',
     archetype: 'sugar',
     melodyVoices: ['cel'],
+    melodyCluster: 0.03,
+    seed: SEED.sugar,
     compose: composeSugar,
-    create: (ctx, dest) => new SugarPlayer(ctx, dest, TITLE.sugar, composeSugar),
+    create: (ctx, dest, opts) => new SugarPlayer(ctx, dest, TITLE.sugar, composeSugar, opts?.seed ?? SEED.sugar),
   },
   {
     id: 'mist',
@@ -1293,7 +1335,9 @@ export const STUDIES: Study[] = [
     blurb: 'Serene: slow, soft legato pads and a distant flute, consonant and airy.',
     archetype: 'mist',
     melodyVoices: ['pad'],
+    melodyCluster: 0.65,
+    seed: SEED.mist,
     compose: composeMist,
-    create: (ctx, dest) => new MistPlayer(ctx, dest, TITLE.mist, composeMist),
+    create: (ctx, dest, opts) => new MistPlayer(ctx, dest, TITLE.mist, composeMist, opts?.seed ?? SEED.mist),
   },
 ];

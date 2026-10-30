@@ -3,47 +3,9 @@
  * ground-truth melody lines from scores, MIREX-style frame scores, onset F1.
  * Used by scripts/eval/melody-eval.ts and tests/melody.test.ts.
  */
-/** A sounding note of a score: onset t, MIDI m, length d (s); voice v; notes struck together may share a group. */
-export interface RefEvent {
-  t: number;
-  m: number;
-  d: number;
-  v?: string;
-  group?: number;
-}
-
-export interface RefNote {
-  start: number;
-  end: number;
-  midi: number;
-}
-
-/**
- * The melody line of a score: at every moment, the top note of the latest onset
- * cluster (notes starting within `cluster` s of its first, or sharing a group),
- * held until it ends or the next cluster starts. A rolled chord counts once, at
- * its top; a repeated note is a new note; a bass note struck alone is the line
- * until the chord answers it (it is what was just played).
- */
-export function melodyLine(events: RefEvent[], voices?: string[], cluster = 0.03): RefNote[] {
-  const ev = events.filter((e) => !voices || (e.v !== undefined && voices.includes(e.v))).sort((a, b) => a.t - b.t);
-  const out: RefNote[] = [];
-  for (let i = 0; i < ev.length; ) {
-    const first = ev[i];
-    let top = first;
-    let j = i + 1;
-    for (; j < ev.length; j++) {
-      const e = ev[j];
-      const same = first.group !== undefined && e.group !== undefined ? e.group === first.group : e.t - first.t <= cluster;
-      if (!same) break;
-      if (e.m > top.m) top = e;
-    }
-    out.push({ start: first.t, end: top.t + top.d, midi: top.m });
-    i = j;
-  }
-  for (let k = 0; k + 1 < out.length; k++) out[k].end = Math.min(out[k].end, out[k + 1].start);
-  return out.filter((n) => n.end > n.start);
-}
+// The score's melody line lives in src (a scripted study plays it too); re-exported for the eval and tests.
+import type { RefNote } from '../../src/audio/melody';
+export { melodyLine, type RefEvent, type RefNote } from '../../src/audio/melody';
 
 /** The truth pitch at each time (MIDI, NaN when no melody note sounds). `notes` sorted, not overlapping. */
 export function referenceContour(notes: RefNote[], times: ArrayLike<number>): Float32Array {

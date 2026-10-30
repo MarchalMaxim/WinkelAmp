@@ -28,10 +28,6 @@ import { melodyLine, onsetF1, referenceContour, scoreContour, type ContourScore,
 // ---------------------------------------------------------------------------
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-/** The seed each study's player renders its first pass with (the last ScorePlayer argument in studies.ts). */
-const STUDY_SEEDS: Record<string, number> = { ember: 1, basalt: 3, sugar: 7, mist: 11 };
-/** Onset clusters: Basalt rolls its chords over up to ~70 ms; Mist's pad voices enter up to 0.6 s apart. */
-const STUDY_CLUSTER: Record<string, number> = { basalt: 0.08, mist: 0.65 };
 /** ScorePlayer.start() schedules the first event at currentTime + 0.1. */
 const START_OFFSET = 0.1;
 
@@ -50,7 +46,7 @@ async function studyPieces(dir: string, only: string[]): Promise<Piece[]> {
   }
   return ids.map((id) => {
     const study = STUDIES.find((s) => s.id === id)!;
-    const seed = STUDY_SEEDS[id];
+    const seed = study.seed; // what the player renders its first pass with
     // The render may run past the first pass: the player then plays compose(seed + 101).
     const a = study.compose(seed);
     const b = study.compose(seed + 101);
@@ -58,7 +54,7 @@ async function studyPieces(dir: string, only: string[]): Promise<Piece[]> {
       ...a.events.map((e) => ({ ...e, t: e.t + START_OFFSET })),
       ...b.events.map((e) => ({ ...e, t: e.t + START_OFFSET + a.length })),
     ];
-    return { name: id, wav: path.join(dir, `${id}.wav`), truth: melodyLine(events, study.melodyVoices, STUDY_CLUSTER[id] ?? 0.03) };
+    return { name: id, wav: path.join(dir, `${id}.wav`), truth: melodyLine(events, study.melodyVoices, study.melodyCluster) };
   });
 }
 
