@@ -672,7 +672,9 @@ function summary(s: SummaryInput): string {
   L.push(`# ${s.title}`, '');
   L.push(`Study pack for \`${s.file}\` · id \`${s.id}\` · script: \`corpus/${s.id}.json\`, song data: \`corpus/${s.id}.data.json\``, '');
   L.push(`- **Duration:** ${clock(s.duration)} (${s.duration.toFixed(1)} s)`);
-  L.push(`- **Tempo:** beat grid ~${Math.round(s.bpm)} BPM; ${range}; pulse ${pulseWord(s.pulse)} (clarity ${s.pulse.toFixed(2)})`);
+  // Fewer than two beats (a silent or very short file): there is no grid to state.
+  const grid = Number.isFinite(s.bpm) ? `beat grid ~${Math.round(s.bpm)} BPM` : 'no beat grid';
+  L.push(`- **Tempo:** ${grid}; ${range}; pulse ${pulseWord(s.pulse)} (clarity ${s.pulse.toFixed(2)})`);
   L.push(`- **Key / mode arc:** ${s.keyArc.join(' → ') || 'no clear key'}`);
   L.push(`- **Counts:** ${s.sectionInfo.length} sections, ${s.drops.length} drops, ${s.notes} melody notes (tune voiced ${Math.round(s.voiced * 100)} % of the time), ${s.onsets} onsets, ${s.beats} beats kept of ${s.allBeats}, ${s.chords} chord changes`);
   L.push('');
@@ -724,7 +726,7 @@ function summary(s: SummaryInput): string {
   L.push('');
 
   L.push('## Beat grid', '');
-  L.push(`${s.allBeats} beats tracked at ~${Math.round(s.bpm)} BPM (one every ${(60 / s.bpm).toFixed(2)} s; the tracker holds one period, so the grid itself is always even — the tempo line above says how steady the music is). ${s.beats} kept where the pulse clarity is at least ${PULSE_MIN}; cue times snap to these beats and to onsets within 120 ms. ${s.pulse < PULSE_MIN ? 'The pulse is weak: a pulse element would throb on a guess — prefer elements that follow the melody and the onsets.' : ''}`);
+  L.push(`${Number.isFinite(s.bpm) ? `${s.allBeats} beats tracked at ~${Math.round(s.bpm)} BPM (one every ${(60 / s.bpm).toFixed(2)} s; the tracker holds one period, so the grid itself is always even — the tempo line above says how steady the music is).` : `${s.allBeats} beat${s.allBeats === 1 ? '' : 's'} tracked: too few for a grid.`} ${s.beats} kept where the pulse clarity is at least ${PULSE_MIN}; cue times snap to these beats and to onsets within 120 ms. ${s.pulse < PULSE_MIN ? 'The pulse is weak: a pulse element would throb on a guess — prefer elements that follow the melody and the onsets.' : ''}`);
   L.push('');
 
   L.push('## Timeline (every 10 s)', '');

@@ -168,7 +168,9 @@ export class LiveDirector {
     let top = -Infinity;
     for (const s of LIBRARY) {
       if (s === not) continue;
-      const v = score(s, c);
+      // A non-finite blend weight scores as nothing, so there is always a scene to pick.
+      const raw = score(s, c);
+      const v = Number.isFinite(raw) ? raw : -Infinity;
       if (v > top + TIE) {
         top = v;
         best = [s];

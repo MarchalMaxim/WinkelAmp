@@ -587,6 +587,13 @@ let keyDown = false;
 /** Music time when the sounding key went down. */
 let keyStart = 0;
 
+/** Lets go of every key: a device unplugged mid-note never sends its note-offs. */
+function releaseKeys() {
+  held.clear();
+  keySynth.allOff();
+}
+let midiDevices = 0;
+
 /** While no song melody is voiced, the held key is the melody. */
 function keyMelody(): MelodyFrame | null {
   const last = [...held].pop();
@@ -660,6 +667,8 @@ const midiCallbacks: MidiCallbacks = {
     keySynth.sustain(down);
   },
   changed() {
+    if (midi.devices.length < midiDevices) releaseKeys();
+    midiDevices = midi.devices.length;
     midiPanel?.render();
   },
   learned(id, source) {

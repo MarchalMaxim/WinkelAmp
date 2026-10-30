@@ -230,6 +230,16 @@ describe('LiveDirector', () => {
     expect(new Set(Array.from({ length: 20 }, (_, i) => pick(i + 1))).size).toBeGreaterThan(1);
   });
 
+  it('a blend with non-finite weights still gets a scene, and a later change still switches', () => {
+    const broken: Character = { ...ABYSS, blend: ABYSS.blend.map((b) => ({ ...b, weight: NaN })) };
+    const dir = new LiveDirector(1);
+    const first = dir.update(broken, ALL_ON, null, FRAME);
+    expect(LIBRARY.some((s) => s.name === first.scene)).toBe(true);
+    run(dir, broken, ALL_ON, 16);
+    const next = dir.update(broken, ALL_ON, { kind: 'drop', strength: 1 }, FRAME);
+    expect(next.scene).not.toBe(first.scene);
+  });
+
   it('reset() starts afresh: picks for the new mood with nothing left over', () => {
     const dir = new LiveDirector(1);
     run(dir, ABYSS, ALL_ON, 5);
