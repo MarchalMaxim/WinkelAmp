@@ -324,6 +324,10 @@ export function findDrops(bass: Float32Array, hop: number): Drop[] {
  * enough from the 8 s before them, `drop` when the bass comes back hard (it
  * pre-empts a section due at the same moment). At most one event per `minGap`,
  * so busy music does not flicker. Call every frame; a jump in time (a seek) resets.
+ *
+ * `time` is the playback position (it keeps running through rests and silence),
+ * not MusicClock.time: a clock that freezes in a break would squeeze the break
+ * out of the windows and hide the drop that ends it. Do not call it while paused.
  */
 export class ChangeDetector {
   private minGap: number;
