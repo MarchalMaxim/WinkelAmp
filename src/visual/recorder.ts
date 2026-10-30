@@ -1,4 +1,18 @@
-/** Records the canvas plus the audio into a .webm video. */
+/**
+ * Containers to try, best first. MP4 with H.264 + AAC plays on phones and in
+ * WhatsApp; WebM is the fallback for browsers that cannot record MP4 (Firefox).
+ * Plain `video/mp4` comes last: it may pick Opus audio, which some players reject.
+ */
+const TYPES = [
+  'video/mp4;codecs=avc1.640033,mp4a.40.2',
+  'video/mp4;codecs=avc1,mp4a.40.2',
+  'video/webm;codecs=vp9,opus',
+  'video/webm;codecs=vp8,opus',
+  'video/webm',
+  'video/mp4',
+];
+
+/** Records the canvas plus the audio into an .mp4 (or, failing that, .webm) video. */
 export class Recorder {
   private rec: MediaRecorder | null = null;
   private chunks: Blob[] = [];
@@ -21,8 +35,7 @@ export class Recorder {
   start() {
     const stream = this.canvas.captureStream(60);
     for (const t of this.audio.getAudioTracks()) stream.addTrack(t);
-    const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
-    const mimeType = types.find((t) => MediaRecorder.isTypeSupported(t));
+    const mimeType = TYPES.find((t) => MediaRecorder.isTypeSupported(t));
     this.chunks = [];
     this.rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
     this.rec.ondataavailable = (e) => e.data.size && this.chunks.push(e.data);
