@@ -12,6 +12,7 @@ import type { Rgb } from '../character/types';
 import { type Cut, cutAt, freshCuts, SCAR_LIFE, type Scar } from './cut';
 import { ELEMENTS } from './elements';
 import { clamp01, detectCaps, fin, parseColor, rng, SpriteBatch, StrokeBatch, type Caps, type GL } from './gl';
+import { FeatureTracker } from './kit';
 import { StagePost } from './post';
 import type { CastMember, ElementType, StageElement, StageFrame, StageShared } from './types';
 
@@ -80,6 +81,8 @@ export class Stage {
   private scars: Scar[] = [];
   /** Fire times of the script's cut accents already sliced (cut.ts freshCuts). */
   private seenCuts = new Set<number>();
+  /** The music features knobs are driven by (StageFrame.feat), on music time. */
+  private features = new FeatureTracker();
 
   constructor(readonly canvas: HTMLCanvasElement, opts: StageOptions = {}) {
     const gl = canvas.getContext('webgl2', {
@@ -143,7 +146,8 @@ export class Stage {
     };
   }
 
-  render(fr: StageFrame) {
+  /** One frame. `fr.feat` is ignored: the stage works the features out itself and hands its elements the frame with them. */
+  render(input: StageFrame) {
     if (this.lost || this.gl.isContextLost()) return;
     const gl = this.gl;
     if (this.canvas.width !== this.width || this.canvas.height !== this.height) this.width = 0;
@@ -151,9 +155,14 @@ export class Stage {
 
     // Music time went backward: a new track (MusicClock.reset()). Elements stamp their history
     // with music time and assume it only grows, so start every one afresh and forget the trails.
-    const time = fin(fr.clock.time);
+    const time = fin(input.clock.time);
     if (time < this.lastTime) this.forget();
     this.lastTime = time;
+    const feat = this.features.update(
+      { events: input.events, melody: input.melody, chroma: input.chroma, bass: input.f.bass, loudness: input.d.loudness, silence: input.d.silence },
+      input.musicDt,
+    );
+    const fr: StageFrame = { ...input, feat: { ...feat } };
 
     const cast = fr.directives.cast;
     this.syncCast(cast);
@@ -240,6 +249,7 @@ export class Stage {
     this.post.clearHistory();
     this.scars = [];
     this.seenCuts.clear();
+    this.features.reset();
   }
 
   private syncCast(cast: CastMember[]) {

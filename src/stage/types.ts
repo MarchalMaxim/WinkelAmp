@@ -6,6 +6,7 @@ import type { Features } from '../audio/features';
 import type { Fingerprint } from '../audio/fingerprint';
 import type { Character, Descriptors, Gesture, LivingInput, Material, Rgb, SoundEvent } from '../character/types';
 import type { SpriteBatch, StrokeBatch } from './gl';
+import type { KnobSetting, MusicFeat } from './kit';
 
 export type { Fingerprint };
 
@@ -78,6 +79,8 @@ export interface ElementParams {
   color: 'mood' | 'note' | string;
   /** One of STYLES[type]; '' means the type's first style. */
   style: string;
+  /** The element's own knobs (see its widget file): a base value, or { value?, drive?, depth? }. Absent: the defaults. */
+  knobs?: Record<string, KnobSetting>;
 }
 
 /** The looks each element type can take; the first is its default. */
@@ -174,6 +177,18 @@ export interface SongData {
   mood: { t: number; leader: string; words: string[] }[];
 }
 
+/** What the music offers right now, each 0..1: the live director's casting reads these (WidgetDef.stream). */
+export interface Streams {
+  /** Fraction of the last 2 s with a voiced melody. */
+  melodyVoiced: number;
+  /** Bass level. */
+  bass: number;
+  /** Descriptors.pulseClarity. */
+  pulse: number;
+  /** High-register onset activity. */
+  highActivity: number;
+}
+
 // ---- Directives: what the stage is told to show at one instant ----
 
 export interface CastMember {
@@ -228,6 +243,8 @@ export interface StageFrame {
   wild: number;
   pointer: LivingInput['pointer'];
   directives: StageDirectives;
+  /** The five music features knobs can be driven by (kit.ts), 0..1: filled by the stage each frame; callers leave it out. */
+  feat?: Readonly<MusicFeat>;
 }
 
 /** What the stage lends its elements: drawing helpers and this frame's shared state. */

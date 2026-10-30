@@ -22,19 +22,9 @@ import { mulberry32 } from '../audio/instruments';
 import type { Character } from '../character/types';
 import { LIBRARY, type LibraryScene } from './library';
 import { normalizeSpec } from './script';
-import { DEFAULT_LOOK, type CastMember, type ElementType, type Look, type StageDirectives } from './types';
+import { DEFAULT_LOOK, type CastMember, type ElementType, type Look, type StageDirectives, type Streams } from './types';
 
-/** What the music offers right now, each 0..1: the casting reads these. */
-export interface Streams {
-  /** Fraction of the last 2 s with a voiced melody. */
-  melodyVoiced: number;
-  /** Bass level. */
-  bass: number;
-  /** Descriptors.pulseClarity. */
-  pulse: number;
-  /** High-register onset activity. */
-  highActivity: number;
-}
+export type { Streams };
 
 export type Change = { kind: 'section' | 'drop'; strength: number };
 
