@@ -1,0 +1,100 @@
+/**
+ * Slash: while on stage, strong attacks cut the picture (cut.ts): a straight
+ * slice through everything on screen, the halves shoved apart along it, a pale
+ * scar flashing on the line. It draws nothing itself; it asks the stage for a
+ * cut on the frame the attack is heard (the feed's onset events: the song data's
+ * onsets in a script, the character engine's live onsets otherwise).
+ *
+ *   chords  only loud, chord-like attacks
+ *   every   any onset above a lower threshold
+ *
+ * `intensity` lowers the threshold, `size` scales the shove, `color` the scar
+ * ('mood': the casket's pale yellow). At most one cut per REST of music time.
+ * Calibrated on the user's recording of Rachmaninoff's Prelude in C♯ minor, Live:
+ * at the default intensity its fff climax cuts ~1.5 times a second (about every
+ * big chord, as the sketch did), its pp opening almost never.
+ */
+import { noteRgb } from '../../character/palette';
+import { CUT_COLOR } from '../cut';
+import { clamp01, fin, styleOf } from '../gl';
+import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+
+/** Music seconds between cuts at least: a rolled chord or a flam is one slash, not three. */
+const REST = 0.12;
+/**
+ * Event strength needed at intensity 0, and how much intensity 1 lowers it. Scripted
+ * events are 0.35 + 0.65 · onset strength; live ones are also scaled by the energy,
+ * so a live fff chord reads ~0.6–0.9.
+ */
+const THRESHOLD = { chords: 0.8, every: 0.6 } as const;
+const LOWER = 0.35;
+/** A chroma bin this strong counts as a sounding pitch class; this many make a chord. */
+const PC_ON = 0.5;
+const PCS = 3;
+/** Or the sound spans the keyboard (Descriptors.registerSpread): a massive chord smears the chroma. */
+const WIDE = 0.6;
+
+/** Three or more strong pitch classes at once, or bass and treble sounding together (`spread` 0..1). */
+export function chordLike(chroma: ArrayLike<number>, spread: number): boolean {
+  if (fin(spread) >= WIDE) return true;
+  let n = 0;
+  for (let i = 0; i < chroma.length; i++) if (fin(chroma[i]) >= PC_ON) n++;
+  return n >= PCS;
+}
+
+/**
+ * The trigger rule: the cut's strength 0..1 when an attack of event strength
+ * `hit` (0 = none this frame) should cut now, else null. `now` and `last` (the
+ * previous cut) are music time; nothing cuts while music time stands still.
+ */
+export function slashCut(style: string, intensity: number, hit: number, chord: boolean, now: number, last: number, musicDt: number): number | null {
+  if (!(musicDt > 0) || !(hit > 0) || now - last < REST) return null;
+  const st = styleOf(style, STYLES.slash) as keyof typeof THRESHOLD;
+  if (st === 'chords' && !chord) return null;
+  const thr = THRESHOLD[st] - LOWER * clamp01(fin(intensity));
+  if (hit < thr) return null;
+  return clamp01((hit - thr) / (1 - thr));
+}
+
+/** Linear RGB → sRGB 0..1 (scar colors are sRGB, like accent colors). */
+const srgb = (c: number[]): [number, number, number] => c.map((v) => Math.pow(clamp01(v), 1 / 2.2)) as [number, number, number];
+
+/** '#rgb' / '#rrggbb' → sRGB 0..1; null when it isn't one. */
+function hexRgb(s: string): [number, number, number] | null {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+}
+
+export class Slash implements StageElement {
+  readonly type = 'slash' as const;
+  private shared!: StageShared;
+  private last = -Infinity;
+
+  init(_gl: WebGL2RenderingContext, shared: StageShared) {
+    this.shared = shared;
+  }
+
+  draw(fr: StageFrame, member: CastMember) {
+    // A slash fading out stops cutting.
+    if (member.presence < 0.5) return;
+    const prm = member.spec.params;
+    let hit = 0;
+    let note = -1;
+    for (const e of fr.events) {
+      if (!e.onset || !(fin(e.strength) > hit)) continue;
+      hit = fin(e.strength);
+      note = e.note;
+    }
+    const now = fin(fr.clock.time);
+    const st = slashCut(prm.style, prm.intensity, hit, chordLike(fr.chroma, fr.d.registerSpread), now, this.last, fr.musicDt);
+    if (st === null) return;
+    this.last = now;
+    const color = prm.color === 'note' && note >= 0 ? srgb(noteRgb(note)) : (prm.color !== 'mood' && hexRgb(prm.color)) || CUT_COLOR;
+    // size 0.5 → the sketch's shove; 0 → 0.4×, 1 → 1.6×.
+    this.shared.cuts.push({ strength: st, color: [color[0], color[1], color[2]], scale: 0.4 + 1.2 * clamp01(fin(prm.size)) });
+  }
+
+  dispose() {}
+}

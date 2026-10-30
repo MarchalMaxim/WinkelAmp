@@ -63,7 +63,7 @@ export interface StructureRow {
 // ---- Scripts: what a composed show says (corpus/<id>.json) ----
 
 /** The cast: each element type follows one stream of the music (see the design spec's table). */
-export type ElementType = 'melody' | 'bass' | 'sparks' | 'bloom' | 'pulse' | 'wave' | 'fluid';
+export type ElementType = 'melody' | 'bass' | 'sparks' | 'bloom' | 'pulse' | 'wave' | 'fluid' | 'slash' | 'drip';
 
 /** Where on screen an element prefers to be. */
 export type Region = 'full' | 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -89,6 +89,8 @@ export const STYLES: Record<ElementType, readonly string[]> = {
   pulse: ['rings', 'grid', 'flash'],
   wave: ['line', 'circle'],
   fluid: ['living'],
+  slash: ['chords', 'every'],
+  drip: ['paint', 'tar'],
 };
 
 /** An element as a script writes it: only what differs from DEFAULT_PARAMS. */

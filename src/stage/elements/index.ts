@@ -2,9 +2,11 @@
 import type { ElementType, StageElement } from '../types';
 import { Bass } from './bass';
 import { Bloom } from './bloom';
+import { Drip } from './drip';
 import { Fluid } from './fluid';
 import { Melody } from './melody';
 import { Pulse } from './pulse';
+import { Slash } from './slash';
 import { Sparks } from './sparks';
 import { Wave } from './wave';
 
@@ -16,4 +18,6 @@ export const ELEMENTS: Record<ElementType, () => StageElement> = {
   pulse: () => new Pulse(),
   wave: () => new Wave(),
   fluid: () => new Fluid(),
+  slash: () => new Slash(),
+  drip: () => new Drip(),
 };

@@ -15,8 +15,11 @@ import { clamp01, detectCaps, fin, parseColor, rng, SpriteBatch, StrokeBatch, ty
 import { StagePost } from './post';
 import type { CastMember, ElementType, StageElement, StageFrame, StageShared } from './types';
 
-/** Draw order. Additive, so it only matters for hand-offs: the melody's ink reaches a fluid drawn after it. */
-const ORDER: ElementType[] = ['bloom', 'bass', 'pulse', 'wave', 'sparks', 'melody', 'fluid'];
+/**
+ * Draw order. Additive, so it only matters for hand-offs: the melody's ink reaches a fluid drawn after it.
+ * A slash draws nothing: it asks for cuts, which the stage makes after everyone has drawn.
+ */
+const ORDER: ElementType[] = ['bloom', 'bass', 'drip', 'pulse', 'wave', 'sparks', 'melody', 'fluid', 'slash'];
 /** Scars on screen at most (the final pass has four slots). */
 const MAX_SCARS = 4;
 /** Elements that carry their own history: drawn sharp, with only a faint echo in the feedback (see post.ts). */
