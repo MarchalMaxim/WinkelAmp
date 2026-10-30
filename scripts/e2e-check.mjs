@@ -196,13 +196,12 @@ try {
       samples.push(await w(() => ({ time: window.winkel.clock.time, dim: window.winkel.clock.dim })));
       await sleep(500);
     }
-    // The silence detector needs ~2–3 s to be sure a pause isn't a rest (Task 1's design):
-    // the clock glides to a stop by then and must not move after.
-    const a = samples[7];
+    // A pause stops the clock at once (within a frame or two of the click).
+    const a = samples[1];
     const z = samples[samples.length - 1];
     note(`after pause, every 0.5 s: music time ${samples.map((s) => (s.time - samples[0].time).toFixed(2)).join(' ')}`);
     note(`after pause, every 0.5 s: dim ${samples.map((s) => s.dim.toFixed(2)).join(' ')}`);
-    check(z.time - a.time < 0.01, `the music clock has stopped 3.5 s after the pause (moved ${(z.time - a.time).toFixed(4)} s in the 2.5 s after)`);
+    check(z.time - a.time < 0.01, `the music clock stops on pause (moved ${(z.time - a.time).toFixed(4)} s from 0.5 s to 6 s after it)`);
     check(z.dim < 0.2, `the picture dims (dim ${z.dim.toFixed(2)})`);
     const dark = await luma();
     check(dark < 0.35 * lit || lit < 4, `the frame darkens (brightness ${lit.toFixed(1)} → ${dark.toFixed(1)})`);

@@ -754,7 +754,9 @@ function frame(now: number) {
     level: d.loudness, // absolute-ish: auto-gained f.level reads steady room noise as loud
     onset: f.onset ? f.onsetStrength : 0,
     flux: 0.5 * (d.harmonicChange + d.pitchMotion),
-    silence: d.silence,
+    // A pause is known, not inferred: the detector's ~2.5 s wait (to tell a rest from the end)
+    // would let the picture glide on after the sound stopped. Played keys still count as sound.
+    silence: engine.state.playing || held.size > 0 ? d.silence : 1,
     poke: clockPoke,
   }, dt);
   clockPoke = 0;

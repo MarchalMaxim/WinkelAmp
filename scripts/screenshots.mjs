@@ -307,7 +307,10 @@ try {
       if (!p) continue;
       if (p.loop === 0) before = p;
       else if (p.loop === 1) {
-        after = p;
+        // The probe can land between the seam and the app's next frame, which is when the
+        // show hands over: look again a few frames later.
+        await sp.waitForTimeout(300);
+        after = await probe();
         break;
       }
     }
