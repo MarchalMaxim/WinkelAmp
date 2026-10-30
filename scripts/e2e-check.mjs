@@ -10,6 +10,9 @@
 //    "Scripted · <title>" (each load is also a track change);
 //  - the prelude: a pp passage does not dim the picture, and after a seek the stage
 //    shows the scene the script names for the new position;
+//  - a switch to the demo or the mic while the prelude is still decoding leaves its
+//    script behind (the study's own script or Live, never the prelude's), and the
+//    prelude played again and left to decode is recognised;
 //  - waltz.ogg runs Live, and the director changes scene at least once within 60 s;
 //  - pause: the music clock stops, the picture freezes and dims; play brings it back;
 //  - played MIDI keys (winkel.note) cast the melody element and its head follows the key;
@@ -60,7 +63,8 @@ await server.listen();
 const browser = await chromium.launch({
   channel: 'chrome',
   headless: !argv.includes('--headed'),
-  args: ['--autoplay-policy=no-user-gesture-required', '--enable-gpu', '--ignore-gpu-blocklist'],
+  // A fake microphone (a test tone, permission granted) for the source-switch check.
+  args: ['--autoplay-policy=no-user-gesture-required', '--enable-gpu', '--ignore-gpu-blocklist', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
 });
 
 try {
@@ -165,6 +169,44 @@ try {
       }, s.id);
       check(r.got === r.want && r.got !== '', `after a seek to ${r.t.toFixed(1)} s the stage shows "${r.got}" (the script says "${r.want}")`);
     }
+  }
+
+  // ---- A switch to the demo or the mic while a file decodes: its script stays behind ----
+  const prelude = recordings.find((s) => s.id === 'rach-prelude');
+  const preludeFile = prelude && audio(prelude.id);
+  if (preludeFile) {
+    for (const to of ['demo', 'mic']) {
+      const decoded = await w(() => window.e2eFingerprints.length);
+      await page.setInputFiles('#file-input', preludeFile);
+      // As soon as it plays: its decode (then the fingerprint lookup) is still running.
+      await page.waitForFunction((name) => {
+        const e = window.winkel.engine;
+        return e.currentFile?.name === name && e.state.playing;
+      }, path.basename(preludeFile), { timeout: 10000 });
+      await w((to) => window.winkel.start(to), to);
+      await sleep(7000);
+      const r = await w(async () => {
+        const { findByStudy } = await import('/src/stage/corpus.ts');
+        const e = window.winkel.engine;
+        const st = e.study;
+        // A study shows its own script on its first pass (if the corpus has one); the mic and the groove run Live.
+        const want = st && st.loop === 0 ? findByStudy(st.id, st.seed)?.script.title ?? null : null;
+        return { source: e.source, study: st?.id ?? null, show: window.winkel.show(), want, badge: document.getElementById('mode-name').textContent };
+      });
+      const cancelled = (await w(() => window.e2eFingerprints.length)) === decoded;
+      note(`switch to ${to}: the prelude's decode ${cancelled ? 'was dropped (the switch came first)' : 'reached the listeners first'}`);
+      check(r.source === to && r.show === r.want && !r.badge.includes(prelude.title),
+        `a switch to ${to} while the prelude decodes leaves its script behind (${r.study ?? r.source}: "${r.badge}")`);
+    }
+    // The same file, left to decode, is still recognised.
+    await load(preludeFile);
+    const want = `Scripted · ${prelude.title}`;
+    let got = '';
+    for (let i = 0; i < 40 && got !== want; i++) {
+      await sleep(250);
+      got = await badge();
+    }
+    check(got === want, `the prelude, played again and left to decode, is recognised ("${got}")`);
   }
 
   // ---- An unscripted recording: Live, and the director changes scene ----

@@ -235,11 +235,15 @@ function newTrack() {
 
 // Before the first playFiles: the engine only calls listeners present when a track loads.
 engine.onTrackDecoded((t: DecodedTrack) => {
+  // Only for the file playing now, before and after the lookup: a script on the demo or the mic
+  // (or on the next track) would run out of step with the music for as long as it plays.
+  const playing = () => engine.currentFile === t.file;
+  if (!playing()) return;
   const gen = trackGen;
   void findByFingerprint(fingerprint(t.mono, t.sampleRate))
     .then(async (entry) => {
       const data = entry?.data && (await entry.data());
-      if (!entry || !data || gen !== trackGen) return;
+      if (!entry || !data || gen !== trackGen || !playing()) return;
       show = { title: entry.script.title, player: new ScriptPlayer(entry.script, data) };
       feed = SongFeed.fromData(data);
       feedLive = false;

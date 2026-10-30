@@ -87,7 +87,7 @@ export class AudioEngine {
   private objectUrl: string | null = null;
   private listeners = new Set<() => void>();
   private decodedListeners = new Set<(t: DecodedTrack) => void>();
-  /** Bumped on every track load, so a slow decode of a track we have left is dropped. */
+  /** Bumped on every track load and source switch, so a slow decode of a track we have left is dropped. */
   private decodeGen = 0;
 
   source: SourceKind = 'none';
@@ -144,7 +144,8 @@ export class AudioEngine {
 
   /**
    * Called once per loaded file with the whole track decoded (mono mix-down, at the
-   * context's rate). Decoding runs alongside playback, so the music starts at once.
+   * context's rate). Decoding runs alongside playback, so the music starts at once;
+   * a file left (another track, or the demo / mic) before its decode finishes is never reported.
    */
   onTrackDecoded(fn: (t: DecodedTrack) => void) {
     this.decodedListeners.add(fn);
@@ -201,6 +202,11 @@ export class AudioEngine {
     return { id: this.studyId, seed: p.seed, loop: pass.loop, loopStart: pass.start, score: pass.score };
   }
 
+  /** The file playing (source 'file'); null for any other source. */
+  get currentFile(): File | null {
+    return this.source === 'file' ? this.tracks[this.trackIndex] ?? null : null;
+  }
+
   get trackNames() {
     return this.tracks.map((t) => prettyName(t.name));
   }
@@ -209,7 +215,9 @@ export class AudioEngine {
     if (this.ctx.state !== 'running') await this.ctx.resume();
   }
 
+  /** Stops every source; also drops a decode in flight (it is for a track we are leaving). */
   private stopAll() {
+    this.decodeGen++;
     this.playable.stop();
     this.audioEl.pause();
     if (this.micStream) {
