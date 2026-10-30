@@ -8,7 +8,7 @@ _2026-10-30, at the end of the scripted-visuals build._
   (pull requests go there). **Never merge a feature branch to main without the user's explicit go-ahead.**
 - Reference recordings stay out of git (no `.ogg`/`.wav`/`.mp3` in commits). `corpus/*.json` and
   `corpus/*.data.json` are committed; `study/` and `.superpowers/` are git-ignored.
-- Checks at the last commit: `npx tsc --noEmit` clean, `npx vitest run` 18 files / 277 tests passing,
+- Checks at the last commit: `npx tsc --noEmit` clean, `npx vitest run` 19 files / 288 tests passing,
   `npm run build` clean, `npm run shots` (with `--seam`) and `node scripts/e2e-check.mjs <audio dir>` all `ok`.
 
 ## What is built
@@ -25,7 +25,7 @@ _2026-10-30, at the end of the scripted-visuals build._
 | **Interface** | Transport, volume, Calm ↔ Wild, Scripted/Live badge; everything else in the Tweak drawer; pins and paused shows; Classic scenes kept; MIDI keys feed the stage |
 | **Composing tools** | `npm run study`, `check-script`, `preview-script`; the handbook `docs/COMPOSING.md` |
 | **Corpus** | Ten shows: the four studies (Ember, Basalt, Sugar Glass, Mist) and six recordings (Rachmaninoff Prelude Op. 3/2, Sugar Plum Fairy, Hungarian Dance No. 5, humpback, drum & bass, ragtime) |
-| **Checks** | 277 unit tests; `scripts/screenshots.mjs` (interface, scripted study, Live, fallback, loop seam, tour video); `scripts/e2e-check.mjs` (corpus recognition, Live scene changes, pause, MIDI); `scripts/eval/melody-eval.ts` |
+| **Checks** | 288 unit tests; `scripts/screenshots.mjs` (interface, scripted study, Live, fallback, loop seam, tour video); `scripts/e2e-check.mjs` (corpus recognition, a source switch mid-decode, Live scene changes, pause, MIDI, Classic on pause); `scripts/stage-shots.mjs` (silence, track change, the melody head under each mirror, 1080p bench); `scripts/eval/melody-eval.ts` |
 
 ## Adding a song
 
@@ -51,6 +51,10 @@ cd ref-audio && git sparse-checkout set --no-cone '/audio/*.ogg' && git checkout
 - Held MIDI keys over a paused song cast the melody thread at the key's pitch (fixed in this build: the paused
   song's last note used to win). A held key whose synth has decayed (or with "Keys make sound" off) counts as
   silence after ~1–3 s, so the picture freezes and dims under a held key.
+- A switch to the demo or the mic while a dropped file is still decoding leaves its script behind (fixed in
+  this build: the file's script and song data used to take over the new source).
+- Classic (the no-WebGL2 fallback) holds its last frame exactly on pause (fixed in this build: its scenes
+  kept moving on the wall clock).
 - Under a mirror the melody lays itself out inside the part the mirror keeps (head on the centre line under 2
   and 4, a ring round the centre under 6 and up), so its current note stays on screen at any pitch (see
   COMPOSING.md, *Known behaviours*).
