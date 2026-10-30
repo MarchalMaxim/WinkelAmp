@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "dnb",
+  "title": "Choice (drum & bass)",
+  "artist": "admiralbob77",
+  "duration": 25.026,
+  "notes": "A 25 s excerpt: a steady break (eighths every 0.22 s, the grid's beat every 0.88 s is the kick–snare cycle) over a heavy sub bass, building in level until the groove locks at 0:10.6 (four-bar phrases at 0:03.5, 0:10.6, 0:17.7, 0:24.7). Machine music: a wave for the bass line, dust for the hats, a pulse once the beat is clear, then the full mirrored circuit with one big flash on the loudest bar.",
+  "match": { "kind": "recording" },
+  "scenes": {
+    "intro": {
+      "look": { "palette": ["#010806", "#04332b", "#00c2a8", "#d8fff6"], "trails": 0.3, "warp": 0.1, "glow": 0.7 },
+      "elements": [
+        { "id": "line", "type": "wave", "params": { "style": "line", "intensity": 0.6, "size": 0.5, "region": "center" } },
+        { "id": "hats", "type": "sparks", "params": { "style": "dust", "intensity": 0.5, "size": 0.25 } },
+        { "id": "sub", "type": "bass", "params": { "style": "orbs", "intensity": 0.6, "size": 0.7, "region": "bottom" } }
+      ]
+    },
+    "circuit": {
+      "look": { "palette": ["#010806", "#062e3a", "#00e1c3", "#f0fffb"], "trails": 0.3, "warp": 0.1, "mirror": 4, "glow": 0.8 },
+      "elements": [
+        { "id": "beat", "type": "pulse", "params": { "style": "grid", "intensity": 0.6 } },
+        { "id": "line", "type": "wave", "params": { "style": "line", "intensity": 0.7, "size": 0.5, "region": "center" } },
+        { "id": "hats", "type": "sparks", "params": { "style": "stars", "intensity": 0.6, "size": 0.25 } },
+        { "id": "sub", "type": "bass", "params": { "style": "orbs", "intensity": 0.75, "size": 0.8, "region": "bottom" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "intro", "transition": { "kind": "cut" } },
+    { "at": 3.53, "enter": { "id": "beat", "type": "pulse", "params": { "style": "rings", "intensity": 0.45, "region": "bottom" } }, "fade": 0.5 },
+    { "at": 10.6, "scene": "circuit", "transition": { "kind": "cut" } },
+    { "at": 14.13, "accent": { "kind": "flash", "color": "#d8fff6", "strength": 1 } },
+    { "at": 17.66, "accent": { "kind": "shock", "color": "#00e1c3", "strength": 0.6 } },
+    { "at": 21.18, "ramp": { "target": "look.glow", "to": 0.95, "duration": 3.5 } },
+    { "at": 24.71, "accent": { "kind": "flash", "color": "#00e1c3", "strength": 0.6 } }
+  ]
+}

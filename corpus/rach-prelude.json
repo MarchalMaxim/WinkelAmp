@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "rach-prelude",
+  "title": "Prelude in C-sharp minor, Op. 3 No. 2",
+  "artist": "Rachmaninoff",
+  "duration": 84.062,
+  "notes": "The rendered reference (scripts/reference). Three fff octaves A–G♯–C♯ toll into the depths (0:00–0:03), a pp chorale over a tolling bass (0:11), a swell through the Neapolitan to G♯7 ff (0:39–0:44), the Agitato churning (0:49), then the motto returns fff in four-stave chords (0:58, P1) and the last C♯ minor chord rings out (1:10). The bells scene opens the show and comes back with the motto at the climax; the bar-by-bar bass 'drops' are the toll, not cuts.",
+  "match": { "kind": "recording" },
+  "scenes": {
+    "bells": {
+      "look": { "palette": ["#040306", "#2a1224", "#8e3535", "#f4dcb4"], "trails": 0.8, "warp": 0.15, "glow": 0.55 },
+      "elements": [
+        { "id": "toll", "type": "bass", "params": { "style": "orbs", "intensity": 0.9, "size": 0.9, "region": "bottom" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.45, "color": "#6b2a3a" } },
+        { "id": "depth", "type": "fluid", "params": { "intensity": 0.5 } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.6, "size": 0.6 } }
+      ]
+    },
+    "chorale": {
+      "look": { "palette": ["#04050a", "#1a2334", "#4e6079", "#bccadb"], "trails": 0.75, "warp": 0.12, "glow": 0.4 },
+      "elements": [
+        { "id": "toll", "type": "bass", "params": { "style": "tides", "intensity": 0.6, "size": 0.7, "region": "bottom" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.35, "color": "#3c4f6e" } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.65, "size": 0.4 } },
+        { "id": "motes", "type": "sparks", "params": { "style": "dust", "intensity": 0.3, "size": 0.2 } }
+      ]
+    },
+    "agitato": {
+      "look": { "palette": ["#060207", "#3c0c1a", "#b8322a", "#ffb46a"], "trails": 0.55, "warp": 0.7, "glow": 0.65 },
+      "elements": [
+        { "id": "depth", "type": "fluid", "params": { "intensity": 0.8 } },
+        { "id": "toll", "type": "bass", "params": { "style": "tides", "intensity": 0.7, "size": 0.6, "region": "bottom" } },
+        { "id": "tune", "type": "melody", "params": { "style": "ink", "intensity": 0.75, "size": 0.45 } },
+        { "id": "churn", "type": "sparks", "params": { "style": "embers", "intensity": 0.65, "size": 0.35 } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "bells", "transition": { "kind": "cut" } },
+    { "at": 0.01, "accent": { "kind": "shock", "color": "#f4dcb4", "strength": 0.5 } },
+    { "at": 1.45, "accent": { "kind": "shock", "color": "#f4dcb4", "strength": 0.5 } },
+    { "at": 2.85, "accent": { "kind": "shock", "color": "#ffb46a", "strength": 0.65 } },
+    { "at": 4, "ramp": { "target": "look.glow", "to": 0.35, "duration": 7 } },
+    { "at": 11.36, "scene": "chorale", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 39.46, "ramp": { "target": "harmony.intensity", "to": 0.7, "duration": 9 } },
+    { "at": 39.46, "ramp": { "target": "look.glow", "to": 0.7, "duration": 9.5 } },
+    { "at": 44.16, "accent": { "kind": "swell", "strength": 0.5 } },
+    { "at": 49.08, "scene": "agitato", "transition": { "kind": "cut" } },
+    { "at": 51.14, "ramp": { "target": "look.warp", "to": 0.95, "duration": 6.5 } },
+    { "at": 55.46, "accent": { "kind": "swell", "color": "#ffb46a", "strength": 0.6 } },
+    { "at": 57.98, "scene": "bells", "transition": { "kind": "cut" } },
+    { "at": 57.98, "accent": { "kind": "flash", "color": "#fff1dc", "strength": 1 } },
+    { "at": 57.98, "ramp": { "target": "look.glow", "to": 0.9, "duration": 1.5 } },
+    { "at": 59.39, "accent": { "kind": "shock", "color": "#f4dcb4", "strength": 0.6 } },
+    { "at": 60.74, "accent": { "kind": "shock", "color": "#ffb46a", "strength": 0.75 } },
+    { "at": 63.61, "accent": { "kind": "swell", "strength": 0.6 } },
+    { "at": 66.64, "accent": { "kind": "swell", "strength": 0.6 } },
+    { "at": 70.08, "accent": { "kind": "shock", "color": "#f4dcb4", "strength": 0.8 } },
+    { "at": 71, "ramp": { "target": "look.trails", "to": 0.92, "duration": 5 } },
+    { "at": 72, "ramp": { "target": "look.glow", "to": 0.3, "duration": 12 } },
+    { "at": 79, "exit": "tune", "fade": 4 }
+  ]
+}

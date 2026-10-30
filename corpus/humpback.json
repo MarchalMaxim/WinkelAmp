@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "humpback",
+  "title": "Humpback whale song, Glacier Bay",
+  "duration": 64.809,
+  "notes": "A hydrophone recording: no beat, no key, a sea-noise bed. Low moans (C♯4–G4: 0:02, 0:09, 0:16, 0:22, 0:28) alternate with high whistles (A♯5–D6: 0:04, 0:12, 0:19, 0:25); from 0:31.7 the calls turn into rising whoops, at 0:42.8 comes the deepest, longest call (the strongest change in the pack), then sparser calls fade out. The melody ribbon traces each call's glide; no pulse anywhere. The biggest accent goes to the deep call, not P1 (a whistle-and-moan overlap at 0:10.6), because it is the moment the song changes.",
+  "match": { "kind": "recording" },
+  "scenes": {
+    "deep": {
+      "look": { "palette": ["#01050b", "#062636", "#1f7a8c", "#c4f4ff"], "trails": 0.85, "warp": 0.4, "glow": 0.5 },
+      "elements": [
+        { "id": "sea", "type": "fluid", "params": { "intensity": 0.55 } },
+        { "id": "song", "type": "melody", "params": { "style": "ribbon", "intensity": 0.8, "size": 0.5 } },
+        { "id": "motes", "type": "sparks", "params": { "style": "dust", "intensity": 0.35, "size": 0.2 } },
+        { "id": "swell", "type": "bass", "params": { "style": "tides", "intensity": 0.35, "size": 0.8, "region": "bottom" } }
+      ]
+    },
+    "calls": {
+      "look": { "palette": ["#01050b", "#082a3e", "#2f9bb0", "#e2fbff"], "trails": 0.8, "warp": 0.45, "glow": 0.55 },
+      "elements": [
+        { "id": "sea", "type": "fluid", "params": { "intensity": 0.5 } },
+        { "id": "song", "type": "melody", "params": { "style": "ribbon", "intensity": 0.8, "size": 0.5 } },
+        { "id": "voice", "type": "wave", "params": { "style": "circle", "intensity": 0.45, "size": 0.5, "region": "center" } },
+        { "id": "motes", "type": "sparks", "params": { "style": "dust", "intensity": 0.35, "size": 0.2 } }
+      ]
+    },
+    "abyss": {
+      "look": { "palette": ["#010309", "#081a35", "#2a4f8a", "#b8d2ff"], "trails": 0.88, "warp": 0.35, "glow": 0.45 },
+      "elements": [
+        { "id": "sea", "type": "fluid", "params": { "intensity": 0.6 } },
+        { "id": "song", "type": "melody", "params": { "style": "ribbon", "intensity": 0.85, "size": 0.65 } },
+        { "id": "swell", "type": "bass", "params": { "style": "orbs", "intensity": 0.6, "size": 0.85, "region": "bottom" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.3, "color": "#2a4f8a" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "deep", "transition": { "kind": "cut" } },
+    { "at": 12.02, "accent": { "kind": "swell", "color": "#c4f4ff", "strength": 0.45 } },
+    { "at": 31.66, "scene": "calls", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 31.66, "accent": { "kind": "swell", "color": "#e2fbff", "strength": 0.5 } },
+    { "at": 42.82, "scene": "abyss", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 42.82, "accent": { "kind": "swell", "color": "#b8d2ff", "strength": 0.75 } },
+    { "at": 52.89, "scene": "deep", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 55, "ramp": { "target": "look.trails", "to": 0.92, "duration": 6 } },
+    { "at": 56, "ramp": { "target": "look.glow", "to": 0.3, "duration": 8 } }
+  ]
+}
