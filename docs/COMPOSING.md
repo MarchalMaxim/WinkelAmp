@@ -51,7 +51,11 @@ study → read → write → check → preview → revise (→ check → preview
   predominant line; in dense orchestral passages it may jump between voices, so read the piano roll's shape,
   not single notes.
 - **Beats** are kept only where the pulse is clear enough (pulse clarity ≥ 0.3). The summary says when the
-  pulse is weak: then a pulse element would throb on a guess.
+  pulse is weak: then a pulse element would throb on a guess. The beat grid itself is always evenly spaced
+  (the tracker holds one period); how steady the *music* is comes from its own tempo estimate — the header's
+  steady / flexible / free line and the per-section BPM.
+- **Motifs** need the same intervals note for note, so a tracker slip breaks a match: the list can miss a
+  figure that plainly repeats. Look for repeated shapes in `melody.png` too.
 - **Images**: `spectrogram.png` is log frequency (C1 at the bottom … C9 at the top); `melody.png` shows notes as
   bars, the continuous contour in blue, motif letters above their occurrences (long pieces wrap into 2-minute
   rows); `mood.png` stacks the archetype blend, then loudness (with how often a tune is voiced), pitch
@@ -192,10 +196,10 @@ and **exactly one** action:
 | accent | `{ "at": 97.2, "accent": { "kind": "flash", "color": "#fff4d6", "strength": 1 } }` | `flash`, `shock`, `swell`; lasts ~1.5 s |
 | ramp | `{ "at": 70, "ramp": { "target": "harmony.intensity", "to": 0.6, "duration": 20 } }` | targets: `look.trails`, `look.warp`, `look.glow`, `<id>.intensity`, `<id>.size`; `to` 0..1 |
 
-**Timing.** Each cue's time snaps to the nearest detected onset or beat within 120 ms, so a hand-written time
-that is slightly off still lands on the music; `"snap": false` keeps it exactly where it is (for a moment
-between notes). The fold is pure: after a seek or a pause the picture is exactly what the script says at that
-moment, with no replayed accents.
+**Timing.** In a recording script each cue's time snaps to the nearest detected onset or beat within 120 ms,
+so a hand-written time that is slightly off still lands on the music; `"snap": false` keeps it exactly where
+it is (for a moment between notes). Study scripts don't snap at all (§7). The fold is pure: after a seek or a
+pause the picture is exactly what the script says at that moment, with no replayed accents.
 
 **Checks** (`npm run check-script`): errors for anything malformed or unresolved (unknown scene, element type
 or style, a ramp or exit naming an id that was never on stage, out-of-range values, an unsorted timeline);
@@ -268,3 +272,9 @@ harmony swells over twenty seconds, one flash for the loudest moment, trails len
   score (`STUDIES[…].compose(seed)` in `src/audio/studies.ts`), or render the study
   (`node scripts/render-studies.mjs <dir> --seconds 0 --only ember`) and run `npm run study` on the WAV for a
   pack to read — but don't commit that WAV's data file; the script matches the study, not the recording.
+
+  **Timing of a study script.** Its song time is the score's own time: 0 is the first event of
+  `compose(seed)`, and an event at `t` in the score is heard at song time `t`. **Its cues do not snap** (the
+  app has no song data for a study), so write them on the score's event times. A *rendered* study WAV starts
+  0.1 s before the score (the player schedules from `currentTime + 0.1`), so every time in a study pack made
+  from it is **0.1 s later** than the script's: subtract 0.1 s.

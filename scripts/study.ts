@@ -140,6 +140,43 @@ function trackBeats(odf: Float32Array, fps: number): { beats: number[]; period: 
   return { beats: beats.reverse(), period };
 }
 
+interface TempoSpread {
+  /** Median BPM, and the 10th / 90th percentile of the per-second tempo. */
+  bpm: number;
+  lo: number;
+  hi: number;
+  /** (hi − lo) / bpm. */
+  spread: number;
+}
+
+/**
+ * How much the music's own tempo moves over hops [h0, h1): the descriptor's
+ * running estimate, not the beat grid (which holds one period by construction, so
+ * its spacing always looks steady). Per-second medians over sounding seconds with
+ * some pulse, folded into the octave around their median (a halved or doubled
+ * estimate is the same pulse). Null with fewer than 5 such seconds.
+ */
+function tempoSpread(D: Descriptors[], h0: number, h1: number, fps = 60): TempoSpread | null {
+  const perSecond: number[] = [];
+  for (let a = h0; a + fps <= h1; a += fps) {
+    const xs: number[] = [];
+    for (let h = a; h < a + fps; h++) if (D[h].tempo > 0 && D[h].silence < 0.5 && D[h].pulseClarity >= 0.15) xs.push(D[h].tempo * 200);
+    if (xs.length > fps / 2) perSecond.push(median(xs));
+  }
+  if (perSecond.length < 5) return null;
+  const m = median(perSecond);
+  const folded = perSecond.map((b) => {
+    while (b < m / Math.SQRT2) b *= 2;
+    while (b >= m * Math.SQRT2) b /= 2;
+    return b;
+  }).sort((a, b) => a - b);
+  const q = (p: number) => folded[Math.floor(p * (folded.length - 1))];
+  return { bpm: r1(m), lo: r1(q(0.1)), hi: r1(q(0.9)), spread: r2((q(0.9) - q(0.1)) / m) };
+}
+
+const steadiness = (t: TempoSpread | null) =>
+  !t ? 'no measurable tempo' : t.spread < 0.1 ? 'steady' : t.spread < 0.3 ? 'flexible' : 'free or changing';
+
 /** Major / minor triads against chroma: cosine of the mean-removed vectors. */
 const TRIADS = (() => {
   const out: { root: number; minor: boolean; v: Float64Array }[] = [];
@@ -411,9 +448,8 @@ function main() {
   const grid = trackBeats(odf, fps);
   const allBeats = grid.beats.map((h) => res.times[h] - ONSET_LAG).filter((t) => t >= 0);
   const beats = allBeats.filter((t) => at(t).pulseClarity >= PULSE_MIN && at(t).silence < 0.5).map(r3);
-  const ibis = allBeats.slice(1).map((t, i) => t - allBeats[i]);
-  const ibi = median(ibis);
-  const ibiCv = ibis.length ? Math.sqrt(ibis.reduce((s, x) => s + (x - ibi) ** 2, 0) / ibis.length) / ibi : NaN;
+  const ibi = median(allBeats.slice(1).map((t, i) => t - allBeats[i]));
+  const tempo = tempoSpread(D, 0, hops);
   lap(`onsets & beats (${onsets.length}, ${beats.length})`);
 
   // Structure.
@@ -487,6 +523,7 @@ function main() {
       loudness: r2(d.loudness), register: r2(d.register), registerNote: registerNote(d.register), attack: r2(d.attack),
       sustain: r2(d.sustain), onsetsPerSec: r1(d.onsetRate * 10), pulse: r2(d.pulseClarity), majorness: r2(d.majorness),
       key: keyOver(s.start, s.end), texture: textureWords(d),
+      tempo: tempoSpread(D, Math.round(s.start * fps), Math.min(hops, Math.round(s.end * fps)))?.bpm ?? null,
     };
   });
   const keyArc: string[] = [];
@@ -564,7 +601,7 @@ function main() {
 
   const analysis = {
     file: basename(file), id, title, duration: r3(duration), fps, sampleRate: SR,
-    tempo: { bpm: r1(60 / ibi), ibiCv: r2(ibiCv), pulseMedian: r2(median(D.map((d) => d.pulseClarity))), beatsKept: beats.length, beatsFound: allBeats.length },
+    tempo: { gridBpm: r1(60 / ibi), music: tempo, steadiness: steadiness(tempo), pulseMedian: r2(median(D.map((d) => d.pulseClarity))), beatsKept: beats.length, beatsFound: allBeats.length },
     keyArc, sections: sectionInfo, drops, peaks,
     melody: {
       voiced: r2(voiced), range: ms.length ? [noteName(ms[0]), noteName(ms[ms.length - 1])] : [],
@@ -581,7 +618,7 @@ function main() {
   writeFileSync(join(outDir, 'analysis.json'), JSON.stringify(analysis));
 
   const md = summary({
-    title, file: basename(file), id, duration, bpm: 60 / ibi, ibiCv, pulse: median(D.map((d) => d.pulseClarity)),
+    title, file: basename(file), id, duration, bpm: 60 / ibi, tempo, pulse: median(D.map((d) => d.pulseClarity)),
     keyArc, sectionInfo, drops, peaks, voiced, range: ms.length ? [ms[0], ms[ms.length - 1], pct(0.05), pct(0.95)] : null,
     phrases: ps, motifs: motifList, beats: beats.length, allBeats: allBeats.length, onsets: onsets.length, notes: notes.length,
     chords: chordList.length, seconds, D: (t: number) => meanD(t, t + 10), sectionAt: (t: number) => sections.findIndex((s) => t >= s.start && t < s.end) + 1,
@@ -604,12 +641,12 @@ interface SummaryInput {
   id: string;
   duration: number;
   bpm: number;
-  ibiCv: number;
+  tempo: TempoSpread | null;
   pulse: number;
   keyArc: string[];
   sectionInfo: {
     n: number; start: number; end: number; novelty: number; leader: string; leaderShare: number; words: string[];
-    loudness: number; registerNote: string; register: number; texture: string; key: string; pulse: number;
+    loudness: number; registerNote: string; register: number; texture: string; key: string; pulse: number; tempo: number | null;
   }[];
   drops: Drop[];
   peaks: { t: number; loudness: number }[];
@@ -630,11 +667,12 @@ interface SummaryInput {
 /** summary.md: what a composer reads first. Scannable: a header, tables, one line per 10 s. */
 function summary(s: SummaryInput): string {
   const L: string[] = [];
-  const steady = s.ibiCv < 0.08 ? 'steady' : s.ibiCv < 0.18 ? 'flexible' : 'free (rubato)';
+  const steady = steadiness(s.tempo);
+  const range = s.tempo ? `${steady}: the music's own tempo runs ${Math.round(s.tempo.lo)}–${Math.round(s.tempo.hi)} BPM (10–90 %)` : steady;
   L.push(`# ${s.title}`, '');
   L.push(`Study pack for \`${s.file}\` · id \`${s.id}\` · script: \`corpus/${s.id}.json\`, song data: \`corpus/${s.id}.data.json\``, '');
   L.push(`- **Duration:** ${clock(s.duration)} (${s.duration.toFixed(1)} s)`);
-  L.push(`- **Tempo:** ~${Math.round(s.bpm)} BPM, ${steady} (beat spacing varies ${Math.round(s.ibiCv * 100)} %); pulse ${pulseWord(s.pulse)} (clarity ${s.pulse.toFixed(2)})`);
+  L.push(`- **Tempo:** beat grid ~${Math.round(s.bpm)} BPM; ${range}; pulse ${pulseWord(s.pulse)} (clarity ${s.pulse.toFixed(2)})`);
   L.push(`- **Key / mode arc:** ${s.keyArc.join(' → ') || 'no clear key'}`);
   L.push(`- **Counts:** ${s.sectionInfo.length} sections, ${s.drops.length} drops, ${s.notes} melody notes (tune voiced ${Math.round(s.voiced * 100)} % of the time), ${s.onsets} onsets, ${s.beats} beats kept of ${s.allBeats}, ${s.chords} chord changes`);
   L.push('');
@@ -645,10 +683,10 @@ function summary(s: SummaryInput): string {
   L.push('');
 
   L.push('## Sections', '');
-  L.push('| # | start–end | character (share) · words | loudness | register | texture | pulse | key | novelty |');
+  L.push('| # | start–end | character (share) · words | loudness | register | texture | pulse · BPM | key | novelty |');
   L.push('|---|---|---|---|---|---|---|---|---|');
   for (const x of s.sectionInfo) {
-    L.push(`| S${x.n} | ${clock(x.start)}–${clock(x.end)} | **${x.leader}** (${Math.round(x.leaderShare * 100)} %) · ${x.words.join(', ')} | ${loudWord(x.loudness)} ${x.loudness.toFixed(2)} | ${registerWord(x.register)} (${x.registerNote}) | ${x.texture} | ${pulseWord(x.pulse)} | ${x.key} | ${x.n === 1 ? '–' : x.novelty.toFixed(2)} |`);
+    L.push(`| S${x.n} | ${clock(x.start)}–${clock(x.end)} | **${x.leader}** (${Math.round(x.leaderShare * 100)} %) · ${x.words.join(', ')} | ${loudWord(x.loudness)} ${x.loudness.toFixed(2)} | ${registerWord(x.register)} (${x.registerNote}) | ${x.texture} | ${pulseWord(x.pulse)}${x.tempo ? ` · ${Math.round(x.tempo)}` : ''} | ${x.key} | ${x.n === 1 ? '–' : x.novelty.toFixed(2)} |`);
   }
   L.push('');
 
@@ -686,7 +724,7 @@ function summary(s: SummaryInput): string {
   L.push('');
 
   L.push('## Beat grid', '');
-  L.push(`${s.allBeats} beats tracked at ~${Math.round(s.bpm)} BPM (one every ${(60 / s.bpm).toFixed(2)} s, ${steady}). ${s.beats} kept where the pulse clarity is at least ${PULSE_MIN}; cue times snap to these beats and to onsets within 120 ms. ${s.pulse < PULSE_MIN ? 'The pulse is weak: a pulse element would throb on a guess — prefer elements that follow the melody and the onsets.' : ''}`);
+  L.push(`${s.allBeats} beats tracked at ~${Math.round(s.bpm)} BPM (one every ${(60 / s.bpm).toFixed(2)} s; the tracker holds one period, so the grid itself is always even — the tempo line above says how steady the music is). ${s.beats} kept where the pulse clarity is at least ${PULSE_MIN}; cue times snap to these beats and to onsets within 120 ms. ${s.pulse < PULSE_MIN ? 'The pulse is weak: a pulse element would throb on a guess — prefer elements that follow the melody and the onsets.' : ''}`);
   L.push('');
 
   L.push('## Timeline (every 10 s)', '');
