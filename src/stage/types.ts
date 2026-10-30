@@ -154,6 +154,7 @@ export interface SongData {
   id: string;
   duration: number;
   fingerprint: Fingerprint;
+  /** `contour.midi[i]` is the heard pitch at song time i · hop (analysis latency already removed; null = unvoiced), as SongFeed reads it. */
   melody: { notes: MelodyNote[]; contour: { hop: number; midi: (number | null)[] } };
   beats: number[];
   /** Onset time and strength 0..1. */
