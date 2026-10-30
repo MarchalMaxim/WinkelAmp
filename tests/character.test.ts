@@ -7,6 +7,7 @@ import { EchoStateNetwork, GestureReservoir, mulberry32 } from '../src/character
 import { luma, moodPalette } from '../src/character/palette';
 import { ARCHETYPE_IDS, neutralDescriptors, type Character, type Descriptors, type NeuralTags } from '../src/character/types';
 import { emptyFeatures, type Features } from '../src/audio/features';
+import type { MelodyFrame } from '../src/stage/types';
 
 const desc = (over: Partial<Descriptors>): Descriptors => ({ ...neutralDescriptors(), silence: 0, ...over });
 
@@ -400,6 +401,25 @@ describe('character: events', () => {
     const bell = heightOf(44, 50); // ≈ 2–3.5 kHz
     expect(kick).toBeLessThan(0.35);
     expect(bell).toBeGreaterThan(0.6);
+  });
+
+  it('an onset while the melody is voiced sits at the tune, even before the tracker confirms a note', () => {
+    // Live, noteOn arrives ≥ 60 ms after the note starts, so the onset hop sees a voiced pitch but no noteOn.
+    const heightWith = (mel: MelodyFrame | null) => {
+      const e = new CharacterEngine();
+      const f = emptyFeatures();
+      f.spectrum.fill(0.2);
+      run(e, CASES.fire, 5, 60, f);
+      const g = onsetFeatures(4, 0.9);
+      g.spectrum.fill(0.2);
+      for (let i = 2; i < 8; i++) g.spectrum[i] = 0.9; // the spectrum grew low (≈ 40–70 Hz)
+      e.update(CASES.fire, null, g, 1 / 60, 1 / 60, mel);
+      return e.events(g, CASES.fire).find((v) => v.onset)!.height;
+    };
+    const voiced: MelodyFrame = { pitch: 84, voiced: true, salience: 0.6, note: null, noteOn: false };
+    expect(Math.abs(heightWith(voiced) - midiHeight(84))).toBeLessThan(0.03);
+    expect(heightWith({ ...voiced, pitch: NaN, voiced: false })).toBeLessThan(0.35);
+    expect(heightWith(null)).toBeLessThan(0.35);
   });
 
   it('midiEvent maps keys like a keyboard', () => {

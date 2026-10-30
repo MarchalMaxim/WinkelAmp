@@ -404,8 +404,9 @@ export class CharacterEngine {
   /**
    * Sound events for this frame: one per detected onset (weak onsets are dropped),
    * plus sparse continuous ticks while the music is loud and sustained, so legato
-   * passages keep feeding the canvas. At most 2 events per frame. Onsets are
-   * placed at the pitch height where the spectrum just grew (kick low, bell high);
+   * passages keep feeding the canvas. At most 2 events per frame. While a melody is
+   * voiced, onsets and ticks sit at the tune's pitch; otherwise onsets are placed at
+   * the pitch height where the spectrum just grew (kick low, bell high) and
    * continuous ticks at the register of what is sounding.
    */
   events(f: Features, d: Descriptors): SoundEvent[] {
@@ -433,10 +434,11 @@ export class CharacterEngine {
     if (f.onset && fresh && f.onsetStrength >= 0.06) {
       this.lastOnsetTime = f.time;
       const strength = clamp01((0.35 + 0.65 * f.onsetStrength) * (0.5 + 0.5 * this.axes.energy) * p);
-      // Onsets sit where the new sound is (spectral growth), anchored a little to the register.
-      // A melody note starting with the onset puts it at the note; anything else (a kick under the tune) stays where it grew.
-      const h = mel?.noteOn && mel.note
-        ? midiHeight(mel.note.midi)
+      // While the tune is voiced, an onset sits at its pitch at this hop: the tracker confirms a
+      // note (noteOn) only ≥ 60 ms after it starts, so waiting for noteOn would almost never match.
+      // Otherwise it sits where the new sound is (spectral growth), anchored a little to the register.
+      const h = Number.isFinite(tune)
+        ? height
         : Number.isFinite(this.fluxHeight)
           ? clamp01(0.3 * val(d.register) + 0.7 * this.fluxHeight + (this.rnd() * 2 - 1) * 0.02)
           : height;
