@@ -8,7 +8,7 @@
 import type { Features } from '../audio/features';
 import type { Motion } from '../mapping';
 import type { Look } from '../settings';
-import { hsl, PALETTES, type Hsl } from './color';
+import { hsl, PALETTES, soundColor, type Hsl } from './color';
 import { colorNow, type Frame, type Scene } from './scene';
 import { Bloom } from './scenes/bloom';
 import { Pulse } from './scenes/pulse';
@@ -100,17 +100,24 @@ export class Renderer {
     return { x: Math.cos(local) * d, y: Math.sin(local) * d };
   }
 
-  /** A burst of light in the color of the current sound. */
-  burst(sx: number, sy: number, look: Look, f: Features, m: Motion) {
+  /**
+   * A burst of light, in the color of the current sound — or of a given note
+   * (MIDI keys), with `strength` scaling its size and spread.
+   */
+  burst(sx: number, sy: number, look: Look, f: Features, m: Motion, note?: number, strength = 0.7) {
     const p = this.fold(sx, sy, look.mirror);
     const palette = PALETTES.find((x) => x.id === look.palette)!;
     const fr = { f, m, palette } as Frame;
-    for (let i = 0; i < 46; i++) {
-      const a = (i / 46) * Math.PI * 2 + Math.random() * 0.2;
-      const v = 2 + Math.random() * 5;
+    const n = Math.round(16 + strength * 44);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.2;
+      const v = (1 + Math.random() * 4) * (0.5 + strength);
+      const c = note === undefined
+        ? colorNow(fr, Math.random() * 0.2)
+        : soundColor(palette, note, 1, 0.6 + strength * 0.4, Math.random() * 0.05);
       this.ink.push({
         x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1,
-        size: 2 + Math.random() * 4, c: colorNow(fr, Math.random() * 0.2),
+        size: (2 + Math.random() * 4) * (0.6 + strength * 0.8), c,
       });
     }
   }

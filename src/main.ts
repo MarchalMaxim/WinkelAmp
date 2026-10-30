@@ -11,6 +11,11 @@ import { Panel, paintRange } from './ui/panel';
 import { PALETTES, hsl, soundColor } from './visual/color';
 import { Recorder, download, stamp } from './visual/recorder';
 import { Renderer } from './visual/renderer';
+import { MidiController, type MidiTarget } from './control/midi';
+import { KeySynth } from './control/keysynth';
+import { MidiPanel } from './ui/midi-panel';
+import { MOTIONS } from './mapping';
+import { fifthsPosition } from './visual/color';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const body = document.body;
@@ -305,6 +310,102 @@ function poke() {
 }
 for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel']) window.addEventListener(ev, poke, { passive: true });
 
+// ---------- MIDI: knobs drive the look, keys play the picture ----------
+
+const MIDI_TARGETS: MidiTarget[] = [
+  { id: 'wild', label: 'Mood', kind: 'continuous' },
+  { id: 'trails', label: 'Trails', kind: 'continuous' },
+  { id: 'drift', label: 'Drift', kind: 'continuous' },
+  { id: 'mirror', label: 'Mirror', kind: 'continuous' },
+  { id: 'scene', label: 'Scene', kind: 'continuous' },
+  { id: 'palette', label: 'Colors', kind: 'continuous' },
+  { id: 'volume', label: 'Volume', kind: 'continuous' },
+  ...MOTIONS.map((m) => ({ id: `map.${m.id}`, label: `${m.label} amount`, kind: 'continuous' as const })),
+  { id: 'surprise', label: 'Surprise me', kind: 'trigger' },
+  { id: 'play', label: 'Play / pause', kind: 'trigger' },
+  { id: 'scene.next', label: 'Next scene', kind: 'trigger' },
+  { id: 'mirror.next', label: 'Next mirror', kind: 'trigger' },
+  { id: 'save', label: 'Save look', kind: 'trigger' },
+  { id: 'snapshot', label: 'Save picture', kind: 'trigger' },
+];
+
+/** Picks from a list with a 0..1 knob. */
+const pick = <T,>(xs: readonly T[], v: number) => xs[Math.min(xs.length - 1, Math.floor(v * xs.length))];
+
+// The keys' voice goes through its own gain so it can be muted without dropping visuals.
+const keyBus = engine.ctx.createGain();
+keyBus.connect(engine.ctx.destination);
+const keySynth = new KeySynth(engine.ctx, keyBus);
+let bend = 0;
+
+// Knob turns arrive faster than the screen redraws: coalesce look changes per frame.
+let pendingLook: Look | null = null;
+const tweak = (fn: (l: Look) => void) => {
+  const next = pendingLook ?? cloneLook(look);
+  fn(next);
+  pendingLook = next;
+};
+
+const midi = new MidiController(MIDI_TARGETS, {
+  control(id, v) {
+    if (id === 'wild' || id === 'trails' || id === 'drift') tweak((l) => (l[id] = v));
+    else if (id === 'mirror') tweak((l) => (l.mirror = pick(MIRRORS, v)));
+    else if (id === 'scene') tweak((l) => (l.scene = pick(SCENE_IDS, v)));
+    else if (id === 'palette') tweak((l) => (l.palette = pick(PALETTES, v).id));
+    else if (id === 'volume') {
+      volume.value = String(v);
+      paintRange(volume);
+      engine.setVolume(v);
+    } else if (id.startsWith('map.')) {
+      const motion = id.slice(4) as keyof Look['mapping'];
+      tweak((l) => (l.mapping[motion].amount = v));
+    }
+  },
+  trigger(id) {
+    if (id === 'surprise') surprise();
+    else if (id === 'play') $('play').click();
+    else if (id === 'scene.next') applyLook({ ...cloneLook(look), scene: SCENE_IDS[(SCENE_IDS.indexOf(look.scene) + 1) % SCENE_IDS.length] }, 'scene');
+    else if (id === 'mirror.next') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'm' }));
+    else if (id === 'save') $('save-look').click();
+    else if (id === 'snapshot') $('snapshot').click();
+  },
+  note(note, velocity) {
+    if (velocity === 0) {
+      keySynth.noteOff(note);
+      return;
+    }
+    void engine.ctx.resume();
+    if (midiPanel.soundOn) keySynth.noteOn(note, velocity);
+    // Where a note lands: its color's place on the wheel sets x, its height sets y.
+    const height = Math.max(0, Math.min(1, (note - 21) / 87));
+    const x = (fifthsPosition(note % 12) - 0.5) * window.innerWidth * 0.7;
+    const y = (0.5 - height) * window.innerHeight * 0.8;
+    renderer.burst(x, y, look, engine.extractor.features, motion, note % 12, velocity);
+    poke();
+  },
+  bend(v) {
+    bend = v;
+  },
+  sustain(down) {
+    keySynth.sustain(down);
+  },
+  changed() {
+    midiPanel?.render();
+  },
+  learned(id, source) {
+    toast(`${midi.targetLabel(id)} ← ${source.kind === 'cc' ? `CC ${source.number}` : 'key'}`);
+  },
+});
+const midiPanel = new MidiPanel(midi, MIDI_TARGETS);
+$<HTMLInputElement>('midi-sound').addEventListener('change', (e) => {
+  if (!(e.target as HTMLInputElement).checked) keySynth.allOff();
+});
+// If the browser already granted MIDI before, connect quietly at start.
+void navigator.permissions?.query({ name: 'midi' as PermissionName }).then(
+  (p) => p.state === 'granted' && midi.connect(),
+  () => {},
+);
+
 // ---------- Main loop ----------
 
 let last = performance.now();
@@ -313,7 +414,14 @@ function frame(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const f = engine.analyze();
+  if (pendingLook) {
+    applyLook(pendingLook, 'midi');
+    pendingLook = null;
+  }
   motion = applyMapping(f, look.mapping, look.wild, motion);
+  // Pitch bend leans into the picture.
+  motion.zoom += Math.max(0, bend) * 1.5;
+  motion.spin += bend * 0.8;
   renderer.render(f, motion, look, dt);
 
   const palette = PALETTES.find((p) => p.id === look.palette) ?? PALETTES[0];

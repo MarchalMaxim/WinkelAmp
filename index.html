@@ -96,6 +96,20 @@
         <div class="routes" id="routes"></div>
         <button id="reset-routes" class="btn small">Back to default</button>
       </details>
+
+      <details class="patch midi" id="midi-section">
+        <summary><span>MIDI</span><small id="midi-status">Plug in a controller and play</small></summary>
+        <div class="midi-body">
+          <div class="midi-row">
+            <button id="midi-connect" class="btn small">Connect MIDI</button>
+            <label class="toggle"><input type="checkbox" id="midi-sound" checked /> Keys make sound</label>
+          </div>
+          <p class="midi-hint">Keys splash their note's color: low notes low, high notes high. To control anything with a
+            knob, click <b>Learn</b> and move the knob.</p>
+          <div class="midi-targets" id="midi-targets"></div>
+          <button id="midi-reset" class="btn small">Reset to defaults</button>
+        </div>
+      </details>
     </aside>
 
     <footer id="transport" class="transport ui">
