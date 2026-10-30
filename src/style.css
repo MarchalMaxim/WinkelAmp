@@ -267,6 +267,17 @@ body.hide-ui .transport {
   opacity: 0.15;
 }
 
+/* The note and tempo readouts, in the drawer (the default screen keeps only the badge). */
+.now {
+  display: flex;
+  gap: 8px;
+}
+
+.now .readout {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: none;
+}
+
 .badge {
   color: var(--text);
   cursor: default;

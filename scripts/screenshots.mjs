@@ -16,7 +16,8 @@
 // It starts its own Vite dev server. Checks (any failure exits 1):
 //  - welcome → Demo → next: Basalt plays its corpus script ("Scripted · <title>");
 //  - the demo groove (no script) plays on the stage, the badge says "Live" with
-//    mood words, the Tweak drawer is closed and the Calm ↔ Wild slider is visible;
+//    mood words, the Tweak drawer is closed, the Calm ↔ Wild slider is visible and
+//    the note and tempo readouts are not (they show in the drawer);
 //  - holding a library scene pauses the show ("Live · paused"), the badge resumes it;
 //  - a Classic scene switches to the v1 renderer;
 //  - ?classic=1 (no stage, as without WebGL2) shows Classic and says so in a toast;
@@ -132,6 +133,7 @@ try {
   check(await page.evaluate(() => document.body.classList.contains('panel-closed')), 'the Tweak drawer starts closed');
   check(!(await visible('#panel')), 'the drawer is not on screen');
   check(await visible('#wild'), 'Calm ↔ Wild is visible');
+  check(!(await visible('#note-name')) && !(await visible('#bpm')), 'the note and tempo readouts wait in the drawer');
   check((await text('#panel-toggle')).trim() === 'Tweak', 'the drawer toggle says Tweak');
   const cast = await page.evaluate(() => window.winkel.stage().info().cast);
   check(cast.length > 0, `the director cast something (${cast.join(' ')})`);
@@ -141,6 +143,7 @@ try {
   await page.waitForTimeout(700);
   await wake();
   check(await visible('#panel'), 'Tweak opens the drawer');
+  check(await visible('#note-name') && await visible('#bpm'), 'the drawer shows the note and tempo');
   await shot('10-tweak-drawer');
 
   // Holding a library scene pauses the show; the badge gives it back.

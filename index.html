@@ -39,17 +39,9 @@
       </div>
     </section>
 
-    <!-- Live readout: what the music is doing right now. -->
+    <!-- The one readout outside the drawer (the note and tempo wait in Tweak). -->
     <header id="hud" class="hud ui">
       <div class="brand">Winkel<span>Amp</span></div>
-      <div class="readout" title="The note you hear most, and its color">
-        <span class="note-dot" id="note-dot"></span>
-        <span class="note-name" id="note-name">–</span>
-      </div>
-      <div class="readout" title="Tempo, estimated from the beats">
-        <span class="beat-light" id="beat-light"></span>
-        <span id="bpm">– BPM</span>
-      </div>
       <!-- Who decides what is on stage: a composed script, or the live director; then the mood in words. -->
       <button id="mode-badge" class="readout badge" title="Who runs the show, and the mood of the music">
         <b id="mode-name">Live</b><span id="mode-words"></span>
@@ -62,7 +54,22 @@
 
     <aside id="panel" class="panel ui" aria-label="Tweak">
       <section>
-        <h2>Scene <button class="close-panel" id="panel-close" title="Hide this drawer" aria-label="Hide this drawer"><span data-icon="x"></span></button></h2>
+        <h2>Hearing <button class="close-panel" id="panel-close" title="Hide this drawer" aria-label="Hide this drawer"><span data-icon="x"></span></button></h2>
+        <!-- What the music is doing right now. -->
+        <div class="now">
+          <div class="readout" title="The note you hear most, and its color">
+            <span class="note-dot" id="note-dot"></span>
+            <span class="note-name" id="note-name">–</span>
+          </div>
+          <div class="readout" title="Tempo, estimated from the beats">
+            <span class="beat-light" id="beat-light"></span>
+            <span id="bpm">– BPM</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Scene</h2>
         <div class="scene-chips" id="stage-scenes" role="radiogroup" aria-label="Stage scene"></div>
         <h3 class="sub">Classic</h3>
         <div class="scenes" id="scenes" role="radiogroup" aria-label="Classic scene"></div>

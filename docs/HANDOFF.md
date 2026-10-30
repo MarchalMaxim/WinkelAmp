@@ -66,7 +66,7 @@ cd ref-audio && git sparse-checkout set --no-cone '/audio/*.ogg' && git checkout
 - **Live MIDI double events:** with "Keys make sound" on, a key is both a pushed MIDI event and an onset in
   the synth's audio; not visibly doubled in the run, but not measured.
 - Replaying the current demo entry doesn't reset the clock and director; `playStudy` with a new seed leaks the
-  old player's reverb; the HUD note/BPM readouts are outside the drawer.
+  old player's reverb.
 - One unidentified full-suite failure was seen once in Task 12; five cold and warm reruns since passed. The
   wall-clock "is cheap" tests (tests/character.test.ts) are the likely candidates.
 - The full ledger with every deferred minor: `.superpowers/sdd/2026-10-30-scripted-visuals/progress.md`

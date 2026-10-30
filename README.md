@@ -50,9 +50,10 @@ Open the printed URL, then pick one of three ways in:
   - *Live*: no script (the mic, MIDI, a song not in the corpus). A director casts by what it hears and
     changes scene on big section changes and real bass drops, never more often than every 15 s.
 - **Hardly any knobs.** Transport, volume and one **Calm ↔ Wild** slider. Everything else is in the
-  closed **Tweak** drawer: a scene picker (Auto, the library scenes, Classic), colors, trails, drift,
-  mirror, the Sound → Motion patch bay, saved looks and MIDI. A tweak pins that setting for the rest of the
-  song; picking a scene pauses the show (*Scripted · paused*; click the badge to resume).
+  closed **Tweak** drawer: the note and tempo readouts, a scene picker (Auto, the library scenes, Classic),
+  colors, trails, drift, mirror, the Sound → Motion patch bay, saved looks and MIDI. A tweak pins that
+  setting for the rest of the song; picking a scene pauses the show (*Scripted · paused*; click the badge to
+  resume).
 - **Classic.** The v1 Canvas2D scenes (Bloom, Swarm, Ribbons, Pulse) are still there, in the drawer or
   on keys `1`–`4`, and they take over by themselves (with a note saying so) where WebGL2 isn't available.
 - **MIDI.** Connect a controller in the drawer: knobs map to Wild, Trails, Drift, Glow and more (Learn
