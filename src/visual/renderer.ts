@@ -210,17 +210,19 @@ export class Renderer {
 
   /**
    * Draws a frame. Every motion runs on `musicDt` (music seconds; 0 in silence, so the
-   * picture holds still); wall `dt` only fades the trails, eases the offset and moves
-   * what the user paints.
+   * picture holds still); wall `dt` only fades the trails, eases the offset while music
+   * plays and moves what the user paints.
+   *
+   * In silence the last picture holds exactly (a still scene redrawn over its own trails
+   * would only build up toward white). Only the user makes a frame then: another look (or a
+   * resize) draws one clean still without the trails; ink is painted over the held picture
+   * with max, not +, so the frozen scene under it doesn't change.
    */
   render(live: Features, liveMotion: Motion, look: Look, dt: number, musicDt: number) {
-    // In silence the last picture holds exactly, unless something the user did (ink, another
-    // look, the drawer's offset, a resize) needs a frame; that frame skips the feedback, since
-    // a still scene redrawn over its own trails only builds up toward white.
     const still = musicDt <= 0;
     const drawFor = `${look.scene}|${look.palette}|${look.mirror}|${look.trails}|${look.drift}|${this.userZoom}`;
-    const settled = Math.abs(this.offsetTarget - this.offsetX) < 0.5;
-    if (still && drawFor === this.drawnFor && !this.ink.length && !this.pointer.down && settled) return;
+    const paintOnly = still && drawFor === this.drawnFor;
+    if (paintOnly && !this.ink.length && !this.pointer.down) return;
     this.drawnFor = drawFor;
     const { f, m } = this.sound(live, liveMotion, musicDt);
     const { ctx, dpr, w, h } = this;
@@ -228,7 +230,9 @@ export class Renderer {
     const H = this.canvas.height;
     const palette = PALETTES.find((p) => p.id === look.palette) ?? PALETTES[0];
     const r = Math.min(w, h) / 2;
-    this.offsetX += (this.offsetTarget - this.offsetX) * Math.min(1, dt * 4);
+    // Room for the drawer: eased while music plays, at once for a still, never under ink (it would smear).
+    if (!still) this.offsetX += (this.offsetTarget - this.offsetX) * Math.min(1, dt * 4);
+    else if (!paintOnly) this.offsetX = this.offsetTarget;
     const cx = W / 2 + this.offsetX * dpr;
     const cy = H / 2;
     /** Frames' worth (at 60 fps) of music time. */
@@ -244,7 +248,7 @@ export class Renderer {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     const keep60 = 0.3 + look.trails * 0.66;
-    const keep = still ? 0 : Math.pow(keep60, Math.min(3, dt * 60));
+    const keep = paintOnly ? 1 : still ? 0 : Math.pow(keep60, Math.min(3, dt * 60));
     this.drift += musicDt * (look.drift * 0.15 + m.spin * 0.05) * (look.drift > 0.02 ? 1 : 0);
     // The tunnel's zoom and turn per frame of music: none while the clock stands still.
     const zoom = Math.pow(1 + look.drift * (0.008 + m.zoom * 0.03), mk);
@@ -319,7 +323,7 @@ export class Renderer {
     // Exposure: the more light the feedback loop keeps (long trails, tunnel drift),
     // the less each frame adds, so colors build up instead of blowing out to white.
     const exposure = Math.min(1, 0.45 + 1.6 * (1 - keep60) - look.drift * 0.15);
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = paintOnly ? 'lighten' : 'lighter';
     ctx.globalAlpha = exposure;
     ctx.drawImage(compCanvas, this.shakeX, this.shakeY);
 
