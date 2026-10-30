@@ -19,42 +19,51 @@ describe('slash', () => {
   });
 
   it('chords: cuts on a loud chord, not on a loud single line or a soft chord', () => {
-    expect(slashCut('chords', 0.7, 0.95, true, 10, -Infinity, 1 / 60)).not.toBeNull();
-    expect(slashCut('chords', 0.7, 0.95, false, 10, -Infinity, 1 / 60)).toBeNull();
-    expect(slashCut('chords', 0.7, 0.5, true, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('chords', 0.7, 0.95, true, 0.9, 10, -Infinity, 1 / 60)).not.toBeNull();
+    expect(slashCut('chords', 0.7, 0.95, false, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('chords', 0.7, 0.5, true, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
+  });
+
+  it('chords: a strong attack in quiet music is no loud chord (script onsets are relative to the piece)', () => {
+    // A pp chorale's chords can be its strongest onsets; the music's loudness (0..1, absolute-ish) gates them.
+    expect(slashCut('chords', 0.7, 0.95, true, 0.6, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('chords', 0.7, 0.95, true, 0.85, 10, -Infinity, 1 / 60)).not.toBeNull();
+    expect(slashCut('chords', 0.7, 0.95, true, NaN, 10, -Infinity, 1 / 60)).toBeNull();
+    // `every` is every onset, however quiet the music.
+    expect(slashCut('every', 0.7, 0.95, false, 0.3, 10, -Infinity, 1 / 60)).not.toBeNull();
   });
 
   it('intensity lowers the threshold', () => {
-    expect(slashCut('chords', 0.3, 0.62, true, 10, -Infinity, 1 / 60)).toBeNull();
-    expect(slashCut('chords', 1, 0.62, true, 10, -Infinity, 1 / 60)).not.toBeNull();
+    expect(slashCut('chords', 0.3, 0.62, true, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('chords', 1, 0.62, true, 0.9, 10, -Infinity, 1 / 60)).not.toBeNull();
   });
 
   it('every: cuts on any onset above a lower threshold, chord or not', () => {
-    expect(slashCut('every', 0.7, 0.5, false, 10, -Infinity, 1 / 60)).not.toBeNull();
-    expect(slashCut('chords', 0.7, 0.5, true, 10, -Infinity, 1 / 60)).toBeNull();
-    expect(slashCut('every', 0.7, 0.3, false, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('every', 0.7, 0.5, false, 0.9, 10, -Infinity, 1 / 60)).not.toBeNull();
+    expect(slashCut('chords', 0.7, 0.5, true, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('every', 0.7, 0.3, false, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
   });
 
   it('rests 120 ms (music time) after a cut', () => {
-    expect(slashCut('chords', 0.7, 1, true, 10, 9.9, 1 / 60)).toBeNull();
-    expect(slashCut('every', 0.7, 1, false, 10, 9.9, 1 / 60)).toBeNull();
-    expect(slashCut('chords', 0.7, 1, true, 10, 9.87, 1 / 60)).not.toBeNull();
+    expect(slashCut('chords', 0.7, 1, true, 0.9, 10, 9.9, 1 / 60)).toBeNull();
+    expect(slashCut('every', 0.7, 1, false, 0.9, 10, 9.9, 1 / 60)).toBeNull();
+    expect(slashCut('chords', 0.7, 1, true, 0.9, 10, 9.87, 1 / 60)).not.toBeNull();
   });
 
   it('never cuts while music time stands still (a noisy room in silence)', () => {
-    expect(slashCut('every', 1, 1, true, 10, -Infinity, 0)).toBeNull();
+    expect(slashCut('every', 1, 1, true, 0.9, 10, -Infinity, 0)).toBeNull();
   });
 
   it('cuts harder on louder attacks, 0..1', () => {
-    const soft = slashCut('chords', 0.7, 0.8, true, 10, -Infinity, 1 / 60)!;
-    const hard = slashCut('chords', 0.7, 1, true, 10, -Infinity, 1 / 60)!;
+    const soft = slashCut('chords', 0.7, 0.8, true, 0.9, 10, -Infinity, 1 / 60)!;
+    const hard = slashCut('chords', 0.7, 1, true, 0.9, 10, -Infinity, 1 / 60)!;
     expect(hard).toBeGreaterThan(soft);
     expect(soft).toBeGreaterThanOrEqual(0);
     expect(hard).toBeLessThanOrEqual(1);
   });
 
   it('treats an unknown style as the default (chords)', () => {
-    expect(slashCut('nope', 0.7, 0.9, false, 10, -Infinity, 1 / 60)).toBeNull();
+    expect(slashCut('nope', 0.7, 0.9, false, 0.9, 10, -Infinity, 1 / 60)).toBeNull();
   });
 });
 

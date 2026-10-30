@@ -10,9 +10,10 @@
  *
  * `intensity` lowers the threshold, `size` scales the shove, `color` the scar
  * ('mood': the casket's pale yellow). At most one cut per REST of music time.
- * Calibrated on the user's recording of Rachmaninoff's Prelude in C♯ minor, Live:
- * at the default intensity its fff climax cuts ~1.5 times a second (about every
- * big chord, as the sketch did), its pp opening almost never.
+ * Calibrated on Rachmaninoff's Prelude in C♯ minor: at the default intensity the
+ * fff climax of the user's recording cuts ~1.5 times a second Live (about every
+ * big chord, as the sketch did), and the corpus recording's pp chorale, scripted,
+ * not at all.
  */
 import { noteRgb } from '../../character/palette';
 import { CUT_COLOR } from '../cut';
@@ -33,6 +34,12 @@ const PC_ON = 0.5;
 const PCS = 3;
 /** Or the sound spans the keyboard (Descriptors.registerSpread): a massive chord smears the chroma. */
 const WIDE = 0.6;
+/**
+ * `chords` weighs an attack by how loud the music is (Descriptors.loudness, absolute-ish):
+ * a script's onset strengths are relative to the piece, so a pp chorale's chords can be its
+ * strongest. Full weight from LOUD[1] (an fff climax reads 0.85–0.95), none below LOUD[0].
+ */
+const LOUD: [number, number] = [0.45, 0.85];
 
 /** Three or more strong pitch classes at once, or bass and treble sounding together (`spread` 0..1). */
 export function chordLike(chroma: ArrayLike<number>, spread: number): boolean {
@@ -44,13 +51,17 @@ export function chordLike(chroma: ArrayLike<number>, spread: number): boolean {
 
 /**
  * The trigger rule: the cut's strength 0..1 when an attack of event strength
- * `hit` (0 = none this frame) should cut now, else null. `now` and `last` (the
- * previous cut) are music time; nothing cuts while music time stands still.
+ * `hit` (0 = none this frame) should cut now, else null. `chord` and `loudness`
+ * (0..1) describe the music now; `now` and `last` (the previous cut) are music
+ * time; nothing cuts while music time stands still.
  */
-export function slashCut(style: string, intensity: number, hit: number, chord: boolean, now: number, last: number, musicDt: number): number | null {
+export function slashCut(style: string, intensity: number, hit: number, chord: boolean, loudness: number, now: number, last: number, musicDt: number): number | null {
   if (!(musicDt > 0) || !(hit > 0) || now - last < REST) return null;
   const st = styleOf(style, STYLES.slash) as keyof typeof THRESHOLD;
-  if (st === 'chords' && !chord) return null;
+  if (st === 'chords') {
+    if (!chord) return null;
+    hit *= clamp01((fin(loudness) - LOUD[0]) / (LOUD[1] - LOUD[0]));
+  }
   const thr = THRESHOLD[st] - LOWER * clamp01(fin(intensity));
   if (hit < thr) return null;
   return clamp01((hit - thr) / (1 - thr));
@@ -88,7 +99,7 @@ export class Slash implements StageElement {
       note = e.note;
     }
     const now = fin(fr.clock.time);
-    const st = slashCut(prm.style, prm.intensity, hit, chordLike(fr.chroma, fr.d.registerSpread), now, this.last, fr.musicDt);
+    const st = slashCut(prm.style, prm.intensity, hit, chordLike(fr.chroma, fr.d.registerSpread), fr.d.loudness, now, this.last, fr.musicDt);
     if (st === null) return;
     this.last = now;
     const color = prm.color === 'note' && note >= 0 ? srgb(noteRgb(note)) : (prm.color !== 'mood' && hexRgb(prm.color)) || CUT_COLOR;
