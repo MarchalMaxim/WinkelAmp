@@ -119,6 +119,19 @@ try {
     }
   }
 
+  // snapshot() and context loss (the app's fallback hook), on a throwaway page.
+  {
+    const lp = await open(640, 360);
+    await lp.evaluate(() => window.harness.set('sugar'));
+    await lp.evaluate(() => window.harness.advanceTo(2));
+    const size = await lp.evaluate(() => window.harness.snapshotSize());
+    const lost = await lp.evaluate(() => window.harness.loseContext());
+    const ok = size > 10000 && lost.fired && !lost.threw;
+    if (!ok) failed = true;
+    console.log(`snapshot ${size} bytes; context lost → onContextLost ${lost.fired ? 'fired' : 'NOT fired'}${lost.threw ? ', render threw ' + lost.threw : ', render after loss is a no-op'} → ${ok ? 'PASS' : 'FAIL'}`);
+    await lp.close();
+  }
+
   if (!flag('no-bench')) {
     const bp = await open(1920, 1080);
     for (const c of ['all', 'abyss', 'sugar', 'mist', 'kaleido', 'fluid-living', 'melody-ribbon']) {

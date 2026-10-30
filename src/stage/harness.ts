@@ -351,6 +351,24 @@ requestAnimationFrame(loop);
     times.sort((a, b) => a - b);
     return { median: times[n >> 1], p90: times[Math.floor(n * 0.9)], info: stage.info() };
   },
+  /** Size in bytes of a snapshot() PNG (0 when it failed). */
+  async snapshotSize() {
+    return (await stage.snapshot())?.size ?? 0;
+  },
+  /** Loses the GPU context: did onContextLost fire, and does rendering afterwards stay quiet? */
+  async loseContext() {
+    let fired = false;
+    stage.onContextLost = () => (fired = true);
+    stage.gl.getExtension('WEBGL_lose_context')?.loseContext();
+    await new Promise((r) => setTimeout(r, 100));
+    let threw = '';
+    try {
+      step();
+    } catch (e) {
+      threw = String(e);
+    }
+    return { fired, threw };
+  },
   label(show: boolean) {
     label.style.display = show ? '' : 'none';
   },

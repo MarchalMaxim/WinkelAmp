@@ -9,6 +9,7 @@
  */
 import { hslLinear, mixRgb, noteRgb, samplePalette, srgbToLinear, tintKeepLuma } from '../character/palette';
 import type { Rgb } from '../character/types';
+import { clamp01 } from '../visual/living/emit';
 import { createProgram, type GL, type Program } from '../visual/living/gl';
 import type { ElementParams, Region, StageShared } from './types';
 
@@ -16,14 +17,7 @@ export {
   createPair, createProgram, createTarget, deletePair, deleteTarget, detectCaps, formats, QUAD_VS,
   type Caps, type GL, type Pair, type Program, type Target,
 } from '../visual/living/gl';
-export { rng } from '../visual/living/emit';
-
-export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-export const mix = (a: number, b: number, t: number) => a + (b - a) * t;
-export const smoothstep = (a: number, b: number, v: number) => {
-  const t = clamp01((v - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
+export { clamp01, mix, rng, smoothstep } from '../visual/living/emit';
 /** 0 for NaN / ±Infinity: one bad audio value must not poison an element's state. */
 export const fin = (v: number) => (Number.isFinite(v) ? v : 0);
 
