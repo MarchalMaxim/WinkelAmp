@@ -2,7 +2,10 @@
  * Stage contracts shared by the analysis (melody, structure), the script player,
  * the live director and the compositor. Data shapes and their default values only: no logic lives here.
  */
+import type { Features } from '../audio/features';
 import type { Fingerprint } from '../audio/fingerprint';
+import type { Character, Descriptors, Gesture, LivingInput, Material, Rgb, SoundEvent } from '../character/types';
+import type { SpriteBatch, StrokeBatch } from './gl';
 
 export type { Fingerprint };
 
@@ -187,6 +190,70 @@ export interface StageDirectives {
   look: Look;
   cast: CastMember[];
   accents: Accent[];
+}
+
+// ---- The compositor: what the stage is handed each frame, and what an element is ----
+
+/** Everything the stage needs for one frame. Motion comes from `clock` / `musicDt` and the audio values only. */
+export interface StageFrame {
+  /** Wall seconds since the last frame (pointer painting and musically triggered transitions only). */
+  dt: number;
+  /** Music seconds since the last frame: 0 in silence, so the picture freezes. */
+  musicDt: number;
+  clock: { time: number; drive: number; dim: number };
+  f: Features;
+  d: Descriptors;
+  character: Character;
+  material: Material;
+  gesture: Gesture;
+  melody: MelodyFrame;
+  events: SoundEvent[];
+  /** phase 0..1 within the beat; `hit` on the frame a beat lands. */
+  beat: { phase: number; hit: boolean; strength: number };
+  /** 12 pitch-class energies, max 1. */
+  chroma: Float32Array;
+  /** The latest ~2048 mono samples, -1..1. */
+  wave: Float32Array;
+  /** 0..1 Calm ↔ Wild: how strongly everything reacts. */
+  wild: number;
+  pointer: LivingInput['pointer'];
+  directives: StageDirectives;
+}
+
+/** What the stage lends its elements: drawing helpers and this frame's shared state. */
+export interface StageShared {
+  /** Scene target size in pixels; aspect = w / h. */
+  w: number;
+  h: number;
+  aspect: number;
+  /** Draws a full-screen triangle with whatever program is bound. */
+  quad(): void;
+  sprites: SpriteBatch;
+  strokes: StrokeBatch;
+  /** This frame's palette, shadow → highlight, linear RGB: `look.palette` resolved against the material's. */
+  palette: [Rgb, Rgb, Rgb, Rgb];
+  /** `look.palette === 'notes'`: 'mood'-colored elements color by pitch instead. */
+  notes: boolean;
+  /** 0.5 (calm) … 1.5 (wild): scales how strongly audio moves things. */
+  react: number;
+  /** Seeded randomness (repeatable screenshots). */
+  rand: () => number;
+  /** A fluid is on stage this frame: melody ink goes into it. */
+  fluid: boolean;
+  /** Ink for the fluid this frame (the melody writes, the fluid reads; drawn melody-first). */
+  ink: SoundEvent[];
+  /** Pinned Living Canvas quality level for fluids (undefined = adaptive). */
+  fluidLevel?: number;
+  /** Full-screen layers composited after the feedback (the fluid's own finished picture: sRGB values). */
+  layers: { tex: WebGLTexture; gain: number }[];
+}
+
+export interface StageElement {
+  readonly type: ElementType;
+  init(gl: WebGL2RenderingContext, shared: StageShared): void;
+  /** Draws into the bound scene framebuffer with additive blending; `presence` 0..1 scales everything. */
+  draw(fr: StageFrame, member: CastMember): void;
+  dispose(): void;
 }
 
 export const DEFAULT_PARAMS: ElementParams = { intensity: 0.7, size: 0.5, region: 'full', color: 'mood', style: '' };
