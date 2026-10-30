@@ -95,6 +95,25 @@ export const CASES: Record<string, Case> = {
     cast: [el('wave', 'circle'), el('melody', 'ribbon')],
     accents: [{ at: 2.0, kind: 'flash' }, { at: 4.0, kind: 'shock', color: [0.6, 0.9, 1] }, { at: 6.2, kind: 'swell' }],
   },
+  // The casket: a slash on the strong attacks (the harness's chroma is always a triad), paint
+  // dripping, the picture melting, and a scripted cut in the rest at 7.5 s.
+  casket: {
+    archetype: 'storm', look: { trails: 0.85, warp: 0.1, glow: 0.5, melt: 0.6 },
+    cast: [el('slash', 'chords', { intensity: 0 }), el('drip', 'paint'), el('bass', 'orbs', { region: 'bottom', size: 0.6, intensity: 0.45 }), el('melody', 'ink')],
+    accents: [{ at: 7.5, kind: 'cut' }],
+  },
+  'drip-tar': { archetype: 'abyss', look: { trails: 0.85, melt: 0.3 }, cast: [el('drip', 'tar', { intensity: 1 }), el('bloom', 'fields', { intensity: 0.5 })] },
+  // Scripted cuts under a mirror: each must land (and show its scar) in the part the mirror keeps.
+  'cut-m4': {
+    archetype: 'fire', look: { mirror: 4, trails: 0.9, warp: 0 },
+    cast: [el('bloom', 'fields'), el('sparks', 'stars'), el('drip')],
+    accents: [{ at: 2.0, kind: 'cut' }, { at: 4.2, kind: 'cut', strength: 0.5 }, { at: 7.6, kind: 'cut' }],
+  },
+  'cut-m6': {
+    archetype: 'fire', look: { mirror: 6, trails: 0.9, warp: 0 },
+    cast: [el('bloom', 'fields'), el('sparks', 'stars'), el('drip')],
+    accents: [{ at: 2.0, kind: 'cut' }, { at: 4.2, kind: 'cut', strength: 0.5 }, { at: 7.6, kind: 'cut' }],
+  },
   kaleido: {
     archetype: 'sugar', look: { mirror: 6, trails: 0.6, warp: 0.5 },
     cast: [el('sparks', 'stars'), el('melody', 'ribbon', { color: 'note' }), el('bloom', 'fields', { intensity: 0.4 })],

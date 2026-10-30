@@ -66,6 +66,14 @@ describe('LIBRARY', () => {
       expect(s.look?.palette ?? 'mood', s.name).toBe('mood');
     }
   });
+
+  it("has the Casket: slash, drip and melt for dark, wild moods, never above an archetype's own scene", () => {
+    const c = LIBRARY.find((s) => s.name === 'Casket')!;
+    expect(c.elements.map((e) => e.type)).toEqual(expect.arrayContaining(['slash', 'drip']));
+    expect(c.look?.melt).toBeGreaterThan(0.3);
+    expect(c.affinity.storm).toBeGreaterThan(0);
+    for (const v of Object.values(c.affinity)) expect(v).toBeLessThanOrEqual(0.7);
+  });
 });
 
 describe('LiveDirector', () => {

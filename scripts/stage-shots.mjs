@@ -127,7 +127,7 @@ try {
   }
 
   if (!flag('no-silence')) {
-    for (const c of ['all', 'abyss', 'sugar', 'mist', 'accents']) {
+    for (const c of ['all', 'abyss', 'sugar', 'mist', 'accents', 'casket', 'cut-m4']) {
       await page.evaluate((c) => window.harness.set(c), c);
       await advanceTo(4.3);
       await page.evaluate(() => window.harness.silence(120));
@@ -142,7 +142,7 @@ try {
     }
     // A noisy room: the clock is frozen, but the feed keeps reporting noise events, onsets,
     // beat hits and a noise waveform. Nothing may change: not one pixel over 8/255.
-    for (const c of ['all', 'sugar', 'abyss', 'wave-line', 'sparks-stars', 'pulse-rings']) {
+    for (const c of ['all', 'sugar', 'abyss', 'wave-line', 'sparks-stars', 'pulse-rings', 'casket']) {
       await page.evaluate((c) => window.harness.set(c), c);
       await advanceTo(4.3);
       await page.evaluate(() => window.harness.silence(120));
@@ -159,7 +159,7 @@ try {
   // Track change: clock.time drops back to 0 on the same stage. After 30 silent frames the
   // picture must match a fresh stage's after the same 30 frames: no stale rings, notes, trails.
   if (!flag('no-silence')) {
-    for (const c of ['sugar', 'all', 'melody-ribbon', 'pulse-rings', 'abyss']) {
+    for (const c of ['sugar', 'all', 'melody-ribbon', 'pulse-rings', 'abyss', 'casket']) {
       await page.evaluate((c) => window.harness.set(c), c);
       await advanceTo(6);
       await page.evaluate(() => window.harness.newTrack());
@@ -190,7 +190,7 @@ try {
 
   if (!flag('no-bench')) {
     const bp = await open(1920, 1080);
-    for (const c of ['all', 'abyss', 'sugar', 'mist', 'kaleido', 'fluid-living', 'melody-ribbon']) {
+    for (const c of ['all', 'abyss', 'sugar', 'mist', 'kaleido', 'fluid-living', 'melody-ribbon', 'casket']) {
       await bp.evaluate((c) => window.harness.set(c), c);
       const r = await bp.evaluate(() => window.harness.bench(150));
       const ok = r.median < 8;

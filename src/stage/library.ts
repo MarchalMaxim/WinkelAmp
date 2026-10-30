@@ -142,6 +142,20 @@ export const LIBRARY: LibraryScene[] = [
     ],
   },
   {
+    // Panic and disgust: the picture melts off the screen, paint runs from the top, and every
+    // big chord slashes through it all. A blend (never the pure scene) for high-arousal dark moods.
+    // Ink without a fluid: the fluid is screened over the feedback, so it would neither melt nor cut.
+    name: 'Casket',
+    affinity: { storm: 0.6, fire: 0.3, abyss: 0.3 },
+    look: { trails: 0.85, warp: 0.1, glow: 0.5, melt: 0.6 },
+    elements: [
+      el('slash'),
+      el('drip', { intensity: 0.7 }),
+      el('bass', { style: 'orbs', region: 'bottom', size: 0.6, intensity: 0.45 }),
+      el('melody', { style: 'ink', intensity: 0.7 }),
+    ],
+  },
+  {
     // Fire turning to glory: warm fields over the fluid, embers, flashes on the beat.
     name: 'Sunrise',
     affinity: { gold: 0.7, fire: 0.7 },
