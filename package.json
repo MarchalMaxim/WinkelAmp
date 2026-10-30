@@ -13,8 +13,13 @@
     "shots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {
+    "onnxruntime-node": "^1.31.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.31.1"
   }
 }
