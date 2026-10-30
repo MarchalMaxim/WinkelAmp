@@ -5,7 +5,7 @@
  *
  * Usage, once per animation frame, in this order:
  *
- *   const ch = engine.update(descriptors, tags, features, dt, musicDt);  // tags: null is fine
+ *   const ch = engine.update(descriptors, tags, features, dt, musicDt, melody);  // tags, melody: null is fine
  *   const mat = engine.material();   // what the picture is made of
  *   const g = engine.gesture();      // organic motion
  *   const evs = engine.events(features, descriptors);  // onsets + sustained ticks
@@ -15,6 +15,10 @@
  * next update() overwrites — copy them if you need to keep a snapshot.
  * `midiEvent(note, velocity, material)` turns a played key into a SoundEvent
  * (velocity 0..1, as src/control/midi.ts normalizes it).
+ * `melody` (a MelodyTracker frame, optional) puts the size axis and the event
+ * heights on the tune's register when a melody is voiced: the spectrum's register
+ * is dragged down by the bass, so a celesta tune over pizzicato basses read as low
+ * and large (Sugar Plum read as lament).
  * `update()` should see the analysis Features every frame (it tracks spectral
  * change between calls to place onsets); `f.onset` must be true for one frame per
  * onset, as AudioEngine.analyze() reports it.
@@ -43,6 +47,7 @@ import type {
 } from './types';
 import { ARCHETYPE_IDS } from './types';
 import type { Features } from '../audio/features';
+import type { MelodyFrame } from '../stage/types';
 import { ARCHETYPES, protoDistance, type MaterialShape, type SpacePoint } from './archetypes';
 import { GestureReservoir, mulberry32 } from './reservoir';
 import { moodPalette, noteRgb, samplePalette, tintKeepLuma, type Palette } from './palette';
@@ -92,11 +97,14 @@ export const TYPICAL = {
 /**
  * Pure, unsmoothed mapping from descriptors to axes (exported for tests and
  * offline tools): saturating curves of weighted deviations from TYPICAL.
+ * `melodyRegister` (same 0..1 scale as Descriptors.register), when given,
+ * stands in for the register in `size`: a tune's size is where the tune is.
  */
-export function descriptorAxes(d: Descriptors): CharacterAxes {
+export function descriptorAxes(d: Descriptors, melodyRegister = NaN): CharacterAxes {
   const T = TYPICAL;
   const loud = val(d.loudness) - T.loudness;
   const reg = val(d.register) - T.register;
+  const sizeReg = Number.isFinite(melodyRegister) ? clamp01(melodyRegister) - T.register : reg;
   const spread = val(d.registerSpread) - T.registerSpread;
   const bright = val(d.brightness) - T.brightness;
   const noise = val(d.noisiness) - T.noisiness;
@@ -120,7 +128,7 @@ export function descriptorAxes(d: Descriptors): CharacterAxes {
   const energy = sig(7 * (0.45 * loud + 0.25 * onsets + 0.1 * tempo + 0.1 * bright + 0.1 * rough + 0.1 * dyn) + 0.3);
   const valence = Math.tanh(1.1 * mode + 1.6 * (pace - 0.5) + 0.8 * bright + 0.8 * reg - 0.8 * rough);
   const weight = sig(3.5 * (-1.4 * reg + 0.5 * loud + 0.4 * sustain - 0.6 * bright - 0.3 * (pace - 0.5)));
-  const size = sig(3.4 * (-1.1 * reg + 0.8 * loud + 0.3 * sustain + 0.4 * spread - 0.4 * attack));
+  const size = sig(3.4 * (-1.1 * sizeReg + 0.8 * loud + 0.3 * sustain + 0.4 * spread - 0.4 * attack));
   const agitation = sig(7 * (0.35 * irr + 0.2 * rough + 0.25 * dyn + 0.1 * onsets + 0.1 * hc + 0.05 * pm) - 0.4);
   const sharpness = sig(7 * (0.6 * attack - 0.35 * sustain + 0.05 * noise));
   const density = sig(7 * (0.4 * onsets + 0.25 * spread + 0.2 * loud + 0.1 * noise + 0.05 * sustain));
@@ -269,6 +277,11 @@ export class CharacterEngine {
   private prevSpec = new Float32Array(0);
   private fluxHeight = NaN;
   private lastOnsetTime = -1;
+  /** Melody register (0..1, smoothed), NaN when there has been no tune for a while. */
+  private melReg = NaN;
+  private melQuiet = 0;
+  /** This update's melody frame (for events). */
+  private mel: MelodyFrame | null = null;
   private rnd: () => number;
   private reservoir: GestureReservoir;
   private mat: Material;
@@ -287,17 +300,19 @@ export class CharacterEngine {
    * `dt`: wall seconds since the last update (axes, blend and words smooth on it).
    * `musicDt`: music-time seconds (MusicClock.advance) — the gesture reservoir moves
    * only on music time, so silence freezes the motion. Defaults to `dt`.
+   * `melody`: the melody tracker's frame for this update, or null.
    */
-  update(d: Descriptors, tags: NeuralTags | null, f: Features, dt: number, musicDt = dt): Character {
+  update(d: Descriptors, tags: NeuralTags | null, f: Features, dt: number, musicDt = dt, melody: MelodyFrame | null = null): Character {
     dt = clamp(Number.isFinite(dt) ? dt : 1 / 60, 1e-4, 0.25);
     musicDt = Number.isFinite(musicDt) ? clamp(musicDt, 0, 0.25) : dt;
     this.lastDt = dt;
+    this.trackMelody(melody, dt);
     const presenceTarget = 1 - val(d.silence);
     this.presence += alpha(dt, presenceTarget > this.presence ? 0.5 : 1.2) * (presenceTarget - this.presence);
     const p = this.presence;
 
     // 1. Axes: descriptors (+ tags) → targets, gated by presence, then smoothed.
-    const target = descriptorAxes(d);
+    const target = descriptorAxes(d, this.melReg);
     const ev = tags ? tagEvidence(tags) : null;
     let change = 0;
     for (const k of AXES) {
@@ -401,7 +416,10 @@ export class CharacterEngine {
     }
     const tonal = clamp01((f.tonality - 0.3) / 0.4);
     const note = tonal > 0 ? f.note : -1;
-    const height = this.eventHeight(f, d, tonal);
+    // A voiced tune sets the height of what is sounding (the spectrum's register is the bass's).
+    const mel = this.mel;
+    const tune = mel?.voiced ? midiHeight(mel.pitch) : NaN;
+    const height = Number.isFinite(tune) ? clamp01(tune + (this.rnd() * 2 - 1) * 0.02) : this.eventHeight(f, d, tonal);
     const g = this.reservoir.gesture;
     const jitter = this.mat.jitter;
     const pan = () => clamp(g.x + (this.rnd() * 2 - 1) * (0.15 + 0.6 * jitter), -1, 1);
@@ -414,9 +432,12 @@ export class CharacterEngine {
       this.lastOnsetTime = f.time;
       const strength = clamp01((0.35 + 0.65 * f.onsetStrength) * (0.5 + 0.5 * this.axes.energy) * p);
       // Onsets sit where the new sound is (spectral growth), anchored a little to the register.
-      const h = Number.isFinite(this.fluxHeight)
-        ? clamp01(0.3 * val(d.register) + 0.7 * this.fluxHeight + (this.rnd() * 2 - 1) * 0.02)
-        : height;
+      // A melody note starting with the onset puts it at the note; anything else (a kick under the tune) stays where it grew.
+      const h = mel?.noteOn && mel.note
+        ? midiHeight(mel.note.midi)
+        : Number.isFinite(this.fluxHeight)
+          ? clamp01(0.3 * val(d.register) + 0.7 * this.fluxHeight + (this.rnd() * 2 - 1) * 0.02)
+          : height;
       out.push({ height: h, pan: pan(), strength, note, color: this.eventColor(h, strength, note, tonal), onset: true });
     }
     // Continuous emission: up to ~5/s for loud legato, nothing for dry staccato.
@@ -433,6 +454,22 @@ export class CharacterEngine {
   }
 
   // ── internals ──
+
+  /**
+   * Smooths the tune's register (τ ≈ 1 s while voiced) so the size axis doesn't
+   * chatter with voicing flicker; held through gaps between phrases, forgotten
+   * after 2 s without a tune (the spectrum's register takes over again).
+   */
+  private trackMelody(m: MelodyFrame | null, dt: number) {
+    this.mel = m;
+    if (m?.voiced && Number.isFinite(m.pitch)) {
+      const h = midiHeight(m.pitch);
+      this.melReg = Number.isFinite(this.melReg) ? this.melReg + alpha(dt, 1) * (h - this.melReg) : h;
+      this.melQuiet = 0;
+    } else if ((this.melQuiet += dt) > 2) {
+      this.melReg = NaN;
+    }
+  }
 
   /**
    * Where in pitch height the spectrum just grew: the centroid of the squared

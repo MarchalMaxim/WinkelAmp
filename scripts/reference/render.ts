@@ -5,9 +5,12 @@
  *
  * Writes rach_prelude.wav (Op. 3 No. 2) and rach_concerto2.wav (Op. 18 opening),
  * lightly mastered (make-up gain + peak limiter) to the level of a commercial
- * piano recording. Generated audio is for evaluation only; keep it out of git.
+ * piano recording, each with <name>.notes.json beside it: the performed notes
+ * (after humanizing — onset t, midi, vel, hold, group, all in seconds), the ground
+ * truth for scripts/eval/melody-eval.ts. Generated audio is for evaluation only;
+ * keep it out of git.
  */
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { master, render } from './piano';
 import { writeWav } from './wav';
@@ -22,6 +25,7 @@ for (const [name, score] of [['rach_prelude', rachPrelude()], ['rach_concerto2',
   const r = render(score, 44100, 2.5, { inharmonicity: 1.3 });
   const m = master(r.L, r.R, r.sr, -21, -1);
   const info = writeWav(path.join(out, `${name}.wav`), r.L, r.R, r.sr, -1);
+  writeFileSync(path.join(out, `${name}.notes.json`), JSON.stringify(score.notes));
   console.log(
     `${name}: ${score.notes.length} notes, ${info.seconds.toFixed(1)} s, rms ${info.rmsDb.toFixed(1)} dBFS, peak -1 dBFS ` +
       `(make-up ${m.makeupDb.toFixed(1)} dB, limiter ≤ ${m.maxReductionDb.toFixed(1)} dB), ${((performance.now() - t0) / 1000).toFixed(1)} s to render`,

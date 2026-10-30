@@ -10,6 +10,7 @@
 import { neutralDescriptors, type Descriptors, type PcmSource } from '../character/types';
 import { DescriptorExtractor } from './descriptors';
 import { FeatureExtractor, type Features } from './features';
+import { MelodyTracker, SALIENCE_BINS, type MelodyFrame } from './melody';
 import { SpectrumAnalyser } from './fft';
 import { ArrayPcm } from './pcm';
 
@@ -135,6 +136,17 @@ export interface FeatureSnapshot {
 export interface OfflineOptions extends ChainOptions {
   /** Called every ~5 % with 0..1. */
   onProgress?: (fraction: number) => void;
+  /** Also run the live MelodyTracker and keep every hop's salience (for extractMelody). */
+  melody?: boolean;
+}
+
+export interface OfflineMelody {
+  /** Salience per hop (SALIENCE_BINS each; views into one buffer). */
+  salience: Float32Array[];
+  /** The live tracker's frame per hop. */
+  frames: MelodyFrame[];
+  /** The live tracker's latency, seconds (its frames describe the sound this long before the hop). */
+  latency: number;
 }
 
 export interface OfflineResult {
@@ -147,6 +159,8 @@ export interface OfflineResult {
   descriptors: Descriptors[];
   /** Per hop: the descriptor onset detector fired. */
   onsets: Uint8Array;
+  /** Only with the `melody` option. */
+  melody?: OfflineMelody;
 }
 
 export function snapshotFeatures(f: Features): FeatureSnapshot {
@@ -178,6 +192,9 @@ export function analyzeOffline(pcm: Float32Array, sampleRate: number, opts: Offl
       src.latest(out);
     },
   };
+  const tracker = opts.melody ? new MelodyTracker() : null;
+  const salBuf = new Float32Array(tracker ? hops * SALIENCE_BINS : 0);
+  const melody: OfflineMelody | undefined = tracker ? { salience: [], frames: [], latency: 0 } : undefined;
   let lastReport = -1;
   for (let h = 0; h < hops; h++) {
     src.written = Math.round(((h + 1) * sampleRate) / fps);
@@ -187,11 +204,18 @@ export function analyzeOffline(pcm: Float32Array, sampleRate: number, opts: Offl
     features.push(snapshotFeatures(chain.features));
     descriptors.push({ ...neutralDescriptors(), ...chain.descriptors });
     onsets[h] = chain.descriptorExtractor.debug.onset ? 1 : 0;
+    if (tracker && melody) {
+      melody.frames.push(tracker.update(chain.spectrum.magnitudes, sampleRate, chain.spectrum.fftSize, times[h]));
+      const view = salBuf.subarray(h * SALIENCE_BINS, (h + 1) * SALIENCE_BINS);
+      view.set(tracker.salience);
+      melody.salience.push(view);
+      melody.latency = tracker.latency;
+    }
     const pct = Math.floor((h / hops) * 20);
     if (opts.onProgress && pct !== lastReport) {
       lastReport = pct;
       opts.onProgress(h / hops);
     }
   }
-  return { fps, sampleRate, duration: pcm.length / sampleRate, times, features, descriptors, onsets };
+  return { fps, sampleRate, duration: pcm.length / sampleRate, times, features, descriptors, onsets, melody };
 }

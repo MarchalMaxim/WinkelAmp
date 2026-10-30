@@ -2,12 +2,14 @@
  * Runs the CharacterEngine over a recording and prints how its character reads
  * over time: archetype blend, words, key axes.
  *
- *   npx tsx scripts/character-file.ts <audio file | descriptor timeline .json> [--every 4] [--summary]
+ *   npx tsx scripts/character-file.ts <audio file | descriptor timeline .json> [--every 4] [--summary] [--no-melody]
  *
  * Audio files are decoded with ffmpeg (mono, 44.1 kHz) and run through the very
  * chain the app runs live (AnalysisChain, 60 Hz hops), hop by hop, and the
  * engine is fed the chain's live Features — spectrum included, so event heights
- * are measured as live (offline snapshots drop the spectrum).
+ * are measured as live (offline snapshots drop the spectrum) — and the live
+ * MelodyTracker runs on the chain's spectrum, so a voiced tune sets size and
+ * event heights as it would in the app.
  * A .json timeline is any file holding an array of Descriptors objects
  * (top-level, or under `descriptors` / `frames` / `timeline`); the row rate
  * comes from per-row `t` stamps, else `fps` / `hop` / `times`, else one row per
@@ -21,9 +23,10 @@ import { basename, extname } from 'node:path';
 import { CharacterEngine } from '../src/character/character';
 import { neutralDescriptors, type Character, type Descriptors } from '../src/character/types';
 import { emptyFeatures, type Features } from '../src/audio/features';
+import type { MelodyFrame } from '../src/stage/types';
 
-/** One engine step: descriptors, features, dt. */
-type Frame = { d: Descriptors; f: Features; dt: number };
+/** One engine step: descriptors, features, dt, and the melody when audio was analysed. */
+type Frame = { d: Descriptors; f: Features; dt: number; mel?: MelodyFrame };
 
 function decode(file: string): Float32Array {
   const buf = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', '44100', '-f', 'f32le', '-'], {
@@ -35,6 +38,8 @@ function decode(file: string): Float32Array {
 async function fromAudio(file: string): Promise<{ duration: number; frames: Iterable<Frame> }> {
   const { AnalysisChain } = await import('../src/audio/offline');
   const { ArrayPcm } = await import('../src/audio/pcm');
+  const { MelodyTracker } = await import('../src/audio/melody');
+  const tracker = new MelodyTracker();
   const sr = 44100;
   const pcm = decode(file);
   const chain = new AnalysisChain();
@@ -55,7 +60,8 @@ async function fromAudio(file: string): Promise<{ duration: number; frames: Iter
     for (let h = 0; h < hops; h++) {
       src.written = Math.round(((h + 1) * sr) / chain.fps);
       chain.runHop(reader, src.written);
-      yield { d: chain.descriptors, f: chain.features, dt: 1 / chain.fps };
+      const mel = tracker.update(chain.spectrum.magnitudes, sr, chain.spectrum.fftSize, src.written / sr);
+      yield { d: chain.descriptors, f: chain.features, dt: 1 / chain.fps, mel };
     }
   }
   return { duration: hops / chain.fps, frames: frames() };
@@ -91,12 +97,13 @@ async function main() {
   const args = process.argv.slice(2);
   const file = args.find((a) => !a.startsWith('--'));
   if (!file) {
-    console.error('usage: npx tsx scripts/character-file.ts <file> [--every seconds] [--summary]');
+    console.error('usage: npx tsx scripts/character-file.ts <file> [--every seconds] [--summary] [--no-melody]');
     process.exit(1);
   }
   const everyIdx = args.indexOf('--every');
   const every = everyIdx >= 0 ? Number(args[everyIdx + 1]) : 4;
   const summaryOnly = args.includes('--summary');
+  const noMelody = args.includes('--no-melody');
   const tl = extname(file).toLowerCase() === '.json' ? fromJson(file) : await fromAudio(file);
 
   const engine = new CharacterEngine();
@@ -113,9 +120,11 @@ async function main() {
   let prevLeader = '';
   let prevName = '';
   if (!summaryOnly) console.log(`${basename(file)}: ${tl.duration.toFixed(1)} s`);
-  for (const { d, f, dt } of tl.frames) {
+  const tune: number[] = [];
+  for (const { d, f, dt, mel } of tl.frames) {
     t += dt;
-    const ch: Character = engine.update(d, null, f, dt);
+    if (mel?.voiced) tune.push(mel.pitch);
+    const ch: Character = engine.update(d, null, f, dt, dt, noMelody ? null : mel ?? null);
     const evs = engine.events(f, d);
     events += evs.length;
     for (const e of evs) if (e.onset) onsetHeights.push(e.height);
@@ -157,7 +166,9 @@ async function main() {
       ` | leader: ${lead.slice(0, 3).map(([id, n]) => `${id} ${Math.round((100 * n) / Math.max(1, frames))}%`).join(', ')}` +
       ` | words: ${topWords.map(([w]) => w).join(', ')} | ${(events / tl.duration).toFixed(1)} events/s` +
       ` (${(onsetHeights.length / tl.duration).toFixed(1)} onsets, height ${hMean.toFixed(2)}±${hSd.toFixed(2)})` +
-      ` | switches/min: blend ${(switches / mins).toFixed(1)}, name ${(nameSwitches / mins).toFixed(1)}`,
+      ` | switches/min: blend ${(switches / mins).toFixed(1)}, name ${(nameSwitches / mins).toFixed(1)}` +
+      ` | melody voiced ${Math.round((100 * tune.length) / Math.max(1, tl.duration * 60))}%, median MIDI ${tune.sort((a, b) => a - b)[tune.length >> 1]?.toFixed(0) ?? '-'}` +
+      (noMelody ? ' (not used)' : ''),
   );
 }
 

@@ -68,6 +68,13 @@ export interface Study {
   blurb: string;
   /** The archetype the engine should recognise. */
   archetype: ArchetypeId;
+  /**
+   * The voices that carry the tune. The melody at any moment is the top note of
+   * the latest onset among these voices (a rolled chord counts once, at its top),
+   * held until it ends or the next one starts — melody ground truth and exact
+   * melody events for a scripted study.
+   */
+  melodyVoices: string[];
   compose(seed: number): StudyScore;
   create(ctx: BaseAudioContext, destination: AudioNode): StudyPlayer;
 }
@@ -943,7 +950,7 @@ export function composeSugar(seed: number): StudyScore {
   melody(SUGAR_A, 'cel', 0, 0.35);
   SUGAR_A_HARM.forEach((h, i) => {
     const c = SUGAR_CHORDS[h][2].split(' ').map((n) => note(n) + 24);
-    [...c, c[0] + 12].forEach((m, k) => ev.push({ t: at(bar + i, 4 + k * 0.67), v: 'cel', m, vel: 0.28, d: 0.3 }));
+    [...c, c[0] + 12].forEach((m, k) => ev.push({ t: at(bar + i, 4 + k * 0.67), v: 'spark', m, vel: 0.28, d: 0.3 }));
   });
   pizz(SUGAR_A_HARM, 0.5);
   ting(bar + 7, 0.4);
@@ -970,7 +977,9 @@ class SugarPlayer extends ScorePlayer {
 
   protected play(ev: Ev, t: number, out: Out) {
     switch (ev.v) {
-      case 'cel': return this.bell(ev, t, out, 3.5, 2.2, 0.1);
+      case 'cel':
+      case 'spark': // the same celesta, but decoration, not the tune
+        return this.bell(ev, t, out, 3.5, 2.2, 0.1);
       case 'box': return this.bell(ev, t, out, 5.4, 1.3, 0.07);
       case 'pizz': return this.pizz(ev, t, out, 0.075);
       case 'pizc': return this.pizz(ev, t, out, 0.03);
@@ -1256,6 +1265,7 @@ export const STUDIES: Study[] = [
     title: TITLE.ember,
     blurb: 'Erratic like fire: flickering tremolo, ricochet sparks, sudden swells, D minor and chromatic.',
     archetype: 'fire',
+    melodyVoices: ['mel'],
     compose: composeEmber,
     create: (ctx, dest) => new EmberPlayer(ctx, dest, TITLE.ember, composeEmber),
   },
@@ -1264,6 +1274,7 @@ export const STUDIES: Study[] = [
     title: TITLE.basalt,
     blurb: 'Dark and blunt: massive low piano chords and tolling octaves, slow and heavy.',
     archetype: 'abyss',
+    melodyVoices: ['pno'],
     compose: composeBasalt,
     create: (ctx, dest) => new BasaltPlayer(ctx, dest, TITLE.basalt, composeBasalt),
   },
@@ -1272,6 +1283,7 @@ export const STUDIES: Study[] = [
     title: TITLE.sugar,
     blurb: 'Whimsical, tiny and quick: celesta and music box, pizzicato, sparkling runs.',
     archetype: 'sugar',
+    melodyVoices: ['cel'],
     compose: composeSugar,
     create: (ctx, dest) => new SugarPlayer(ctx, dest, TITLE.sugar, composeSugar),
   },
@@ -1280,6 +1292,7 @@ export const STUDIES: Study[] = [
     title: TITLE.mist,
     blurb: 'Serene: slow, soft legato pads and a distant flute, consonant and airy.',
     archetype: 'mist',
+    melodyVoices: ['pad'],
     compose: composeMist,
     create: (ctx, dest) => new MistPlayer(ctx, dest, TITLE.mist, composeMist),
   },
