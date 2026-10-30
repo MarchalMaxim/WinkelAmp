@@ -2,13 +2,19 @@
  * Owns the Web Audio graph: plays the demo, your files or listens to the mic,
  * and exposes analysis frames.
  *
- *   demo / file ──► bus ──► analyser
- *                    └────► volume ──► speakers
- *                    └────► recorder tap
- *   mic ──────────► analyser (not to the speakers: no feedback howl)
+ *   demo / file / input ──► bus ──► PCM tap (analysis)
+ *                            └────► volume ──► speakers
+ *                            └────► recorder tap
+ *   mic ──────────────────► PCM tap, recorder (not to the speakers: no feedback howl)
+ *
+ * Analysis runs on our own PCM → FFT → Features → Descriptors chain (offline.ts),
+ * in fixed 60 Hz hops of audio, so it matches `analyzeOffline` exactly.
  */
+import type { Descriptors, PcmSource } from '../character/types';
 import { DemoGroove } from './demo';
-import { FeatureExtractor, type Features } from './features';
+import type { FeatureExtractor, Features } from './features';
+import { AnalysisChain } from './offline';
+import { PcmTap, type PcmBackend } from './pcm';
 
 export type SourceKind = 'none' | 'demo' | 'file' | 'mic';
 
@@ -22,15 +28,25 @@ export interface PlayerState {
   trackCount: number;
 }
 
-const FFT_SIZE = 4096;
+export interface EngineOptions {
+  /** false forces the AnalyserNode fallback for the PCM tap (testing). */
+  worklet?: boolean;
+}
 
 export class AudioEngine {
   readonly ctx: AudioContext;
-  readonly extractor = new FeatureExtractor();
+  readonly chain = new AnalysisChain();
+  readonly extractor: FeatureExtractor = this.chain.extractor;
   /** Audio for the recorder. */
   readonly recordTap: MediaStreamAudioDestinationNode;
+  /**
+   * Connect other sound sources here (e.g. the MIDI key synth): they are heard
+   * (through the volume), recorded and analysed. Don't also connect them to the
+   * destination, or they play twice.
+   */
+  readonly input: GainNode;
 
-  private analyser: AnalyserNode;
+  private tap: PcmTap;
   private bus: GainNode;
   private volume: GainNode;
   private demo: DemoGroove;
@@ -41,22 +57,20 @@ export class AudioEngine {
   private tracks: File[] = [];
   private trackIndex = 0;
   private objectUrl: string | null = null;
-  private freqDb: Float32Array<ArrayBuffer>;
-  private mags: Float32Array;
-  private wave: Float32Array<ArrayBuffer>;
   private listeners = new Set<() => void>();
 
   source: SourceKind = 'none';
 
-  constructor() {
+  constructor(opts: EngineOptions = {}) {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = FFT_SIZE;
-    this.analyser.smoothingTimeConstant = 0.55;
+    this.tap = new PcmTap(this.ctx, { worklet: opts.worklet });
+    void this.tap.ready.then((b) => console.info(`[audio] PCM tap: ${b}${this.tap.workletError ? ` (${this.tap.workletError})` : ''}`));
     this.bus = this.ctx.createGain();
+    this.input = this.ctx.createGain();
+    this.input.connect(this.bus);
     this.volume = this.ctx.createGain();
     this.recordTap = this.ctx.createMediaStreamDestination();
-    this.bus.connect(this.analyser);
+    this.bus.connect(this.tap.input);
     this.bus.connect(this.volume).connect(this.ctx.destination);
     this.bus.connect(this.recordTap);
 
@@ -69,10 +83,26 @@ export class AudioEngine {
     for (const ev of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
       this.audioEl.addEventListener(ev, () => this.emit());
     }
+  }
 
-    this.freqDb = new Float32Array(this.analyser.frequencyBinCount);
-    this.mags = new Float32Array(this.analyser.frequencyBinCount);
-    this.wave = new Float32Array(1024);
+  /** The mono PCM being analysed (what you hear, or the mic). Stable for the engine's life. */
+  get pcm(): PcmSource {
+    return this.tap;
+  }
+
+  /** Which PCM backend is live: 'worklet', or the 'analyser' fallback. */
+  get pcmBackend(): PcmBackend {
+    return this.tap.backend;
+  }
+
+  /** Resolves once the PCM tap has settled on a backend. */
+  get pcmReady(): Promise<PcmBackend> {
+    return this.tap.ready;
+  }
+
+  /** The latest medium-timescale descriptors (updated by `analyze()`). */
+  get descriptors(): Descriptors {
+    return this.chain.descriptors;
   }
 
   onChange(fn: () => void) {
@@ -168,7 +198,7 @@ export class AudioEngine {
     this.stopAll();
     this.micStream = stream;
     this.micNode = this.ctx.createMediaStreamSource(stream);
-    this.micNode.connect(this.analyser);
+    this.micNode.connect(this.tap.input);
     this.micNode.connect(this.recordTap);
     this.source = 'mic';
     this.emit();
@@ -211,21 +241,18 @@ export class AudioEngine {
     this.volume.gain.setTargetAtTime(v * v, this.ctx.currentTime, 0.02);
   }
 
-  /** Reads the analyser and returns this frame's musical features. */
+  /**
+   * Analyses the audio that arrived since the last call (0..n hops of 1/60 s)
+   * and returns this frame's musical features. Call once per animation frame.
+   */
   analyze(): Features {
-    this.analyser.getFloatFrequencyData(this.freqDb);
-    for (let i = 0; i < this.freqDb.length; i++) {
-      const db = this.freqDb[i];
-      this.mags[i] = isFinite(db) ? 10 ** (db / 20) : 0;
-    }
-    this.analyser.getFloatTimeDomainData(this.wave);
-    return this.extractor.update({
-      magnitudes: this.mags,
-      waveform: this.wave,
-      sampleRate: this.ctx.sampleRate,
-      fftSize: FFT_SIZE,
-      time: performance.now() / 1000,
-    });
+    const hops = this.chain.step(this.tap);
+    const f = this.chain.features;
+    // Onsets are one-frame events: report one if any hop had one, and never twice.
+    f.onset = hops > 0 && this.chain.onsetInStep;
+    // Scenes animate on wall-clock time (the audio clock stops while suspended).
+    f.time = performance.now() / 1000;
+    return f;
   }
 }
 

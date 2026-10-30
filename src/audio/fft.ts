@@ -158,7 +158,8 @@ export class SpectrumAnalyser {
     const tau = this.smoothing <= 0 ? 0 : Math.pow(this.smoothing, Math.max(0, Math.min(0.25, dt)) * 60);
     const m = this.magnitudes;
     for (let k = 0; k < this.bins; k++) {
-      const mag = Math.hypot(this.re[k], this.im[k]) * this.scale;
+      const re = this.re[k], im = this.im[k];
+      const mag = Math.sqrt(re * re + im * im) * this.scale;
       const s = tau * m[k] + (1 - tau) * mag;
       // Flush denormals/NaN so a glitch can't poison the smoothing forever.
       m[k] = s > 1e-12 && s < 1e6 ? s : 0;

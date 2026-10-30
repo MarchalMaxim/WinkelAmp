@@ -21,11 +21,13 @@ export const PCM_CHUNK = 512;
 function pcmTapModule(name: string) {
   class PcmTapProcessor extends AudioWorkletProcessor {
     buf: Float32Array;
+    size: number;
     fill: number;
     alive: boolean;
     constructor(options?: { processorOptions?: { chunk?: number } }) {
       super();
-      this.buf = new Float32Array(options?.processorOptions?.chunk ?? 512);
+      this.size = options?.processorOptions?.chunk ?? 512;
+      this.buf = new Float32Array(this.size);
       this.fill = 0;
       this.alive = true;
       this.port.onmessage = (e: MessageEvent) => {
@@ -42,10 +44,12 @@ function pcmTapModule(name: string) {
         let s = 0;
         for (let c = 0; c < chans.length; c++) s += chans[c][i];
         this.buf[this.fill++] = s * inv;
-        if (this.fill === this.buf.length) {
+        if (this.fill === this.size) {
+          // Transferring detaches the buffer (its length becomes 0), so the
+          // next one is sized from `size`, never from the old array.
           const out = this.buf;
           this.port.postMessage(out, [out.buffer]);
-          this.buf = new Float32Array(out.length);
+          this.buf = new Float32Array(this.size);
           this.fill = 0;
         }
       }
