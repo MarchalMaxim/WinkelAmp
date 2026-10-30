@@ -1,5 +1,5 @@
 // Drives WinkelAmp in the system Chrome (real WebGL2), checks the minimal
-// interface, and saves screenshots (and optionally a short video) to docs/media.
+// interface, and saves screenshots (and optionally a short video tour) to docs/media.
 //
 //   npm run shots [-- --video] [-- --port 5198] [-- --headed] [-- --seam]
 //
@@ -8,15 +8,23 @@
 // study's local time restarts near 0, and a show that was scripted on the first
 // pass (if the corpus has one for that study) hands over to Live.
 //
+// --video records a separate ~50 s tour of the stage (a scripted study, Live, the
+// drawer, Classic) and saves it as docs/media/tour.mp4. Frames come from Chrome's
+// screencast and are encoded (H.264) by the system ffmpeg: Playwright's own video
+// recorder needs a separate ffmpeg download.
+//
 // It starts its own Vite dev server. Checks (any failure exits 1):
-//  - welcome → Demo → next: Basalt plays on the stage, the badge says "Live" with
+//  - welcome → Demo → next: Basalt plays its corpus script ("Scripted · <title>");
+//  - the demo groove (no script) plays on the stage, the badge says "Live" with
 //    mood words, the Tweak drawer is closed and the Calm ↔ Wild slider is visible;
 //  - holding a library scene pauses the show ("Live · paused"), the badge resumes it;
 //  - a Classic scene switches to the v1 renderer;
 //  - ?classic=1 (no stage, as without WebGL2) shows Classic and says so in a toast;
 //  - no console errors or page exceptions anywhere.
 import { createRequire } from 'node:module';
-import { mkdir, rename, readdir, rm } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,6 +43,11 @@ const OUT = path.join(REPO, 'docs/media');
 const VIDEO = process.argv.includes('--video');
 const SEAM = process.argv.includes('--seam');
 const FALLBACK = "Your browser can't run the full stage — showing Classic";
+/** The title of corpus/<id>.json, or null when the corpus has no such script. */
+const scriptTitle = (id) => {
+  const f = path.join(REPO, 'corpus', `${id}.json`);
+  return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8').replace(/^﻿/, '')).title : null;
+};
 await mkdir(OUT, { recursive: true });
 
 const server = await createServer({ root: REPO, logLevel: 'error', server: { port: PORT, strictPort: true } });
@@ -57,11 +70,7 @@ const watch = (page, name) => {
 };
 
 try {
-  const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    ...(VIDEO ? { recordVideo: { dir: path.join(OUT, 'raw'), size: { width: 1440, height: 900 } } } : {}),
-  });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   watch(page, 'app');
   await page.addInitScript(() => localStorage.clear());
@@ -90,12 +99,25 @@ try {
 
   await shot('01-welcome');
 
-  // ---- The stage, live: Basalt (second in the demo playlist) ----
+  // ---- A scripted show: Basalt (second in the demo playlist) plays its corpus script ----
   await page.click('[data-start="demo"]');
   await page.waitForTimeout(1500);
   await page.click('#next');
   await page.waitForFunction(() => document.getElementById('track-title').textContent.includes('Basalt'), null, { timeout: 5000 });
   check(true, 'next steps the demo playlist to Basalt');
+  const basalt = scriptTitle('basalt');
+  await page.waitForTimeout(7000);
+  await wake();
+  await page.waitForTimeout(300);
+  const want = basalt ? `Scripted · ${basalt}` : 'Live';
+  check((await text('#mode-name')) === want, `Basalt's badge says "${want}" (${await text('#mode-name')})`);
+  await shot('12-scripted-basalt');
+
+  // ---- The stage, live: the demo groove (last in the playlist, no script) ----
+  await page.click('#next');
+  await page.click('#next');
+  await page.click('#next');
+  await page.waitForFunction(() => document.getElementById('track-title').textContent.includes('groove'), null, { timeout: 5000 });
   let words = '';
   for (let i = 0; i < 40; i++) {
     await page.waitForTimeout(500);
@@ -104,7 +126,7 @@ try {
   }
   await wake();
   await page.waitForTimeout(300);
-  check((await text('#mode-name')) === 'Live', `badge says Live (${await text('#mode-badge')})`);
+  check((await text('#mode-name')) === 'Live', `badge says Live (${(await text('#mode-badge')).replace(/\s+/g, ' ')})`);
   check(!!words && !/silent/.test(words), `badge carries the mood words ("${words}")`);
   check(await page.evaluate(() => window.winkel.mode()) === 'stage', 'the stage is the picture');
   check(await page.evaluate(() => document.body.classList.contains('panel-closed')), 'the Tweak drawer starts closed');
@@ -182,28 +204,59 @@ try {
   await page.waitForTimeout(400);
   await shot('08-help');
   await page.keyboard.press('Escape');
-
-  if (VIDEO) {
-    // A tour for the video: back to the stage, then the Classic scenes and surprises.
-    await page.evaluate(() => window.winkel.chooseScene('auto'));
-    await page.waitForTimeout(6000);
-    for (const k of ['1', '2', '3', '4']) {
-      await page.keyboard.press(k);
-      await page.waitForTimeout(2500);
-    }
-    for (let i = 0; i < 3; i++) {
-      await page.keyboard.press('r');
-      await page.waitForTimeout(2500);
-    }
-  }
   await context.close();
 
   if (VIDEO) {
-    const raw = path.join(OUT, 'raw');
-    const [file] = await readdir(raw);
-    await rename(path.join(raw, file), path.join(OUT, 'tour.webm'));
-    await rm(raw, { recursive: true });
-    console.log('saved tour.webm');
+    // ---- The tour: its own recording, mostly the stage ----
+    const tc = await browser.newContext({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
+    const tp = await tc.newPage();
+    watch(tp, 'tour');
+    await tp.addInitScript(() => localStorage.clear());
+    await tp.goto(URL);
+    // Chrome sends a frame whenever the page repaints: keep each with its time.
+    const frames = [];
+    const cdp = await tc.newCDPSession(tp);
+    cdp.on('Page.screencastFrame', (f) => {
+      frames.push({ t: f.metadata.timestamp, jpeg: Buffer.from(f.data, 'base64') });
+      cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
+    });
+    await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 88, maxWidth: 960, maxHeight: 600 });
+    await tp.waitForTimeout(1500);
+    // Sugar Glass, scripted: the theme, then the B section's scene at 15.9 s.
+    await tp.click('[data-start="demo"]');
+    await tp.click('#next');
+    await tp.click('#next');
+    for (let i = 0; i < 9; i++) {
+      await tp.mouse.move(480 + (i % 2) * 10, 300);
+      await tp.waitForTimeout(2000);
+    }
+    // Basalt, scripted: the motto's shocks.
+    await tp.mouse.move(470, 300);
+    await tp.click('#prev');
+    await tp.waitForTimeout(9000);
+    // The groove, Live: the director casts by what it hears.
+    await tp.mouse.move(480, 300);
+    await tp.click('#prev');
+    await tp.click('#prev');
+    await tp.waitForTimeout(8000);
+    // The drawer: hold a library scene, then hand the stage back.
+    await tp.mouse.move(470, 300);
+    await tp.click('#panel-toggle');
+    await tp.waitForTimeout(1200);
+    await tp.click('[data-stage="Cathedral"]');
+    await tp.waitForTimeout(4000);
+    // Classic: the v1 scenes, two keys.
+    await tp.click('#panel-close');
+    for (const k of ['1', '3']) {
+      await tp.keyboard.press(k);
+      await tp.waitForTimeout(3000);
+    }
+    await tp.evaluate(() => window.winkel.chooseScene('auto'));
+    await tp.waitForTimeout(3000);
+    await cdp.send('Page.stopScreencast');
+    await tc.close();
+    await encode(frames, path.join(OUT, 'tour.mp4'));
+    console.log(`saved tour.mp4 (${frames.length} frames)`);
   }
 
   // ---- No stage (as without WebGL2): Classic, and a toast that says so ----
@@ -270,6 +323,29 @@ try {
 } finally {
   await browser.close();
   await server.close();
+}
+
+/**
+ * Screencast frames (irregular times) → a 25 fps H.264 MP4: each output frame is the
+ * latest screencast frame at its time. MP4 plays wherever a README or a chat shows video.
+ */
+async function encode(frames, file, fps = 25) {
+  if (frames.length < 2) throw new Error('the screencast sent no frames');
+  const ff = spawn('ffmpeg', ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', file],
+  { stdio: ['pipe', 'inherit', 'inherit'] });
+  const done = new Promise((res, rej) => {
+    ff.on('error', rej);
+    ff.on('close', (code) => (code === 0 ? res() : rej(new Error(`ffmpeg exited with ${code}`))));
+  });
+  const t0 = frames[0].t;
+  const n = Math.floor((frames[frames.length - 1].t - t0) * fps);
+  for (let k = 0, i = 0; k <= n; k++) {
+    while (i + 1 < frames.length && frames[i + 1].t - t0 <= k / fps) i++;
+    if (!ff.stdin.write(frames[i].jpeg)) await new Promise((res) => ff.stdin.once('drain', res));
+  }
+  ff.stdin.end();
+  await done;
 }
 
 check(errors.length === 0, `no console errors${errors.length ? `:\n  ${errors.join('\n  ')}` : ''}`);
