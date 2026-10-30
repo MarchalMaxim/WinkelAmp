@@ -1,7 +1,12 @@
 // Drives WinkelAmp in the system Chrome (real WebGL2), checks the minimal
 // interface, and saves screenshots (and optionally a short video) to docs/media.
 //
-//   npm run shots [-- --video] [-- --port 5198] [-- --headed]
+//   npm run shots [-- --video] [-- --port 5198] [-- --headed] [-- --seam]
+//
+// --seam adds a slow check (a study's whole first pass, ~1 min): across the loop
+// seam, engine.study moves to loop 1 with loopStart at the first pass's length, the
+// study's local time restarts near 0, and a show that was scripted on the first
+// pass (if the corpus has one for that study) hands over to Live.
 //
 // It starts its own Vite dev server. Checks (any failure exits 1):
 //  - welcome → Demo → next: Basalt plays on the stage, the badge says "Live" with
@@ -28,6 +33,7 @@ const PORT = Number(arg('port', 5198));
 const URL = `http://localhost:${PORT}/`;
 const OUT = path.join(REPO, 'docs/media');
 const VIDEO = process.argv.includes('--video');
+const SEAM = process.argv.includes('--seam');
 const FALLBACK = "Your browser can't run the full stage — showing Classic";
 await mkdir(OUT, { recursive: true });
 
@@ -219,6 +225,48 @@ try {
   await fb.screenshot({ path: path.join(OUT, '11-classic-fallback.png') });
   console.log('saved 11-classic-fallback');
   await ctx2.close();
+
+  if (SEAM) {
+    // ---- A study across its loop seam: the shortest one, played through its first pass ----
+    const ctx3 = await browser.newContext({ viewport: { width: 960, height: 600 } });
+    const sp = await ctx3.newPage();
+    watch(sp, 'seam');
+    await sp.goto(URL);
+    await sp.waitForTimeout(600);
+    const lengths = await sp.evaluate(async () => {
+      const { STUDIES } = await import('/src/audio/studies.ts');
+      return STUDIES.map((s) => s.compose(s.seed).length);
+    });
+    const k = lengths.indexOf(Math.min(...lengths));
+    await sp.click('[data-start="demo"]');
+    for (let i = 0; i < k; i++) await sp.click('#next');
+    const probe = () => sp.evaluate(() => {
+      const w = window.winkel;
+      const st = w.engine.study;
+      return st && { loop: st.loop, loopStart: st.loopStart, local: w.engine.songTime - st.loopStart, badge: document.getElementById('mode-name').textContent };
+    });
+    let before = null;
+    let after = null;
+    const deadline = Date.now() + (lengths[k] + 15) * 1000;
+    while (Date.now() < deadline) {
+      await sp.waitForTimeout(250);
+      const p = await probe();
+      if (!p) continue;
+      if (p.loop === 0) before = p;
+      else if (p.loop === 1) {
+        after = p;
+        break;
+      }
+    }
+    console.log(`seam: study ${k + 1} (${lengths[k].toFixed(1)} s); last pass-0 probe ${JSON.stringify(before)}; first pass-1 probe ${JSON.stringify(after)}`);
+    check(!!before && !!after, 'the study reached its second pass');
+    if (before && after) {
+      check(Math.abs(after.loopStart - lengths[k]) < 0.2, `loopStart (${after.loopStart.toFixed(2)} s) is the first pass's length`);
+      check(after.local >= 0 && after.local < 1, `local song time restarted near 0 (${after.local.toFixed(2)} s)`);
+      check(after.badge === 'Live', `the second pass runs Live (badge "${after.badge}", first pass "${before.badge}")`);
+    }
+    await ctx3.close();
+  }
 } finally {
   await browser.close();
   await server.close();

@@ -703,7 +703,8 @@ function directives(songTime: number, melody: MelodyFrame, dt: number): StageDir
   let dir: StageDirectives;
   if (show) dir = show.player.at(songTime);
   else {
-    if (s.playing && clock.silentFor === 0) {
+    // Played keys count as music even with nothing playing (the clock is poked, not driven, by them).
+    if ((s.playing && clock.silentFor === 0) || held.size > 0) {
       voiced += ((melody.voiced ? 1 : 0) - voiced) * (1 - Math.exp(-dt / VOICED_TAU));
       const streams: Streams = {
         melodyVoiced: voiced,
