@@ -154,6 +154,13 @@ clear. Copy, then make them yours.
   barely affect them. For a lingering, smeared melody use `ink` with a `fluid`.
 - `fluid` plus `bloom` both at high intensity wash the top centre to white: keep one of them ≤ 0.5.
 - With `color: "note"` or palette `"notes"`, `bass`, `pulse` and `wave` still tint by the live note.
+- `mirror` keeps one part of the frame and reflects it: `2` the left half, `4` the bottom-left quarter, `6` and up
+  a wedge at the top centre. Whatever sits outside that part vanishes: a high melody is lost under mirror 4, a
+  low one under mirror 6 or more. Check the region of each element against the mirror in the preview.
+- A bloom with `color: "mood"` tints the palette about 85 % toward the hue of the chord sounding, so it follows
+  the harmony more than the palette. For a bloom in the scene's own colours, give it a fixed colour.
+- The `fluid`'s colours follow the character's material as well as the palette: a fixed palette tames it but
+  doesn't pin it (a dark palette can still bloom pink or green in the fluid). If it reads wrong, drop it.
 - Ids are unique on stage. An `enter` (or a scene) that uses an id already on stage restyles that element (its
   numbers glide, its style switches half-way; a new type dips out and back in) rather than adding a second
   one. The checker doesn't flag a duplicate — give different things different ids.
