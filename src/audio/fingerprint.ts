@@ -10,8 +10,10 @@
  * differences ignore gain and a smooth EQ tilt (a low-pass above 4 kHz is
  * invisible), and are coarse enough to survive lossy coding. Matching is the bit
  * error rate at the best alignment within ±2 s, plus a duration check: a crop or
- * edit of the same recording has the same bits but must not match, because the
- * script's times would be wrong for it.
+ * edit of the same recording has the same bits, but beyond 2 % of the duration
+ * it must not match, because the script's times would be wrong for it. Smaller
+ * trims (within 2 % and ±2 s) do match; `compare().offset` says how far to shift
+ * the script's times for them.
  *
  * Runs identically in the browser (decoded AudioBuffer) and in Node (ffmpeg
  * decode); everything is in seconds and Hz, so the sample rate doesn't matter.

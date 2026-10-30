@@ -127,7 +127,7 @@ describe('fingerprint', () => {
     expect(isMatch(A44fp, fb)).toBe(true);
   });
 
-  it('is symmetric in its verdict and reports the offset of b against a', () => {
+  it('reports the offset of b against a, both ways', () => {
     // b starts 1 s into a: a's hop i lines up with b's hop i − 10.
     const late = fingerprint(A44.subarray(44100), 44100);
     const r = compare(A44fp, late);
