@@ -112,7 +112,8 @@ try {
     if (last && cue.t - last.t <= 0.05) last.cues.push(cue);
     else shots.push({ t: cue.t, cues: [cue] });
   }
-  const end = study ? Infinity : data.duration - 0.1;
+  // A study's script duration is its first pass: a still after it would land in the next loop.
+  const end = (study ? script.duration : data.duration) - 0.1;
   // An accent at its peak; anything else once it has settled and, when the next cue is
   // far off, a little later (up to 4 s), so the scene has met some music.
   shots.forEach((s, k) => {
