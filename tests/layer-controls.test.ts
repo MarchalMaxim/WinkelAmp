@@ -162,6 +162,7 @@ describe('filterWidgets', () => {
     for (const m of fam) expect(viola).toContain(m.id);
     // tutti suits an ensemble of 2+ tracks, not a song with one
     expect(filterWidgets(metas, { ...none, tracks: ['horn', 'oboe'] }, words).map((m) => m.id)).toContain('kandinsky');
+    expect(filterWidgets(metas, { ...none, tracks: ['horn'] }, words).map((m) => m.id)).not.toContain('kandinsky');   // tutti, trumpet, cello
     expect(filterWidgets(metas, { ...none, tracks: [] }, words)).toEqual([]);
   });
 
