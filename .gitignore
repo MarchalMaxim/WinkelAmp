@@ -15,3 +15,6 @@ lab/notes*.js
 # Showcase videos (lab/render.mjs) carry the recordings: local only.
 lab/showcase/*.mp4
 lab/showcase/*.png
+
+# Song packs (npm run ingest): the recordings and everything computed from them, local only.
+songs/

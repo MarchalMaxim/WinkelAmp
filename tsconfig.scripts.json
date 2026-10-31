@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "scripts/ingest.ts",
+    "scripts/check-show.ts",
+    "scripts/describe-song.ts",
+    "scripts/widget-docs.ts",
+    "scripts/studio-api.ts",
+    "scripts/ears/**/*.ts",
+    "scripts/node/**/*.ts"
+  ]
+}

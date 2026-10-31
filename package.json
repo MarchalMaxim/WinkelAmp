@@ -6,15 +6,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "shots": "node scripts/screenshots.mjs",
     "check-script": "tsx scripts/check-script.ts",
     "cast": "tsx scripts/cast-table.ts",
     "study": "tsx scripts/study.ts",
-    "preview-script": "node scripts/preview-script.mjs"
+    "preview-script": "node scripts/preview-script.mjs",
+    "ingest": "tsx scripts/ingest.ts"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.31.1",

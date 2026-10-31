@@ -1,0 +1,11 @@
+# The GPU piano transcriber (scripts/ears/transcribe.py), Python 3.11 in a venv, e.g. C:/Users/maxim/.venvs/wa:
+#   python -m venv C:/Users/maxim/.venvs/wa
+#   C:/Users/maxim/.venvs/wa/Scripts/pip install -r scripts/ears/requirements.txt
+# torch and torchaudio come from the CUDA index (the line below); without an NVIDIA GPU, drop it for the CPU build (slow).
+# The checkpoint (~165 MB) goes to ~/piano_transcription_inference_data/note_F1=0.9677_pedal_F1=0.9186.pth:
+#   https://zenodo.org/record/4034264/files/CRNN_note_F1%3D0.9677_pedal_F1%3D0.9186.pth?download=1
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0
+torchaudio==2.11.0
+piano_transcription_inference==0.0.6
+numpy
