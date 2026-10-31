@@ -31,7 +31,8 @@ the lab's widgets plays with it section by section, on every attack. The old app
 - `npx tsc --noEmit`, `npx vitest run` (47 files, 604 tests), `npm run build`, `npm run check-show` (both shows ok),
   `npm run widget-docs -- --check`, `npm run studio-check` (33/33), `npm run record-check` (11/11), `npm run fidelity --
   --quick` (286/286 comparisons pass, 283 pixel-identical; the rest a few pixels off, as much as the lab against
-  itself). `npm run render-show -- beethoven5 --from 155 --to 170`: 450 frames, 1280×720 at 30 fps, 15.0 s of AAC, 0.45 s
+  itself) and, because quick mode met only silence at the Prelude's start for them, the loved widgets in full
+  (`-- --only kandinsky,squares,flee,strings,casket,marbling`: 122/122 pixel-identical, 97 with a picture). `npm run render-show -- beethoven5 --from 155 --to 170`: 450 frames, 1280×720 at 30 fps, 15.0 s of AAC, 0.45 s
   per video second; the contact sheet shows the fate motif's squares over Kandinsky, then Kandinsky fading under the
   development's Rorschach ink, nothing popping.
 - The studio driven in Chrome on the real recordings (own server, a scratch copy of `shows/`): play from the poster,
@@ -53,7 +54,9 @@ the lab's widgets plays with it section by section, on every attack. The old app
 - GPU ingest: Hungarian Dance No. 5 (45.8 s, orchestral) 12.9 s in all; an 11-minute file (the two recordings
   concatenated, 10:57) 89 s in all (77 s transcribing, 4135 notes, onset coverage 64 %), well inside the
   2–3 minutes aimed for; the studio opens it at once with a composed show of 14 sections and plays it smoothly.
-- `render-show`: 0.35–0.45 s per video second, so the Prelude's 3:52 renders in about a minute and a half.
+- `render-show`: the Prelude's 3:52 in 1:41 and Beethoven's 7:05 in 3:08 (0.42–0.43 s per video second), re-rendered
+  in this review from the committed shows into `renders/` (the files came out byte-identical to the earlier renders),
+  with contact sheets of one frame per 10 s (`renders/<id>-sheet.png`).
 - In-app recording: *For sharing* 8.5–9.6 MB a minute, *High quality* about 39 (both 30 fps; 60 fps made Chrome write
   twice the asked rate).
 
@@ -66,8 +69,8 @@ the lab's widgets plays with it section by section, on every attack. The old app
   also came out as `gpu`. Orchestral shows follow fewer, rougher notes than piano ones.
 - Pictures are always 1280×720 (a dozen widgets assume it); exports are 720p.
 - Not verified tonight: a real tab switch while recording (only simulated with a faked `visibilitychange`); real full
-  screen (headless Chrome; resizes and letterboxing are checked); the static build without the dev API on GitHub
-  Pages (checked locally earlier in the night, not after the last commits); playback of an exported MP4 on a phone
+  screen (headless Chrome; resizes and letterboxing are checked); the static build on GitHub Pages itself (the built `dist/` was checked
+  locally with `vite preview`: the empty state, adding a recording in the browser, playing it, a reload keeping it); playback of an exported MP4 on a phone
   and through WhatsApp; the 11-minute file dropped through `npm run ears` in the page (the CLI that ears runs was timed
   instead, and the drop path was checked with a 60 s file).
 
