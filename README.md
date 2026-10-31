@@ -37,6 +37,11 @@ you loved. Then:
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
   the show from it ([docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md), `npm run check-show`).
 - **F** full screen, **H** hides the controls.
+- **Export → Record video** records the show to an MP4 (H.264 + AAC) while the song plays through once, from the
+  start or from the playhead; the song's end saves it to your downloads. *For sharing* is about 9 MB a minute
+  (WhatsApp-sized), *High quality* about 40; both 720p at 30 fps. Keep the tab in front: hiding it pauses the recording.
+  For an exact, smooth HD video made frame by frame (faster than the song itself), run
+  `npm run render-show -- <song>` → `renders/<song>.mp4`.
 
 Songs (`songs/<id>/`: the audio and its pack) stay on your machine and out of git; shows are committed. The
 widgets live in [`lab/tools/`](lab/README.md): the [widget lab](lab/index.html) is where they are sketched and
@@ -160,7 +165,11 @@ npm run dev            # dev server: the studio at /, the old app at /legacy.htm
 npm run ears [-- --port 5175]               # the local server the studio sends dropped recordings to (GPU notes)
 npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<file>]   # a song pack in songs/<id>/
 npm run check-show [-- <file>…] [--fix]     # validate shows/*.json
+npm run render-show -- <show id | file> [--from s] [--to s] [--out renders/<id>.mp4] [--fps 30] [--crf 18] [--framemd5 f]
+                       # a show as an HD video, frame by frame, with the recording's sound (a song without a show:
+                       #   the one the studio composes); about 0.4 s per video second
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
+npm run record-check [-- --song <id> --seconds 60]   # records in the studio's Export and reads the MP4 Chrome wrote
 npm run fidelity       # the studio draws the lab's pixels, widget by widget (local: needs the lab's notes files)
 npm test               # unit tests
 npm run build          # type-check + production build into dist/

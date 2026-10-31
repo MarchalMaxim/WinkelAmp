@@ -461,7 +461,7 @@ export function pickMimeType(isSupported: (type: string) => boolean): string | u
 // new Recorder(canvas, audio, opts = DEFAULT_RECORDER_OPTIONS); pause(); resume()
 // src/studio/ui/record.ts
 export const RECORD_PRESETS = { share: { videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 128_000, fps: 30 /* T6: was 60 */ },
-                                high:  { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 60 } } as const;
+                                high:  { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 30 /* T6: was 60 */ } } as const;
 export function mbPerMinute(o: RecorderOptions): number;               // (video + audio)·60/8/1e6, one decimal: share → 8.5
 export function recordingName(showId: string, mime: string, at: Date): string;   // 'prelude-2026-10-31-02-03-04.mp4' (.webm for webm)
 export class ShowRecorder { constructor(player: Player, canvas: HTMLCanvasElement);
@@ -469,9 +469,9 @@ export class ShowRecorder { constructor(player: Player, canvas: HTMLCanvasElemen
   readonly state: 'idle' | 'recording' | 'paused' | 'saving' }
 // recording: seek to `from`, reset the picture, start recorder + playback together; audio `ended` → stop → download;
 // tab hidden → audio.pause() + recorder.pause(), visible → resume both; UI edits and seeks are locked meanwhile.
-// Added in T6: share records at 30 fps. Measured on the Prelude: Chrome's H.264 MediaRecorder takes the bit rate as a
-// wish with a quality floor (at 60 fps 1 Mb/s gave ≈ 20 MB a minute, 500 kb/s the same; at 30 fps ≈ 9.6 MB a minute,
-// 1.13 × the aim). `Player.locked` (seek() ignores calls while true); ShowRecorder also has `stopAfter: number | null`
+// Added in T6: both presets record at 30 fps. Measured on the Prelude: at 60 fps Chrome's H.264 MediaRecorder writes
+// about twice the rate asked (share ≈ 20 MB a minute, 500 kb/s as much as 1 Mb/s; high ≈ 74); at 30 fps it keeps
+// close to it (share 9.6 MB a minute over the first minute, 1.13 × the aim; high 39.4, 1.01 ×). `Player.locked` (seek() ignores calls while true); ShowRecorder also has `stopAfter: number | null`
 // (the ?recordCheck hook), `onChange`, `onSaved(r: { name, bytes, mime, seconds })`, `seconds` (song s recorded),
 // `startedAt`, `mimeType`, `recorderState` and `static supported()`; the song's pause/play pause/resume the recording
 // (Space while recording pauses both); `from` > 0 pre-rolls the picture 3 s at 60 Hz (conductor.preview) instead of
@@ -487,6 +487,12 @@ Both expose §3's render API plus `renderInfo` `{ duration, title }`.
 own Vite server, headless system Chrome, 3 s pre-roll when `--from` > 0, `renderTo(from + k/fps)` per frame, JPEG q 0.92 in
 batches of 15 → `ffmpeg image2pipe` → libx264 `-crf 18 -preset medium -pix_fmt yuv420p`, the pack's audio trimmed to
 [from, to] → AAC 192k, `+faststart`; progress + ETA every 10 s; widget errors listed at the end; exit 1 if the page fails.
+Added in T6: a show id with no `shows/<id>.json` but a pack renders the show the studio composes (`composeShow`, the Node
+catalogue); a file path renders that file (served to the page in place of `/api/shows/<id>`); the show is validated
+first (errors → exit 1); the pre-roll is cut at the song's start; frames go to a video-only x264 pass, then the audio
+(`atrim`, sample-exact) is muxed with `-c:v copy`; `--framemd5` writes `k,md5` of each JPEG frame as drawn (before x264);
+`--headed`, `--keep` (the temp folder). Measured: 0.35–0.42 s per video second; two runs → identical frame md5s; on a
+click track the audio is exact and every strong attack's change lands on the first frame at or after it.
 
 ---
 
