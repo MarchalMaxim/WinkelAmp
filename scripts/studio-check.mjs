@@ -212,6 +212,18 @@ try {
   const lit2 = await litShare(page);
   check('the repaired show plays', lit2 > 0.01, `${(lit2 * 100).toFixed(1)} % lit`);
   await page.evaluate(() => window.__studio.player.pause());
+  // A widget that throws says so: a notice, and the reason on its open layer.
+  const broke = await page.evaluate(async () => {
+    const st = window.__studio, s = st.store.state.show, t = 14.5;
+    const i = s.sections.findIndex((x) => x.start <= t && t < x.end), k = s.sections[i].layers.length - 1, id = s.sections[i].layers[k].widget;
+    st.store.dispatch({ type: 'select', section: i, layer: k });
+    st.runtime.tool(id).frame = () => { throw new Error('broken on purpose'); };
+    st.player.seek(t);
+    await new Promise((r) => setTimeout(r, 400));
+    return { id, notices: [...document.querySelectorAll('.notice.error')].map((n) => n.textContent), err: document.querySelector('.panel .layer.open .err')?.textContent ?? null };
+  });
+  check('a widget that throws gets an error notice and its reason on the open layer',
+    broke.notices.some((n) => /stopped: broken on purpose/.test(n)) && /broken on purpose/.test(broke.err ?? ''), JSON.stringify(broke));
   page.on('dialog', (d) => d.accept());
 
   // A show changed on disk (Claude edits shows/<id>.json): a clean studio follows it without a reload, a dirty one
@@ -246,6 +258,13 @@ try {
     await hp.waitForSelector('.notice:has-text("Load the version on disk")', { timeout: 8000 }).catch(() => {});
     const asked = await hp.evaluate(() => ({ label: window.__studio.store.state.show.sections[0].label, notices: [...document.querySelectorAll('.notice')].map((n) => n.textContent) }));
     check('a dirty studio keeps its edits and offers the version on disk', asked.label === 'Changed on disk' && asked.notices.some((n) => /Load the version on disk/.test(n)), JSON.stringify(asked));
+    await hp.click('.notice button:has-text("Load the version on disk")');
+    await hp.waitForFunction(() => window.__studio.store.state.show.sections[0].label === 'Again on disk', null, { timeout: 5000 }).catch(() => {});
+    const loaded = await hp.evaluate(() => window.__studio.store.state.show.sections.map((x) => x.label ?? null));
+    await hp.keyboard.press('Control+z');
+    const back = await hp.evaluate(() => window.__studio.store.state.show.sections.map((x) => x.label ?? null));
+    check('loading the version on disk keeps your edits one undo away', loaded[0] === 'Again on disk' && back[1] === 'Mine',
+      JSON.stringify({ loaded, back }));
     await hp.close();
   } finally { await hot.close(); }
 
