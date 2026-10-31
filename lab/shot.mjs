@@ -1,6 +1,6 @@
 // Throwaway: screenshots of index.html with only some tools on, a few seconds after each start time.
 //   node lab/shot.mjs <tools comma list> <start times comma list> <out dir> [play seconds = 4]
-// Needs the Vite dev server on http://localhost:5173. Also prints any page errors.
+// Needs the Vite dev server on http://localhost:5173 (or LAB_BASE=http://localhost:<port>). Also prints any page errors.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -15,7 +15,7 @@ try {
   await page.route('http://localhost:5174/**', (r) => r.fulfill({ status: 200, body: 'ok' }));
   page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE ERROR:', m.text()));
-  await page.goto(`http://localhost:5173/lab/index.html?only=${tools}&song=${process.env.SONG ?? "prelude"}`);
+  await page.goto(`${process.env.LAB_BASE ?? 'http://localhost:5173'}/lab/index.html?only=${tools}&song=${process.env.SONG ?? "prelude"}`);
   await page.waitForFunction(() => document.getElementById('a').readyState >= 3, null, { timeout: 20000 });
   for (const t of times.split(',').map(Number)) {
     await page.evaluate((t) => { const a = document.getElementById('a'); a.currentTime = t; a.play(); }, t);
