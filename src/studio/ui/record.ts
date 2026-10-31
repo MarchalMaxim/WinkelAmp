@@ -7,13 +7,13 @@ import { download, pickMimeType, Recorder, type RecorderOptions } from '../../vi
 import type { Player } from './player';
 import type { Store } from './store';
 
-/** share: small enough to send (≈ 8.5 MB a minute); high: for keeping (≈ 39). Both record 30 frames a second: Chrome's
-    H.264 encoder (measured on the Prelude, 2026-10-31) writes about twice the rate asked at 60 fps (share: ≈ 20 MB a
-    minute; high: ≈ 74), whatever the rate (500 kb/s wrote as much as 1 Mb/s), and close to it at 30 fps (share 9.6–10.5,
-    high 39.4). */
+/** share: sharp enough to send (≈ 15.2 MB a minute, WhatsApp's budget, as render-show's share copy); high: for keeping
+    (≈ 61). Both record 30 frames a second at 1280×720 (the live canvas): Chrome's H.264 encoder writes about twice the
+    rate asked at 60 fps, and close to it at 30 fps. Measured on the Prelude from 126 s, 20 s each (2026-10-31): share
+    16.4 MB a minute, high 64.3; round 1's 1 Mbit/s share wrote 9.2 and smeared squares' edges and the ink into blocks. */
 export const RECORD_PRESETS = {
-  share: { videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 128_000, fps: 30 },
-  high: { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 30 },
+  share: { videoBitsPerSecond: 1_900_000, audioBitsPerSecond: 128_000, fps: 30 },
+  high: { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000, fps: 30 },
 } as const satisfies Record<string, RecorderOptions>;
 export type RecordPreset = keyof typeof RECORD_PRESETS;
 
@@ -171,6 +171,148 @@ export interface ExportDeps {
   notify(level: 'info' | 'warn' | 'error', text: string): void;
 }
 
+/** An HD render job as the dev API answers it (scripts/studio-api.ts: POST /api/render/<show>, GET /api/render/jobs/<job>). */
+export interface RenderJobView {
+  id: string;
+  /** The show's id. */
+  show: string;
+  state: 'running' | 'done' | 'failed' | 'cancelled';
+  /** The frames drawn, 0..1 (1 while the share copy is made). */
+  progress: number;
+  /** Seconds left: 0 when done, null when not known yet or over. */
+  eta: number | null;
+  /** render-show's last line (the reason, when it failed). */
+  message: string;
+  /** The master, the share copy and the sheet, as render-show names them at the end. */
+  files?: string[];
+}
+
+/** The HD master's size: twice the live canvas. */
+const HD_SCALE = 2;
+/** The dev server's base path, as api.ts finds it. */
+const apiBase = (): string => new URL('.', location.href).pathname.replace(/\/$/, '');
+const fileName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
+const folderOf = (p: string): string => p.slice(0, Math.max(0, p.length - fileName(p).length - 1));
+
+/**
+ * The Export menu's "Render HD master (on this computer)": only when the dev API answers GET /api/render/jobs (which
+ * also gives back a render still running from before a reload). It sends the show as the studio has it, saved or not,
+ * and follows the job: progress, time left, then the files' names. `?renderCheck=<s>` (checks) renders only s seconds.
+ */
+function mountHd(d: ExportDeps, section: HTMLElement, badge: HTMLElement, onReady: () => void, onLayout: () => void): { refresh(): void } {
+  const base = apiBase();
+  const check = Number(new URLSearchParams(location.search).get('renderCheck'));
+  const q = <T extends Element>(s: string) => section.querySelector<T>(s)!;
+  const box = q<HTMLElement>('.hd-job'), bar = q<HTMLProgressElement>('progress'), msg = q<HTMLElement>('.hd-msg');
+  const list = q<HTMLElement>('.hd-files'), cancel = q<HTMLButtonElement>('[data-hd-cancel]');
+  const go = [...section.querySelectorAll<HTMLButtonElement>('[data-hd]')];
+  let job: RenderJobView | null = null, timer = 0, watched = false, starting = false;
+
+  const refresh = () => {
+    const running = job?.state === 'running', p = d.player;
+    section.dataset.state = starting ? 'starting' : job?.state ?? 'idle';
+    for (const b of go) b.disabled = running || starting || !d.store.state.show || !p.duration || (b.dataset.hd === 'here' && (p.time < 0.5 || p.duration - p.time < 1));
+    badge.hidden = !running;
+    badge.textContent = running ? ` · HD ${Math.round(100 * job!.progress)} %` : '';
+    box.hidden = !job;
+    if (!job) { onLayout(); return; }
+    bar.hidden = job.state !== 'running' && job.state !== 'done';
+    bar.value = job.progress;
+    const pct = `${Math.round(100 * job.progress)} %`;
+    // render-show's progress line says what the percentage and the time left already say: only its frame count stays.
+    const frames = /: (\d+)\/(\d+) frames \(/.exec(job.message);
+    const doing = frames ? `frame ${frames[1]} of ${frames[2]}` : job.message;
+    msg.textContent = job.state === 'running' ? `${pct}${job.eta !== null ? `, about ${clock(job.eta)} left` : ''} (${doing})`
+      : job.state === 'done' ? `Done: ${job.show} in HD, in ${folderOf(job.files?.[0] ?? '') || 'renders'}:`
+      : job.state === 'cancelled' ? 'Cancelled.' : `It stopped: ${job.message}`;
+    list.replaceChildren();
+    if (job.files?.length) {
+      for (const f of job.files) {
+        const li = document.createElement('li'), c = document.createElement('code');
+        c.textContent = fileName(f);
+        c.style.whiteSpace = 'normal';
+        li.append(c);
+        if (/-share\.mp4$/.test(f)) li.append(' (send it in WhatsApp as a document)');
+        list.append(li);
+      }
+    }
+    cancel.hidden = !running;
+    onLayout();
+  };
+
+  const finished = (j: RenderJobView) => {
+    if (!watched) return;
+    watched = false;
+    const master = j.files?.[0];
+    if (j.state === 'done') {
+      d.notify('info', master ? `The HD master is ready: ${fileName(master)}, with its share copy and a contact sheet, in ${folderOf(master)}.`
+        : 'The HD render finished, but render-show named no files.');
+    }
+    else if (j.state === 'failed') d.notify('error', `The HD render stopped: ${j.message}`);
+  };
+  const follow = (j: RenderJobView | null, watch: boolean) => {
+    job = j;
+    clearInterval(timer);
+    if (j?.state === 'running') {
+      watched ||= watch;
+      timer = window.setInterval(() => void poll(), 1000);
+    } else if (j) finished(j);
+    refresh();
+  };
+  const poll = async () => {
+    if (!job) return;
+    try {
+      const r = await fetch(`${base}/api/render/jobs/${encodeURIComponent(job.id)}`, { cache: 'no-store' });
+      if (r.ok) follow((await r.json()) as RenderJobView, false);
+    } catch { /* the dev server restarts: try again next tick */ }
+  };
+
+  const start = async (from: number | null) => {
+    const show = d.store.state.show;
+    if (!show || starting) return;
+    const qs = new URLSearchParams({ scale: String(HD_SCALE) });
+    if (from !== null) qs.set('from', from.toFixed(3));
+    if (check > 0) qs.set('to', ((from ?? 0) + check).toFixed(3));
+    starting = true; refresh();
+    try {
+      const r = await fetch(`${base}/api/render/${encodeURIComponent(show.id)}?${qs}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(show),
+      });
+      const body = (await r.json().catch(() => ({}))) as { job?: RenderJobView; error?: string };
+      if (r.status === 409) {
+        d.notify('warn', 'An HD render is already running: one at a time.');
+        const now = await fetch(`${base}/api/render/jobs`, { cache: 'no-store' }).then((x) => x.json() as Promise<{ job: RenderJobView | null }>);
+        follow(now.job, true);
+      } else if (!r.ok || !body.job) d.notify('error', `The HD render did not start: ${body.error ?? `${r.status} ${r.statusText}`}`);
+      else follow(body.job, true);
+    } catch (e) {
+      d.notify('error', `The HD render did not start: ${(e as Error).message}`);
+    } finally { starting = false; refresh(); }
+  };
+  for (const b of go) b.addEventListener('click', () => void start(b.dataset.hd === 'here' ? d.player.time : null));
+  cancel.addEventListener('click', async () => {
+    if (!job) return;
+    watched = false;
+    const r = await fetch(`${base}/api/render/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' }).catch(() => null);
+    if (r?.ok) follow((await r.json()) as RenderJobView, false);
+  });
+
+  // The dev API's render jobs: the section shows only when they answer.
+  (async () => {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 1500);
+    try {
+      const r = await fetch(`${base}/api/render/jobs`, { cache: 'no-store', signal: ctl.signal });
+      if (!r.ok) return;
+      const body = (await r.json()) as { job?: RenderJobView | null };
+      if (!('job' in body)) return;
+      section.hidden = false;
+      onReady();
+      follow(body.job ?? null, true);
+    } catch { /* no dev server: recording only */ } finally { clearTimeout(t); }
+  })();
+  return { refresh };
+}
+
 /** The Export menu, the REC indicator with its Stop button, and the recorder behind them. */
 export function installExport(d: ExportDeps): ShowRecorder {
   const { store, player } = d;
@@ -193,7 +335,20 @@ export function installExport(d: ExportDeps): ShowRecorder {
       <button type="button" class="primary rec-go" data-rec="song">Record video: whole song <span class="rec-size" data-size="song"></span></button>
       <button type="button" class="rec-go" data-rec="here">Record video: from the playhead <span class="rec-size" data-size="here"></span></button>
       <p class="dim small">The song plays through once while it records, then the MP4 saves itself. Keep this tab in front: hiding it pauses the recording.</p>
-      ${d.renderCommand ? `<p class="dim small">A frame-exact HD video instead:<br><code>${d.renderCommand}</code></p>` : ''}
+      ${d.renderCommand ? `<p class="dim small" data-render-command>A frame-exact HD video instead:<br><code>${d.renderCommand}</code></p>` : ''}
+      <section class="hd" hidden style="display:grid;grid-template-columns:minmax(0,1fr);gap:8px;border-top:1px solid var(--line);padding-top:10px">
+        <p class="menu-title">HD master</p>
+        <button type="button" class="rec-go" data-hd="song">Render HD master (on this computer) <span class="rec-size">whole song, 2560×1440 at 60 fps</span></button>
+        <button type="button" class="rec-go" data-hd="here">Render HD master: from the playhead</button>
+        <p class="dim small">Drawn frame by frame from the show as it is now (saved or not), with a smaller copy to send in WhatsApp. It takes a while, often longer than the song; the studio stays usable meanwhile.</p>
+        <div class="hd-job" hidden aria-live="polite" style="display:grid;grid-template-columns:minmax(0,1fr);gap:6px">
+          <progress max="1" value="0" style="width:100%;accent-color:var(--on)"></progress>
+          <p class="small hd-msg" style="overflow-wrap:anywhere"></p>
+          <ul class="hd-files small" style="margin:0;padding-left:18px;overflow-wrap:anywhere"></ul>
+          <button type="button" data-hd-cancel hidden>Cancel the render</button>
+        </div>
+        ${d.renderCommand ? `<p class="dim small">Or in a terminal, with more choices:<br><code style="white-space:normal;overflow-wrap:anywhere">${d.renderCommand} --scale 2</code></p>` : ''}
+      </section>
     </div>`;
   const ind = document.createElement('div');
   ind.className = 'rec-ind';
@@ -204,6 +359,24 @@ export function installExport(d: ExportDeps): ShowRecorder {
 
   const btn = wrap.querySelector<HTMLButtonElement>('[data-export]')!, menu = wrap.querySelector<HTMLElement>('.export-menu')!;
   const text = ind.querySelector<HTMLElement>('.rec-text')!;
+  const badge = document.createElement('span');
+  badge.className = 'hd-badge small';
+  badge.hidden = true;
+  btn.append(badge);
+  // The menu opens upward: once the HD section shows a job it can be taller than the room above the button, so it
+  // scrolls instead of leaving the window.
+  const fit = () => {
+    if (menu.hidden) return;
+    menu.style.maxHeight = ''; menu.style.overflowY = ''; menu.style.gridTemplateColumns = '';
+    const r = menu.getBoundingClientRect();
+    if (r.top < 8) {
+      menu.style.maxHeight = `${Math.max(160, r.height + r.top - 8)}px`;
+      menu.style.overflowY = 'auto';
+      menu.style.gridTemplateColumns = 'minmax(0, 1fr)';   // the scrollbar's width comes out of the content, not beside it
+    }
+  };
+  // The HD master, when the dev API runs render jobs: its section replaces the terminal command's line.
+  const hd = mountHd(d, menu.querySelector<HTMLElement>('.hd')!, badge, () => menu.querySelector('[data-render-command]')?.remove(), fit);
   let preset: RecordPreset = lsGet(PRESET_KEY) === 'high' ? 'high' : 'share';
   menu.querySelector<HTMLInputElement>(`input[value="${preset}"]`)!.checked = true;
 
@@ -219,7 +392,7 @@ export function installExport(d: ExportDeps): ShowRecorder {
   const open = (on: boolean) => {
     menu.hidden = !on;
     btn.setAttribute('aria-expanded', String(on));
-    if (on) sizes();
+    if (on) { sizes(); hd.refresh(); fit(); }
   };
   btn.addEventListener('click', () => open(menu.hidden));
   document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !wrap.contains(e.target as Node)) open(false); });

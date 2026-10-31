@@ -3,9 +3,11 @@ import { DEFAULT_RECORDER_OPTIONS, pickMimeType } from '../src/visual/recorder';
 import { mbPerMinute, RECORD_PRESETS, recordingName } from '../src/studio/ui/record';
 
 describe('record presets (plan §10)', () => {
-  it('share is about 8.5 MB a minute, high about 39', () => {
-    expect(mbPerMinute(RECORD_PRESETS.share)).toBe(8.5);
-    expect(mbPerMinute(RECORD_PRESETS.high)).toBe(38.9);
+  it('share is about 15.2 MB a minute, high about 61.4', () => {
+    expect(RECORD_PRESETS.share).toEqual({ videoBitsPerSecond: 1_900_000, audioBitsPerSecond: 128_000, fps: 30 });
+    expect(RECORD_PRESETS.high).toEqual({ videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000, fps: 30 });
+    expect(mbPerMinute(RECORD_PRESETS.share)).toBe(15.2);
+    expect(mbPerMinute(RECORD_PRESETS.high)).toBe(61.4);
     expect(mbPerMinute({ videoBitsPerSecond: 1_000_000, fps: 30 })).toBe(7.5);   // no audio rate: video only
   });
 

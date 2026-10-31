@@ -1,15 +1,16 @@
 // Recording in the studio, in a real Chrome (plan T6 step 3): the studio-check's 30 s test song in temp songs/shows
 // folders, its own Vite server, Chrome with autoplay allowed and downloads accepted. Records through the Export menu
 // and reads what Chrome wrote with ffprobe:
-//   · 20 s with ?recordCheck=20 → H.264 video, AAC audio, 20 ± 1 s, ≤ 4.0 MB (8.5 MB a minute × 1.4);
+//   · 20 s with ?recordCheck=20 → H.264 video, AAC audio, 20 ± 1 s, at most a third of 1.4 × the "share" preset's MB a
+//     minute (15.2 → 7.1 MB);
 //   · the whole song with no hook → it stops by itself at the end, 30 ± 1 s;
 //   · a hidden tab mid-recording → the song and the recorder pause, back in front both go on, the file is still 20 ± 1 s;
 //   · seeks and edits are ignored while it records.
 //
 //   npm run record-check [-- --headed] [--keep] [--out <dir>]
-//   npm run record-check -- --song prelude [--seconds 60] [--preset share|high] [--out <dir>]
+//   npm run record-check -- --song prelude [--seconds 60] [--from 0] [--preset share|high] [--out <dir>]
 //       the second form records a real song from songs/ (its show, or one composed for it; nothing is written to
-//       shows/) and prints the MB a minute Chrome really writes.
+//       shows/), from the start or (--from) from the playhead put there, and prints the MB a minute Chrome really writes.
 //
 // Local only: needs ffmpeg/ffprobe and system Chrome. The recordings are kept only with --keep or --out.
 import { spawnSync } from 'node:child_process';
@@ -24,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf(`--${name}`); return i < 0 ? dflt : argv[i + 1]; };
 const HEADED = argv.includes('--headed'), KEEP = argv.includes('--keep');
-const SONG = opt('song'), SECONDS = Number(opt('seconds', 60)), PRESET = opt('preset', 'share');
+const SONG = opt('song'), SECONDS = Number(opt('seconds', 60)), PRESET = opt('preset', 'share'), FROM = Number(opt('from', 0));
 for (const tool of ['ffmpeg', 'ffprobe']) {
   if (spawnSync(tool, ['-version']).status !== 0) { console.log(`record-check: skipped (no ${tool} on the PATH)`); process.exit(0); }
 }
@@ -97,17 +98,21 @@ const context = await browser.newContext({ acceptDownloads: true, viewport: { wi
 const errors = [];
 
 /** Opens the studio on the song, then records through the Export menu; `during(page)` runs while it records. */
-async function record(name, query, { preset = 'share', during } = {}) {
+async function record(name, query, { preset = 'share', during, from = 0 } = {}) {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`${name}: ${e}`));
   await page.route(/127\.0\.0\.1:5175\//, (r) => r.abort());   // never the user's own ears server
   await page.addInitScript((p) => { try { localStorage.setItem('wa-studio.record-preset', p); } catch {} }, preset);
   await page.goto(`${BASE}/?song=${songId}${query}`);
   await page.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
+  if (from > 0) {
+    await page.evaluate((t) => window.__studio.player.seek(t), from);
+    await page.waitForFunction((t) => Math.abs(window.__studio.player.time - t) < 0.5, from, { timeout: 10_000 });
+  }
   await page.click('[data-export]');
   const wall = Date.now();
   const download = page.waitForEvent('download', { timeout: 15 * 60_000 });
-  await page.click('[data-rec="song"]');
+  await page.click(from > 0 ? '[data-rec="here"]' : '[data-rec="song"]');
   await page.waitForFunction(() => window.__studio.recorder.state === 'recording' && !window.__studio.player.audio.paused, null, { timeout: 10_000 });
   const mime = await page.evaluate(() => window.__studio.recorder.mimeType);
   const extra = during ? await during(page) : null;
@@ -122,7 +127,7 @@ async function record(name, query, { preset = 'share', during } = {}) {
 try {
   if (SONG) {
     // The real thing: how many MB a minute does Chrome write for this song's picture?
-    const r = await record(SONG, `&recordCheck=${SECONDS}`, { preset: PRESET });
+    const r = await record(SONG, `&recordCheck=${SECONDS}`, { preset: PRESET, from: FROM });
     const mbMin = (r.probe.bytes / 1e6) / (r.probe.seconds / 60);
     console.log(`${SONG}, ${PRESET}: ${r.mime}\n  ${fmt(r.probe)}\n  ${mbMin.toFixed(2)} MB a minute (${r.wall.toFixed(1)} s to record) → ${r.file}`);
     check('Chrome wrote H.264 + AAC in MP4', r.probe.video === 'h264' && r.probe.audio === 'aac' && /mp4/.test(r.probe.format), r.mime);
@@ -148,7 +153,9 @@ try {
     console.log(`  ${a.mime}\n  ${fmt(a.probe)}`);
     check('the recording is MP4 with H.264 video and AAC audio', a.probe.video === 'h264' && a.probe.audio === 'aac' && /mp4/.test(a.probe.format) && /^video\/mp4/.test(a.mime), a.mime);
     check('?recordCheck=20 stops it after 20 ± 1 s and saves it', Math.abs(a.probe.seconds - 20) <= 1 && a.after.state === 'idle' && !a.after.recording, `${a.probe.seconds.toFixed(2)} s`);
-    check('20 s at "share" is at most 4.0 MB', a.probe.bytes <= 4.0e6, `${(a.probe.bytes / 1e6).toFixed(2)} MB`);
+    const { RECORD_PRESETS, mbPerMinute } = await vite.ssrLoadModule('/src/studio/ui/record.ts');
+    const limit = (mbPerMinute(RECORD_PRESETS.share) * 1.4) / 3;
+    check(`20 s at "share" is at most ${limit.toFixed(2)} MB`, a.probe.bytes <= limit * 1e6, `${(a.probe.bytes / 1e6).toFixed(2)} MB`);
     check('the picture is 1280×720', a.probe.width === 1280 && a.probe.height === 720, `${a.probe.width}×${a.probe.height}`);
     check('seeks and edits wait while it records; undo is off, the REC indicator shows', a.extra && !a.extra.moved && !a.extra.edited && a.extra.undo && a.extra.exportHidden && /^REC 0:0\d \/ 0:20$/.test(a.extra.rec), JSON.stringify(a.extra));
     check('it says where the file went', a.after.notices.some((n) => /Saved demo-.*\.mp4/.test(n)), a.after.notices.join(' | '));
