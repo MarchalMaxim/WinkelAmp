@@ -34,3 +34,6 @@ export function nameOf(file: string): { id: string; title: string } {
     title: stem.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, (c) => c.toUpperCase()),
   };
 }
+
+/** <repo>/shows, or WINKELAMP_SHOWS (tests use temp dirs). */
+export const showsDir = (): string => resolve(process.env.WINKELAMP_SHOWS || resolve(REPO, 'shows'));
