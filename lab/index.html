@@ -432,7 +432,7 @@ function step(t, dt) {
   }
 }
 // The renderer's controls (?render=1). renderSeek(t): everything back to song time t, as a seek does, with the features
-// and the random seed reset too, so a render never depends on what was drawn before it. renderStep(dt): song time moves
+// and the random seed reset too (a tool keeping state its reset() skips, like the casket's melt phase, still carries it). renderStep(dt): song time moves
 // on by exactly dt, drawn as the live lab would on a RENDER_HZ screen (in steps of at most 1/RENDER_HZ s); every chord
 // whose time was crossed fires. Returns the song time reached.
 if (RENDER) {
