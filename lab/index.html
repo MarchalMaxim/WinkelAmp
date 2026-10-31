@@ -88,6 +88,49 @@
   .onnow button { padding: 2px 4px 2px 9px; font-size: 12px; border-color: var(--on); background: #1d1013; display: inline-flex; gap: 4px; align-items: center; }
   .onnow button i { font-style: normal; color: var(--dim); padding: 0 4px; border-radius: 4px; }
   .onnow button i:hover { color: var(--fg); background: #3a1a1c; }
+  /* Tags (lab/tags.json): feel and instrument chips under a card's name; a click adds the word to the filter bar. */
+  .chips { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0 4px; }
+  .chip { padding: 0 7px; font-size: 10.5px; line-height: 16px; border-radius: 8px; font-weight: 500; }
+  .chip.feel { color: #e6d3bd; background: #221a16; border-color: #3d3027; }
+  .chip.inst { color: #bfd6e8; background: #141d26; border-color: #2a3a4a; }
+  .chip.picked { border-color: #e9e2da; color: #fff; background: #3a2a2a; }
+  .chip.inst.picked { background: #22384c; }
+  .filt { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 6px; background: #100d10; }
+  .filt > summary { cursor: pointer; padding: 7px 11px; font-size: 13px; color: var(--fg); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .filt > summary::before { content: '▸'; color: var(--dim); }
+  .filt[open] > summary::before { content: '▾'; }
+  .filt > summary .dim { color: var(--dim); }
+  .filt > summary button { padding: 1px 8px; font-size: 12px; }
+  .filt .rows { padding: 2px 11px 8px; display: grid; gap: 5px; }
+  .filt .row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px; align-items: baseline; font-size: 12px; }
+  .filt .row > span { color: var(--dim); }
+  .filt .row > div { display: flex; flex-wrap: wrap; gap: 3px; }
+  .filt .chip { font-size: 11.5px; line-height: 18px; }
+  @media (max-width: 560px) { .filt .row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+  /* A card's layer (lab/layer-ui.js): what it listens to, where it is seen, how it comes and goes. Under the knobs. */
+  .lyr { margin-top: 8px; font-size: 12px; color: var(--dim); cursor: default; min-width: 0; }
+  .lyr [hidden] { display: none !important; }
+  .lyr-d > summary { cursor: pointer; list-style: none; display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+  .lyr-d > summary::-webkit-details-marker { display: none; }
+  .lyr-d > summary::before { content: '▸'; color: var(--dim); width: 8px; flex: none; }
+  .lyr-d[open] > summary::before { content: '▾'; }
+  .lyr-d > summary .lyr-k { flex: none; }
+  .lyr-sum { color: #cbbfb4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .lyr.set .lyr-sum { color: #f0c2b4; }
+  .lyr-row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 6px; align-items: center; margin-top: 5px; }
+  .lyr-k { color: var(--dim); }
+  .lyr select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11.5px; min-width: 0; max-width: 100%; }
+  .lyr button { padding: 2px 9px; font-size: 11.5px; }
+  .lyr-seg { display: inline-flex; }
+  .lyr-seg button { border-radius: 0; margin-left: -1px; }
+  .lyr-seg button:first-child { border-radius: 5px 0 0 5px; margin-left: 0; } .lyr-seg button:last-child { border-radius: 0 5px 5px 0; }
+  .lyr button[aria-pressed="true"] { background: #2a1418; border-color: var(--on); color: var(--fg); position: relative; }
+  .lyr-regc, .lyr-int, .lyr-amtc { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; min-width: 0; }
+  .lyr-fea { display: inline-flex; gap: 4px; align-items: center; flex: 1 1 80px; min-width: 80px; }
+  .lyr input[type="range"] { width: 100%; accent-color: var(--on); margin: 0; }
+  .lyr-amtc input { flex: 1 1 90px; min-width: 80px; }
+  .lyr-say { flex: 1 1 100%; color: #cbbfb4; }
+  .lyr-note { margin: 5px 0 0; color: #cbbfb4; font-size: 11.5px; line-height: 1.4; }
   /* Tuning without scrolling. Landscape windows 900 px wide or more (html.side, set by the script below): the stage
      (canvas, transport, track) is a column that stays put on the left while the cards scroll beside it. Upright screens
      (phones, tablets): the stage sticks to the top and the cards scroll under it. Smaller landscape windows keep the plain
@@ -136,6 +179,7 @@
   <div class="onnow" id="onnow"></div>
   </div>
   <div class="cards">
+  <details class="filt" id="filt" hidden></details>
   <details class="combos" id="combos" hidden></details>
   <p class="legend">
     <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
@@ -210,6 +254,9 @@ document.write(`<script src="${SONG.notes}"><\/script>`);
 <script src="layers/persist.js"></script>
 <script src="layers/region.js"></script>
 <script src="layers/slot.js"></script>
+<!-- The cards' layer controls and the place overlay on the stage (the studio evaluates the same region-ui.js). -->
+<script src="region-ui.js"></script>
+<script src="layer-ui.js"></script>
 <script>
 // Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, params?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
 window.TOOLS = [];
@@ -346,6 +393,15 @@ async function loadPack() {
     (0, eval)(`${await r.text()}\n//# sourceURL=${new URL(SONG.pack, location.href)}`);
   } catch (e) { console.warn('pack', SONG.pack, 'did not load:', e); }
 }
+/** The widgets' tags (lab/tags.json) and their words (lab/tag-words.json), for the chips and the filter bar. Not in
+    render mode: the cards there are never seen. Missing or broken files leave the cards without chips. */
+let TAGS = null, WORDS = null;
+async function loadTags() {
+  if (RENDER) return;
+  const get = async (f) => { try { const r = await fetch(f, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch { return null; } };
+  [TAGS, WORDS] = await Promise.all([get('tags.json'), get('tag-words.json')]);
+  if (!TAGS || typeof TAGS !== 'object' || !WORDS?.feel || !WORDS?.instruments) TAGS = WORDS = null;
+}
 </script>
 <script>
 const W = 1280, H = 720, DUR = SONG.dur;
@@ -359,7 +415,7 @@ document.getElementById('songs').onchange = (e) => {
     const top = cardsTop(), card = [...document.querySelectorAll('.tool')].find((d) => d.getBoundingClientRect().bottom > top + 40);
     sessionStorage.setItem('wa-carry', JSON.stringify({ on: [...active], card: card?.dataset.id, dy: card ? card.getBoundingClientRect().top - top : 0 }));
   } catch {}
-  location.search = `?song=${encodeURIComponent(e.target.value)}`;
+  location.search = WA_LAYER_UI.filterSearch(`?song=${encodeURIComponent(e.target.value)}`, FILTER);   // the filter comes along
 };
 const c = document.getElementById('c'), g = c.getContext('2d');
 const audio = document.getElementById('a');
@@ -531,11 +587,18 @@ function render() {
     let params = '';
     try { params = Array.isArray(tool.params) && tool.params.length ? `<div class="params">${tool.params.map((q) => paramHTML(tool, q)).join('')}</div>` : ''; }
     catch (e) { errors[tool.id] ??= `knobs: ${e}`; }
-    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}${comboPill(tool)}</b><span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
-      + params + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
+    const chips = TAGS ? WA_LAYER_UI.chipsHTML(TAGS[tool.id], WORDS, FILTER) : '';
+    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}${comboPill(tool)}</b>${chips ? `<div class="chips">${chips}</div>` : ''}<span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
+      + params + (RENDER ? '' : '<div class="lyr"></div>') + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
+    d.hidden = !!TAGS && !WA_LAYER_UI.matches(TAGS[tool.id], FILTER);
     // Knobs: touching anything in the knob area never toggles the tool. Nor does the combinations pill or its list.
     d.querySelector('.params')?.addEventListener('click', (ev) => ev.stopPropagation());
     wireCombos(d.querySelector('.cmbw'));
+    // A chip adds its word to the filter (or takes it out); the layer controls (lab/layer-ui.js) look after themselves.
+    d.querySelector('.chips')?.addEventListener('click', (ev) => { ev.stopPropagation(); const b = ev.target.closest('.chip'); if (b) toggleFilter(b.dataset.feel ? 'feel' : 'inst', b.dataset.feel || b.dataset.inst); });
+    const lyr = d.querySelector('.lyr');
+    if (lyr) WA_LAYER_UI.mount(lyr, tool.id, { song: labSong(), name: tool.name, get: () => labLayers.get(tool.id), set: (e) => labLayers.set(tool.id, e),
+      now: () => audio.currentTime, isOn: () => active.has(tool.id), stage: c.parentElement, canvas: c });
     d.querySelectorAll('.prm').forEach((row) => {
       const q = tool.params.find((x) => String(x.key) === row.dataset.p); if (!q) return;
       const [live, i0, i1] = ['live', '0', '1'].map((k) => row.querySelector(`canvas[data-i="${k}"]`));
@@ -555,6 +618,43 @@ function render() {
   }
   renderOnNow();
   renderCombos();
+  renderFilter();
+}
+
+/** What a card's layer controls know of the song: its notes, the pack's tracks, beats and loudness, its moments. */
+const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, moments: SONG.moments, dur: DUR });
+
+/* The filter bar over the cards: feel words by axis and instruments by family (lab/tag-words.json). A card shows when
+   its tags have every word picked (AND). Kept in the URL: ?feel=dark,liquid&inst=cello. It only hides cards: what is
+   on stays on. */
+const FILTER = WA_LAYER_UI.parseFilter(location.search);
+let filterOpen = false;   // the summary names what is picked; the rows open on a click
+function toggleFilter(kind, w) {
+  const l = FILTER[kind], i = l.indexOf(w);
+  if (i >= 0) l.splice(i, 1); else l.push(w);
+  applyFilter();
+}
+function applyFilter() {
+  try { history.replaceState(null, '', location.pathname + WA_LAYER_UI.filterSearch(location.search, FILTER) + location.hash); } catch {}
+  document.querySelectorAll('#tools .tool').forEach((d) => {
+    d.hidden = !!TAGS && !WA_LAYER_UI.matches(TAGS[d.dataset.id], FILTER);
+    d.querySelectorAll('.chip').forEach((b) => b.classList.toggle('picked', b.dataset.feel ? FILTER.feel.includes(b.dataset.feel) : FILTER.inst.includes(b.dataset.inst)));
+  });
+  renderFilter();
+}
+function renderFilter() {
+  const box = document.getElementById('filt');
+  box.hidden = !TAGS; if (!TAGS) return;
+  const picked = [...FILTER.feel, ...FILTER.inst], shown = TOOLS.filter((t) => WA_LAYER_UI.matches(TAGS[t.id], FILTER)).length;
+  const chip = (kind, w) => `<button type="button" class="chip ${kind}${FILTER[kind].includes(w) ? ' picked' : ''}" data-${kind}="${esc(w)}"${kind === 'inst' ? ` title="${esc(WORDS.instruments[w]?.label ?? w)}"` : ` title="${esc(Object.values(WORDS.feel).find((a) => a[w])?.[w]?.looks ?? '')}"`}>${esc(w)}</button>`;
+  box.innerHTML = `<summary><b>Filter</b>${picked.length
+    ? `<span>${picked.map((w) => esc(w)).join(' + ')}</span><span class="dim">${shown ? `${shown} of ${TOOLS.length} widgets have ${picked.length > 1 ? 'all of these' : 'it'}` : `no widget has all of these: take one out`}</span><button type="button" data-clear>clear</button>`
+    : `<span class="dim">by feel and instrument (the chips on each card)</span>`}</summary>`
+    + `<div class="rows">${WA_LAYER_UI.filterRows(WORDS).map((r) => `<div class="row"><span>${esc(r.label)}</span><div>${r.words.map((w) => chip(r.kind, w)).join('')}</div></div>`).join('')}</div>`;
+  box.open = filterOpen;
+  box.ontoggle = () => { filterOpen = box.open; };
+  box.querySelector('[data-clear]')?.addEventListener('click', (ev) => { ev.preventDefault(); FILTER.feel.length = 0; FILTER.inst.length = 0; applyFilter(); });
+  box.querySelector('.rows').onclick = (ev) => { const b = ev.target.closest('.chip'); if (b) toggleFilter(b.dataset.feel ? 'feel' : 'inst', b.dataset.feel || b.dataset.inst); };
 }
 
 /* Combinations (lab/combos.js): widgets that do more together. A member's card carries a "combines with N" pill whose
@@ -651,6 +751,7 @@ function renderOnNow() {
     const tool = TOOLS.find((t) => t.id === b.dataset.go), card = document.querySelector(`.tool[data-id="${CSS.escape(b.dataset.go)}"]`);
     if (ev.target.dataset.off !== undefined) { active.delete(tool.id); render(); return; }
     if (!card) return;
+    if (card.hidden) { FILTER.feel.length = 0; FILTER.inst.length = 0; applyFilter(); }   // the filter had hidden it
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     card.classList.add('hl'); setTimeout(() => card.classList.remove('hl'), 1200);
   }));
@@ -869,7 +970,7 @@ audio.onpause = () => (document.getElementById('play').textContent = '▶ Play')
 document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
-Promise.all([loadTools(), loadPack()]).then(() => {
+Promise.all([loadTools(), loadPack(), loadTags()]).then(() => {
   applyLayers(layerList());
   if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
   let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}
