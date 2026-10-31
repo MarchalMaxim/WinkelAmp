@@ -4,6 +4,7 @@
  *   npm run check-show                     every shows/*.json
  *   npm run check-show -- <file…>          these files
  *   npm run check-show -- --fix [<file…>]  also write the repair (repairShow, then canonicalShow) where it leaves no errors
+ *                                          (unknown properties are dropped then: each is named with what it held)
  *
  * The song's length comes from songs/<song>/pack.json when the pack is here; without it the end is not checked.
  * Prints each error and warning with its path; exit 1 when any show still has errors.
@@ -34,6 +35,9 @@ for (const f of failed) console.warn(`warning: lab/tools/${f.id}.js did not load
 
 const name = (f: string) => { const r = relative(process.cwd(), f); return r && !r.startsWith('..') && !isAbsolute(r) ? r : f; };
 const print = (f: string, kind: string, list: Issue[]) => { for (const i of list) console.log(`${name(f)}: ${kind} ${i.path || '(show)'}: ${i.message}`); };
+/** The value at an issue path like 'sections[0].layers[1].knob'. */
+const valueAt = (o: unknown, path: string): unknown => path.split(/\.|(?=\[)/).filter(Boolean).reduce<unknown>((v, k) =>
+  v && typeof v === 'object' ? (v as Record<string, unknown>)[k.startsWith('[') ? k.slice(1, -1) : k] : undefined, o);
 let bad = 0;
 for (const file of files) {
   let x: unknown;
@@ -50,11 +54,17 @@ for (const file of files) {
   let { errors, warnings } = validateShow(x, c);
   if (fix && (errors.length || warnings.length) && x && typeof x === 'object' && Array.isArray((x as Show).sections)) {
     const r = repairShow(x as Show, c);
-    const after = validateShow(r.show, c);
+    let after = validateShow(r.show, c);
     print(file, 'fixed', r.fixed);
     if (!after.errors.length) {
-      writeFileSync(file, canonicalShow(r.show));
+      // The canonical form keeps only known properties: say what each misspelled one held, then check what was written.
+      const dropped = after.warnings.filter((w) => w.message.startsWith('unknown property'))
+        .map((w) => ({ path: w.path, message: `dropped: it held ${JSON.stringify(valueAt(r.show, w.path))}` }));
+      print(file, 'fixed', dropped);
+      const text = canonicalShow(r.show);
+      writeFileSync(file, text);
       console.log(`${name(file)}: wrote the repaired show`);
+      after = validateShow(JSON.parse(text), c);
     } else console.log(`${name(file)}: not written: errors remain that need a person`);
     ({ errors, warnings } = after);
   }

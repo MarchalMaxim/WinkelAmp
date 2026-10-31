@@ -59,6 +59,21 @@ describe('npm run check-show', () => {
     expect(validateShow(fixed, { duration: 100 }).errors).toEqual([]);
   }, 60_000);
 
+  it('--fix says what it drops with a misspelled property, and warns about what it wrote', () => {
+    const f = join(tmp, 'typo.json');
+    const s = show([[0, 50, 'squares'], [50, 100, 'kandinsky']]);
+    Object.assign(s.sections[0].layers[0], { knob: { size: 1 }, knobs: { nonsense: 1 } });
+    writeFileSync(f, JSON.stringify(s));
+    const r = check(['--fix', f]);
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/fixed sections\[0\]\.layers\[0\]\.knob: .*\{"size":1\}/);
+    expect(r.out).not.toMatch(/warning sections\[0\]\.layers\[0\]\.knob:/);
+    expect(r.out).toMatch(/warning sections\[0\]\.layers\[0\]\.knobs\.nonsense:/);   // kept in the file, so still a warning
+    expect(r.out).toMatch(/typo\.json: ok, 1 warning/);
+    const written = JSON.parse(readFileSync(f, 'utf8'));
+    expect(written.sections[0].layers[0]).toEqual({ widget: 'squares', knobs: { nonsense: 1 } });
+  }, 60_000);
+
   it('exits 1 on a file that is not JSON', () => {
     const f = join(tmp, 'broken.json');
     writeFileSync(f, '{ nope');
