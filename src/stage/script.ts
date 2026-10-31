@@ -6,7 +6,8 @@
  * from what was composed. Hand-written (no schema library, no dependencies) and
  * free of Node APIs, because the app bundles it to load the corpus.
  */
-import { STYLES } from './elements';
+import { STYLES, widgetOf } from './elements';
+import { DRIVES } from './kit';
 import {
   DEFAULT_PARAMS,
   type AccentKind,
@@ -68,7 +69,34 @@ class Checker {
   }
 
   unit(path: string, v: unknown): void {
-    if (!isNum(v) || v < 0 || v > 1) this.bad(path, `must be a number from 0 to 1, got ${show(v)}`);
+    this.range(path, v, 0, 1);
+  }
+
+  range(path: string, v: unknown, min: number, max: number): void {
+    if (!isNum(v) || v < min || v > max) this.bad(path, `must be a number from ${min} to ${max}, got ${show(v)}`);
+  }
+
+  /** `params.knobs` of an element of a known type: names it has, values in range, a known drive, depth 0..1. */
+  knobs(path: string, v: unknown, type: string): void {
+    if (!this.object(path, v, Object.keys(isObj(v) ? v : {}))) return;
+    const w = widgetOf(type);
+    const own = w?.knobs ?? [];
+    for (const [name, set] of Object.entries(v)) {
+      const k = own.find((x) => x.name === name);
+      const at = `${path}.${name}`;
+      if (!k) {
+        this.bad(at, `unknown knob for ${type} (${own.length ? `knobs: ${oneOf(own.map((x) => x.name))}` : 'it has none'})`);
+        continue;
+      }
+      if (!isObj(set)) {
+        this.range(at, set, k.min, k.max);
+        continue;
+      }
+      if (!this.object(at, set, ['value', 'drive', 'depth'])) continue;
+      if (set.value !== undefined) this.range(`${at}.value`, set.value, k.min, k.max);
+      if (set.drive !== undefined) this.member(`${at}.drive`, set.drive, DRIVES, 'drive');
+      if (set.depth !== undefined) this.unit(`${at}.depth`, set.depth);
+    }
   }
 
   seconds(path: string, v: unknown, max = Infinity): void {
@@ -114,7 +142,7 @@ class Checker {
     } else id = v.id;
     const typeOk = this.member(`${path}.type`, v.type, Object.keys(STYLES), 'element type');
     const p = v.params;
-    if (p === undefined || !this.object(`${path}.params`, p, Object.keys(DEFAULT_PARAMS))) return id;
+    if (p === undefined || !this.object(`${path}.params`, p, [...Object.keys(DEFAULT_PARAMS), 'knobs'])) return id;
     if (p.intensity !== undefined) this.unit(`${path}.params.intensity`, p.intensity);
     if (p.size !== undefined) this.unit(`${path}.params.size`, p.size);
     if (p.region !== undefined) this.member(`${path}.params.region`, p.region, REGIONS, 'region');
@@ -127,6 +155,7 @@ class Checker {
       if (typeOk) this.member(`${path}.params.style`, p.style, STYLES[v.type as ElementType], `style for ${v.type}`);
       else if (typeof p.style !== 'string') this.bad(`${path}.params.style`, `must be a string, got ${show(p.style)}`);
     }
+    if (p.knobs !== undefined && typeOk) this.knobs(`${path}.params.knobs`, p.knobs, v.type as string);
     return id;
   }
 }
