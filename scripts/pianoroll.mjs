@@ -7,7 +7,7 @@
 // model's ({notes: [{start, end, midi, vel}]}), or a song pack (songs/<id>/pack.json: notes, and tracks in v2).
 // Draws an SVG in a Playwright page (system Chrome, no server): time on x, MIDI on y, one colour per track, class or
 // line, with a legend that counts the notes in the window. --by line colours melody / bass line / inner voices from
-// lab/layers/lines.js (accents get a white outline; dashed lines mark low < 55 and high ≥ 72). --curve draws a
+// lab/layers/lines.js (accents get a white outline). --curve draws a
 // 0..1 intensity curve (an array of {t, v, shape?, bend?}, or {pivots}) in a lane above the roll, read through
 // lab/layers/automation.js.
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -106,16 +106,12 @@ function groups(src, by, WA) {
       .forEach(([id, t]) => out.push({ key: id, label: t.label ?? id, colour: colour(id), notes: t.notes }));
   } else if (by === 'line') {
     if (typeof WA.lineNotes !== 'function') die('--by line: lab/layers/lines.js does not define lineNotes yet');
-    const key = (n) => `${n[0]}|${n[1]}|${n[2]}`;
     const notes = src.notes.map((n) => n.slice(0, 4));
-    const mel = new Set(WA.lineNotes(notes, 'melody').map(key));
-    const bass = new Set(WA.lineNotes(notes, 'bassline').map(key));
-    const acc = WA.lineNotes(notes, 'accents');
-    const inner = notes.filter((n) => !mel.has(key(n)) && !bass.has(key(n)));
-    out.push({ key: 'inner', label: 'inner voices', colour: FIXED.inner, notes: inner });
-    out.push({ key: 'bassline', label: 'bass line', colour: FIXED.bassline, notes: notes.filter((n) => bass.has(key(n))) });
-    out.push({ key: 'melody', label: 'melody', colour: FIXED.melody, notes: notes.filter((n) => mel.has(key(n))) });
-    out.push({ key: 'accents', label: 'accents (outline)', colour: '#ffffff', notes: acc, outline: true });
+    const line = (l) => WA.lineNotes(notes, l);
+    out.push({ key: 'inner', label: 'inner voices', colour: FIXED.inner, notes: line('inner') });
+    out.push({ key: 'bassline', label: 'bass line', colour: FIXED.bassline, notes: line('bassline') });
+    out.push({ key: 'melody', label: 'melody', colour: FIXED.melody, notes: line('melody') });
+    out.push({ key: 'accents', label: 'accents (outline)', colour: '#ffffff', notes: line('accents'), outline: true });
   } else {
     out.push({ key: 'all', label: 'all notes', colour: FIXED.all, notes: src.notes });
   }
@@ -123,18 +119,8 @@ function groups(src, by, WA) {
 }
 
 function curveFn(pivots, WA) {
-  if (typeof WA.automationAt === 'function') return { at: (t) => WA.automationAt(pivots, t), how: 'automation.js' };
-  // Until automation.js lands: straight segments, held at both ends.
-  const at = (t) => {
-    if (!pivots.length) return 1;
-    if (t <= pivots[0].t) return pivots[0].v;
-    for (let i = 0; i < pivots.length - 1; i++) {
-      const a = pivots[i], b = pivots[i + 1];
-      if (t < b.t) return a.shape === 'hold' ? a.v : a.v + ((b.v - a.v) * (t - a.t)) / (b.t - a.t || 1);
-    }
-    return pivots[pivots.length - 1].v;
-  };
-  return { at, how: 'straight segments (automation.js not loaded)' };
+  if (typeof WA.automationAt !== 'function') die('--curve: lab/layers/automation.js does not define automationAt yet');
+  return { at: (t) => WA.automationAt(pivots, t), how: 'automation.js' };
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -176,14 +162,6 @@ function svg(o, src, gs, under, curve) {
     const X = x(t).toFixed(1);
     parts.push(`<line x1="${X}" x2="${X}" y1="${curve ? top : rollTop}" y2="${rollTop + rollH}" stroke="#25303a"/>`);
     parts.push(`<text x="${X}" y="${rollTop + rollH + 16}" fill="#9aa6b2" font-size="11" text-anchor="middle">${+t.toFixed(2)} s</text>`);
-  }
-  if (o.by === 'line') {
-    for (const [m, lab] of [[55, 'low < 55'], [72, 'high ≥ 72']]) {
-      if (m < lo || m > hi) continue;
-      const Y = (m === 55 ? y(m) + rowH : y(m) + rowH).toFixed(1);
-      parts.push(`<line x1="${left}" x2="${W - right}" y1="${Y}" y2="${Y}" stroke="#7d8a96" stroke-dasharray="6 5"/>`);
-      parts.push(`<text x="${W - right - 4}" y="${+Y - 3}" fill="#7d8a96" font-size="10" text-anchor="end">${lab}</text>`);
-    }
   }
   const bar = (n, fill, extra = '') => {
     const x0 = x(Math.max(from, n[0])), x1 = x(Math.min(to, Math.max(n[1], n[0] + 0.03)));
