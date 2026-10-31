@@ -25,21 +25,39 @@ describe('freeId', () => {
 });
 
 describe('overallProgress', () => {
-  it('weights the stages, transcribe included only with the GPU', () => {
-    expect(overallProgress('decode', 0, true)).toBe(0);
-    expect(overallProgress('decode', 1, true)).toBeCloseTo(0.05);
-    expect(overallProgress('transcribe', 0.5, true)).toBeCloseTo(0.3);
-    expect(overallProgress('analyze', 0, true)).toBeCloseTo(0.55);
-    expect(overallProgress('write', 1, true)).toBeCloseTo(1);
-    // Without the GPU: decode .05, analyze .4, write .05 of 0.5.
-    expect(overallProgress('decode', 1, false)).toBeCloseTo(0.1);
-    expect(overallProgress('transcribe', 1, false)).toBeCloseTo(0.1);
-    expect(overallProgress('analyze', 0.5, false)).toBeCloseTo(0.5);
+  it('weights the stages, each transcriber included only when it runs', () => {
+    // All five: decode .03, transcribe .3, instruments .3, analyze .32, write .05 (of 1).
+    expect(overallProgress('decode', 0, true, true)).toBe(0);
+    expect(overallProgress('decode', 1, true, true)).toBeCloseTo(0.03);
+    expect(overallProgress('transcribe', 0.5, true, true)).toBeCloseTo(0.18);
+    expect(overallProgress('instruments', 0.5, true, true)).toBeCloseTo(0.48);
+    expect(overallProgress('analyze', 0, true, true)).toBeCloseTo(0.63);
+    expect(overallProgress('write', 1, true, true)).toBeCloseTo(1);
+    // The piano model only: decode .03, transcribe .3, analyze .32, write .05 of 0.7.
+    expect(overallProgress('transcribe', 1, true)).toBeCloseTo(0.33 / 0.7);
+    expect(overallProgress('instruments', 1, true)).toBeCloseTo(0.33 / 0.7);
+    // No transcriber: decode .03, analyze .32, write .05 of 0.4.
+    expect(overallProgress('decode', 1, false)).toBeCloseTo(0.075);
+    expect(overallProgress('transcribe', 1, false)).toBeCloseTo(0.075);
+    expect(overallProgress('analyze', 0.5, false)).toBeCloseTo(0.475);
     expect(overallProgress('done', 0, false)).toBe(1);
   });
+  it('never goes back from one stage to the next, whichever stages run', () => {
+    for (const [gpu, inst] of [[true, true], [true, false], [false, true], [false, false]] as const) {
+      let last = 0;
+      for (const s of ['decode', 'transcribe', 'instruments', 'analyze', 'write'] as const) {
+        for (const f of [0, 0.5, 1]) {
+          const v = overallProgress(s, f, gpu, inst);
+          expect(v).toBeGreaterThanOrEqual(last);
+          last = v;
+        }
+      }
+      expect(last).toBeCloseTo(1);
+    }
+  });
   it('clamps a bad fraction', () => {
-    expect(overallProgress('analyze', 7, true)).toBeCloseTo(0.95);
-    expect(overallProgress('analyze', Number.NaN, true)).toBeCloseTo(0.55);
+    expect(overallProgress('analyze', 7, true)).toBeCloseTo(0.65 / 0.7);
+    expect(overallProgress('analyze', Number.NaN, true)).toBeCloseTo(0.33 / 0.7);
   });
 });
 

@@ -14,7 +14,11 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 function ingest(args: string[], env: Record<string, string> = {}) {
   const r = spawnSync(process.execPath, ['--import', 'tsx', join(REPO, 'scripts', 'ingest.ts'), ...args], {
-    cwd: REPO, encoding: 'utf8', env: { ...process.env, WINKELAMP_SONGS: join(tmp, 'songs'), ...env }, timeout: 60_000,
+    cwd: REPO, encoding: 'utf8', env: {
+      ...process.env, WINKELAMP_SONGS: join(tmp, 'songs'),
+      // Never the machine's own YourMT3 or basic-pitch: these runs are about the CLI, not the transcribers (tests/ingest-v2).
+      WINKELAMP_YMT3: join(tmp, 'no-ymt3'), WINKELAMP_PY_BP: join(tmp, 'no-bp.exe'), ...env,
+    }, timeout: 60_000,
   });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
@@ -51,8 +55,8 @@ describe.skipIf(!hasFfmpeg)('npm run ingest', () => {
     expect(lines[lines.length - 1]).toMatchObject({ stage: 'done', progress: 1 });
   }, 60_000);
 
-  it('fails loudly (exit 3) when the transcriber cannot run, naming --notes approx', () => {
-    const r = ingest([wav, '--id', 'no-python'], { WINKELAMP_PY: join(tmp, 'missing.exe') });
+  it('fails loudly (exit 3) when the transcriber asked for (--notes gpu) cannot run, naming --notes approx', () => {
+    const r = ingest([wav, '--id', 'no-python', '--notes', 'gpu'], { WINKELAMP_PY: join(tmp, 'missing.exe') });
     expect(r.code).toBe(3);
     expect(r.err).toMatch(/--notes approx/);
     expect(existsSync(join(tmp, 'songs', 'no-python'))).toBe(false);

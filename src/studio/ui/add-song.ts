@@ -41,11 +41,14 @@ function flash(id: string, notices: Notice[]): void {
 
 const STAGE_WORDS: Record<Job['stage'], string> = {
   upload: 'Sending the recording to the ears server', decode: 'Decoding', transcribe: 'Transcribing the notes',
+  instruments: 'Hearing the instruments',
   analyze: 'Finding the sections, beats and chords', write: 'Writing the song',
 };
 const toState = (t: TranscriberStatus | null): EarsState => (t ? { up: true, transcriber: t } : { up: false });
 /** A job warning saying its notes are approximate after all. */
-const FALLBACK_WARNING = /^transcriber unavailable|^the transcriber failed/;
+const FALLBACK_WARNING = /^transcriber unavailable|^the transcriber failed|^approximate notes/;
+/** The warnings of ingest's fallback rows (a transcriber missing or failed): said in words when the song opens. */
+const TOOL_WARNING = /^transcriber unavailable|^the transcriber failed|^approximate notes|^no instrument tracks|about half the attacks|^piano transcriber unavailable|^the piano model could not run|^YourMT3+ failed|^basic-pitch failed/;
 const pct = (f: number) => `${Math.floor(Math.max(0, Math.min(1, f)) * 100)} %`;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -124,8 +127,8 @@ export class SongAdder {
           library.progress({ name: file.name, message: `${words} · ${pct(j.progress)} · ${took()}`, progress: j.progress, approximate });
         });
         const warnings = (last as Job | null)?.warnings ?? [];
-        const notes = warnings.filter((w) => FALLBACK_WARNING.test(w))
-          .map((w): Notice => ({ id: 'transcriber', level: 'warn', text: w.charAt(0).toUpperCase() + w.slice(1) }));
+        const notes = warnings.filter((w) => TOOL_WARNING.test(w))
+          .map((w, i): Notice => ({ id: i ? `transcriber-${i}` : 'transcriber', level: 'warn', text: w.charAt(0).toUpperCase() + w.slice(1) }));
         await this.finish(id, file.name, notes);
       } else {
         this.busy = 'browser';

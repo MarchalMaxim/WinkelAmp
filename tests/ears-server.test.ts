@@ -8,8 +8,8 @@ import { startEars } from '../scripts/ears/server';
 import type { Job, TranscriberStatus } from '../src/studio/ingest/ears-types';
 
 // A stand-in for `node --import tsx scripts/ingest.ts …`: prints --progress json lines slowly (so the polls see each
-// state), then writes a pack whose source.sha1 is the input's; FAKE_MODE=boom fails on stderr instead, and
-// FAKE_MODE=gpu3 fails like the transcriber does (exit 3) when asked for --notes gpu.
+// state), then writes a pack whose source.sha1 is the input's and says FAKE_WARN in its done line; FAKE_MODE=boom
+// fails on stderr instead, and FAKE_MODE=auto3 fails like a transcriber does (exit 3) unless asked for --notes approx.
 const FAKE = String.raw`
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const args = process.argv.slice(1), input = args[0], flag = (k) => args[args.indexOf(k) + 1];
@@ -17,7 +17,7 @@ const id = flag('--id'), out = (o) => process.stdout.write(JSON.stringify(o) + '
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   if (process.env.FAKE_MODE === 'boom') { await sleep(60); process.stderr.write('ingest: boom\n'); process.exit(1); }
-  if (process.env.FAKE_MODE === 'gpu3' && flag('--notes') === 'gpu') {
+  if (process.env.FAKE_MODE === 'auto3' && flag('--notes') !== 'approx') {
     out({ stage: 'decode', progress: 1, message: 'decode', id }); await sleep(60);
     process.stderr.write('CUDA out of memory\ningest: the transcriber failed\npass --notes approx to use approximate notes from the analysis\n');
     process.exit(3);
@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   fs.writeFileSync(path.join(dir, 'audio' + ext), bytes);
   fs.writeFileSync(path.join(dir, 'pack.json'), JSON.stringify({ id, audio: 'audio' + ext, title: flag('--title'),
     source: { name: path.basename(input), bytes: bytes.length, sha1: crypto.createHash('sha1').update(bytes).digest('hex') } }));
-  out({ stage: 'done', progress: 1, message: 'done', id, warnings: [] });
+  out({ stage: 'done', progress: 1, message: 'done', id, warnings: process.env.FAKE_WARN ? [process.env.FAKE_WARN] : [] });
 })();`;
 
 const tmp = mkdtempSync(join(tmpdir(), 'wa-ears-'));
@@ -43,7 +43,7 @@ let base = '';
 
 beforeAll(async () => {
   ears = await startEars({
-    port: 0, songs, maxBytes: 1024, probe: async () => status,
+    port: 0, songs, maxBytes: 1024, probe: async () => status, probeYmt3: async () => ({ ok: true, python: 'py' }), probeBp: async () => ({ ok: true, python: 'py' }),
     runIngest: (args) => {
       const call = { args, start: Date.now(), end: 0 };
       calls.push(call);
@@ -81,7 +81,7 @@ describe('the ears server', () => {
   it('answers /health with the transcriber', async () => {
     const r = await fetch(`${base}/health`);
     expect(r.status).toBe(200);
-    expect(await r.json()).toMatchObject({ ok: true, api: 1, transcriber: { ok: true } });
+    expect(await r.json()).toMatchObject({ ok: true, api: 2, transcriber: { ok: true }, ymt3: { ok: true }, bp: { ok: true } });
   });
 
   it('ingests an upload: 202, queued → running → done, progress never decreasing', async () => {
@@ -95,7 +95,7 @@ describe('the ears server', () => {
     expect(states).toContain('running');
     for (let i = 1; i < seen.length; i++) expect(seen[i].progress).toBeGreaterThanOrEqual(seen[i - 1].progress);
     expect(seen[seen.length - 1].progress).toBe(1);
-    expect(has(calls[0].args, ['--id', 'a'], ['--notes', 'gpu'], ['--progress', 'json'], ['--title', 'A'])).toBe(true);
+    expect(has(calls[0].args, ['--id', 'a'], ['--notes', 'auto'], ['--progress', 'json'], ['--title', 'A'])).toBe(true);
     // The input keeps its name: the pack's source.name is the dropped file's.
     expect(calls[0].args[0]).toMatch(/[\\/]a\.wav$/);
   });
@@ -124,12 +124,14 @@ describe('the ears server', () => {
     expect(c2.start).toBeGreaterThanOrEqual(c1.end);
   });
 
-  it('uses approximate notes when the transcriber is unavailable, and says why', async () => {
+  it('leaves the fallbacks to ingest (--notes auto) when the piano model is unavailable, and carries its warnings', async () => {
     status = { ok: false, python: null, device: null, reason: 'no python' };
-    const ears2 = await startEars({ port: 0, songs, probe: async () => status, runIngest: (args) => {
-      calls.push({ args, start: Date.now(), end: 0 });
-      return spawn(process.execPath, ['-e', FAKE, ...args], { env: { ...process.env, SONGS: songs, FAKE_MODE: 'ok' } });
-    } });
+    const warn = 'approximate notes: no transcriber';
+    const ears2 = await startEars({ port: 0, songs, probe: async () => status, probeYmt3: async () => ({ ok: false, python: null, reason: 'no ymt3' }),
+      probeBp: async () => ({ ok: false, python: null, reason: 'no bp' }), runIngest: (args) => {
+        calls.push({ args, start: Date.now(), end: 0 });
+        return spawn(process.execPath, ['-e', FAKE, ...args], { env: { ...process.env, SONGS: songs, FAKE_MODE: 'ok', FAKE_WARN: warn } });
+      } });
     try {
       expect(await (await fetch(`http://127.0.0.1:${ears2.port}/health`)).json()).toMatchObject({ transcriber: { ok: false, reason: 'no python' } });
       const r = await fetch(`http://127.0.0.1:${ears2.port}/ingest?name=approx.wav`, { method: 'POST', body: 'approx' });
@@ -140,8 +142,8 @@ describe('the ears server', () => {
         await new Promise((res) => setTimeout(res, 15));
       }
       expect(last!.state).toBe('done');
-      expect(last!.warnings.join(' ')).toMatch(/no python/);
-      expect(has(calls[calls.length - 1].args, ['--notes', 'approx'])).toBe(true);
+      expect(last!.warnings).toEqual([warn]);
+      expect(has(calls[calls.length - 1].args, ['--notes', 'auto'])).toBe(true);
     } finally {
       await ears2.close();
       status = { ok: true, python: 'py', device: 'cuda' };
@@ -157,7 +159,7 @@ describe('the ears server', () => {
     const args = calls[calls.length - 1].args;
     expect(args[0]).toMatch(/[\\/]a[\\/]audio\.wav$/);
     expect(args).toContain('--force');
-    expect(has(args, ['--id', 'a'], ['--notes', 'gpu'])).toBe(true);
+    expect(has(args, ['--id', 'a'], ['--notes', 'auto'])).toBe(true);
     expect((await post('id=nope&redo=1', null)).status).toBe(404);
   });
 
@@ -171,8 +173,8 @@ describe('the ears server', () => {
     } finally { mode = 'ok'; }
   });
 
-  it('runs a job whose transcription fails (exit 3) again with approximate notes, and says why', async () => {
-    mode = 'gpu3';
+  it('runs a job whose ingest fails in a transcriber (exit 3) again with approximate notes, and says why', async () => {
+    mode = 'auto3';
     try {
       const before = calls.length;
       const { job: j } = (await (await post('name=oom.wav', 'too much for the GPU')).json()) as { job: string };
@@ -181,7 +183,7 @@ describe('the ears server', () => {
       expect(end.state).toBe('done');
       for (let i = 1; i < seen.length; i++) expect(seen[i].progress).toBeGreaterThanOrEqual(seen[i - 1].progress);
       const tried = calls.slice(before);
-      expect(tried.map((c) => c.args[c.args.indexOf('--notes') + 1])).toEqual(['gpu', 'approx']);
+      expect(tried.map((c) => c.args[c.args.indexOf('--notes') + 1])).toEqual(['auto', 'approx']);
       expect(end.warnings.join(' ')).toMatch(/the transcriber failed \(CUDA out of memory\)/);
     } finally { mode = 'ok'; }
   });

@@ -1,19 +1,22 @@
 /**
  * The ears server (plan §9): a small local server, so the studio can turn a dropped recording into a song pack with
- * the GPU transcriber. It runs `npm run ingest` on each upload, one at a time, and reports the progress.
+ * the transcribers (the GPU piano model, YourMT3+'s instruments, basic-pitch's gap fill). It runs
+ * `npm run ingest -- --notes auto` on each upload, one at a time, and reports the progress.
  *
  *   npm run ears [-- --port 5175]
  *
- *   GET  /health                                  { ok: true, api: 1, transcriber: TranscriberStatus }
+ *   GET  /health                                  { ok: true, api: 2, transcriber: TranscriberStatus, ymt3: ToolStatus,
+ *                                                 bp: ToolStatus } (each tool says why it cannot run)
  *   POST /ingest?name=<file>[&id=<slug>][&title=<t>]   body = the audio → 202 { job, id }, or 200 { job: null, id,
  *                                                 existing: true } when a pack of the same recording (sha1) is there
  *   POST /ingest?id=<slug>&redo=1                 no body: ingest songs/<id>/audio.* again (e.g. GPU notes for an
- *                                                 approximate pack) → 202 { job, id }
+ *                                                 approximate pack, or instrument tracks) → 202 { job, id }
  *   GET  /jobs/<job>                              Job
  *
  * Binds 127.0.0.1 only. Browsers may call it from http://localhost:* and http://127.0.0.1:* (the studio's dev server);
- * other origins get 403. Without a working transcriber (no Python, no torch, no checkpoint) a job ingests with
- * approximate notes and says why in its warnings; so does a job whose transcription fails.
+ * other origins get 403. Whatever transcriber is missing, ingest's auto mode falls back a row (YourMT3+ → basic-pitch →
+ * the piano model alone → approximate notes) and the pack's warnings say so; the job carries them. A job whose ingest
+ * still fails in a transcriber (exit 3) runs again with approximate notes, and says why.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -23,11 +26,12 @@ import { tmpdir } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHECKING_TRANSCRIBER, type IngestProgress, type Job, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
+import { CHECKING_TRANSCRIBER, type EarsHealth, type IngestProgress, type Job, type ToolStatus, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
 import { freeId, nameFromFile } from '../../src/studio/ingest/names';
 import { overallProgress } from '../../src/studio/ingest/progress';
 import { isSlug, REPO, songsDir } from '../node/pack-io';
-import { probeTranscriber, tail } from '../node/python';
+import { probeBp, probeTranscriber, tail } from '../node/python';
+import { probeYmt3 } from '../node/ymt3';
 
 export interface EarsOptions {
   /** 5175; 0 = any free port (tests). */
@@ -38,6 +42,10 @@ export interface EarsOptions {
   maxBytes?: number;
   /** Whether the transcriber can run (default: transcribe.py --probe, once at start). */
   probe?: () => Promise<TranscriberStatus>;
+  /** Whether YourMT3+ can run (default: ymt3.py --probe through ymt3.json, once at start). */
+  probeYmt3?: () => Promise<ToolStatus>;
+  /** Whether basic-pitch can run (default: bp.py --probe, once at start). */
+  probeBp?: () => Promise<ToolStatus>;
   /** Runs the ingest CLI with these arguments (default: node --import tsx scripts/ingest.ts …). */
   runIngest?: (args: string[]) => ChildProcess;
   /** Where the server says what it does (default: nothing; npm run ears logs to the console). */
@@ -47,6 +55,7 @@ export interface EarsOptions {
 export const EARS_PORT = 5175;
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 const CHECKING: TranscriberStatus = { ok: false, python: null, device: null, reason: CHECKING_TRANSCRIBER };
+const CHECKING_TOOL: ToolStatus = { ok: false, python: null, reason: CHECKING_TRANSCRIBER };
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 
@@ -90,6 +99,15 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
   const probing = (o.probe ?? probeTranscriber)().catch((e: unknown): TranscriberStatus =>
     ({ ok: false, python: null, device: null, reason: `the probe failed: ${(e as Error).message}` }));
   void probing.then((s) => (transcriber = s));
+  // The other two only feed /health (ingest finds them and falls back on its own): probed alongside, never waited for.
+  const tool = (probe: () => Promise<ToolStatus>, name: string) => {
+    let s: ToolStatus | null = null;
+    void probe().catch((e: unknown): ToolStatus => ({ ok: false, python: null, reason: `the ${name} probe failed: ${(e as Error).message}` }))
+      .then((r) => (s = r));
+    return () => s ?? CHECKING_TOOL;
+  };
+  const ymt3 = tool(o.probeYmt3 ?? probeYmt3, 'YourMT3+');
+  const bp = tool(o.probeBp ?? probeBp, 'basic-pitch');
 
   const jobs = new Map<string, Work>();
   const queue: Work[] = [];
@@ -106,8 +124,8 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
   };
 
   /** One run of the ingest CLI; progress maps into [from, 1]. Resolves with the exit code and the stderr tail. */
-  const attempt = (w: Work, gpu: boolean, from: number): Promise<{ code: number | null; err: string }> => new Promise((done) => {
-    const args = [w.input, '--id', w.pub.id, '--title', w.title, '--notes', gpu ? 'gpu' : 'approx', '--progress', 'json'];
+  const attempt = (w: Work, notes: 'auto' | 'approx', from: number): Promise<{ code: number | null; err: string }> => new Promise((done) => {
+    const args = [w.input, '--id', w.pub.id, '--title', w.title, '--notes', notes, '--progress', 'json'];
     if (w.redo) args.push('--force');
     let p: ChildProcess;
     try { p = runIngest(args); } catch (e) { done({ code: null, err: (e as Error).message }); return; }
@@ -123,7 +141,8 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
           for (const x of m.warnings ?? []) if (!w.pub.warnings.includes(x)) w.pub.warnings.push(x);
           continue;
         }
-        const f = overallProgress(m.stage, m.progress, gpu);
+        // Ingest v2 says its overall progress (it knows which transcribers run); an older line is weighted here.
+        const f = typeof m.overall === 'number' ? m.overall : overallProgress(m.stage, m.progress, notes === 'auto');
         advance(w, { stage: m.stage, message: m.message, progress: from + (1 - from) * f * 0.999 });
       }
     });
@@ -136,17 +155,16 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
     running = w;
     try {
       advance(w, { state: 'running', message: 'waiting for the transcriber check' });
+      // Waited for so a first job never races torch's import in the probe; ingest decides what runs on its own.
       const t = await probing;
-      const gpu = t.ok;
-      if (!gpu) w.pub.warnings.push(`transcriber unavailable: ${t.reason ?? 'unknown'}; approximate notes from the analysis`);
-      log(`job ${w.pub.job}: ${w.pub.id} (${gpu ? 'GPU notes' : 'approximate notes'})`);
-      let r = await attempt(w, gpu, 0);
-      if (r.code === 3 && gpu && !closed) {
+      log(`job ${w.pub.job}: ${w.pub.id} (notes auto; piano model ${t.ok ? 'ready' : `unavailable: ${t.reason ?? 'unknown'}`})`);
+      let r = await attempt(w, 'auto', 0);
+      if (r.code === 3 && !closed) {
         // The transcriber failed on this recording (out of memory, a broken file…): approximate notes, and say so.
         const lines = r.err.split('\n');
         const why = lines.find((l) => l.trim() && !/^ingest:|pass --notes/.test(l)) ?? lines[0];
         w.pub.warnings.push(`the transcriber failed (${why.trim().slice(0, 300)}); approximate notes from the analysis`);
-        r = await attempt(w, false, w.pub.progress);
+        r = await attempt(w, 'approx', w.pub.progress);
       }
       if (r.code === 0) {
         advance(w, { state: 'done', progress: 1, message: 'done' });
@@ -275,7 +293,10 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
           'access-control-max-age': '600', 'access-control-allow-private-network': 'true' });
         return send(204);
       }
-      if (method === 'GET' && url.pathname === '/health') return send(200, { ok: true, api: 1, transcriber: transcriber ?? CHECKING });
+      if (method === 'GET' && url.pathname === '/health') {
+        const health: EarsHealth = { ok: true, api: 2, transcriber: transcriber ?? CHECKING, ymt3: ymt3(), bp: bp() };
+        return send(200, health);
+      }
       const jm = /^\/jobs\/([^/]+)$/.exec(url.pathname);
       if (method === 'GET' && jm) {
         const w = jobs.get(decodeURIComponent(jm[1]));
@@ -319,21 +340,26 @@ async function main(): Promise<void> {
   const port = i >= 0 ? Number(argv[i + 1]) : EARS_PORT;
   if (!Number.isInteger(port) || port < 0 || port > 65535) { console.error('usage: npm run ears [-- --port 5175]'); process.exit(2); }
   const t0 = Date.now();
-  let status: TranscriberStatus | null = null;
+  let status: TranscriberStatus | null = null, ymt3: ToolStatus | null = null, bp: ToolStatus | null = null;
   const probe = () => probeTranscriber().then((s) => (status = s));
+  const probeY = () => probeYmt3().then((s) => (ymt3 = s));
+  const probeB = () => probeBp().then((s) => (bp = s));
   const log = (s: string) => console.log(`ears: ${s}`);
-  const ears = await startEars({ port, probe, log }).catch((e: NodeJS.ErrnoException) => {
+  const ears = await startEars({ port, probe, probeYmt3: probeY, probeBp: probeB, log }).catch((e: NodeJS.ErrnoException) => {
     console.error(e.code === 'EADDRINUSE' ? `ears: port ${port} is taken (is the ears server already running?)` : `ears: ${e.message}`);
     process.exit(1);
   });
   log(`listening on http://127.0.0.1:${ears.port}; songs go to ${resolve(songsDir())}`);
-  log('checking the transcriber (importing torch takes a few seconds)…');
+  log('checking the transcribers (importing torch takes a few seconds)…');
   const wait = setInterval(() => {
-    if (!status) return;
+    if (!status || !ymt3 || !bp) return;
     clearInterval(wait);
-    const s = status as TranscriberStatus;
-    log(s.ok ? `transcriber ready on ${s.device} (${s.python}, checked in ${((Date.now() - t0) / 1000).toFixed(1)} s)`
-      : `transcriber unavailable: ${s.reason}. Dropped recordings get approximate notes.`);
+    const s = status as TranscriberStatus, y = ymt3 as ToolStatus, b = bp as ToolStatus;
+    log(s.ok ? `piano model ready on ${s.device} (${s.python}, checked in ${((Date.now() - t0) / 1000).toFixed(1)} s)`
+      : `piano model unavailable: ${s.reason}`);
+    log(y.ok ? 'YourMT3+ ready: ensemble recordings get instrument tracks' : `YourMT3+ unavailable: ${y.reason}`);
+    log(b.ok ? 'basic-pitch ready (the gap fill without YourMT3+)' : `basic-pitch unavailable: ${b.reason}`);
+    if (!s.ok && !y.ok && !b.ok) log('no transcriber can run: dropped recordings get approximate notes.');
     log('drop a recording in the studio (npm run dev). Ctrl+C stops.');
   }, 100);
   const stop = () => { void ears.close().then(() => process.exit(0)); };

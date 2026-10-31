@@ -26,7 +26,8 @@ export async function probeEars(timeoutMs = 800): Promise<TranscriberStatus | nu
     const r = await fetch(`${base}/health`, { cache: 'no-store', signal: ctl.signal });
     if (!r.ok) return null;
     const j = (await r.json()) as { api?: number; transcriber?: TranscriberStatus };
-    return j.api === 1 && j.transcriber ? j.transcriber : null;
+    // api 1: the transcriber only; api 2 adds YourMT3+ and basic-pitch (the job's warnings say what they did).
+    return (j.api === 1 || j.api === 2) && j.transcriber ? j.transcriber : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
