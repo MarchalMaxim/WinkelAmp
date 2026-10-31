@@ -183,7 +183,9 @@ T1 contracts ──┬── T2 YourMT3 setup + runner ────────�
 | `src/studio/render-page.ts` | T7 (`?scale`) → T12 (`layers=`, `probe=`, `pack-<id>.js`) |
 | `src/widgets/driver.ts` | T7 → T12 |
 | `lab/layers/slot.js` | T12 → T15 |
-| `lab/layers/persist.js` | T4 (table) → T12 (classes, generated block) |
+| `lab/layers/persist.js` | T1 (table, `vis`) → T12 (classes, generated block) |
+| `scripts/checks/runtime-layers-check.mjs` | T12 → T15 |
+| `src/studio/ui/store.ts` | T8 only (the optional `EditEnv`) |
 | `scripts/fidelity.mjs` | T7 (`--record`/`--against`) → T23 (layer cases) |
 | `src/studio/show/{show,edit,schedule,conductor}.ts` | T8 only |
 | `src/studio/pack/{pack,build}.ts` | T3 only |
@@ -219,7 +221,8 @@ T1 contracts ──┬── T2 YourMT3 setup + runner ────────�
 | `scripts/lib/studio-session.mjs` | T1 | `studio-check`'s set-up (temp dirs, fixture ingest, Vite, Chrome), shared by the new UI checks |
 | `scripts/ears/ymt3.py`, `scripts/ears/requirements-ymt3.txt`, `scripts/setup-ymt3.ts`, `scripts/node/ymt3.ts`, `scripts/pianoroll.mjs` | T2 | YourMT3 install, config, runner, probe; piano-roll pictures |
 | `src/studio/pack/{instruments,tracks}.ts`, `pack.ts`, `build.ts` | T3 | pack v2, track mapping, hybrid notes, velocities |
-| `lab/layers/{automation,lines,persist}.js` | T4 | curves, presets, thinning, `vis`, derived lines, `advancePulse`, `groupChords`/`soundingAt` copies |
+| `lab/layers/persist.js` | T1 | `VIS_REDRAW`, `vis`, `PERSIST` (filled in T12) |
+| `lab/layers/{automation,lines}.js` | T4 | curves, presets, thinning, `vis`, derived lines, `advancePulse`, `groupChords`/`soundingAt` copies |
 | `lab/layers/region.js`, `scripts/checks/region-masks.mjs` | T5 | region geometry, masks, glide, fit |
 | `lab/tags.json`, `lab/tag-words.json`, `src/widgets/tags.ts`, `src/widgets/catalogue.ts`, `src/widgets/sources.ts`, `scripts/node/catalogue.ts`, `scripts/widget-docs.ts` | T6 | tags |
 | `src/widgets/hd-context.ts`, `src/widgets/runtime.ts`, `src/widgets/driver.ts`, `src/studio/render-page.ts`, `scripts/fidelity.mjs`, `scripts/hd-check.mjs` | T7 | supersampling core |
@@ -302,7 +305,7 @@ export interface WaLayers {
     plays(s: Span, notes: readonly Note[], o?: { floor?: number }): Pivot[];
   };
   MAX_PIVOTS: number;                                   // 256
-  // persist.js (T4 table; T12 fills PERSIST)
+  // persist.js (T1 table and vis; T12 fills PERSIST)
   VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
   vis(a: number, cls: Persist): number;
   // lines.js (T4)
@@ -529,8 +532,11 @@ export class WidgetRuntime {
 - **The global pulse** (`ctx.level`, `ctx.rate`, `ctx.feat`) advances exactly as today.
 - **Own instances.**
   - An own instance's pulse advances only on steps where it has a slot.
-  - When it comes back after an absence, its `ci` is set to the first chord after the last step's time, so no stale
-    attacks burst out.
+  - When it comes back after an absence (no slot in the previous step), it starts cold, as after a seek:
+    - `ci` is the first chord after the last step's time, so no stale attacks burst out;
+    - `pulse` is `{ level: 0, rate: 0 }` and `feat` is `newFeatures()`.
+
+    So play and a seek to the same time disagree no more than they do today.
   - `reset(t)` and `renderSeek` reset every instance's `ci`, pulse and feat.
   - Load order: the specs in order. Routed instances are instantiated with
     `new Function('TOOLS','ICON','CHORDS','window', src)(tools, icon, chords, windowProxy)`, where `windowProxy` returns
@@ -568,8 +574,9 @@ export function hdContext(g: CanvasRenderingContext2D, S: number, who: () => str
 //   getImageData / putImageData → throw Error(`${who()} reads the shared canvas's pixels: adapt it for scale ${S}`)
 export function scaleFilter(f: string, S: number): string;   // every <number>px ×S; 'none' unchanged
 // runtime at S > 1: before every widget call g.setTransform(S,0,0,S,0,0); fade/burn/scratch at real size, identity transform
-// render.html ?scale=1|2|3 (both modes): canvas 1280·S × 720·S; renderPixels/renderFrameHash at real size;
-//   window.renderSize = { w, h }
+// render.html ?scale=1|2|3 (both modes): canvas 1280·S × 720·S; window.renderSize = { w, h }
+// driver.ts: renderPixels/renderFrameHash (and render-show's frame read) use the REAL context of the canvas,
+//   getImageData(0, 0, canvas.width, canvas.height), never ctx.g (the proxy throws there, and ctx.W × ctx.H is a quarter at 2×)
 ```
 
 - **`render-show`.** `npm run render-show -- <show> [--scale 2] [--fps 60] [--hz 60] [--crf 13] [--preset slow]
@@ -724,8 +731,10 @@ export function hitTest(pivots: readonly Pivot[], x: (t: number) => number, y: (
   `scripts/studio-check.mjs` (it uses the helper).
 - Create:
   - `src/widgets/layers.ts`: `WaLayers` and `evalLayers` (§2), with types only for the not-yet-written members;
-  - `src/widgets/layers-source.ts` and `scripts/node/layers.ts`;
-  - `lab/layers/.keep`;
+  - `src/widgets/layers-source.ts` (`layerSources()`, plus `studioLayers(): WaLayers`, memoized, so the UI tasks reach
+    the shared code without touching `main.ts`) and `scripts/node/layers.ts`;
+  - `lab/layers/persist.js`: `VIS_REDRAW`, `vis`, and an empty `PERSIST = {}` between `// persist:start` and
+    `// persist:end`. It is here, not in T4, because both T4 and T5 need `vis`. T12 fills the block.
   - `scripts/lib/studio-session.mjs`;
   - the test `tests/layers-loader.test.ts`.
 - `package.json` scripts: `setup-ymt3` (tsx), `pianoroll`, `hd-check`, `persist-probe`, `lab-notes` (tsx),
@@ -740,7 +749,7 @@ It is the set-up that `studio-check` does today, moved without changing behaviou
   - `evalLayers({ 'b.js': "WA.two = () => 2;", 'a.js': "WA.one = 1;" })` has `one === 1` and `two() === 2`.
   - Files are evaluated in name order: `b.js` reads `WA.one` and sees it.
   - A source that throws makes `evalLayers` throw, naming the file.
-  - `loadLayers()` on the repo returns an object.
+  - `loadLayers()` on the repo returns an object with `vis(0.5, 'redraw') === 0.15` and `vis(0.4, 'strokes') === 0.4`.
 - [ ] **Step 2:** Implement, and refactor `studio-check` onto `studio-session.mjs`.
 - [ ] **Step 3: Verify.**
   - `npx vitest run tests/layers-loader.test.ts` → PASS.
@@ -845,8 +854,7 @@ time on x, MIDI on y, one colour per track, class or line, with a legend. It is 
 **Depends:** T1. Runs in wave 1.
 
 **Files:**
-- Create: `lab/layers/automation.js`, `lab/layers/lines.js`, `lab/layers/persist.js` (`VIS_REDRAW`, `vis`, and
-  `PERSIST = {}` between `// persist:start` and `// persist:end`).
+- Create: `lab/layers/automation.js`, `lab/layers/lines.js`. `persist.js` already came with T1.
 - Tests: `tests/layers-automation.test.ts`, `tests/layers-presets.test.ts`, `tests/layers-lines.test.ts`,
   `tests/layers-pulse.test.ts`. All of them go through `loadLayers()`.
 
@@ -1018,8 +1026,9 @@ In both, the stops follow `featherAlpha`. For `cls 'redraw'` the alpha profile g
 **Depends:** T4 (`automationAt` for the edge pivots in tests). Runs in wave 2.
 
 **Files:**
-- Modify: `src/studio/show/{show,edit,schedule,conductor}.ts`, `src/studio/ui/store.ts` (passes
-  `EditEnv { curve: layers.automationAt }`: a one-line constructor parameter).
+- Modify: `src/studio/show/{show,edit,schedule,conductor}.ts`, and `src/studio/ui/store.ts`. The store gets an
+  optional constructor parameter `env?: EditEnv`, which it passes to `applyEdit`. T8 does not touch `main.ts`: T12
+  wires `new Store(…, { curve: studioLayers().automationAt })` when it edits `main.ts`.
 - Tests: `tests/show-v2.test.ts`, `tests/show-edit-layers.test.ts`, `tests/show-schedule-instances.test.ts`,
   `tests/show-conductor-layers.test.ts`. Last night's show tests must pass unchanged.
 
@@ -1199,8 +1208,8 @@ Optional, per loved or kept widget flagged SOFT, and only when its crop looks so
   - `src/studio/render-page.ts` (show mode passes the pack's tracks and `layerSources()`; labSong mode takes `layers=`,
     loads `/lab/pack-<id>.js` when its `SONGS` entry names one, and takes `probe=<id>:<weight>`);
   - `lab/layers/persist.js` (the generated `PERSIST` block);
-  - `src/studio/ui/main.ts` and `player.ts` **only** where they construct the runtime: they pass `layers` and the
-    pack's tracks.
+  - `src/studio/ui/main.ts` and `player.ts` **only** where they construct the runtime and the store: they pass
+    `studioLayers()` and the pack's tracks, and `new Store(…, { curve: studioLayers().automationAt })`.
 - Test: extend nothing; `npm run runtime-check` is new.
 
 **Interfaces:** Produces §6 (T12 part). Consumes §2, §5.
@@ -1270,6 +1279,7 @@ Optional, per loved or kept widget flagged SOFT, and only when its crop looks so
 **Files:**
 - Modify: `src/studio/ui/record.ts` (§10 presets; the Export menu gains "Render HD master (on this computer)" when the
   dev API answers), `scripts/studio-api.ts` (render jobs), `tests/record-presets.test.ts` (new numbers).
+- The Export menu probes `/api/health` itself, so T14 does not touch `main.ts` (T12 owns it in this wave).
 - Test: `tests/render-job.test.ts`.
 
 **Interfaces:** Produces §10's presets and the render-job API.
@@ -1322,7 +1332,8 @@ the resets), `scripts/checks/runtime-layers-check.mjs` (new invariants).
 **Files:**
 - Create: `src/studio/ui/layer-controls.ts` + `layer-controls.css`, `src/studio/ui/widget-picker.ts` +
   `widget-picker.css`, `scripts/checks/layers-check.mjs`.
-- Modify: `src/studio/ui/panel.ts` (mounts both).
+- Modify: `src/studio/ui/panel.ts` (mounts both). Nothing else: the shared code comes from `studioLayers()`, the pack
+  from `store.state.song`, and the tags from `labTags()`/`labTagWords()`. `main.ts` is T17's in this wave.
 - Test: `tests/layer-controls.test.ts`.
 
 **Interfaces:** Produces §10's `listenOptions`, `defaultRegion` and `filterWidgets`. Consumes §5's `setLayer` and
@@ -1399,7 +1410,8 @@ the resets), `scripts/checks/runtime-layers-check.mjs` (new invariants).
 
 **Files:**
 - Create: `src/studio/ui/lanes.ts` + `lanes.css`, `scripts/checks/lanes-check.mjs`.
-- Modify: `src/studio/ui/timeline.ts` (mounts the lanes under the sections strip).
+- Modify: `src/studio/ui/timeline.ts` (mounts the lanes under the sections strip). As in T16: `studioLayers()` and
+  `store.state.song`, never `main.ts`.
 - Test: `tests/lanes-math.test.ts`.
 
 **Interfaces:** Produces §10's lanes. Consumes §2 and §5.
