@@ -70,7 +70,7 @@
     <span id="moments" style="display:contents"></span>
     <span class="time" id="time">0:00</span>
     <button id="export" title="Copies your ratings and slider settings so you can paste them to Claude">Copy ratings + settings</button>
-    <span id="songs" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"></span>
+    <select id="songs" title="Song" style="margin-left:auto;background:#1b171b;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 8px;font:inherit;max-width:100%"></select>
   </div>
   <div class="track" id="track"><div class="head" id="head"></div></div>
   <p class="legend">
@@ -96,6 +96,24 @@ const SONGS = {
     // My guesses from the note density; the hard stops at 1:20 and 2:40 are the motto's fermatas.
     moments: [[0, 'casket', 'Fate knocks'], [20, 'agitato'], [80, 'casket', 'Repeat'], [100, 'agitato'], [160, 'casket', 'Development'], [180, 'agitato'],
       [258, 'return', 'Oboe’s lament'], [275, 'agitato', 'Recapitulation'], [340, 'casket', 'Coda']] },
+  // The three below come from the studio's packs (npm run ingest): notes-<id>.js is the pack's notes, the moments my
+  // reading of its sections, loudness and harmony against the score.
+  'chopin-nocturne-48-1': { title: 'Chopin: Nocturne in C minor, Op. 48 No. 1', audio: 'chopin-nocturne-48-1.mp3', notes: 'notes-chopin-nocturne-48-1.js', dur: 381.6,
+    // Lento lament; its climax ~1:42; the C major chorale (poco più lento) at 2:04, broken by octaves; the lament returns
+    // doppio movimento at 3:21 over hammering triplets; it dies away from 5:26 (the file rings out to silence after 6:00).
+    moments: [[0, 'dread', 'Lento'], [100, 'agitato'], [124, 'casket', 'The chorale'], [186, 'agitato', 'Octaves'],
+      [201, 'return', 'Doppio movimento'], [326, 'dread', 'Fading']] },
+  'chopin-winter-wind': { title: 'Chopin: Étude Op. 25 No. 11, Winter Wind', audio: 'chopin-winter-wind.mp3', notes: 'notes-chopin-winter-wind.js', dur: 248.9,
+    // Four bars of lento, then the storm of right-hand runs; far keys from ~1:42; A minor again ~2:42; the closing chords
+    // and the last run up end the étude at 3:44. After 3:51 the file holds something else (quiet E-flat bells): not the étude.
+    moments: [[0, 'dread', 'Lento'], [20, 'agitato', 'The storm'], [102, 'dread', 'Far keys'], [162, 'agitato', 'A minor again'],
+      [216, 'casket', 'Last chords'], [231, 'return']] },
+  'vivaldi-winter': { title: 'Vivaldi: Winter (all three movements)', audio: 'vivaldi-winter.mp3', notes: 'notes-vivaldi-winter.js', dur: 566.1,
+    // Strings, not piano: the piano transcriber misses whole passages (the third movement's solo violin on ice, 5:55-6:27).
+    // I Allegro non molto 0:00-3:30 (shivering, the horrid wind, stamping feet, chattering teeth), II Largo 3:30 (rain),
+    // III Allegro 5:48 (walking on ice; the warm south wind in its lento ~8:08; all the winds at war from 8:40).
+    moments: [[0, 'dread', 'Shivering'], [36, 'agitato', 'The wind'], [66, 'casket'], [180, 'agitato', 'Chattering teeth'],
+      [210, 'return', 'Largo: rain'], [348, 'dread', 'On the ice'], [400, 'agitato'], [488, 'return'], [520, 'casket', 'The winds at war']] },
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
@@ -246,7 +264,8 @@ async function loadTools() {
 const W = 1280, H = 720, DUR = SONG.dur;
 const fmt0 = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 document.getElementById('moments').innerHTML = SONG.moments.filter((m) => m[2]).map(([t, , label]) => `<button data-t="${t}">${label} (${fmt0(t)})</button>`).join('');
-document.getElementById('songs').innerHTML = Object.entries(SONGS).map(([id, s]) => `<button onclick="location.search='?song=${id}'" style="${id === SONG_ID ? 'border-color:var(--on)' : ''}">${s.title}</button>`).join('');
+document.getElementById('songs').innerHTML = Object.entries(SONGS).map(([id, s]) => `<option value="${id}"${id === SONG_ID ? ' selected' : ''}>${s.title}</option>`).join('');
+document.getElementById('songs').onchange = (e) => { location.search = `?song=${encodeURIComponent(e.target.value)}`; };
 const c = document.getElementById('c'), g = c.getContext('2d');
 const audio = document.getElementById('a');
 
