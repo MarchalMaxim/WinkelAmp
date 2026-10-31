@@ -106,6 +106,43 @@ describe('intensity presets', () => {
     expect(L.automationAt(p, span.end)).toBe(1);   // the next moment starts full
     for (let i = 1; i < p.length; i++) expect(p[i].t).toBeGreaterThanOrEqual(p[i - 1].t);
   });
+  it('over one moment, plays and gate: the bare preset inside it even before its first run, full outside', () => {
+    const span = { start: 40, end: 90 };
+    const late = notesOf(30, 60);   // the part's first note at 60, well after the moment starts
+    const quiet = { hop: 0.1, values: Array.from({ length: 1200 }, (_, i) => (i >= 600 && i < 800 ? 0.9 : 0.1)) };   // loud from 60 to 80
+    const s2: Song = { ...song, notes: late, tracks: undefined, loudness: quiet };
+    const cases: [Pivot[], Pivot[]][] = [
+      [U.presetPivots(L, 'plays', 0, span, s2), L.presets.plays(span, late, { floor: 0 })],
+      [U.presetPivots(L, 'plays', 0.3, span, s2), L.presets.plays(span, late, { floor: 0.3 })],
+      [U.presetPivots(L, 'gate', 0.5, span, s2), L.presets.gate(span, quiet, { above: 0.5 })],
+    ];
+    for (const [p, inner] of cases) {
+      expect(inner[0].t).toBeGreaterThan(span.start + 10);
+      for (let t = 0; t <= dur; t += 0.37) {
+        const want = t < span.start || t > span.end ? 1 : L.automationAt(inner, t);
+        expect(L.automationAt(p, t)).toBeCloseTo(want, 12);
+      }
+      for (const t of [40, 45, 55, 59]) expect(L.automationAt(p, t)).toBeCloseTo(inner[0].v, 12);
+      expect(L.automationAt(p, span.end)).toBe(1);
+      for (let i = 1; i < p.length; i++) expect(p[i].t).toBeGreaterThanOrEqual(p[i - 1].t);
+    }
+  });
+  it('a padded curve stays within MAX_PIVOTS and still ends full after its moment', () => {
+    const span = { start: 40, end: 90 };
+    const dense = Array.from({ length: 254 }, (_, i) => 40.1 + i * 0.19);   // the pulse alone writes 255 pivots
+    const p = U.presetPivots(L, 'pulse', 1, span, { ...song, beats: dense });
+    expect(L.presets.pulse(span, dense, { every: 1 }).length).toBeGreaterThan(L.MAX_PIVOTS - 4);
+    expect(p.length).toBeLessThanOrEqual(L.MAX_PIVOTS);
+    expect(L.automationAt(p, 20)).toBe(1);
+    expect(L.automationAt(p, span.end)).toBe(1);
+    expect(L.automationAt(p, 100)).toBe(1);
+    const many: Song['moments'] = Array.from({ length: 100 }, (_, i) => [i * 1.2, 'calm'] as Song['moments'][number]);
+    const f = U.presetPivots(L, 'fade', 0.2, { start: 0, end: dur }, { ...song, moments: many });
+    expect(f.length).toBeLessThanOrEqual(L.MAX_PIVOTS);
+    expect(L.automationAt(f, 0.6)).toBe(1);                // the first moment fades and is full in its middle
+    expect(L.automationAt(f, 1.2 + 0.1)).toBeCloseTo(0.5, 6);
+    expect(L.automationAt(f, 99 * 1.2 + 0.6)).toBe(1);      // a moment past the room: full, not held at 0
+  });
   it('fade at moments: each moment fades in from its start and out to its end, at most half its length', () => {
     const p = U.presetPivots(L, 'fade', 4, whole, song);
     for (const m of U.momentSpans(song.moments, dur)) {

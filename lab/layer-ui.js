@@ -104,11 +104,18 @@
     fade: { label: 'Fade at moments', min: 0.5, max: 20, step: 0.5, value: 4, say: function (v) { return 'fades in and out over ' + v + ' s at each moment'; } },
   };
 
-  /** A curve over `span` that leaves the rest of the song at full: a held 1 before it, its value held to its end, then 1. */
+  /** How many pivots padToSong adds around a curve over `span`: two at each inner edge of the song. */
+  function padCount(span, dur) { return (span.start > 0 ? 2 : 0) + (span.end < dur ? 2 : 0); }
+
+  /** A curve over `span` that leaves the rest of the song at full: a held 1 before it, the curve's first value held from
+      the span's start to its first pivot (as the bare curve holds it), its value held to its end, then 1. */
   function padToSong(L, p, span, dur) {
     if (!p.length) return p;
     var out = p.slice();
-    if (span.start > 0) out.unshift({ t: 0, v: 1, shape: 'hold' });
+    if (span.start > 0) {
+      if (out[0].t > span.start) out.unshift({ t: span.start, v: out[0].v, shape: 'hold' });
+      out.unshift({ t: 0, v: 1, shape: 'hold' });
+    }
     if (span.end < dur) {
       var last = out[out.length - 1];
       if (last.t < span.end) out.push({ t: span.end, v: L.automationAt(p, span.end), shape: 'hold' });
@@ -124,18 +131,22 @@
       loudness curve. */
   function presetPivots(L, kind, amount, span, song, listen) {
     var P = L.presets, dur = song.dur, p = [];
+    var room = L.MAX_PIVOTS - padCount(span, dur);   // the padded curve stays within MAX_PIVOTS, its closing pivots kept
     if (kind === 'pulse') p = P.pulse(span, song.beats || [], { every: Math.max(1, Math.round(amount)) });
     else if (kind === 'gate') p = song.loudness && song.loudness.values ? P.gate(span, song.loudness, { above: amount }) : [];
     else if (kind === 'plays') p = P.plays(span, L.listenNotes({ notes: song.notes, tracks: song.tracks }, listen).notes, { floor: amount });
     else if (kind === 'fade') {
+      var cut = false;
       momentSpans(song.moments, dur).forEach(function (m) {
         var s = { start: Math.max(m.start, span.start), end: Math.min(m.end, span.end) };
-        if (s.end <= s.start) return;
+        if (cut || s.end <= s.start) return;
+        if (p.length + 4 > room - 1) { cut = true; return; }   // no room for this moment: the rest of the span stays full
         var d = Math.min(amount, (s.end - s.start) / 2);
         p = p.concat(P.fadeIn(s, d), P.fadeOut(s, d));
       });
+      if (cut && p.length) p.push({ t: p[p.length - 1].t, v: 1 });
     }
-    if (p.length > L.MAX_PIVOTS) p = p.slice(0, L.MAX_PIVOTS);
+    if (p.length > room) p = p.slice(0, room);
     return padToSong(L, p, span, dur);
   }
 
