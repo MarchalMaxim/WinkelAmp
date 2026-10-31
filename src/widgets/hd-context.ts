@@ -38,7 +38,7 @@ export function hdContext(g: CanvasRenderingContext2D, S: number, who: () => str
   let filterSet = 'none', filterReal = 'none';
   return new Proxy(g, {
     get(_, p) {
-      if (p in own) return own[p];
+      if (Object.hasOwn(own, p)) return own[p];
       if (SHADOW.has(p)) return (t[p] as number) / S;
       if (p === 'filter') return g.filter === filterReal ? filterSet : g.filter;
       const v = t[p];
