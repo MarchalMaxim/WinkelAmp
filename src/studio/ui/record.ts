@@ -7,12 +7,13 @@ import { download, pickMimeType, Recorder, type RecorderOptions } from '../../vi
 import type { Player } from './player';
 import type { Store } from './store';
 
-/** share: small enough to send (≈ 8.5 MB a minute); high: for keeping. Share records 30 frames a second: Chrome's
-    H.264 encoder (measured on the Prelude, 2026-10-31) treats the rate as a floor-limited wish and writes about twice
-    it at 60 fps (≈ 20 MB a minute at 1 Mb/s), but ≈ 9 MB a minute at 30 fps; a lower rate barely helps (500 kb/s: 8). */
+/** share: small enough to send (≈ 8.5 MB a minute); high: for keeping (≈ 39). Both record 30 frames a second: Chrome's
+    H.264 encoder (measured on the Prelude, 2026-10-31) writes about twice the rate asked at 60 fps (share: ≈ 20 MB a
+    minute; high: ≈ 74), whatever the rate (500 kb/s wrote as much as 1 Mb/s), and close to it at 30 fps (share 9.6–10.5,
+    high 39.4). */
 export const RECORD_PRESETS = {
   share: { videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 128_000, fps: 30 },
-  high: { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 60 },
+  high: { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 30 },
 } as const satisfies Record<string, RecorderOptions>;
 export type RecordPreset = keyof typeof RECORD_PRESETS;
 
