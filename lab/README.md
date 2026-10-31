@@ -12,6 +12,10 @@ that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing h
   per browser, written by `save-server.mjs` (`node lab/save-server.mjs`, port 5174) whenever the page changes.
 - `shot.mjs`: screenshots of chosen widgets at chosen song times (`SONG=b5` for Beethoven).
 - `round1.html`: the first sketch (three moments of the Prelude).
+- `render.mjs`: a showcase video of one widget alone over five passages of both recordings, with sound:
+  `node lab/render.mjs <widget id> lab/showcase/<id>.mp4 [--fps 30]` (dev server on 5173, system Chrome, ffmpeg). It drives
+  `index.html?render=1`, which draws frames on demand through the live loop's own `step()` at our default knobs with seeded
+  randomness, so the same widget always gives the same video. `lab/showcase/*.mp4` holds the recordings: never committed.
 
 The recordings (`prelude.mp3`, `beethoven5.mp3`) and the notes transcribed from them (`notes.js`, `notes-b5.js`, written by
 the GPU piano transcriber as `window.NOTES = [[start, end, midi, velocity], …]`) are local only and not in git.
