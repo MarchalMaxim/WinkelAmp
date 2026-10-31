@@ -4,8 +4,8 @@
  * the new song then opens with a show composed for it (unless the show here has unsaved edits: then it waits in the
  * library). Also re-ingests an approximate song with the transcriber.
  */
-import { ingestViaEars, probeEars, reingestViaEars } from '../ingest/ears-client';
-import type { Job } from '../ingest/ears-types';
+import { ingestViaEars, isChecking, probeEars, reingestViaEars, settleEars } from '../ingest/ears-client';
+import type { Job, TranscriberStatus } from '../ingest/ears-types';
 import { ingestInBrowser } from '../ingest/fallback';
 import type { ShowStore } from './api';
 import { songHref, type EarsState, type Library } from './library';
@@ -43,6 +43,9 @@ const STAGE_WORDS: Record<Job['stage'], string> = {
   upload: 'Sending the recording to the ears server', decode: 'Decoding', transcribe: 'Transcribing the notes',
   analyze: 'Finding the sections, beats and chords', write: 'Writing the song',
 };
+const toState = (t: TranscriberStatus | null): EarsState => (t ? { up: true, transcriber: t } : { up: false });
+/** A job warning saying its notes are approximate after all. */
+const FALLBACK_WARNING = /^transcriber unavailable|^the transcriber failed/;
 const pct = (f: number) => `${Math.floor(Math.max(0, Math.min(1, f)) * 100)} %`;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -50,6 +53,7 @@ export class SongAdder {
   private busy: string | null = null;
   private earsAt = 0;
   private earsState: Promise<EarsState> | null = null;
+  private settling: Promise<EarsState> | null = null;
 
   constructor(private readonly d: AddDeps) {
     window.addEventListener('beforeunload', (e) => {
@@ -63,10 +67,26 @@ export class SongAdder {
     if (!this.d.api.writable) return Promise.resolve({ up: false });
     if (!this.earsState || performance.now() - this.earsAt > 5000) {
       this.earsAt = performance.now();
-      this.earsState = probeEars().then((t): EarsState => (t ? { up: true, transcriber: t } : { up: false }));
+      this.earsState = probeEars().then(toState);
       void this.earsState.then((s) => this.d.library.setEars(s));
     }
     return this.earsState;
+  }
+
+  /** Like ears(), but while the server is still checking its transcriber (a few seconds after npm run ears starts)
+      it asks again until there is a verdict; `onChecking` runs first when it has to wait. */
+  async earsSettled(onChecking?: () => void): Promise<EarsState> {
+    const e = await this.ears();
+    if (!e.up || !isChecking(e.transcriber)) return e;
+    onChecking?.();
+    this.settling ??= settleEars(undefined, { onAnswer: (t) => this.d.library.setEars(toState(t)) }).then((t) => {
+      const s = toState(t);
+      this.earsState = Promise.resolve(s);
+      this.earsAt = performance.now();
+      this.settling = null;
+      return s;
+    });
+    return this.settling;
   }
 
   async add(file: File): Promise<void> {
@@ -78,6 +98,8 @@ export class SongAdder {
       this.d.notify({ id: 'add', level: 'info', text: 'One recording at a time: the one being added is not finished yet.' });
       return;
     }
+    // Taken before the first await: a second drop while the ears server is being asked waits its turn too.
+    this.busy = 'probing';
     const { library } = this.d;
     this.d.dismiss('add');
     library.toggle(true);
@@ -88,17 +110,21 @@ export class SongAdder {
       const ears = await this.ears();
       if (ears.up) {
         this.busy = 'ears';
-        const approximate = !ears.transcriber.ok;
+        // Still checking its transcriber: the job waits for the verdict on the server, the badge waits for it here.
+        let t = ears.transcriber;
+        if (isChecking(t)) void this.earsSettled().then((s) => { if (s.up) t = s.transcriber; });
         let last: Job | null = null;
         const id = await ingestViaEars(file, (j) => {
           last = j;
+          const approximate = (!t.ok && !isChecking(t)) || j.warnings.some((w) => FALLBACK_WARNING.test(w));
           const words = j.state === 'queued' && j.stage !== 'upload' ? j.message || 'Waiting for the recording before it'
+            : j.state === 'running' && j.stage === 'upload' ? 'The ears server is checking its transcriber'
             : j.stage === 'transcribe' ? (/loading/.test(j.message) ? 'Loading the piano model'
-              : `${STAGE_WORDS.transcribe} on the ${ears.transcriber.device === 'cpu' ? 'CPU' : 'GPU'}`) : STAGE_WORDS[j.stage];
+              : `${STAGE_WORDS.transcribe} on the ${t.device === 'cpu' ? 'CPU' : 'GPU'}`) : STAGE_WORDS[j.stage];
           library.progress({ name: file.name, message: `${words} · ${pct(j.progress)} · ${took()}`, progress: j.progress, approximate });
         });
         const warnings = (last as Job | null)?.warnings ?? [];
-        const notes = warnings.filter((w) => /^transcriber unavailable|^the transcriber failed/.test(w))
+        const notes = warnings.filter((w) => FALLBACK_WARNING.test(w))
           .map((w): Notice => ({ id: 'transcriber', level: 'warn', text: w.charAt(0).toUpperCase() + w.slice(1) }));
         await this.finish(id, file.name, notes);
       } else {
@@ -121,14 +147,24 @@ export class SongAdder {
   /** Transcribes an approximate song with the ears server, then reopens it. */
   async reingest(id: string, name: string): Promise<void> {
     if (this.busy) { this.d.notify({ id: 'add', level: 'info', text: 'One recording at a time: the one being added is not finished yet.' }); return; }
-    const ears = await this.ears();
-    if (!ears.up) { this.d.notify({ id: 'add', level: 'error', text: 'The ears server is not running: start it with npm run ears, then try again.' }); return; }
-    if (!ears.transcriber.ok) { this.d.notify({ id: 'add', level: 'error', text: `Transcriber unavailable: ${ears.transcriber.reason ?? 'unknown'}.` }); return; }
-    this.busy = 'ears';
+    this.busy = 'probing';
     const { library } = this.d;
-    library.toggle(true);
     const t0 = performance.now();
     try {
+      // Right after npm run ears starts it is still checking its transcriber: wait for the verdict, do not refuse.
+      const ears = await this.earsSettled(() => {
+        library.toggle(true);
+        library.progress({ name, message: 'The ears server is checking its transcriber…', progress: 0, approximate: false });
+      });
+      if (!ears.up || !ears.transcriber.ok) {
+        library.progress(null);
+        this.d.notify({ id: 'add', level: 'error', text: !ears.up ? 'The ears server is not running: start it with npm run ears, then try again.'
+          : isChecking(ears.transcriber) ? 'The ears server is still checking its transcriber: try again in a moment.'
+          : `Transcriber unavailable: ${ears.transcriber.reason ?? 'unknown'}.` });
+        return;
+      }
+      this.busy = 'ears';
+      library.toggle(true);
       await reingestViaEars(id, (j) => library.progress({
         name, progress: j.progress, approximate: false,
         message: `${j.stage === 'upload' ? 'Asking the ears server' : STAGE_WORDS[j.stage]} · ${pct(j.progress)} · ${clock((performance.now() - t0) / 1000)}`,

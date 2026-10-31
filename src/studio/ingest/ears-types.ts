@@ -11,6 +11,8 @@ export interface IngestProgress {
 
 /** Whether the GPU transcriber can run here (`transcribe.py --probe`). */
 export interface TranscriberStatus { ok: boolean; python: string | null; device: 'cuda' | 'cpu' | null; reason?: string }
+/** The reason /health gives while the ears server is still probing its transcriber (a pending answer, not a verdict). */
+export const CHECKING_TRANSCRIBER = 'checking the transcriber';
 
 export interface Job {
   job: string;

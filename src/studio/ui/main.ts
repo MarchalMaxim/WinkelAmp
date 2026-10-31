@@ -5,6 +5,7 @@
  */
 import './style.css';
 import { composeShow } from '../compose/compose';
+import { isChecking } from '../ingest/ears-client';
 import type { SongPack } from '../pack/pack';
 import { Conductor } from '../show/conductor';
 import { sectionAt } from '../show/schedule';
@@ -144,7 +145,7 @@ async function boot(): Promise<void> {
     },
     dismiss: (id) => store.dispatch({ type: 'dismiss', id }),
   });
-  library.onOpen = () => void adder.ears();
+  library.onOpen = () => void adder.earsSettled();
 
   if (!entry) { emptyState(ui, api, () => library.choose()); document.body.classList.add('no-song'); return; }
   for (const n of takeFlash(entry.id)) store.dispatch({ type: 'notice', notice: n });
@@ -207,8 +208,11 @@ async function boot(): Promise<void> {
     const approx = 'This song has approximate notes from the analysis, not a transcription: the widgets follow it less closely.';
     store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: api.writable ? `${approx} Start npm run ears to transcribe it.` : approx } });
     // With the ears server up, offer the transcription; with its transcriber unable to run, say why.
-    if (api.writable) void adder.ears().then((e) => {
+    // Right after npm run ears starts it is still checking its transcriber: say so, and decide once it has a verdict.
+    if (api.writable) void adder.earsSettled(() => store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn',
+      text: `${approx} The ears server is checking its transcriber…` } })).then((e) => {
       if (!e.up) return;
+      if (isChecking(e.transcriber)) { store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: approx } }); return; }
       if (!e.transcriber.ok) {
         store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: approx } });
         store.dispatch({ type: 'notice', notice: { id: 'transcriber', level: 'warn', text: `Transcriber unavailable: ${e.transcriber.reason ?? 'unknown'}.` } });

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { isChecking, settleEars } from '../src/studio/ingest/ears-client';
+import { CHECKING_TRANSCRIBER, type TranscriberStatus } from '../src/studio/ingest/ears-types';
 import { freeId, nameFromFile } from '../src/studio/ingest/names';
 import { overallProgress } from '../src/studio/ingest/progress';
 
@@ -38,5 +40,40 @@ describe('overallProgress', () => {
   it('clamps a bad fraction', () => {
     expect(overallProgress('analyze', 7, true)).toBeCloseTo(0.95);
     expect(overallProgress('analyze', Number.NaN, true)).toBeCloseTo(0.55);
+  });
+});
+
+describe('settleEars', () => {
+  const checking: TranscriberStatus = { ok: false, python: null, device: null, reason: CHECKING_TRANSCRIBER };
+  const ready: TranscriberStatus = { ok: true, python: 'py', device: 'cuda' };
+  const answers = (...xs: (TranscriberStatus | null)[]) => { let i = 0; return async () => xs[Math.min(i++, xs.length - 1)]; };
+  const noWait = async () => {};
+
+  it('reads the server still checking its transcriber as pending, not as unavailable', () => {
+    expect(isChecking(checking)).toBe(true);
+    expect(isChecking({ ok: false, python: null, device: null, reason: 'no python' })).toBe(false);
+    expect(isChecking(ready)).toBe(false);
+    expect(isChecking(null)).toBe(false);
+  });
+
+  it('asks again while the server is checking, and resolves with the verdict', async () => {
+    const seen: (TranscriberStatus | null)[] = [];
+    const t = await settleEars(answers(checking, checking, ready), { sleep: noWait, onAnswer: (x) => seen.push(x) });
+    expect(t).toEqual(ready);
+    expect(seen).toEqual([checking, checking, ready]);
+  });
+
+  it('resolves at once with a settled answer or a server that is not there', async () => {
+    let calls = 0;
+    expect(await settleEars(async () => { calls++; return null; }, { sleep: noWait })).toBeNull();
+    expect(calls).toBe(1);
+    expect(await settleEars(answers(checking, null), { sleep: noWait })).toBeNull();
+  });
+
+  it('gives up after its limit, still checking', async () => {
+    let now = 0;
+    const t = await settleEars(answers(checking), { intervalMs: 500, limitMs: 2000, sleep: async (ms) => { now += ms; }, now: () => now });
+    expect(isChecking(t)).toBe(true);
+    expect(now).toBe(2000);
   });
 });

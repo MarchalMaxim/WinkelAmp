@@ -22,7 +22,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { IngestProgress, Job, TranscriberStatus } from '../../src/studio/ingest/ears-types';
+import { CHECKING_TRANSCRIBER, type IngestProgress, type Job, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
 import { freeId, nameFromFile } from '../../src/studio/ingest/names';
 import { overallProgress } from '../../src/studio/ingest/progress';
 import { isSlug, REPO, songsDir } from '../node/pack-io';
@@ -45,7 +45,7 @@ export interface EarsOptions {
 
 export const EARS_PORT = 5175;
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
-const CHECKING: TranscriberStatus = { ok: false, python: null, device: null, reason: 'checking the transcriber' };
+const CHECKING: TranscriberStatus = { ok: false, python: null, device: null, reason: CHECKING_TRANSCRIBER };
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 

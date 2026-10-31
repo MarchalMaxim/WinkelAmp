@@ -3,6 +3,7 @@
  * their own, and where a recording is added (a file picker; a file dropped anywhere on the page comes here too) with
  * its progress. Opening a song is a fresh page (/?song=<id>): several widgets cache the song's notes when they load.
  */
+import { isChecking } from '../ingest/ears-client';
 import type { TranscriberStatus } from '../ingest/ears-types';
 import type { LibraryEntry } from './api';
 import { clock } from './timeline';
@@ -127,6 +128,7 @@ export class Library {
       ? 'Or drop one on the page. This browser analyses it and keeps it here: approximate notes, no transcription.'
       : !e ? 'Or drop one on the page.'
       : !e.up ? 'The ears server is not running, so this browser makes approximate notes. For notes transcribed on the GPU, start npm run ears first.'
+      : isChecking(e.transcriber) ? 'Or drop one on the page. The ears server is checking its transcriber (loading the piano model takes a few seconds)…'
       : e.transcriber.ok ? `Or drop one on the page. Its notes are transcribed on the ${e.transcriber.device === 'cuda' ? 'GPU' : 'CPU'} by npm run ears.`
       : `Transcriber unavailable: ${e.transcriber.reason ?? 'unknown'}. The ears server makes approximate notes instead.`;
   }

@@ -3,7 +3,7 @@
  * and follow the job. 127.0.0.1, not localhost: on Windows localhost can resolve to ::1 first, and ears binds IPv4.
  * `?ears=off` makes the studio act as if it were down, `?ears=<port>` looks for it on another port (checks).
  */
-import type { Job, TranscriberStatus } from './ears-types';
+import { CHECKING_TRANSCRIBER, type Job, type TranscriberStatus } from './ears-types';
 
 export const EARS_PORT = 5175;
 /** The upload's share of the progress the studio shows (the server's job is the rest). */
@@ -28,6 +28,36 @@ export async function probeEars(timeoutMs = 800): Promise<TranscriberStatus | nu
     const j = (await r.json()) as { api?: number; transcriber?: TranscriberStatus };
     return j.api === 1 && j.transcriber ? j.transcriber : null;
   } catch { return null; } finally { clearTimeout(timer); }
+}
+
+/** The server is up but still probing its transcriber (importing torch takes seconds): no verdict yet. */
+export function isChecking(t: TranscriberStatus | null | undefined): boolean {
+  return !!t && !t.ok && t.reason === CHECKING_TRANSCRIBER;
+}
+
+export interface SettleOptions {
+  /** Between two asks (500 ms). */
+  intervalMs?: number;
+  /** Then it gives up and resolves with the last answer, still checking (120 s: the server's probe times out at 90 s). */
+  limitMs?: number;
+  /** Each answer, the first one included. */
+  onAnswer?: (t: TranscriberStatus | null) => void;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+}
+
+/** Asks the ears server until its transcriber check is over: its verdict, or null when it is not (or no longer) there. */
+export async function settleEars(probe: () => Promise<TranscriberStatus | null> = () => probeEars(), o: SettleOptions = {}): Promise<TranscriberStatus | null> {
+  const { intervalMs = 500, limitMs = 120_000, onAnswer } = o;
+  const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const now = o.now ?? (() => performance.now());
+  const t0 = now();
+  for (;;) {
+    const t = await probe();
+    onAnswer?.(t);
+    if (!isChecking(t) || now() - t0 >= limitMs) return t;
+    await sleep(intervalMs);
+  }
 }
 
 const job = (p: Partial<Job>): Job => ({ job: '', id: '', state: 'queued', stage: 'upload', progress: 0, message: '', warnings: [], ...p });
