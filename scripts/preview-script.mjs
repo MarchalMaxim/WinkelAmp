@@ -91,7 +91,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   page.on('console', (m) => m.type() === 'error' && console.log('[page error]', m.text()));
   page.on('pageerror', (e) => console.log('[page exception]', e.message));
-  await page.goto(`http://localhost:${PORT}/`);
+  await page.goto(`http://localhost:${PORT}/legacy.html`);
   await page.waitForFunction(() => window.winkel, null, { timeout: 30000 });
   if ((await page.evaluate(() => window.winkel.mode())) !== 'stage') throw new Error('the app fell back to Classic (no WebGL2?)');
 

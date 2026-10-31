@@ -73,7 +73,7 @@ try {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(`exception: ${e.message}`));
   await page.addInitScript(() => localStorage.clear());
-  await page.goto(`http://localhost:${PORT}/`);
+  await page.goto(`http://localhost:${PORT}/legacy.html`);
   await page.waitForFunction(() => window.winkel, null, { timeout: 30000 });
   if ((await page.evaluate(() => window.winkel.mode())) !== 'stage') throw new Error('the app fell back to Classic (no WebGL2?)');
 

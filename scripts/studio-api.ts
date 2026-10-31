@@ -23,7 +23,8 @@ import { canonicalShow, validateShow, type Show } from '../src/studio/show/show'
 import { loadCatalogue } from './node/catalogue';
 import { isSlug, showsDir, songsDir } from './node/pack-io';
 
-export interface LibraryEntry { id: string; title: string; duration: number; notesFrom: SongPack['notesFrom']; hasShow: boolean; error?: string }
+import type { LibraryEntry } from '../src/studio/ui/api';
+export type { LibraryEntry };
 
 const MAX_AUDIO = 1024 ** 3, MAX_JSON = 64 * 1024 * 1024, MAX_TEXT = 20 * 1024;
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);

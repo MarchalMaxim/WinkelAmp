@@ -39,7 +39,7 @@ const arg = (name, dflt) => {
   return i < 0 ? dflt : process.argv[i + 1];
 };
 const PORT = Number(arg('port', 5198));
-const URL = `http://localhost:${PORT}/`;
+const URL = `http://localhost:${PORT}/legacy.html`;
 const OUT = path.join(REPO, 'docs/media');
 const VIDEO = process.argv.includes('--video');
 const SEAM = process.argv.includes('--seam');
