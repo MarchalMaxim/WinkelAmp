@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { applyEdit, editGroup, type EditEnv, type ShowEdit } from '../src/studio/show/edit';
+import { sectionAt } from '../src/studio/show/schedule';
 import { MAX_PIVOTS, instanceKey, validateShow, type Show } from '../src/studio/show/show';
 import { Store } from '../src/studio/ui/store';
 import type { SongPack } from '../src/studio/pack/pack';
@@ -90,41 +91,71 @@ describe('addLayer with listen', () => {
   });
 });
 
+/** The curve an instance shows across the whole show at t: its layer's curve in the section playing at t. */
+function visible(s: Show, key: string, t: number): number {
+  const i = sectionAt(s, t), l = s.sections[i].layers.find((x) => instanceKey(x) === key);
+  return l ? curve(l.intensity, t) : NaN;
+}
+const visibleSamples = (s: Show, key: string, a: number, b: number, n = 400) =>
+  Array.from({ length: n + 1 }, (_, i) => visible(s, key, a + ((b - a) * i) / n));
+
 describe('moveBoundary over pivots', () => {
   const A: Pivot[] = [{ t: 2, v: 0 }, { t: 8, v: 1 }], B: Pivot[] = [{ t: 12, v: 1 }, { t: 18, v: 0 }];
+  /** strings (in both sections) without a curve; squares (section 0 only) with this one. */
+  const sq = (p: Pivot[]): Show => {
+    const s = JSON.parse(JSON.stringify(make())) as Show;
+    s.sections[0].layers[1].intensity = p;
+    return deepFreeze(s);
+  };
 
-  it('shrinking a section drops the pivots outside and adds an edge pivot with the old value there', () => {
-    const S = make(A, B);
-    const s = edit(S, { kind: 'moveBoundary', index: 1, t: 5 });
+  it('an instance on both sides: a drag either way leaves its whole-show curve as it was', () => {
+    const cases: [Pivot[] | undefined, Pivot[] | undefined][] = [
+      [A, B], [A, undefined], [undefined, B],
+      [[{ t: 3, v: 0.4, shape: 'hold' }, { t: 10, v: 0.9 }], [{ t: 10, v: 0.2 }, { t: 14, v: 1, bend: 0.5 }]],
+    ];
+    for (const [a, b] of cases) {
+      const S = make(a, b);
+      for (const t of [5, 9.5, 10.5, 15]) {
+        const s = edit(S, { kind: 'moveBoundary', index: 1, t });
+        close(visibleSamples(s, 'strings', 0, 20), visibleSamples(S, 'strings', 0, 20));
+      }
+    }
+  });
+
+  it('dragged to 5, the second side takes the first side\'s curve from 5, then holds into its own', () => {
+    const s = edit(make(A, B), { kind: 'moveBoundary', index: 1, t: 5 });
     expect(piv(s, 0)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 0.5 }]);
-    expect(s.sections[1].layers).toBe(S.sections[1].layers);   // nothing of B fell outside: shared
-    close(samples(piv(s, 0), 0, 5), samples(A, 0, 5));
-    const r = edit(S, { kind: 'moveBoundary', index: 1, t: 15 });
-    expect(piv(r, 1)).toEqual([{ t: 15, v: 0.5 }, { t: 18, v: 0 }]);
-    expect(r.sections[0].layers).toBe(S.sections[0].layers);
-    close(samples(piv(r, 1), 15, 20), samples(B, 15, 20));
-    for (const x of [...piv(s, 0)!, ...piv(r, 1)!]) expect(x.v).toBe(curve(x.t < 10 ? A : B, x.t));
+    expect(piv(s, 1)).toEqual([{ t: 5, v: 0.5 }, { t: 8, v: 1, shape: 'hold' }, { t: 10, v: 1, shape: 'hold' }, { t: 12, v: 1 }, { t: 18, v: 0 }]);
+  });
+
+  it('an instance on one side only: the pivots outside go, an edge pivot keeps the old value; the other side is shared', () => {
+    const S = sq(A);
+    const s = edit(S, { kind: 'moveBoundary', index: 1, t: 5 });
+    expect(piv(s, 0, 1)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 0.5 }]);
+    expect(s.sections[1].layers).toBe(S.sections[1].layers);
+    close(samples(piv(s, 0, 1), 0, 5), samples(A, 0, 5));
+    expect(edit(S, { kind: 'moveBoundary', index: 1, t: 15 }).sections[0].layers).toBe(S.sections[0].layers);   // nothing fell outside
   });
 
   it('every pivot outside: one edge pivot holds the value; a pivot already at the edge needs none', () => {
-    const S = make([{ t: 7, v: 0.2 }, { t: 9, v: 0.8 }]);
-    expect(piv(edit(S, { kind: 'moveBoundary', index: 1, t: 4 }), 0)).toEqual([{ t: 4, v: 0.2 }]);
-    const at = make([{ t: 2, v: 0 }, { t: 5, v: 0.5 }, { t: 8, v: 1 }]);
-    expect(piv(edit(at, { kind: 'moveBoundary', index: 1, t: 5 }), 0)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 0.5 }]);
+    expect(piv(edit(sq([{ t: 7, v: 0.2 }, { t: 9, v: 0.8 }]), { kind: 'moveBoundary', index: 1, t: 4 }), 0, 1)).toEqual([{ t: 4, v: 0.2 }]);
+    const at = sq([{ t: 2, v: 0 }, { t: 5, v: 0.5 }, { t: 8, v: 1 }]);
+    expect(piv(edit(at, { kind: 'moveBoundary', index: 1, t: 5 }), 0, 1)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 0.5 }]);
   });
 
   it('hold and bent linear segments look the same before the edge', () => {
     for (const a of [[{ t: 2, v: 0.3, shape: 'hold' }, { t: 8, v: 1 }], [{ t: 2, v: 0, bend: 0.6 }, { t: 8, v: 1 }]] as Pivot[][]) {
-      const s = edit(make(a), { kind: 'moveBoundary', index: 1, t: 5 });
-      close(samples(piv(s, 0), 0, 5), samples(a, 0, 5));
+      const s = edit(sq(a), { kind: 'moveBoundary', index: 1, t: 5 });
+      close(samples(piv(s, 0, 1), 0, 5), samples(a, 0, 5));
     }
   });
 
   it('without env the edge pivot takes the nearest cut value', () => {
-    const s = applyEdit(make(A, B), { kind: 'moveBoundary', index: 1, t: 5 });
-    expect(piv(s, 0)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 1 }]);
+    const s = applyEdit(sq(A), { kind: 'moveBoundary', index: 1, t: 5 });
+    expect(piv(s, 0, 1)).toEqual([{ t: 2, v: 0 }, { t: 5, v: 1 }]);
   });
 });
+
 
 describe('split and merge over pivots', () => {
   const one = (p: Pivot[]): Show => deepFreeze({ version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'strings', intensity: p }] }] });

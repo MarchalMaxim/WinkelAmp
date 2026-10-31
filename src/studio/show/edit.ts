@@ -4,7 +4,8 @@
  * the result is valid: sections stay contiguous and ≥ MIN_SECTION, an instance plays once per section.
  * Intensity pivots are in song seconds, so they never stretch: an edit that shrinks a section removes the pivots that
  * fall outside it and adds an edge pivot with the curve's value there (env.curve, WaLayers.automationAt), so the
- * visible curve is unchanged; merging joins the same instance's curves (plan 2026-10-31 §5).
+ * visible curve is unchanged; merging joins the same instance's curves, and a boundary drag hands an instance that
+ * plays on both sides the part of its joined curve that changed side (plan 2026-10-31 §5).
  */
 import type { Listen, Pivot, Region } from '../../widgets/types';
 import {
@@ -106,9 +107,21 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       const a = S[e.index - 1], b = S[e.index];
       const t = ms(clamp(e.t, a.start + MIN_SECTION, b.end - MIN_SECTION));
       if (a.start + MIN_SECTION > b.end - MIN_SECTION || t === b.start) return show;
+      let al = trimLayers(a.layers, a.start, t, env), bl = trimLayers(b.layers, t, b.end, env);
+      // An instance playing on both sides shows one curve across the boundary: join it, then cut it at the new place,
+      // so the side that gains time takes the other side's pivots there.
+      a.layers.forEach((l, j) => {
+        const k = b.layers.findIndex((x) => instanceKey(x) === instanceKey(l));
+        if (k < 0 || (!l.intensity?.length && !b.layers[k].intensity?.length)) return;
+        const joined = joinPivots(l.intensity, b.layers[k].intensity, a.start, b.start)!;
+        if (al === a.layers) al = a.layers.slice();
+        if (bl === b.layers) bl = b.layers.slice();
+        al[j] = withPivots(l, trimPivots(joined, a.start, t, env) ?? joined);
+        bl[k] = withPivots(b.layers[k], trimPivots(joined, t, b.end, env) ?? joined);
+      });
       const sections = S.slice();
-      sections[e.index - 1] = { ...a, end: t, layers: trimLayers(a.layers, a.start, t, env) };
-      sections[e.index] = { ...b, start: t, layers: trimLayers(b.layers, t, b.end, env) };
+      sections[e.index - 1] = { ...a, end: t, layers: al };
+      sections[e.index] = { ...b, start: t, layers: bl };
       return withSections(show, sections);
     }
     case 'split': {
