@@ -1,0 +1,23 @@
+# YourMT3+ (scripts/ears/ymt3.py), Python 3.11 in its own venv, e.g. C:/Users/maxim/.venvs/wa-mt:
+#   py -3.11 -m venv C:/Users/maxim/.venvs/wa-mt
+#   C:/Users/maxim/.venvs/wa-mt/Scripts/pip install -r scripts/ears/requirements-ymt3.txt
+# then install the Space's source and checkpoint outside the repo:
+#   npm run setup-ymt3 -- --from <download of the Hugging Face Space mimbres/YourMT3>
+# torch and torchaudio come from the CUDA index (the line below); without an NVIDIA GPU, drop it for the CPU build (slow).
+# These are the versions the runner was tested with; the venv is never re-pinned.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0
+torchaudio==2.11.0
+lightning==2.6.6
+pytorch-lightning==2.6.6
+transformers==4.45.1
+einops==0.8.2
+librosa==0.11.0
+mido==1.3.3
+pretty_midi==0.2.11.post0
+numpy==1.26.4
+soundfile==0.14.0
+# imported by the Space's model code (wandb at import time only; it stays offline)
+wandb==0.31.0
+smart_open
+Deprecated
