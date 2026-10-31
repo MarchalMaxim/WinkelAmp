@@ -1,29 +1,49 @@
-// A show as an HD video, frame by frame, with the recording's sound (plan §10): exact and smooth whatever the machine,
-// unlike a recording made while the song plays.
+// A show as an HD master video, frame by frame, with the recording's sound (plans §10 and round 2 §7): exact and smooth
+// whatever the machine, unlike a recording made while the song plays, and sharper than the live 1280×720 canvas.
 //
-//   npm run render-show -- <show id | show.json> [--out renders/<id>.mp4] [--fps 30] [--hz 60] [--from 0] [--to <end>]
-//                          [--crf 18] [--framemd5 <file>] [--headed]
+//   npm run render-show -- <show id | show.json> [--scale 2] [--fps 60] [--hz 60] [--crf 13] [--preset slow]
+//                          [--master x264|x264-444|prores] [--share | --no-share] [--share-mb-per-min 15]
+//                          [--from 0] [--to <end>] [--out renders/<id>.mp4] [--framemd5 <file>] [--headed] [--keep]
 //
 // The show is shows/<id>.json (or the file given); a song with no show of its own gets the one the studio would compose
-// for it. Its own Vite server and headless system Chrome open render.html?show=<id> (the studio's runtime and Conductor),
-// which draws on demand: frame k shows the song at from + k/fps after stepping there in substeps of 1/hz s, so an
-// attack is drawn on the first frame at or after its time (never more than one frame late), and the same show gives
-// the same frames every time (randomness is seeded). A start after 0 is pre-rolled 3 s so the first frame is not black.
-// Frames go to ffmpeg as JPEG (q 0.92), libx264 -crf 18 -preset medium; the pack's audio is cut to [from, to] sample
-// for sample (atrim) → AAC 192k; +faststart. --framemd5 writes one md5 per frame as drawn (before x264), to compare runs.
+// for it. Its own Vite server (from port 5190) and headless system Chrome open render.html?show=<id>&scale=S (the studio's
+// runtime and Conductor on a 1280·S × 720·S canvas, widgets still in 1280×720 units), which draws on demand: frame k
+// shows the song at from + k/fps after stepping there in substeps of 1/hz s, so an attack is drawn on the first frame at
+// or after its time, and the same show gives the same frames every time (randomness is seeded). A start after 0 is
+// pre-rolled 3 s so the first frame is not black.
+//
+// Frames leave the page losslessly: the canvas as PNG (toBlob) is POSTed to /__frame on the render's own server, whose
+// middleware writes it, in order, to ffmpeg's stdin (-f image2pipe) and answers once the pipe has drained. Measured in
+// round 2 T9 at 2× (beethoven5 155–160, 300 frames; drawing alone 583 ms a frame): PNG 627 ms a frame, getImageData's
+// raw RGBA POSTed 1146 ms (Chrome uploads 14.7 MB bodies at about 27 MB/s), base64 through page.evaluate 885 ms.
+// Outputs (scripts/lib/encode.mjs has the exact arguments):
+//   the master   <out> (renders/<id>.mp4; .mov for prores): x264 crf 13 slow, yuv420p BT.709 limited range with its
+//                colour tags, level 5.1 at 2×; the recording cut to [from, to] sample for sample (atrim) → AAC 320k
+//   the share    <out>-share.mp4: from the master, lanczos to 1920×1080, 30 fps, two-pass x264 at --share-mb-per-min
+//                (15 MB a minute ≈ 1.87 Mbit/s + AAC 128k); send it in WhatsApp as a document so it is not squeezed again
+//   the sheet    <out>-sheet.png: one frame per 10 s of the master
+// --framemd5 writes one md5 per frame over the raw RGBA as drawn (ffmpeg's framemd5 of the decoded PNGs, before x264),
+// to compare runs.
+// --scale 1 --fps 30 --crf 18 --no-share gives the old 720p kind of render (losslessly fed now).
+// The ETA, printed after the first 10 s of drawing, covers the frames (the master encodes alongside), the sound and the
+// two share passes (estimated per video second). Progress lines, `ETA …`, `done: …` and the closing `master →`,
+// `share →` and `sheet →` lines are read by the studio's export job: keep their shape.
 // Videos carry the user's recordings: renders/ stays out of git. Needs ffmpeg on the PATH and Chrome.
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { masterArgs, shareArgs, shareVideoKbps } from './lib/encode.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const USAGE = 'usage: npm run render-show -- <show id | show.json> [--out renders/<id>.mp4] [--fps 30] [--hz 60] [--from 0] [--to <end>] [--crf 18] [--framemd5 <file>]';
-const VALUED = ['out', 'fps', 'hz', 'from', 'to', 'crf', 'framemd5'], FLAGS = ['headed', 'keep'];
+const USAGE = 'usage: npm run render-show -- <show id | show.json> [--scale 2] [--fps 60] [--hz 60] [--crf 13] [--preset slow] '
+  + '[--master x264|x264-444|prores] [--share | --no-share] [--share-mb-per-min 15] [--from 0] [--to <end>] [--out renders/<id>.mp4] '
+  + '[--framemd5 <file>] [--headed] [--keep]';
+const VALUED = ['out', 'fps', 'hz', 'from', 'to', 'crf', 'framemd5', 'scale', 'preset', 'master', 'share-mb-per-min'];
+const FLAGS = ['headed', 'keep', 'share', 'no-share'];
 const argv = process.argv.slice(2);
 const opts = {}, pos = [];
 for (let i = 0; i < argv.length; i++) {
@@ -42,9 +62,19 @@ const num = (k, d) => {
   if (!Number.isFinite(v)) { console.error(`--${k} must be a number, not ${opts[k]}`); process.exit(2); }
   return v;
 };
-const FPS = num('fps', 30), HZ = num('hz', 60), CRF = num('crf', 18);
-const PREROLL = 3, BATCH = 15;
-if (FPS <= 0 || FPS > 120 || HZ < 1) { console.error('--fps must be in (0, 120] and --hz ≥ 1'); process.exit(2); }
+const fail = (msg) => { console.error(msg); process.exit(2); };
+const FPS = num('fps', 60), HZ = num('hz', 60), CRF = num('crf', 13), SCALE = num('scale', 2), MB_PER_MIN = num('share-mb-per-min', 15);
+const PRESET = opts.preset ?? 'slow', MASTER = opts.master ?? 'x264';
+if (opts.share && opts['no-share']) fail('--share or --no-share, not both');
+const SHARE = !opts['no-share'];
+const PREROLL = 3, BATCH = 30;
+// Measured in T9 on beethoven5 155–170 at 2× (2560×1440 60 fps master): the sound mux and both share passes, s per video
+// second (the frames themselves took 4.1 s per video second there).
+const AFTER_S_PER_SEC = { mux: 0.1, share: 0.4 };
+if (FPS <= 0 || FPS > 120 || HZ < 1) fail('--fps must be in (0, 120] and --hz ≥ 1');
+if (![1, 2, 3].includes(SCALE)) fail('--scale is 1, 2 or 3');
+if (!['x264', 'x264-444', 'prores'].includes(MASTER)) fail('--master is x264, x264-444 or prores');
+if (SHARE) shareVideoKbps(MB_PER_MIN);   // throws on a budget the sound alone would eat
 if (spawnSync('ffmpeg', ['-version']).status !== 0) { console.error('render-show needs ffmpeg on the PATH'); process.exit(1); }
 
 const clock = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -58,9 +88,41 @@ const run = (cmd, args, { stdin = false } = {}) => {
   });
   return { p, done };
 };
-const write = (stream, buf) => (stream.write(buf) ? Promise.resolve() : new Promise((r) => stream.once('drain', r)));
 
-const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
+// The frame sink: POST /__frame?k=<n> bodies (one PNG each), in order, into the current ffmpeg's stdin. One request at a
+// time (the page awaits each answer before sending the next); the answer comes once the bytes are in the pipe, or names
+// what went wrong.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const sink = { ff: null, next: 0, error: null };
+const frameSink = {
+  name: 'render-show-frames',
+  configureServer(server) {
+    server.middlewares.use('/__frame', (req, res) => {
+      const answer = (status, msg = '') => { res.statusCode = status; res.end(msg); };
+      if (req.method !== 'POST') return answer(405);
+      const k = Number(new URL(req.url, 'http://x').searchParams.get('k'));
+      const stdin = sink.ff?.p.stdin;
+      if (!stdin || sink.error) { req.resume(); return answer(500, sink.error ?? 'no encoder'); }
+      if (k !== sink.next) { req.resume(); return answer(409, `frame ${k} came when ${sink.next} was due`); }
+      let got = 0;
+      req.on('data', (c) => {
+        if (got === 0 && !c.subarray(0, 8).equals(PNG_SIGNATURE)) sink.error = `frame ${k} is not a PNG`;
+        got += c.length;
+        if (sink.error) return;
+        if (!stdin.write(c)) { req.pause(); stdin.once('drain', () => req.resume()); }
+      });
+      req.on('error', (e) => answer(500, String(e)));
+      req.on('end', () => {
+        if (!sink.error && got === 0) sink.error = `frame ${k} came empty`;
+        if (sink.error) return answer(400, sink.error);
+        sink.next++;
+        if (stdin.writableNeedDrain) stdin.once('drain', () => answer(204)); else answer(204);
+      });
+    });
+  },
+};
+
+const vite = await createServer({ root: ROOT, logLevel: 'error', plugins: [frameSink], server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
 let browser = null, tmp = null, code = 0;
 try {
   const { validateShow } = await vite.ssrLoadModule('/src/studio/show/show.ts');
@@ -98,11 +160,16 @@ try {
   const start = Math.max(0, num('from', 0)), end = Math.min(pack.duration, num('to', pack.duration));
   if (!(end > start)) throw new Error(`nothing to render between ${start} and ${end} s (the song lasts ${pack.duration.toFixed(2)} s)`);
   const n = Math.round((end - start) * FPS), secs = n / FPS;
-  const out = path.resolve(opts.out ?? path.join(ROOT, 'renders', `${show.id}.mp4`));
+  const ext = MASTER === 'prores' ? '.mov' : '.mp4';
+  const asked = path.resolve(opts.out ?? path.join(ROOT, 'renders', show.id));
+  const out = path.extname(asked) ? asked : asked + ext;   // --out renders/x gets the master's own extension
+  const stem = out.replace(/\.[^./\\]+$/, '');
+  const shareOut = `${stem}-share.mp4`, sheetOut = `${stem}-sheet.png`;
   mkdirSync(path.dirname(out), { recursive: true });
   tmp = mkdtempSync(path.join(tmpdir(), 'wa-render-show-'));
+  const W = 1280 * SCALE, H = 720 * SCALE;
   console.log(`${show.title ?? pack.title} (${from === 'composed' ? 'composed for the song: no shows/' + show.id + '.json' : `${show.sections.length} sections`}): `
-    + `${clock(start)}–${clock(end)}, ${n} frames at ${FPS} fps (${HZ} Hz steps) → ${out}`);
+    + `${clock(start)}–${clock(end)}, ${n} frames of ${W}×${H} at ${FPS} fps (${HZ} Hz steps, scale ${SCALE}) → ${out}`);
 
   await vite.listen();
   const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
@@ -114,10 +181,12 @@ try {
   await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
   await page.route(/localhost:5174/, (r) => r.abort());
   await page.route(new RegExp(`/api/shows/${encodeURIComponent(show.id)}$`), (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(show) }));
-  await page.goto(`${BASE}/render.html?show=${encodeURIComponent(show.id)}&hz=${HZ}`);
+  await page.goto(`${BASE}/render.html?show=${encodeURIComponent(show.id)}&hz=${HZ}&scale=${SCALE}`);
   await page.waitForFunction(() => window.renderReady === true || !!window.renderFailed, null, { timeout: 60_000 });
   const failed = await page.evaluate(() => window.renderFailed ?? null);
   if (failed) throw new Error(`render.html failed: ${failed}`);
+  const size = await page.evaluate(() => window.renderSize);
+  if (size?.w !== W || size?.h !== H) throw new Error(`render.html drew ${JSON.stringify(size)}, not ${W}×${H}`);
 
   // Pre-roll (not captured) up to exactly the start; frame 0 is the picture there.
   await page.evaluate(({ start, FPS, PREROLL }) => {
@@ -127,48 +196,105 @@ try {
     for (let k = k0; k <= 0; k++) window.renderTo(start + k / FPS);
   }, { start, FPS, PREROLL });
 
-  const video = path.join(tmp, 'video.mp4');
-  const ff = run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(FPS), '-i', '-',
-    '-frames:v', String(n), '-vf', 'scale=in_range=pc:out_range=tv,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-crf', String(CRF),
-    '-pix_fmt', 'yuv420p', '-r', String(FPS), video], { stdin: true });
-  const md5s = [];
+  // The routes were for loading. Playwright intercepts every request while any route is set, which slows each frame's
+  // POST by about 130 ms, so they go now; the page's own requests to the lab's ratings server stay refused in the page.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await page.evaluate(() => {
+    const lab = (u) => /\/\/(localhost|127\.0\.0\.1):5174\b/.test(String(u?.url ?? u));
+    const f = window.fetch;
+    window.fetch = (u, o) => (lab(u) ? Promise.reject(new Error('render-show: no requests to 5174')) : f(u, o));
+    const send = navigator.sendBeacon?.bind(navigator);
+    if (send) navigator.sendBeacon = (u, d) => (lab(u) ? false : send(u, d));
+    const open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (m, u, ...rest) {
+      if (lab(u)) throw new Error('render-show: no requests to 5174');
+      return open.call(this, m, u, ...rest);
+    };
+  });
+
+  const video = path.join(tmp, `video${ext}`), md5File = path.join(tmp, 'frames.md5');
+  const ff = run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error',
+    ...masterArgs({ w: W, h: H, fps: FPS, crf: CRF, preset: PRESET, master: MASTER, out: video, frames: n, input: 'png' }),
+    // a second output: the md5 of each decoded frame's RGBA
+    ...(opts.framemd5 ? ['-map', '0:v', '-frames:v', String(n), '-c:v', 'rawvideo', '-pix_fmt', 'rgba', '-f', 'framemd5', md5File] : [])],
+  { stdin: true });
+  Object.assign(sink, { ff, next: 0, error: null });
+  ff.p.stdin.on('error', (e) => { sink.error = `ffmpeg's input: ${e.message}`; });
+  ff.done.catch((e) => { sink.error = e.message; });
+
   const t0 = Date.now();
-  let lastReport = t0;
+  let lastReport = t0, eta = null;
   for (let k = 0; k < n; k += BATCH) {
-    const frames = await page.evaluate(({ start, FPS, k0, k1 }) => {
-      const c = document.getElementById('c'), out = [];
-      for (let k = k0; k < k1; k++) { if (k > 0) window.renderTo(start + k / FPS); out.push(c.toDataURL('image/jpeg', 0.92).slice(23)); }
-      return out;
+    // Draw k+1 while frame k is compressed and on its way (toBlob takes the picture when called); each frame waits for
+    // the previous answer, so they arrive in order.
+    await page.evaluate(async ({ start, FPS, k0, k1 }) => {
+      const c = document.getElementById('c');
+      let prev = Promise.resolve();
+      for (let k = k0; k < k1; k++) {
+        if (k > 0) window.renderTo(start + k / FPS);
+        const png = new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error(`frame ${k}: no PNG`))), 'image/png'));
+        await prev;
+        prev = png.then((body) => fetch(`/__frame?k=${k}`, { method: 'POST', body }))
+          .then(async (r) => { if (!r.ok) throw new Error(`frame ${k}: ${r.status} ${await r.text()}`); });
+      }
+      await prev;
     }, { start, FPS, k0: k, k1: Math.min(n, k + BATCH) });
-    for (const b of frames) {
-      const buf = Buffer.from(b, 'base64');
-      if (opts.framemd5) md5s.push(createHash('md5').update(buf).digest('hex'));
-      await write(ff.p.stdin, buf);
+    const now = Date.now(), done = Math.min(n, k + BATCH), per = (now - t0) / 1000 / done;
+    if (!eta && now - t0 >= 10_000 && done < n) {
+      const frames = per * n, after = secs * (AFTER_S_PER_SEC.mux + (SHARE ? AFTER_S_PER_SEC.share : 0));
+      eta = { total: frames + after, at: t0 + (frames + after) * 1000 };
+      console.log(`ETA ${clock(eta.total)} in all (frames ${clock(frames)}, then sound${SHARE ? ' and share copy' : ''} ${clock(after)}): done about `
+        + new Date(eta.at).toTimeString().slice(0, 5));
     }
-    const now = Date.now(), done = Math.min(n, k + BATCH);
     if (now - lastReport >= 10_000 && done < n) {
       lastReport = now;
-      const per = (now - t0) / 1000 / done;
       console.log(`  ${clock(start + done / FPS)} of ${clock(end)}: ${done}/${n} frames (${(100 * done / n).toFixed(0)} %), `
         + `${(per * FPS).toFixed(2)} s per video second, about ${clock(per * (n - done))} left`);
     }
   }
   ff.p.stdin.end();
   await ff.done;
+  if (sink.next !== n) throw new Error(`ffmpeg got ${sink.next} of ${n} frames`);
   const frameSecs = (Date.now() - t0) / 1000;
   const widgetErrors = await page.evaluate(() => ({ ...window.renderErrors }));
   await browser.close(); browser = null;
 
   // The sound: the recording cut to [start, end) sample for sample, as long as the frames.
   await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', video, '-i', audioFile, '-map', '0:v', '-map', '1:a',
-    '-af', `atrim=start=${start}:end=${start + secs},asetpts=PTS-STARTPTS`, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
+    '-af', `atrim=start=${start}:end=${start + secs},asetpts=PTS-STARTPTS`, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '320k',
     '-movflags', '+faststart', out]).done;
+  const muxSecs = (Date.now() - t0) / 1000 - frameSecs;
   if (opts.framemd5) {
+    // ffmpeg's lines: stream_index, dts, pts, duration, size, md5
+    const md5s = readFileSync(md5File, 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#')).map((l) => l.split(',').at(-1).trim());
+    if (md5s.length !== n) throw new Error(`framemd5: ${md5s.length} of ${n} frames`);
     writeFileSync(path.resolve(opts.framemd5), md5s.map((h, k) => `${k},${h}\n`).join(''));
     console.log(`frame md5s → ${path.resolve(opts.framemd5)}`);
   }
+
+  // The share copy, in two passes over the master.
+  let shareSecs = 0;
+  if (SHARE) {
+    const t1 = Date.now(), kbps = shareVideoKbps(MB_PER_MIN), passlog = path.join(tmp, 'share');
+    console.log(`share copy: 1920×1080, 30 fps, ${kbps} kbit/s + AAC 128k (${MB_PER_MIN} MB a minute), two passes`);
+    for (const pass of [1, 2]) await run('ffmpeg', shareArgs({ input: out, pass, kbps, out: shareOut, passlog })).done;
+    shareSecs = (Date.now() - t1) / 1000;
+  }
+
+  // The sheet: the master's first frame and one every 10 s after, 384 px wide, six to a row.
+  const tiles = Math.max(1, Math.floor((secs - 1e-9) / 10) + 1), cols = Math.min(6, tiles), rows = Math.ceil(tiles / cols);
+  await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', out, '-vf',
+    `select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,10)',scale=384:-2,tile=${cols}x${rows}`,
+    '-fps_mode', 'vfr', '-frames:v', '1', '-update', '1', sheetOut]).done;
+
   const total = (Date.now() - t0) / 1000;
-  console.log(`done: ${clock(secs)} of video in ${clock(total)} (frames ${(frameSecs / secs).toFixed(2)} s per video second) → ${out}`);
+  console.log(`done: ${clock(secs)} of video in ${clock(total)} (frames ${(frameSecs / secs).toFixed(2)} s per video second, `
+    + `sound ${(muxSecs / secs).toFixed(2)}${SHARE ? `, share ${(shareSecs / secs).toFixed(2)}` : ''})`
+    + (eta ? `; the ETA said ${clock(eta.total)} (${(100 * (total - eta.total) / eta.total).toFixed(0)} % off)` : ''));
+  const mb = (f) => `${(statSync(f).size / 1e6).toFixed(1)} MB`;
+  console.log(`master → ${out} (${mb(out)})`);
+  if (SHARE) console.log(`share → ${shareOut} (${mb(shareOut)}; send it in WhatsApp as a document)`);
+  console.log(`sheet → ${sheetOut}`);
   const errs = Object.entries(widgetErrors);
   if (errs.length) { console.log('widgets that stopped (the rest of the picture went on):'); for (const [id, e] of errs) console.log(`  ${id}: ${e}`); }
   if (pageErrors.length) { console.error(`page errors:\n  ${[...new Set(pageErrors)].join('\n  ')}`); code = 1; }
@@ -177,6 +303,7 @@ try {
   code = 1;
 } finally {
   if (browser) await browser.close();
+  if (sink.ff && sink.ff.p.exitCode === null) sink.ff.p.kill();
   await vite.close();
   if (tmp && !opts.keep) rmSync(tmp, { recursive: true, force: true });
   else if (tmp) console.log(`kept ${tmp}`);
