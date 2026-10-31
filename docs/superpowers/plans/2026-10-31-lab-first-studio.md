@@ -398,7 +398,8 @@ ignored while typing). Switching songs navigates to `/?song=<id>` (a fresh page,
 with `error`) · `PUT /api/songs/<id>?name=<file>` (audio body ≤ 1 GB) · `PUT /api/songs/<id>/pack` (validatePack, else 400
 `{ errors }`) · `GET /api/shows/<id>` → Show | 404 · `PUT /api/shows/<id>` (validateShow with the pack's duration and the
 Node catalogue; 400 `{ errors }` or writes `canonicalShow`, 204) · `GET|PUT /api/shows/<id>/description` (text ≤ 20 KB,
-`shows/<id>.description.md`). Ids must be slugs (400). Writes only from loopback (403: `server.host` is true, the LAN
+`shows/<id>.description.md`) · added in T4: `GET /songs/<id>/pack.json|audio.<ext>` from `dirs.songs` with byte ranges
+(206; an mp3 seek needs them), so `WINKELAMP_SONGS` outside the Vite root works. Ids must be slugs (400). Writes only from loopback (403: `server.host` is true, the LAN
 sees the dev server). Atomic writes (temp + rename). The plugin watches `shows/*.json` and sends the HMR event
 `studio:show-changed` `{ id }`: the studio reloads that show when clean, asks when dirty (Claude edits shows on disk).
 
