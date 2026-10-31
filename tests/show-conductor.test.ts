@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Conductor } from '../src/studio/show/conductor';
+import { Conductor, samePreview } from '../src/studio/show/conductor';
+import { applyEdit, type ShowEdit } from '../src/studio/show/edit';
 import type { Show } from '../src/studio/show/show';
 import type { RuntimeLike, Slot } from '../src/widgets/runtime';
 import type { KnobMap, WidgetMeta } from '../src/widgets/types';
@@ -113,5 +114,40 @@ describe('Conductor', () => {
     expect(steps[0][2]).toBeCloseTo(1 / 60, 9);
     expect(c.preview(0.5)).toBeUndefined();
     expect(rt.calls.filter((x) => x[0] === 'reset').at(-1)).toEqual(['reset', 0]);
+  });
+});
+
+describe('samePreview: would preview(t) draw the same picture for the edited show?', () => {
+  const ed = (...es: ShowEdit[]) => es.reduce((s, e) => applyEdit(s, e), SHOW);
+
+  it('edits to sections the preview does not reach leave it alone', () => {
+    expect(samePreview(SHOW, SHOW, 5)).toBe(true);
+    expect(samePreview(SHOW, ed({ kind: 'addLayer', section: 1, widget: 'lewitt' }), 5)).toBe(true);
+    expect(samePreview(SHOW, ed({ kind: 'setKnob', section: 0, layer: 0, key: 'size', value: 1.8 }), 25)).toBe(true);
+    expect(samePreview(SHOW, ed({ kind: 'addLayer', section: 0, widget: 'casket' }), 25)).toBe(true);
+    expect(samePreview(SHOW, ed({ kind: 'setSection', section: 1, patch: { fade: 1 } }), 5)).toBe(true);
+  });
+
+  it('a knob or a layer of the section at the playhead changes it', () => {
+    expect(samePreview(SHOW, ed({ kind: 'setKnob', section: 0, layer: 0, key: 'size', value: 1.8 }), 5)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'addLayer', section: 0, widget: 'casket' }), 5)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'removeLayer', section: 2, layer: 0 }), 25)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'moveLayer', section: 0, from: 0, to: 1 }), 5)).toBe(false);
+  });
+
+  it('so does the fade the playhead is in, and the knobs of what is fading out', () => {
+    expect(samePreview(SHOW, ed({ kind: 'setSection', section: 1, patch: { fade: 1 } }), 11)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'setKnob', section: 0, layer: 0, key: 'size', value: 1.8 }), 11)).toBe(false);
+  });
+
+  it('a boundary moved across the playhead or into the preview second changes it; the far end of its section does not', () => {
+    expect(samePreview(SHOW, ed({ kind: 'moveBoundary', index: 1, t: 9 }), 9.5)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'moveBoundary', index: 1, t: 10.2 }), 10.5)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'moveBoundary', index: 1, t: 12 }), 5)).toBe(true);
+  });
+
+  it('a split at the playhead and a new name change nothing on screen', () => {
+    expect(samePreview(SHOW, ed({ kind: 'split', section: 0, t: 5 }), 5)).toBe(true);
+    expect(samePreview(SHOW, ed({ kind: 'setSection', section: 0, patch: { label: 'Opening' } }), 5)).toBe(true);
   });
 });

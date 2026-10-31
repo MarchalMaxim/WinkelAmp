@@ -117,6 +117,9 @@ button.link:hover { color: var(--fg); }
 .sec-label:focus { outline: none; border-bottom-color: var(--dim); }
 .sec-label::placeholder { color: #5f5650; font-style: italic; }
 .sec-time { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 13px; margin: 2px 0 12px !important; }
+.sec-where { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; color: var(--dim); font-size: 12.5px; margin: -6px 0 12px !important; }
+.sec-where[hidden] { display: none; }
+.sec-where button { font-size: 12.5px; padding: 2px 9px; }
 .sec-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .sec-actions button { font-size: 13px; padding: 5px 11px; }
 .fade { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-top: 16px; font-size: 13px; color: var(--dim); }

@@ -4,6 +4,7 @@
  * as the lab draws them. Show: the "Describe the show" box Claude Code composes from, and what the show is made of.
  */
 import type { SongPack } from '../pack/pack';
+import { sectionAt } from '../show/schedule';
 import type { ShowSection } from '../show/show';
 import { DEFAULT_FADE, MAX_FADE } from '../show/show';
 import type { Drive, Features, IconLib, Param, ToolDef, WidgetMeta } from '../../widgets/types';
@@ -19,7 +20,7 @@ interface Deps {
   catalogue: Map<string, CatalogueEntry>; order: string[];
   drives: [Drive, string][]; icon: IconLib;
   time: () => number; features: () => Features; errors: () => Record<string, string>;
-  splitAtPlayhead(): void;
+  splitAtPlayhead(): void; seek(t: number): void;
 }
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -112,6 +113,7 @@ export class Panel {
         </div>
         <input class="sec-label" aria-label="Section name" placeholder="Name this section" maxlength="60">
         <p class="sec-time"></p>
+        <p class="sec-where" hidden><span></span> <button type="button" data-act="goto">Go to this section</button></p>
       </header>
       <div class="sec-actions">
         <button type="button" data-act="split" title="Split this section at the playhead (S)">Split at playhead</button>
@@ -129,6 +131,7 @@ export class Panel {
     fade?.addEventListener('input', () => this.edit({ type: 'edit', edit: { kind: 'setSection', section: i, patch: { fade: Number(fade.value) } }, group: `fade:${i}` }));
     body.querySelector('[data-act="prev"]')?.addEventListener('click', () => this.edit({ type: 'select', section: i - 1, layer: null }));
     body.querySelector('[data-act="next"]')?.addEventListener('click', () => this.edit({ type: 'select', section: i + 1, layer: null }));
+    body.querySelector('[data-act="goto"]')!.addEventListener('click', () => this.d.seek(this.d.store.state.show!.sections[i].start));
     body.querySelector('[data-act="split"]')!.addEventListener('click', () => this.d.splitAtPlayhead());
     body.querySelector('[data-act="merge"]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'merge', section: i } }));
     body.querySelector('[data-act="add"]')!.addEventListener('click', () => { this.picking = !this.picking; this.key = ''; this.update(this.d.store.state); });
@@ -224,6 +227,20 @@ export class Panel {
     for (const { row, layer } of this.rows) row.sync(knobState(row.q, sec.layers[layer]?.knobs?.[row.q.key]));
     const defaults = this.body.querySelector<HTMLButtonElement>('.layer.open [data-defaults]'), open = s.selected.layer;
     if (defaults) defaults.hidden = open === null || !Object.keys(sec.layers[open]?.knobs ?? {}).length;
+    this.where();
+  }
+
+  /** When the picture plays another section than the one shown here, says which, with a way to go here: edits to
+      this section then do not change the picture until it plays. */
+  where(): void {
+    const el = this.body.querySelector<HTMLElement>('.sec-where'), show = this.d.store.state.show;
+    if (!el || !show || this.tab !== 'section') return;
+    const k = sectionAt(show, this.d.time()), here = k === this.d.store.state.selected.section;
+    el.hidden = here;
+    if (!here) {
+      const name = show.sections[k].label;
+      el.querySelector('span')!.textContent = `The playhead is in section ${k + 1}${name ? ` (${name})` : ''}.`;
+    }
   }
 
   // ---- Show ---------------------------------------------------------------------------------------------------

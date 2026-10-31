@@ -151,7 +151,7 @@ export class Timeline {
       b.style.left = `${(sec.start / D) * 100}%`; b.style.width = `${((sec.end - sec.start) / D) * 100}%`;
       if (hue !== null) b.style.setProperty('--hue', String(hue));
       const cast = sec.layers.map((l) => this.d.names(l.widget)).reverse().join(', ');
-      b.title = `${sec.label ?? 'Section'}, ${clock(sec.start)}–${clock(sec.end)}: ${cast || 'no widgets'}`;
+      b.title = `${sec.label ?? 'Section'}, ${clock(sec.start)}–${clock(sec.end)}: ${cast || 'no widgets'}. Double-click to play from here.`;
       b.innerHTML = `<span class="sec-name"></span><span class="sec-cast"></span>`;
       b.querySelector('.sec-name')!.textContent = sec.label ?? `Section ${i + 1}`;
       b.querySelector('.sec-cast')!.textContent = cast || 'empty';

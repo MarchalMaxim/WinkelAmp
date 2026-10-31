@@ -23,6 +23,27 @@ export const momentOf = (show: Show, i: number): string => `${i}:${show.sections
 
 const EMPTY: Record<string, KnobSetting> = {};
 
+/** The steps preview(t) takes: reset at t0 = t − 1 (not before 0), then 60 equal steps up to t (none at t = 0). */
+function previewSteps(t: number): { t0: number; times: number[] } {
+  const t0 = Math.max(0, t - 1), n = 60;
+  if (!(t > t0)) return { t0, times: [] };
+  return { t0, times: Array.from({ length: n }, (_, i) => t0 + ((t - t0) * (i + 1)) / n) };
+}
+
+/** What the widgets are given at x: who plays, attacking or not, how strongly, with which knobs. */
+const scheduleKey = (show: Show, x: number) => JSON.stringify(scheduleAt(show, x).map((w) => [w.id, w.receiving, w.weight, w.knobs]));
+
+/** Would preview(t) draw the same picture for show b as for show a? It compares what the Conductor would hand the
+    runtime at the reset and at every preview step (and who it resets on the way), so an edit to a section the preview
+    does not reach, a split at t or a new name leaves a paused picture as it is. Moments are left out: a new name or a
+    split only renumbers them. */
+export function samePreview(a: Show, b: Show, t: number): boolean {
+  if (a === b) return true;
+  const { t0, times } = previewSteps(t);
+  for (const x of [t0, ...times]) if (scheduleKey(a, x) !== scheduleKey(b, x)) return false;
+  return JSON.stringify(entriesBetween(a, t0, t)) === JSON.stringify(entriesBetween(b, t0, t));
+}
+
 export class Conductor implements Stepper {
   private show: Show;
   private lastT = 0;
@@ -82,10 +103,10 @@ export class Conductor implements Stepper {
 
   /** A paused seek: reset(t − 1), then 60 steps of 1/60 s, so the picture at t shows. */
   preview(t: number): void {
-    const t0 = Math.max(0, t - 1), n = 60, d = (t - t0) / n;
+    const { t0, times } = previewSteps(t);
     this.reset(t0);
-    if (!(d > 0)) return;
-    for (let i = 1; i <= n; i++) this.step(t0 + ((t - t0) * i) / n, d);
+    let last = t0;
+    for (const x of times) { this.step(x, x - last); last = x; }
   }
 
   private applyKnobs(id: string, knobs: Record<string, KnobSetting>): void {

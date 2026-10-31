@@ -217,7 +217,7 @@ async function boot(): Promise<void> {
   };
   const panel = new Panel({
     store, api, song: pack, catalogue, order, drives: harness.drives, icon,
-    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead,
+    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek: (t) => player.seek(t),
   });
   ui.panel.append(panel.el);
 
@@ -251,6 +251,7 @@ async function boot(): Promise<void> {
     if (i === lastNow) return;
     lastNow = i;
     ui.now.textContent = s.sections[i].label ?? `Section ${i + 1}`;
+    panel.where();
   };
   store.subscribe((s) => {
     if (s.show && s.show !== shown) { shown = s.show; conductor.setShow(s.show); refreshSoon(); lastNow = -1; drawNow(player.time); }

@@ -316,6 +316,9 @@ export class Conductor implements Stepper {
                                        // rt.step with scheduleAt(t), decaying slots kept only if drawn in the last step
   preview(t: number): void;    // a paused seek: reset(t − 1), then 60 steps of 1/60 s, so the picture at t shows
 }
+export function samePreview(a: Show, b: Show, t: number): boolean;
+//   would preview(t) draw the same for b as for a: scheduleAt (ids, attacks, weights, knobs) at the reset and every
+//   preview step, and entriesBetween over the preview second, equal (moments left out: a name or a split renumbers them)
 ```
 
 ### §6 Auto-composer — `src/studio/compose/` (T3)
@@ -640,7 +643,8 @@ Move `index.html` → `legacy.html` (`git mv`, content untouched). Modify `vite.
 
 **Interfaces:** Consumes §2–§6. Produces §5 (Conductor), §7, §8, and
 `class Player { constructor(canvas, audio, conductor, runtime); play(): Promise<void>; pause(): void; toggle(): void;
-seek(t: number): void /* paused → conductor.preview(t) */; readonly time: number; readonly duration: number;
+seek(t: number): void /* paused → conductor.preview(t) */; refresh(): void /* paused, after an edit: preview(time)
+only when !samePreview(show the picture was drawn for, current show, time) */; readonly time: number; readonly duration: number;
 audioStream(): MediaStream /* routes the element through Web Audio on first call */; onTick?: (t: number) => void }`.
 
 - [ ] **Step 1: Failing tests.**
