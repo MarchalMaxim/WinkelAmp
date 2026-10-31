@@ -81,15 +81,16 @@ button.link:hover { color: var(--fg); }
 .band { position: relative; height: 46px; margin-top: 2px; }
 .sec {
   position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px;
-  padding: 0 8px; border: none; border-left: 1px solid var(--bg); border-radius: 0; text-align: left; overflow: hidden;
-  background: hsl(var(--hue, 0) 16% 12%); color: var(--fg);
+  /* No padding or border of its own: a block is exactly as wide as its section, however short (the text clips). */
+  padding: 0; min-width: 0; border: none; border-radius: 0; text-align: left; overflow: hidden;
+  background: hsl(var(--hue, 0) 16% 12%); color: var(--fg); box-shadow: inset 1px 0 0 var(--bg);
 }
 .sec:first-child { border-radius: 0 0 0 5px; }
 .sec:hover:not(:disabled) { background: hsl(var(--hue, 0) 20% 16%); }
-.sec.on { background: hsl(var(--hue, 0) 24% 18%); box-shadow: inset 0 0 0 1.5px var(--on); }
+.sec.on { background: hsl(var(--hue, 0) 24% 18%); box-shadow: inset 1px 0 0 var(--bg), inset 0 0 0 1.5px var(--on); }
 .sec.empty { background: repeating-linear-gradient(135deg, #120e11 0 6px, #0d0a0d 6px 12px); }
-.sec-name { font: italic 14px/1.15 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sec-cast { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-name { padding: 0 8px; font: italic 14px/1.15 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-cast { padding: 0 8px; font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .handle { position: absolute; top: -6px; bottom: -4px; width: 24px; margin-left: -12px; cursor: ew-resize; touch-action: none; z-index: 2; }
 .handle::after { content: ""; position: absolute; left: 11px; top: 6px; bottom: 4px; width: 2px; background: #e9e2da38; border-radius: 1px; }
 .handle::before { content: ""; position: absolute; left: 8px; top: 18px; width: 8px; height: 16px; border-radius: 3px; background: #2a2428; border: 1px solid #5a4b4f; opacity: 0; }
