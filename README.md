@@ -43,6 +43,22 @@ you loved. Then:
   For an exact, smooth HD video made frame by frame (faster than the song itself), run
   `npm run render-show -- <song>` → `renders/<song>.mp4`.
 
+### Have Claude compose a show
+
+Write what you want to see in the **Show** tab's *Describe the show* box (it is saved to
+`shows/<song>.description.md`), then ask a Claude Code session in this repository to compose the show from it. The
+session follows [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md):
+
+```bash
+npm run describe-song -- <song>                  # the song in words: sections, their character, loudness, attacks
+# read shows/<song>.description.md, write shows/<song>.json (sections → widget stacks, knobs where the words ask)
+npm run check-show -- shows/<song>.json          # exit 0 = it plays; --fix repairs overlaps, gaps and typos
+npm run render-show -- <song> --from 120 --to 135 # a look at one stretch, then a contact sheet of its frames
+```
+
+A studio with the song open follows the show as it changes on disk (it asks first if you have unsaved edits).
+`shows/rach-prelude-recording.json` and `shows/beethoven5.json` were composed this way from the user's words.
+
 Songs (`songs/<id>/`: the audio and its pack) stay on your machine and out of git; shows are committed. The
 widgets live in [`lab/tools/`](lab/README.md): the [widget lab](lab/index.html) is where they are sketched and
 rated, and the studio runs the same files, so a widget looks the same in both.
@@ -165,6 +181,8 @@ npm run dev            # dev server: the studio at /, the old app at /legacy.htm
 npm run ears [-- --port 5175]               # the local server the studio sends dropped recordings to (GPU notes)
 npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<file>]   # a song pack in songs/<id>/
 npm run check-show [-- <file>…] [--fix]     # validate shows/*.json
+npm run describe-song -- <id>               # a song pack in words, for composing its show
+npm run widget-docs [-- --check]            # regenerate (or check) the widget list in docs/COMPOSING-SHOWS.md
 npm run render-show -- <show id | file> [--from s] [--to s] [--out renders/<id>.mp4] [--fps 30] [--crf 18] [--framemd5 f]
                        # a show as an HD video, frame by frame, with the recording's sound (a song without a show:
                        #   the one the studio composes); about 0.4 s per video second
@@ -190,7 +208,8 @@ GitHub Actions).
 
 ## Ideas for next steps
 
-- More shows in the corpus, above all the solo piano and concerto repertoire it is tuned for
-- Share a look as a link
-- Gentler defaults when the system asks for reduced motion
-- Audio from other tabs via screen-share capture (Spotify and similar services don't expose raw audio to web pages)
+- The studio: shows for more of the repertoire (the transcriber is a piano model: orchestral recordings get fewer,
+  rougher notes); 1080p exports (a dozen widgets draw at a fixed 1280×720); a phone-friendly way to share a show
+  without a video
+- The old app: share a look as a link; gentler defaults when the system asks for reduced motion; audio from other tabs
+  via screen-share capture (Spotify and similar services don't expose raw audio to web pages)
