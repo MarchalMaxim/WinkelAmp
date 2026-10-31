@@ -19,8 +19,12 @@
 // runtime change). A lab hash that moved while the lab is off its control this run is reported as unstable. The GPU
 // is not perfectly repeatable between runs either (a few edge pixels): re-run a flagged case with --only before
 // believing it. Comparisons missing from the file are listed, not failed.
+// Layer cases (plan 2026-10-31 T23): the same widgets with a list of layer settings, lab/index.html?render=1&layers=
+// against render.html?labSong&layers=, under the same pass rule: a spot, a turned window, a curve that thins, routed
+// instances. --only layers keeps just them. The Vivaldi case needs lab/pack-vivaldi-winter.js (npm run lab-notes) and
+// is skipped, with a message, without it.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -47,7 +51,7 @@ const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
 const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');
 const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), 'utf8'));
 
-// The cases: [song, ids, start, checks?].
+// The cases: [song, ids, start, checks?, layer case?] (a layer case: { name, layers: [{ widget, listen?, region?, intensity? }] }).
 const cases = [];
 for (const id of harness.toolIds) { cases.push(['prelude', id, 126], ['b5', id, 0]); }
 for (const id of Object.keys(harness.verdicts)) {
@@ -60,12 +64,46 @@ cases.push(['prelude', 'squares,casket', 126], ['b5', 'kandinsky,rorschach', 0])
 const momentReaders = harness.toolIds.filter((id) => /\.moment\b/.test(readFileSync(path.join(ROOT, 'lab/tools', `${id}.js`), 'utf8')));
 for (const ids of [...momentReaders, 'squares,casket']) cases.push(['prelude', ids, 119, [4.5, 6, 8, 11]]);
 for (const ids of [...momentReaders, 'kandinsky,rorschach']) cases.push(['b5', ids, 15, [4.5, 6, 8, 11]]);
+// The layer cases. Curves come from the shared presets (lab/layers/automation.js), the text the lab and the studio run.
+const { evalLayers } = await vite.ssrLoadModule('/src/widgets/layers.ts');
+const LAYER_DIR = path.join(ROOT, 'lab/layers');
+const WA = evalLayers(Object.fromEntries(readdirSync(LAYER_DIR).filter((f) => f.endsWith('.js'))
+  .map((f) => [f, readFileSync(path.join(LAYER_DIR, f), 'utf8')])));
+const layerCase = (song, ids, start, name, layers) => cases.push([song, ids, start, CHECKS, { name, layers }]);
+// casket in a feathered spotlight ellipse over squares, in the prelude's casket section
+layerCase('prelude', 'squares,casket', 126, 'casket-spot', [{ widget: 'casket',
+  region: { mode: 'spot', shape: 'ellipse', x: 0.45, y: 0.5, w: 0.55, h: 0.6, feather: 0.3 } }]);
+// rorschach drawn in its own window, a rect turned by 20 degrees, stamped over the black stage
+layerCase('b5', 'rorschach', 0, 'rorschach-window', [{ widget: 'rorschach',
+  region: { mode: 'window', shape: 'rect', x: 0.55, y: 0.45, w: 0.5, h: 0.55, rot: 20, feather: 0.2, blend: 'over', fit: 'cover' } }]);
+// strings fading in over the agitato's first 2.5 s, then held at 0.5 from 86 s: half its attacks thinned away
+// (the checks are at 85 on the ramp, 86.5 and 88 on the hold)
+layerCase('prelude', 'strings', 84, 'strings-fade-hold', [{ widget: 'strings',
+  intensity: [...WA.presets.fadeIn({ start: 83, end: 124 }, 2.5), { t: 86, v: 0.5, shape: 'hold' }, { t: 124, v: 0.5 }] }]);
+layerCase('prelude', 'strings', 84, 'strings-melody', [{ widget: 'strings', listen: 'melody' }]);
+layerCase('prelude', 'strings,squares', 126, 'strings-high+squares-low',
+  [{ widget: 'strings', listen: 'high' }, { widget: 'squares', listen: 'low' }]);
+// squares on the cellos (an instrument track of the pack), its curve following where they play in Winter's 'The wind'
+// (36-66 s): closed from 41.16 to 44.12 s while the cellos rest, open again after. The checks are at 44 (closed: the
+// squares heard before 41 s fading out) and 45.5 and 47 (open). Not the violins: squares draws only notes below its
+// split knob (MIDI 50), and the violins' lowest is 55, so squares on them is blank at every time.
+const VIVALDI_PACK = path.join(ROOT, 'lab/pack-vivaldi-winter.js');
+if (!existsSync(VIVALDI_PACK) || !existsSync(path.join(ROOT, 'lab/notes-vivaldi-winter.js'))) {
+  console.log('fidelity: the layer case squares-cello-plays (vivaldi-winter 43) is skipped: no lab/pack-vivaldi-winter.js'
+    + ' or lab/notes-vivaldi-winter.js (npm run lab-notes -- vivaldi-winter; local only)');
+} else {
+  const window = {};
+  new Function('window', readFileSync(VIVALDI_PACK, 'utf8'))(window);
+  const cello = window.PACK?.tracks?.cello?.notes ?? [];
+  layerCase('vivaldi-winter', 'squares', 43, 'squares-cello-plays', [{ widget: 'squares', listen: 'cello',
+    intensity: WA.presets.plays({ start: 36, end: 66 }, cello) }]);
+}
 // One page per side per (song, widget set, checks), its cases in ascending start on every page.
 const groups = new Map();
-for (const [song, ids, start, checks = CHECKS] of cases) {
-  if (ONLY && !ids.split(',').some((i) => ONLY.includes(i))) continue;
-  const k = `${song}|${ids}|${checks.join(',')}`;
-  if (!groups.has(k)) groups.set(k, { song, ids, checks, starts: [] });
+for (const [song, ids, start, checks = CHECKS, lc = null] of cases) {
+  if (ONLY && !ids.split(',').some((i) => ONLY.includes(i)) && !(lc && ONLY.includes('layers'))) continue;
+  const k = `${song}|${ids}|${checks.join(',')}${lc ? `|${lc.name}` : ''}`;
+  if (!groups.has(k)) groups.set(k, { song, ids, checks, starts: [], name: lc?.name ?? null, layers: lc?.layers ?? null });
   const g = groups.get(k);
   if (!g.starts.includes(start)) g.starts.push(start);
 }
@@ -82,9 +120,10 @@ async function newPage() {
   return page;
 }
 const sides = { lab: await newPage(), studio: await newPage(), control: await newPage() };
-const url = (side, song, ids) => side === 'studio'
+const url = (side, song, ids, layers) => (side === 'studio'
   ? `${BASE}/render.html?labSong=${song}&only=${encodeURIComponent(ids)}&hz=${HZ}`
-  : `${BASE}/lab/index.html?render=1&only=${encodeURIComponent(ids)}&song=${song}&hz=${HZ}`;
+  : `${BASE}/lab/index.html?render=1&only=${encodeURIComponent(ids)}&song=${song}&hz=${HZ}`)
+  + (layers ? `&layers=${encodeURIComponent(JSON.stringify(layers))}` : '');
 
 // Runs in each page: steps to frame k1 (frames at start + k/FPS), then hashes the canvas #c (both pages call it #c).
 function advance({ start, k0, k1, fps, preroll }) {
@@ -123,14 +162,15 @@ function diff(a, b) {
 const rows = [];
 const t0 = Date.now();
 let gi = 0;
-for (const { song, ids, checks, starts } of groups.values()) {
+for (const { song, ids, checks, starts, name, layers } of groups.values()) {
   gi++;
+  const label = name ? `${ids} [${name}]` : ids;
   await Promise.all(Object.entries(sides).map(async ([side, page]) => {
     page.errors = [];
-    await page.goto(url(side, song, ids));
+    await page.goto(url(side, song, ids, layers));
     await page.waitForFunction(() => window.renderReady === true || window.renderFailed, null, { timeout: 60000 });
     const failed = await page.evaluate(() => window.renderFailed);
-    if (failed) throw new Error(`${side} ${song} ${ids}: ${failed}`);
+    if (failed) throw new Error(`${side} ${song} ${label}: ${failed}`);
   }));
   for (const start of starts) {
     let k0 = null;
@@ -147,8 +187,8 @@ for (const { song, ids, checks, starts } of groups.values()) {
           sides.control.evaluate(advance, { start, k0, k1: k0, fps: FPS, preroll: PREROLL })]);
         if (own !== h.studio) throw new Error(`render.html renderFrameHash ${own} differs from the canvas hash ${h.studio}`);
       }
-      const row = { song, ids, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control, blank: h.lab === BLANK,
-        key: `${song}|${ids}|${start}|${at}`, lab: h.lab, studioHash: h.studio };
+      const row = { song, ids: label, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control, blank: h.lab === BLANK,
+        key: `${song}|${ids}${name ? `~${name}` : ''}|${start}|${at}`, lab: h.lab, studioHash: h.studio };
       if (!row.same || !row.controlSame) {
         const px = Object.fromEntries(await Promise.all(Object.entries(sides).map(async ([side, page]) =>
           [side, Buffer.from(await page.evaluate(pixels), 'base64')])));
@@ -172,14 +212,14 @@ for (const { song, ids, checks, starts } of groups.values()) {
       }
       if (STILLS) {
         mkdirSync(STILLS, { recursive: true });
-        const name = `${song}-${ids.replace(/,/g, '+')}-${start}+${at}`;
+        const still = `${song}-${ids.replace(/,/g, '+')}${name ? `-${name}` : ''}-${start}+${at}`;
         const [lab, studio] = await Promise.all([sides.lab.evaluate(png), sides.studio.evaluate(png)]);
-        const fl = path.join(STILLS, `${name}.lab.png`), fs_ = path.join(STILLS, `${name}.studio.png`);
+        const fl = path.join(STILLS, `${still}.lab.png`), fs_ = path.join(STILLS, `${still}.studio.png`);
         writeFileSync(fl, Buffer.from(lab, 'base64')); writeFileSync(fs_, Buffer.from(studio, 'base64'));
         await sides.control.evaluate(png);   // every page reads back the same frames
         spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', fl, '-i', fs_, '-filter_complex',
           '[0]format=rgb24,split[a0][a1];[1]format=rgb24,split[b0][b1];[a0][b0]blend=all_mode=difference,lutrgb=r=val*8:g=val*8:b=val*8[d];[a1][b1][d]hstack=inputs=3',
-          path.join(STILLS, `${name}.compare.png`)]);
+          path.join(STILLS, `${still}.compare.png`)]);
       }
       rows.push(row);
     }
@@ -188,7 +228,7 @@ for (const { song, ids, checks, starts } of groups.values()) {
   const labErr = await sides.lab.evaluate(() => JSON.stringify(window.renderErrors ?? {}));
   const stErr = await sides.studio.evaluate(() => JSON.stringify(window.renderErrors ?? {}));
   const last = rows.slice(-starts.length * checks.length);
-  console.log(`[${gi}/${groups.size}] ${song} ${ids}: ${last.every((r) => r.pass) ? 'PASS' : 'FAIL'}`
+  console.log(`[${gi}/${groups.size}] ${song} ${label}: ${last.every((r) => r.pass) ? 'PASS' : 'FAIL'}`
     + ` (${last.filter((r) => r.same).length}/${last.length} identical)${errs.length ? ` page errors: ${errs.join(' | ')}` : ''}`
     + (labErr !== stErr ? ` widget errors differ: lab ${labErr} studio ${stErr}` : labErr !== '{}' ? ` widget errors (both): ${labErr}` : ''));
 }
@@ -196,11 +236,12 @@ await browser.close();
 await vite.close();
 
 const pct = (x) => `${(x * 100).toFixed(3)}%`;
-console.log('\nsong     widgets                         start  at    result');
+const SW = Math.max(8, ...rows.map((r) => r.song.length)), IW = Math.max(31, ...rows.map((r) => r.ids.length));
+console.log(`\n${'song'.padEnd(SW)} ${'widgets'.padEnd(IW)} start  at    result`);
 for (const r of rows) {
   const res = r.same ? (r.controlSame ? 'identical' : `identical (control off ${pct(r.control.share)}, max ${r.control.max})`)
     : `studio off ${pct(r.studio.share)} (${r.studio.off} px) max ${r.studio.max} | control off ${pct(r.control.share)} max ${r.control.max}`;
-  console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}${r.labChanged ? ' (lab hash changed)' : ''}${r.studioRegressed ? ' (studio hash changed)' : ''}`);
+  console.log(`${r.song.padEnd(SW)} ${r.ids.padEnd(IW)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}${r.labChanged ? ' (lab hash changed)' : ''}${r.studioRegressed ? ' (studio hash changed)' : ''}`);
 }
 const failed = rows.filter((r) => !r.pass);
 if (RECORD) {
