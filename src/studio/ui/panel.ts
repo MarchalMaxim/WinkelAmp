@@ -34,6 +34,8 @@ export function verdictTag(m: WidgetMeta): string {
     : `<span class="tag ${VCLASS[vd.v] ?? 'v-none'}" title="${tip}">you: ${esc(vd.v)}</span>`;
 }
 
+const KEY_IDLE = 600;
+
 const RANK: Record<string, number> = { love: 0, keep: 1, 'needs work': 2 };
 const GROUPS = ['You love these', 'You keep these', 'These need work', 'Not judged yet', 'You dropped these'];
 const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4) : 3);
@@ -50,6 +52,8 @@ export class Panel {
   private key = '';
   private rows: { row: KnobRow; layer: number }[] = [];
   private knobDrag = 0;
+  /** When the last key press moved a knob (presses less than KEY_IDLE ms apart are one undo step), 0 after a drag. */
+  private stepAt = 0;
   private liveAt = 0;
   /** The description as typed and as saved, kept across tab switches (the tab is drawn again each time). */
   private desc: { text: string; saved: string } | null = null;
@@ -178,9 +182,12 @@ export class Panel {
     const params: Param[] = Array.isArray(tool.params) ? tool.params : [];
     if (!params.length) { box.innerHTML = '<p class="dim small">This widget has no knobs.</p>'; return; }
     for (const q of params) {
-      const row = knobRow(q, knobState(q, knobs?.[q.key]), this.d.drives, this.d.icon, (st, final) => {
+      const row = knobRow(q, knobState(q, knobs?.[q.key]), this.d.drives, this.d.icon, (st, phase) => {
+        const now = performance.now();
+        if ((phase === 'step') !== (this.stepAt > 0) || (phase === 'step' && now - this.stepAt > KEY_IDLE)) this.knobDrag++;
+        this.stepAt = phase === 'step' ? now : 0;
         this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key: q.key, value: settingOf(q, st) }, group: `knob:${i}:${k}:${q.key}:${this.knobDrag}` });
-        if (final) this.knobDrag++;
+        if (phase === 'end') this.knobDrag++;
       });
       this.rows.push({ row, layer: k });
       box.append(row.el);

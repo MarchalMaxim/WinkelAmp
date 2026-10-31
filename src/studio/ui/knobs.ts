@@ -44,8 +44,14 @@ const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => (
 
 export interface KnobRow { el: HTMLElement; q: Param; live: HTMLCanvasElement | null; sync(s: KnobState): void; drawLive(f: Features): void }
 
+/**
+ * How a knob moved: 'move' during a pointer drag, 'end' when a drag or a choice is done, 'step' for a key press on the
+ * slider (each press is a whole change; the caller groups presses that follow each other closely).
+ */
+export type KnobPhase = 'move' | 'end' | 'step';
+
 /** One knob row. onChange gets the new state; the row keeps its own inputs in step (sync) when the show changes. */
-export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], icon: IconLib, onChange: (s: KnobState, final: boolean) => void): KnobRow {
+export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], icon: IconLib, onChange: (s: KnobState, phase: KnobPhase) => void): KnobRow {
   const label = esc(q.label ?? q.key);
   const el = document.createElement('div');
   const select = `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
@@ -66,15 +72,22 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
     el, q, live,
     sync(s) {
       cur = { ...s };
-      if (document.activeElement !== input) input.value = String(s.base);
+      if (Number(input.value) !== s.base) input.value = String(s.base);   // a drag already shows its value; an undo moves it back
       sel.value = s.drive;
       if (live) drawIcon(live, q, norm(q, s.base), icon);
     },
     drawLive(f) { if (live) drawIcon(live, q, norm(q, knobValue(q, cur, f)), icon); },
   };
-  input.addEventListener('input', () => { cur = { ...cur, base: Number(input.value) }; if (live) drawIcon(live, q, norm(q, cur.base), icon); onChange(cur, false); });
-  input.addEventListener('change', () => onChange({ ...cur, base: Number(input.value) }, true));
-  sel.addEventListener('change', () => { cur = { ...cur, drive: sel.value as Drive }; onChange(cur, true); });
+  let pointer = false;   // the last thing to move the slider: a pointer (drag) or a key
+  input.addEventListener('pointerdown', () => { pointer = true; });
+  input.addEventListener('keydown', () => { pointer = false; });
+  input.addEventListener('input', () => {
+    cur = { ...cur, base: Number(input.value) };
+    if (live) drawIcon(live, q, norm(q, cur.base), icon);
+    onChange(cur, pointer ? 'move' : 'step');
+  });
+  input.addEventListener('change', () => { if (pointer) onChange({ ...cur, base: Number(input.value) }, 'end'); });
+  sel.addEventListener('change', () => { cur = { ...cur, drive: sel.value as Drive }; onChange(cur, 'end'); });
   input.value = String(state.base); sel.value = state.drive;
   row.sync(state);
   return row;
