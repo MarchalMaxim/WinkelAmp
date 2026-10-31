@@ -1,0 +1,539 @@
+{
+  "feel": {
+    "temperature": {
+      "icy": {
+        "looks": "Blue-white or black-and-white, thin and hard-edged, with little glow.",
+        "sounds": "High, clear, sparse sound: harmonics, glassy upper strings, a flute or a high piano alone.",
+        "fit": {
+          "quiet": 0.6
+        }
+      },
+      "cool": {
+        "looks": "Blues, violets and greys; colour held back.",
+        "sounds": "Calm, detached music, or harmony far from home (modal, chromatic colour).",
+        "fit": {
+          "quiet": 0.4
+        }
+      },
+      "warm": {
+        "looks": "Reds, ochres, ambers and cream in soft light.",
+        "sounds": "Home-key harmony in the middle register, rich vibrato, legato.",
+        "fit": {
+          "quiet": 0.3,
+          "dense": 0.2
+        }
+      },
+      "burning": {
+        "looks": "Ember to white-hot: things heat up as they move or get hit.",
+        "sounds": "Loud, fast, high-tension climaxes.",
+        "fit": {
+          "loud": 0.8,
+          "fast": 0.5
+        }
+      }
+    },
+    "weight and texture": {
+      "heavy": {
+        "looks": "Big dark masses that land and sink.",
+        "sounds": "Low register, loud bass, slow hard attacks: tolls, octaves, tutti chords.",
+        "fit": {
+          "low": 1,
+          "loud": 0.6
+        }
+      },
+      "airy": {
+        "looks": "Small, sparse shapes with a lot of space around them.",
+        "sounds": "High, soft, thin textures; a few notes at a time.",
+        "fit": {
+          "quiet": 0.8
+        }
+      },
+      "grainy": {
+        "looks": "Dots, dust, screens, particles, tiles.",
+        "sounds": "Many short notes: repeated notes, tremolo, staccato, broken chords.",
+        "fit": {
+          "fast": 0.5,
+          "dense": 0.3
+        }
+      },
+      "silky": {
+        "looks": "Smooth unbroken lines and soft gradients.",
+        "sounds": "Legato, sustained, bowed or sung lines.",
+        "fit": {
+          "quiet": 0.6
+        }
+      },
+      "brittle": {
+        "looks": "Sharp, thin marks that crack, snap, scratch or erode.",
+        "sounds": "Dry, short, hard attacks: staccato, pizzicato, harpsichord, accented dissonance.",
+        "fit": {
+          "fast": 0.4,
+          "loud": 0.3
+        }
+      },
+      "liquid": {
+        "looks": "Ink, dye, melt: colour that spreads, bleeds and drips.",
+        "sounds": "Washes of sound: pedal, resonance, blended harmony.",
+        "fit": {
+          "quiet": 0.4,
+          "dense": 0.4
+        }
+      }
+    },
+    "motion": {
+      "still": {
+        "looks": "Almost nothing moves; change is a slow fade.",
+        "sounds": "Held chords, slow chorales, silence.",
+        "fit": {
+          "quiet": 1
+        }
+      },
+      "flowing": {
+        "looks": "Continuous drift: currents, scrolling, a line that never stops.",
+        "sounds": "Steady legato motion, running figures without hard accents.",
+        "fit": {
+          "quiet": 0.4,
+          "fast": 0.3
+        }
+      },
+      "swelling": {
+        "looks": "Shapes that grow, breathe and glow up, then fall back.",
+        "sounds": "Crescendo, held notes that bloom, a phrase that swells and lets go.",
+        "fit": {
+          "dense": 0.4,
+          "loud": 0.3
+        }
+      },
+      "whirling": {
+        "looks": "Rotation: spirals, turning rings, orbits.",
+        "sounds": "Circling figures: arpeggios, ostinati, trills.",
+        "fit": {
+          "fast": 0.6
+        }
+      },
+      "marching": {
+        "looks": "Regular steps: hops, rows, a grid, things that scroll on a beat.",
+        "sounds": "A clear pulse: dance rhythm, repeated patterns, counterpoint ticking along.",
+        "fit": {
+          "fast": 0.5,
+          "dense": 0.3
+        }
+      },
+      "skittish": {
+        "looks": "Small things that twitch, freeze and bolt.",
+        "sounds": "Fast, light, nervous passagework: agitato.",
+        "fit": {
+          "fast": 1
+        }
+      },
+      "stabbing": {
+        "looks": "Sudden cuts, slashes, strikes and flashes.",
+        "sounds": "Sforzandi, accented chords, hammer blows.",
+        "fit": {
+          "loud": 1,
+          "dense": 0.4
+        }
+      }
+    },
+    "light and colour": {
+      "dark": {
+        "looks": "A black or deep ground, low light.",
+        "sounds": "Low register, minor mode, menace (loud or soft).",
+        "fit": {
+          "low": 0.8
+        }
+      },
+      "pale": {
+        "looks": "Washed, chalky, paper-white or pastel.",
+        "sounds": "Soft dynamics, transparent textures.",
+        "fit": {
+          "quiet": 0.8
+        }
+      },
+      "vivid": {
+        "looks": "Saturated flat colours with strong contrast.",
+        "sounds": "Bright orchestration, clear rhythm, major-mode energy.",
+        "fit": {
+          "loud": 0.4,
+          "dense": 0.3
+        }
+      },
+      "glowing": {
+        "looks": "Light from inside: halos, bloom, embers.",
+        "sounds": "Sustained resonance: held tones, warm vibrato, a ringing chord.",
+        "fit": {
+          "dense": 0.2
+        }
+      },
+      "flickering": {
+        "looks": "Strobing, jumping frames, unstable light.",
+        "sounds": "Tremolo, trills, fast repeated notes.",
+        "fit": {
+          "fast": 0.8
+        }
+      }
+    },
+    "atmosphere": {
+      "serene": {
+        "looks": "Calm, balanced, open space.",
+        "sounds": "Slow, consonant, soft.",
+        "fit": {
+          "quiet": 1
+        }
+      },
+      "longing": {
+        "looks": "One line reaching across space, fading trails.",
+        "sounds": "An expressive melody: suspensions, rubato, a solo that sings.",
+        "fit": {
+          "quiet": 0.6
+        }
+      },
+      "playful": {
+        "looks": "Bouncy, colourful, toy-like motion.",
+        "sounds": "Scherzo, staccato dance, light syncopation.",
+        "fit": {
+          "fast": 0.6
+        }
+      },
+      "triumphant": {
+        "looks": "Big, bright, confident forms that rise.",
+        "sounds": "Loud major tutti, brass fanfares, final cadences.",
+        "fit": {
+          "loud": 1,
+          "dense": 0.6
+        }
+      },
+      "dread": {
+        "looks": "Dark masses arriving slowly.",
+        "sounds": "Low, slow, ominous: tolling bass, minor chords.",
+        "fit": {
+          "low": 1,
+          "quiet": 0.3
+        }
+      },
+      "panic": {
+        "looks": "Chaos: cuts, scattering, smearing, shaking.",
+        "sounds": "A loud, fast, dense climax.",
+        "fit": {
+          "loud": 0.8,
+          "fast": 0.8,
+          "dense": 0.6
+        }
+      }
+    }
+  },
+  "instruments": {
+    "piano": {
+      "label": "Piano",
+      "family": "keys",
+      "pairs": [
+        "stabbing",
+        "heavy",
+        "grainy",
+        "liquid"
+      ],
+      "tracks": [
+        "piano"
+      ],
+      "sound": "Hammer attack, then decay; the pedal blurs."
+    },
+    "harpsichord": {
+      "label": "Harpsichord",
+      "family": "keys",
+      "pairs": [
+        "brittle",
+        "marching",
+        "grainy"
+      ],
+      "tracks": [
+        "piano"
+      ],
+      "sound": "Plucked, no sustain, bright and mechanical; counterpoint."
+    },
+    "plucked": {
+      "label": "Guitar / harp / lute / pizzicato",
+      "family": "plucked",
+      "pairs": [
+        "grainy",
+        "playful",
+        "warm",
+        "whirling"
+      ],
+      "tracks": [
+        "plucked"
+      ],
+      "sound": "A pluck and a ring: dots, arpeggios, an old guitar."
+    },
+    "violin": {
+      "label": "Violin",
+      "family": "strings",
+      "pairs": [
+        "silky",
+        "longing",
+        "skittish"
+      ],
+      "tracks": [
+        "violin"
+      ],
+      "sound": "The singing top line; also the nervous one (spiccato, tremolo)."
+    },
+    "viola": {
+      "label": "Viola",
+      "family": "strings",
+      "pairs": [
+        "silky",
+        "cool",
+        "longing"
+      ],
+      "tracks": [
+        "viola"
+      ],
+      "sound": "The veiled inner voice; dark, a little husky."
+    },
+    "cello": {
+      "label": "Cello",
+      "family": "strings",
+      "pairs": [
+        "silky",
+        "warm",
+        "swelling",
+        "longing"
+      ],
+      "tracks": [
+        "cello"
+      ],
+      "sound": "A warm low voice with a long bow; a phrase that swells."
+    },
+    "contrabass": {
+      "label": "Contrabass",
+      "family": "strings",
+      "pairs": [
+        "heavy",
+        "dark",
+        "dread"
+      ],
+      "tracks": [
+        "contrabass"
+      ],
+      "sound": "The floor: low pedal, pizzicato bass, menace."
+    },
+    "strings": {
+      "label": "Strings (section)",
+      "family": "strings",
+      "pairs": [
+        "silky",
+        "flowing",
+        "swelling",
+        "flickering"
+      ],
+      "tracks": [
+        "family:strings"
+      ],
+      "sound": "The massed bowed sound: pads, tremolo, swells, flocks of lines."
+    },
+    "flute": {
+      "label": "Flute",
+      "family": "winds",
+      "pairs": [
+        "airy",
+        "playful",
+        "icy"
+      ],
+      "tracks": [
+        "flute"
+      ],
+      "sound": "Airy and light; runs and birdlike lines."
+    },
+    "oboe": {
+      "label": "Oboe",
+      "family": "winds",
+      "pairs": [
+        "longing",
+        "pale",
+        "serene"
+      ],
+      "tracks": [
+        "oboe"
+      ],
+      "sound": "A thin, plaintive, slightly nasal solo."
+    },
+    "clarinet": {
+      "label": "Clarinet",
+      "family": "winds",
+      "pairs": [
+        "silky",
+        "playful",
+        "whirling"
+      ],
+      "tracks": [
+        "clarinet"
+      ],
+      "sound": "Round and supple, from a breathy whisper to a jazzy swoop."
+    },
+    "bassoon": {
+      "label": "Bassoon",
+      "family": "winds",
+      "pairs": [
+        "dark",
+        "heavy",
+        "playful"
+      ],
+      "tracks": [
+        "bassoon"
+      ],
+      "sound": "Dark and reedy at the bottom, comic when staccato."
+    },
+    "horn": {
+      "label": "Horn",
+      "family": "brass",
+      "pairs": [
+        "warm",
+        "glowing",
+        "swelling"
+      ],
+      "tracks": [
+        "horn"
+      ],
+      "sound": "Round, warm, distant; long held calls."
+    },
+    "trumpet": {
+      "label": "Trumpet",
+      "family": "brass",
+      "pairs": [
+        "vivid",
+        "triumphant",
+        "stabbing"
+      ],
+      "tracks": [
+        "trumpet"
+      ],
+      "sound": "Bright, fanfare, a yellow point of light."
+    },
+    "trombone": {
+      "label": "Trombone",
+      "family": "brass",
+      "pairs": [
+        "heavy",
+        "triumphant",
+        "stabbing"
+      ],
+      "tracks": [
+        "trombone"
+      ],
+      "sound": "Heavy blocks of sound, slides and smears."
+    },
+    "timpani": {
+      "label": "Timpani / percussion",
+      "family": "percussion",
+      "pairs": [
+        "heavy",
+        "stabbing",
+        "marching"
+      ],
+      "tracks": [
+        "timpani"
+      ],
+      "sound": "Strokes, rolls and thunder."
+    },
+    "voice": {
+      "label": "Voice / choir",
+      "family": "voice",
+      "pairs": [
+        "longing",
+        "serene",
+        "glowing"
+      ],
+      "tracks": [
+        "voice"
+      ],
+      "sound": "A sung line, or a choir's sustained chords."
+    },
+    "tutti": {
+      "label": "Tutti / full orchestra",
+      "family": "ensemble",
+      "pairs": [
+        "triumphant",
+        "panic",
+        "heavy",
+        "vivid"
+      ],
+      "tracks": [
+        "all"
+      ],
+      "sound": "Everybody at once: loud, full, wide."
+    }
+  },
+  "synonyms": {
+    "cold": "icy",
+    "frozen": "icy",
+    "frosty": "icy",
+    "wintry": "icy",
+    "chilly": "cool",
+    "cozy": "warm",
+    "hot": "burning",
+    "fiery": "burning",
+    "blazing": "burning",
+    "massive": "heavy",
+    "ponderous": "heavy",
+    "crushing": "heavy",
+    "floating": "airy",
+    "weightless": "airy",
+    "gritty": "grainy",
+    "dusty": "grainy",
+    "sandy": "grainy",
+    "smooth": "silky",
+    "velvety": "silky",
+    "legato": "silky",
+    "fragile": "brittle",
+    "staccato": "brittle",
+    "dripping": "liquid",
+    "watery": "liquid",
+    "melting": "liquid",
+    "motionless": "still",
+    "drifting": "flowing",
+    "streaming": "flowing",
+    "growing": "swelling",
+    "blooming": "swelling",
+    "crescendo": "swelling",
+    "spinning": "whirling",
+    "swirling": "whirling",
+    "rhythmic": "marching",
+    "hasty": "skittish",
+    "nervous": "skittish",
+    "jittery": "skittish",
+    "violent": "stabbing",
+    "angry": "stabbing",
+    "aggressive": "stabbing",
+    "gloomy": "dark",
+    "sombre": "dark",
+    "somber": "dark",
+    "pastel": "pale",
+    "faded": "pale",
+    "colourful": "vivid",
+    "colorful": "vivid",
+    "radiant": "glowing",
+    "luminous": "glowing",
+    "shimmering": "flickering",
+    "twinkling": "flickering",
+    "strobing": "flickering",
+    "calm": "serene",
+    "peaceful": "serene",
+    "tranquil": "serene",
+    "sad": "longing",
+    "yearning": "longing",
+    "melancholy": "longing",
+    "wistful": "longing",
+    "happy": "playful",
+    "joyful": "playful",
+    "cheerful": "playful",
+    "heroic": "triumphant",
+    "glorious": "triumphant",
+    "victorious": "triumphant",
+    "scary": "dread",
+    "ominous": "dread",
+    "menacing": "dread",
+    "sinister": "dread",
+    "chaotic": "panic",
+    "frantic": "panic"
+  }
+}

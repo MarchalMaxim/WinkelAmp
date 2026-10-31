@@ -1,12 +1,13 @@
 // The widget catalogue in Node (check-show, describe-song, widget-docs, the dev API): each lab/tools/*.js evaluated in
 // node:vm with a canvas whose 2D context draws nothing, so only names, blurbs and knobs come out. lab/tools/dropped/
 // is never read (only *.js directly in lab/tools/).
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 import { toMeta } from '../../src/widgets/catalogue';
 import { readLabHarness } from '../../src/widgets/lab-harness';
-import type { IconLib, ToolDef, WidgetMeta } from '../../src/widgets/types';
+import { tagsOf, type TagWords } from '../../src/widgets/tags';
+import type { IconLib, ToolDef, WidgetMeta, WidgetTags } from '../../src/widgets/types';
 import { REPO } from './pack-io';
 
 /** Anything: callable, every property another stub, assignments kept. Gradients, patterns, paths, matrices. */
@@ -66,9 +67,21 @@ function realm() {
   return createContext(sandbox);
 }
 
+/** lab/tags.json (widget id → tags), or null when the repo has none. */
+export function readLabTags(repo: string = REPO): Record<string, WidgetTags> | null {
+  const file = resolve(repo, 'lab', 'tags.json');
+  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, WidgetTags>) : null;
+}
+
+/** lab/tag-words.json: the feel and instrument vocabulary. */
+export function readLabTagWords(repo: string = REPO): TagWords {
+  return JSON.parse(readFileSync(resolve(repo, 'lab', 'tag-words.json'), 'utf8')) as TagWords;
+}
+
 export interface Catalogue { widgets: Map<string, WidgetMeta>; failed: { id: string; error: string }[] }
 
-/** Every lab widget's WidgetMeta: TOOL_IDS order, then any other lab/tools/*.js (by name). `sources` replaces the files. */
+/** Every lab widget's WidgetMeta: TOOL_IDS order, then any other lab/tools/*.js (by name). `sources` replaces the files.
+    `meta.tags` is the widget's lab/tags.json entry, or null (untagged, or no lab/tags.json). */
 export function loadCatalogue(o: { repo?: string; sources?: Record<string, string> } = {}): Catalogue {
   const repo = o.repo ?? REPO;
   const harness = readLabHarness(readFileSync(resolve(repo, 'lab', 'index.html'), 'utf8'));
@@ -78,6 +91,7 @@ export function loadCatalogue(o: { repo?: string; sources?: Record<string, strin
       .map((d) => [d.name.slice(0, -3), readFileSync(resolve(repo, 'lab', 'tools', d.name), 'utf8')]),
   );
   const ids = [...harness.toolIds.filter((id) => id in sources), ...Object.keys(sources).filter((id) => !harness.toolIds.includes(id)).sort()];
+  const tags = readLabTags(repo);
   const ctx = realm();
   const icon = runInContext(`(${harness.iconSource})`, ctx, { filename: 'lab/index.html#ICON' }) as IconLib;
   const widgets = new Map<string, WidgetMeta>(), failed: Catalogue['failed'] = [];
@@ -88,7 +102,7 @@ export function loadCatalogue(o: { repo?: string; sources?: Record<string, strin
       const tools: ToolDef[] = [];
       run(tools, icon, []);
       if (tools.length !== 1 || tools[0]?.id !== id) throw new Error(`must push exactly one tool with id '${id}' (pushed: ${tools.map((t) => t?.id).join(', ') || 'none'})`);
-      widgets.set(id, toMeta(tools[0], harness.verdicts[id] ?? null));
+      widgets.set(id, toMeta(tools[0], harness.verdicts[id] ?? null, tagsOf(tags, id)));
     } catch (e) {
       failed.push({ id, error: e && typeof (e as Error).message === 'string' ? (e as Error).message : String(e) });   // vm errors are another realm's Error
     }
