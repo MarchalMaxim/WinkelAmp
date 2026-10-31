@@ -142,7 +142,7 @@ describe('the ears server', () => {
         await new Promise((res) => setTimeout(res, 15));
       }
       expect(last!.state).toBe('done');
-      expect(last!.warnings).toEqual([warn]);
+      expect(last!.warnings).toEqual(['transcriber unavailable: no python', warn]);
       expect(has(calls[calls.length - 1].args, ['--notes', 'auto'])).toBe(true);
     } finally {
       await ears2.close();

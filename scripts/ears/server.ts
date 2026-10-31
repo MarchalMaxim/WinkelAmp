@@ -157,6 +157,9 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
       advance(w, { state: 'running', message: 'waiting for the transcriber check' });
       // Waited for so a first job never races torch's import in the probe; ingest decides what runs on its own.
       const t = await probing;
+      // Said as it is, with no claim about the notes: YourMT3+ or basic-pitch may still give them (the pack's own
+      // warnings, merged in from ingest's done line, say what came of it).
+      if (!t.ok) w.pub.warnings.push(`transcriber unavailable: ${t.reason ?? 'unknown'}`);
       log(`job ${w.pub.job}: ${w.pub.id} (notes auto; piano model ${t.ok ? 'ready' : `unavailable: ${t.reason ?? 'unknown'}`})`);
       let r = await attempt(w, 'auto', 0);
       if (r.code === 3 && !closed) {
