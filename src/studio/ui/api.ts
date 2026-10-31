@@ -1,7 +1,7 @@
 /**
  * Where the studio's songs and shows live (plan §7): the dev API (npm run dev, scripts/studio-api.ts) reads and writes
- * them on disk; without it (the static build) the studio has only the songs added in this session, and Save downloads
- * the show and keeps a draft in this browser.
+ * them on disk; without it (the static build) the studio has only the songs added in this browser (kept in IndexedDB),
+ * and Save downloads the show and keeps a draft in this browser.
  */
 import type { NotesSource, SongPack } from '../pack/pack';
 import { canonicalShow, type Show } from '../show/show';
@@ -19,7 +19,7 @@ export interface ShowStore {
   saveShow(s: Show): Promise<void>;
   description(id: string): Promise<string>;
   saveDescription(id: string, text: string): Promise<void>;
-  /** The in-browser fallback's result (static: memory, this session). */
+  /** The in-browser fallback's result (static: this browser's IndexedDB, else memory for this page). */
   addSong(p: SongPack, audio: Blob): Promise<void>;
 }
 
@@ -83,20 +83,71 @@ export function download(name: string, text: string | Blob, type = 'application/
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
+/** IndexedDB 'wa-studio', store 'songs' ({ pack, audio } by pack id); null where the browser refuses it. */
+function songDb(): Promise<IDBDatabase | null> {
+  return new Promise((ok) => {
+    try {
+      const r = indexedDB.open('wa-studio', 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('songs'); };
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ok(null);
+      r.onblocked = () => ok(null);
+    } catch { ok(null); }
+  });
+}
+function idb<T>(db: IDBDatabase, mode: IDBTransactionMode, op: (s: IDBObjectStore) => IDBRequest): Promise<T> {
+  return new Promise((ok, fail) => {
+    const r = op(db.transaction('songs', mode).objectStore('songs'));
+    r.onsuccess = () => ok(r.result as T);
+    r.onerror = () => fail(r.error ?? new Error('IndexedDB failed'));
+  });
+}
+
+/**
+ * Without the dev API: songs added in the studio (the in-browser fallback) live in this browser's IndexedDB, so opening
+ * one (a fresh page, see §2) finds it; where IndexedDB is refused they live in memory for this page only.
+ */
 function staticStore(): ShowStore {
   const songs = new Map<string, { pack: SongPack; url: string }>();
+  const db = songDb();
+  const remember = (pack: SongPack, audio: Blob) => {
+    const old = songs.get(pack.id);
+    if (old) URL.revokeObjectURL(old.url);
+    songs.set(pack.id, { pack, url: URL.createObjectURL(audio) });
+    return pack;
+  };
+  const stored = async (): Promise<SongPack[]> => {
+    const d = await db;
+    if (!d) return [];
+    try { return (await idb<{ pack: SongPack }[]>(d, 'readonly', (s) => s.getAll())).map((x) => x.pack); } catch { return []; }
+  };
   return {
     writable: false,
     async songs() {
-      return [...songs.values()].map(({ pack: p }) => ({ id: p.id, title: p.title, duration: p.duration, notesFrom: p.notesFrom, hasShow: lsGet(draftKey(p.id)) != null }));
+      const all = new Map<string, SongPack>();
+      for (const p of await stored()) all.set(p.id, p);
+      for (const { pack } of songs.values()) all.set(pack.id, pack);
+      return [...all.values()].sort((a, b) => a.id.localeCompare(b.id))
+        .map((p) => ({ id: p.id, title: p.title, duration: p.duration, notesFrom: p.notesFrom, hasShow: lsGet(draftKey(p.id)) != null }));
     },
-    async pack(id) { const s = songs.get(id); if (!s) throw new ApiError(404, `no song ${id} in this session`); return s.pack; },
+    async pack(id) {
+      const s = songs.get(id);
+      if (s) return s.pack;
+      const d = await db;
+      const x = d ? await idb<{ pack: SongPack; audio: Blob } | undefined>(d, 'readonly', (st) => st.get(id)).catch(() => undefined) : undefined;
+      if (!x) throw new ApiError(404, `no song ${id} in this browser`);
+      return remember(x.pack, x.audio);
+    },
     audioUrl: (p) => songs.get(p.id)?.url ?? '',
     async show(id) { const d = lsGet(draftKey(id)); return d ? (JSON.parse(d) as Show) : null; },
     async saveShow(s) { const text = canonicalShow(s); lsSet(draftKey(s.id), text); download(`${s.id}.json`, text); },
     async description(id) { return lsGet(descKey(id)) ?? ''; },
     async saveDescription(id, text) { lsSet(descKey(id), text); },
-    async addSong(p, audio) { songs.set(p.id, { pack: p, url: URL.createObjectURL(audio) }); },
+    async addSong(p, audio) {
+      remember(p, audio);
+      const d = await db;
+      if (d) await idb(d, 'readwrite', (s) => s.put({ pack: p, audio }, p.id)).catch(() => { /* full or refused: this page only */ });
+    },
   };
 }
 

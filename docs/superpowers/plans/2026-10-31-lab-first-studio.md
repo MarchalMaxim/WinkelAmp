@@ -390,7 +390,9 @@ export interface ShowStore {
   songs(): Promise<LibraryEntry[]>; pack(id: string): Promise<SongPack>; audioUrl(p: SongPack): string;   // /songs/<id>/<audio>
   show(id: string): Promise<Show | null>; saveShow(s: Show): Promise<void>;
   description(id: string): Promise<string>; saveDescription(id: string, text: string): Promise<void>;
-  addSong(p: SongPack, audio: Blob): Promise<void>;   // the in-browser fallback's result (static: memory, this session)
+  addSong(p: SongPack, audio: Blob): Promise<void>;   // the in-browser fallback's result (static: this browser's IndexedDB
+                                                      // 'wa-studio', else memory for this page; changed in T5: opening the
+                                                      // new song is a fresh page, which memory alone would not survive)
 }
 export function connectStore(): Promise<ShowStore>;   // GET /api/health answers → dev store, else static store
 ```
@@ -423,7 +425,8 @@ export interface Job { job: string; id: string; state: 'queued' | 'running' | 'd
   message: string; warnings: string[]; error?: string }
 // scripts/ears/server.ts
 export interface EarsOptions { port?: number /* 5175 */; songs?: string; maxBytes?: number /* 1 GB */;
-  probe?: () => Promise<TranscriberStatus>; runIngest?: (args: string[]) => ChildProcess }   // default: node --import tsx scripts/ingest.ts …
+  probe?: () => Promise<TranscriberStatus>; runIngest?: (args: string[]) => ChildProcess;   // default: node --import tsx scripts/ingest.ts …
+  log?: (line: string) => void /* added in T5: what npm run ears prints; default silent */ }
 export function startEars(o?: EarsOptions): Promise<{ port: number; close(): Promise<void> }>;   // binds 127.0.0.1
 ```
 HTTP: `GET /health` → `{ ok: true, api: 1, transcriber }` · `POST /ingest?name=<file>[&id=<slug>][&title=<t>]`, body = the
@@ -432,7 +435,10 @@ sha1, 400 (no name/empty/bad id), 403 (origin), 413 (too big) · `POST /ingest?i
 `songs/<id>/audio.*`, e.g. GPU notes for an approximate pack) → 202 · `GET /jobs/<job>` → `Job` | 404. One job at a
 time, FIFO. Transcriber unavailable → the job runs `--notes approx` and its reason goes into `warnings`. The id comes
 from the file name (study's slug rule); a different file under a taken id gets `-2`, `-3`…. CORS: the origin is echoed
-only for `http://localhost:*` and `http://127.0.0.1:*`; other origins get 403 on POST.
+only for `http://localhost:*` and `http://127.0.0.1:*`; other origins get 403 on POST. Added in T5: the probe runs once at
+start and `/health` answers at once meanwhile (`transcriber.reason` 'checking the transcriber'); a job whose transcription
+fails (exit 3) is run again with `--notes approx` and the failure goes into `warnings`; the upload keeps its file name in a
+temp folder (ingest takes the title and `source.name` from it).
 
 Ingest CLI: `npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<notes file>] [--force] [--progress json]`.
 Default `--notes gpu`: `scripts/ears/transcribe.py` through `WINKELAMP_PY`, else `C:/Users/maxim/.venvs/wa/Scripts/python.exe`
@@ -714,7 +720,11 @@ Depends on T1 and T4.
 `decodeToMono(file: Blob, rate = 44100): Promise<Float32Array>` (OfflineAudioContext, main thread),
 `ingestInBrowser(file: File, store: ShowStore, onProgress: (f: number) => void): Promise<SongPack>` (sha1 by
 `crypto.subtle`, the Worker runs `analyzeSong` + `buildPack(notes: null)`; messages `{type:'progress', progress}` |
-`{type:'done', pack}` | `{type:'error', message}`).
+`{type:'done', pack}` | `{type:'error', message}`). Added in T5: `reingestViaEars(id, onJob): Promise<string>` (the redo
+POST); `earsUrl()` (`http://127.0.0.1:5175`; the page's `?ears=off` or `?ears=<port>` for checks); `src/studio/ingest/names.ts`
+(`nameFromFile`, `freeId`; the CLI's `nameOf` uses it) and `progress.ts` (`overallProgress`), tested in `ears-progress`;
+`src/studio/ui/add-song.ts` (`SongAdder`: ears or the fallback, progress in the library drawer, then the new song opens
+as `/?song=<id>` unless the show here is dirty; notices the ingest raised travel in sessionStorage `wa-studio.flash`).
 
 - [ ] **Step 1: `ears-server` test** (`startEars({ port: 0, songs: tmp, probe, runIngest: fake })`, the fake a node
   child that prints progress lines and writes a pack): `/health` → `{ ok: true, api: 1, transcriber.ok: true }`;

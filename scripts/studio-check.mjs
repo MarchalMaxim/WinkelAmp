@@ -5,7 +5,8 @@
 // a jump resetting the picture, and legacy.html loading without page errors.
 //
 // Then, on a second server with HMR on: Space after a clicked Play, and a show changed on disk (clean: followed; dirty:
-// offered).
+// offered). Last, adding a recording from the file input: with the ears server down (analysed in the browser,
+// approximate notes) and up without a transcriber (the real ingest CLI, the reason said; the same file twice).
 //
 //   npm run studio-check [-- --headed] [--keep]
 //
@@ -267,6 +268,68 @@ try {
       JSON.stringify({ loaded, back }));
     await hp.close();
   } finally { await hot.close(); }
+
+  // Adding a recording (plan T5). Tone bursts, so the analysis finds attacks (a steady sine has next to none).
+  const { validatePack } = await vite.ssrLoadModule('/src/studio/pack/pack.ts');
+  const tones = path.join(tmp, 'Drop Test.wav');
+  spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i',
+    "aevalsrc='0.6*sin(2*PI*(196+98*mod(floor(t*2),5))*t)*exp(-5*mod(t,0.5))':s=44100:d=30", tones]);
+  const openAdded = async (q, file, id, expectUrl) => {
+    const p = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    p.on('pageerror', (e) => errors.push(`add: ${e}`));
+    // Never the user's own ears server: the page finds one only where this check says.
+    await p.route(/127\.0\.0\.1:5175\//, (r) => r.abort());
+    await p.goto(`${BASE}/?song=demo${q}`);
+    await p.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
+    const t0 = Date.now();
+    await p.setInputFiles('.library [data-file]', file);
+    await p.waitForURL(expectUrl, { timeout: 180_000 }).catch(() => {});
+    await p.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 }).catch(() => {});
+    return { p, seconds: (Date.now() - t0) / 1000 };
+  };
+  const packOf = (id) => { try { return JSON.parse(readFileSync(path.join(songs, id, 'pack.json'), 'utf8')); } catch { return null; } };
+
+  // Ears down: the browser analyses it, the song opens with approximate notes, says so, and plays.
+  {
+    const { p, seconds } = await openAdded('', tones, 'drop-test', /song=drop-test/);
+    const pk = packOf('drop-test');
+    check('ears down: the dropped recording is analysed in the browser and saved as a song',
+      pk && validatePack(pk).length === 0 && pk.notesFrom === 'approx' && pk.made.by === 'studio' && pk.notes.length > 20 && existsSync(path.join(songs, 'drop-test', 'audio.wav')),
+      pk ? `${pk.notes.length} notes, ${pk.notesFrom}, by ${pk.made.by}, ${seconds.toFixed(1)} s` : 'no pack');
+    const n = await p.locator('.notice').allInnerTexts();
+    const st = await p.evaluate(() => ({ url: location.search, origin: window.__studio?.store.state.origin, sections: window.__studio?.store.state.show?.sections.length }));
+    check('it opens with a composed show and a notice saying the notes are approximate', st.origin === 'auto' && n.some((x) => /approximate/.test(x)), `${JSON.stringify(st)} ${n.join(' | ')}`);
+    await p.evaluate(() => window.__studio.player.play());
+    await p.waitForTimeout(3000);
+    const lit3 = await litShare(p);
+    check('the added song plays (not black after 3 s)', lit3 > 0.01, `${(lit3 * 100).toFixed(1)} % lit`);
+    await p.click('[data-songs]');
+    const listed2 = await p.locator('.library .song').allInnerTexts();
+    check('the library lists it, marked approximate', listed2.length === 2 && listed2.some((x) => /Drop Test/.test(x) && /approximate/.test(x)), listed2.join(' | '));
+    await p.close();
+  }
+
+  // Ears up without a transcriber: the ears server runs the real ingest with approximate notes and says why; the
+  // same recording dropped again is found, not ingested twice.
+  {
+    const { startEars } = await vite.ssrLoadModule('/scripts/ears/server.ts');
+    const ears = await startEars({ port: 0, songs, probe: async () => ({ ok: false, python: null, device: null, reason: 'studio-check: no transcriber here' }) });
+    try {
+      const other = path.join(tmp, 'Second Take.wav');
+      spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', tones, '-af', 'volume=0.8', other]);
+      const { p, seconds } = await openAdded(`&ears=${ears.port}`, other, 'second-take', /song=second-take/);
+      const pk = packOf('second-take');
+      const n = await p.locator('.notice').allInnerTexts();
+      check('ears up: the dropped recording is ingested by the ears server (approximate notes, the reason said)',
+        pk && validatePack(pk).length === 0 && pk.made.by === 'ingest' && pk.source.name === 'Second Take.wav' && n.some((x) => /Transcriber unavailable: studio-check/.test(x)),
+        `${pk ? `${pk.notesFrom}, by ${pk.made.by}, ${pk.source.name}` : 'no pack'}, ${seconds.toFixed(1)} s | ${n.join(' | ')}`);
+      await p.close();
+      const { p: p2 } = await openAdded(`&ears=${ears.port}`, other, 'second-take', /song=second-take/);
+      const again = await p2.evaluate(() => location.search);
+      check('the same recording again opens the song it already is', /song=second-take/.test(again) && !existsSync(path.join(songs, 'second-take-2')), again);
+      await p2.close();
+    } finally { await ears.close(); }
+  }
 
   check('no page errors in the studio', errors.length === 0, errors.join(' | '));
 

@@ -16,6 +16,7 @@ import { makeIcon } from '../../widgets/lab-harness';
 import { WidgetRuntime } from '../../widgets/runtime';
 import { labHarness, labWidgetSources } from '../../widgets/sources';
 import type { WidgetMeta } from '../../widgets/types';
+import { SongAdder, takeFlash } from './add-song';
 import { ApiError, connectStore, type LibraryEntry, type ShowStore } from './api';
 import { installKeys } from './keys';
 import { Library, splitTitle } from './library';
@@ -101,17 +102,19 @@ function renderNotices(box: HTMLElement, notices: Notice[], store: Store, action
   }
 }
 
-function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, problem?: string): void {
+function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () => void, problem?: string): void {
   ui.poster.hidden = false;
   ui.poster.classList.add('empty');
   ui.poster.innerHTML = `<div class="poster-inner">
       <p class="composer">WinkelAmp studio</p>
       <h2>Bring a recording</h2>
       <p>${problem ? esc(problem) : api.writable
-        ? 'There are no songs yet. Add one from the project folder with <code>npm run ingest -- &lt;audio file&gt;</code>: its notes are transcribed once, and it appears here with a show composed for it.'
-        : 'This copy of the studio has no songs. Run it from the project with <code>npm run dev</code>, and add recordings with <code>npm run ingest</code>.'}</p>
+        ? 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with a show composed for it.'
+        : 'Drop a recording anywhere on this page: this browser analyses it (approximate notes, no transcription) and it opens with a show composed for it.'}</p>
+      <p><button type="button" class="primary" data-choose>Choose a recording…</button></p>
       <p class="links">${api.writable ? '<a href="lab/index.html">Open the widget lab</a> ' : ''}<a href="legacy.html">Old app: microphone, MIDI</a></p>
     </div>`;
+  ui.poster.querySelector('[data-choose]')!.addEventListener('click', choose);
   ui.piece.textContent = 'Studio';
 }
 
@@ -126,21 +129,32 @@ async function boot(): Promise<void> {
   store.state.library = songs;
   const want = params.get('song') ?? lsGet(LAST_SONG);
   const entry = songs.find((s) => s.id === want && !s.error) ?? songs.find((s) => !s.error) ?? null;
-  const library = new Library(entry?.id ?? null, api.writable);
+  const library = new Library(entry?.id ?? null, api.writable, (f) => void adder.add(f));
   library.render(songs);
   document.body.append(library.el);
   ui.songs.addEventListener('click', () => library.toggle());
   const noticeActions: Record<string, { label: string; run(): void }> = {};
   store.subscribe((s) => renderNotices(ui.notices, s.notices, store, noticeActions));
+  // A recording dropped on the page (or chosen in the library) becomes a song: through npm run ears, else in this browser.
+  const adder = new SongAdder({
+    api, library, current: entry?.id ?? null, dirty: () => isDirty(store.state),
+    notify: (notice, action) => {
+      if (action) noticeActions[notice.id] = action; else delete noticeActions[notice.id];
+      store.dispatch({ type: 'notice', notice });
+    },
+    dismiss: (id) => store.dispatch({ type: 'dismiss', id }),
+  });
+  library.onOpen = () => void adder.ears();
 
-  if (!entry) { emptyState(ui, api); document.body.classList.add('no-song'); return; }
+  if (!entry) { emptyState(ui, api, () => library.choose()); document.body.classList.add('no-song'); return; }
+  for (const n of takeFlash(entry.id)) store.dispatch({ type: 'notice', notice: n });
   if (params.get('song') && params.get('song') !== entry.id) {
     store.dispatch({ type: 'notice', notice: { id: 'missing-song', level: 'warn', text: `There is no playable song '${params.get('song')}': here is ${entry.title}.` } });
   }
   lsSet(LAST_SONG, entry.id);
 
   let pack: SongPack;
-  try { pack = await api.pack(entry.id); } catch (e) { emptyState(ui, api, `Could not open ${entry.title}: ${(e as Error).message}`); return; }
+  try { pack = await api.pack(entry.id); } catch (e) { emptyState(ui, api, () => library.choose(), `Could not open ${entry.title}: ${(e as Error).message}`); return; }
   const [composer, piece] = splitTitle(pack.title);
   ui.composer.textContent = composer; ui.piece.textContent = piece;
   document.title = `${piece} · WinkelAmp studio`;
@@ -187,10 +201,25 @@ async function boot(): Promise<void> {
       }
     }
   }
-  if (pack.notesFrom === 'approx' || pack.notesFrom === 'merged') {
-    store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'info', text: pack.notesFrom === 'approx'
-      ? 'This song has approximate notes from the analysis, not a transcription: the widgets follow it less closely.'
-      : 'The piano model heard little of this recording: approximate notes fill the rest.' } });
+  if (pack.notesFrom === 'merged') {
+    store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'info', text: 'The piano model heard little of this recording: approximate notes fill the rest.' } });
+  } else if (pack.notesFrom === 'approx') {
+    const approx = 'This song has approximate notes from the analysis, not a transcription: the widgets follow it less closely.';
+    store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: api.writable ? `${approx} Start npm run ears to transcribe it.` : approx } });
+    // With the ears server up, offer the transcription; with its transcriber unable to run, say why.
+    if (api.writable) void adder.ears().then((e) => {
+      if (!e.up) return;
+      if (!e.transcriber.ok) {
+        store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: approx } });
+        store.dispatch({ type: 'notice', notice: { id: 'transcriber', level: 'warn', text: `Transcriber unavailable: ${e.transcriber.reason ?? 'unknown'}.` } });
+        return;
+      }
+      noticeActions['notes'] = { label: 'Re-ingest with the transcriber', run: () => void adder.reingest(pack.id, pack.title) };
+      store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: approx } });
+    });
+  }
+  if (pack.quality.warnings.some((w) => /^no notes found/.test(w))) {
+    store.dispatch({ type: 'notice', notice: { id: 'silent', level: 'warn', text: 'No notes were found in this recording: is it silent? The picture stays dark without attacks.' } });
   }
 
   // The picture and the clock.
