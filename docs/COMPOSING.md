@@ -64,19 +64,9 @@ study → read → write → check → preview → revise (→ check → preview
 
 ## 3. The cast
 
-Every element follows one stream of the music. Up to four on stage at once.
-
-| Element | Follows | Styles (first = default) | Use it for |
-|---|---|---|---|
-| `melody` | the predominant melody: pitch, note on/off, duration (precomputed for a scripted song, so it is exact and on time) | `ribbon` a smooth glowing band · `beads` one bead per note, bigger for longer notes · `ink` dye poured into a fluid when one is on stage, else dry brush strokes | whenever a clear tune is present. Higher notes sit higher (further out under a kaleidoscope mirror); the last ~4 s of the phrase stay visible |
-| `bass` | the bass level and the music's weight | `orbs` three soft bodies that swell with the bass · `tides` swells rolling along the bottom | heavy, low, dark music; a bass line that matters |
-| `sparks` | onsets and high notes (bursts where they sound) | `stars` twinkling points (star-shaped when the material is angular) · `dust` many tiny slow motes · `embers` warm streaks that rise | quick high notes, staccato, pizzicato, sparkle; `dust` for quiet texture |
-| `bloom` | the harmony: chord root on the circle of fifths → hue, minor cooler and paler, cross-fades on chord changes | `fields` large soft clouds · `aurora` curtains hanging from the top | harmony-led, sustained, lush passages; a colour bed |
-| `pulse` | the beat (hidden while pulse clarity < 0.3) | `rings` a ring from the region's centre · `grid` a throbbing lattice · `flash` the region lights up | music with a clear, steady beat (dance, march, ragtime). Not for rubato |
-| `wave` | the raw waveform (an oscilloscope) | `line` across the region · `circle` wrapped round its centre | the fine detail of a single voice or a drone; electronic textures |
-| `fluid` | the overall character: the Living Canvas (fluid, sparks, aura), its material set by the mood | `living` | atmosphere, turbulence, a full-screen bed; heavy and stormy music |
-| `slash` | strong attacks (onsets, on the frame they sound): each one cuts the picture (see the `cut` accent). Draws nothing itself | `chords` only loud, chord-like attacks (three or more pitch classes, or bass and treble at once) while the music itself is loud, at most one cut per 120 ms · `every` any onset above a lower threshold | a section where the chords should do the cutting: panic, horror, a climax that tears. `intensity` lowers the threshold (at 0.7 a fff piano climax cuts on about every big chord), `size` scales the shove, `color` the scar (`mood`: a sickly pale yellow) |
-| `drip` | onsets: streaks falling from the top of the region, accelerating | `paint` the palette's mid and highlight · `tar` its shadow, near black | the picture running, dripping off the screen; with `look.melt`. `intensity` → how many, `size` → how wide |
+Every element follows one stream of the music. Up to four on stage at once. **The cast table is
+[CAST.md](CAST.md)**: each element, what it follows, its styles, its own knobs and when to use it. It is
+generated from the widget files (`npm run cast`), so it is always the cast the app has.
 
 **Element params** (all optional; defaults in brackets):
 
@@ -84,7 +74,10 @@ Every element follows one stream of the music. Up to four on stage at once.
 - `size` 0..1 [0.5] — how big its marks are;
 - `region` [`full`] — `full`, `top`, `bottom`, `left`, `right`, `center`: where it prefers to be;
 - `color` [`mood`] — `mood` follows the palette, `note` colours by pitch class, or a fixed `"#rgb"` / `"#rrggbb"`;
-- `style` — one of the type's styles above.
+- `style` — one of the type's styles (CAST.md);
+- `knobs` — the element's own knobs (CAST.md), by name: a number sets the knob's value, an object sets any of
+  `value`, `drive` (`+level`, `-rate`, … : a feature of the music pushing the knob up or down) and `depth`
+  0..1 [0.5] (how far, as a fraction of its range). E.g. `"knobs": { "trail": 6, "decay": { "drive": "+level" } }`.
 
 **The look** (per scene; all optional, defaults in brackets): `palette` [`mood`] (`mood` follows the
 character engine, `notes` colours by pitch class, or four fixed colours shadow → highlight), `trails` 0..1
@@ -99,6 +92,32 @@ back), `cut` (the picture is sliced along a straight line at a random angle and 
 apart along it, ~14–40 px at 720 p by `strength`, so everything already on screen carries a scar; a thin
 bright line flashes on the cut and fades in ~0.9 s; a small jolt). `strength` 0..1 [1], `color` [white; a
 `cut`'s scar: pale yellow].
+
+### Adding a widget
+
+A widget (an element type) is one file, `src/stage/elements/<type>.ts`, and one import line in
+`src/stage/elements/index.ts` (add it to `WIDGETS`). The file exports
+
+```ts
+export const widget = defineWidget({
+  type: 'halo',                                   // what scripts write as "type"
+  styles: [{ name: 'soft', doc: 'a soft ring' }], // the first is the default
+  knobs: [{ name: 'spin', min: 0, max: 2, value: 0.5, drive: '+rate', doc: 'how fast it turns' }],
+  follows: 'the beat',                            // the cast table's words
+  use: 'steady, ceremonial music',
+  layer: 45,                                      // draw order: bloom 10 … melody 70, fluid 80, slash 90
+  crisp: false,                                   // true: drawn sharp, only a faint echo in the trails
+  stream: (s) => (s.pulse > 0.35 ? 1 : 0),        // optional: when the live director lets it show
+  create: (): StageElement => new Halo(),
+});
+```
+
+and the class (`StageElement`: `init`, `draw(fr, member)`, `dispose`). In `draw` it reads its style with
+`widget.style(member)` and a knob, already moved by its drive, with `widget.knob(fr, member, 'spin')`. Move
+only on music time (`fr.musicDt`, `fr.clock.time`): with `musicDt` 0 the picture must hold still. Nothing
+else changes: the validator, the director, the draw order and the types all read the registry. Then run
+`npm run cast` (CAST.md; a test fails while it is stale), add a case to the stage harness
+(`src/stage/harness.ts`) and look at it with `node scripts/stage-shots.mjs --only <case>`.
 
 ## 4. Heuristics
 
@@ -229,9 +248,9 @@ so a hand-written time that is slightly off still lands on the music; `"snap": f
 it is (for a moment between notes). Study scripts don't snap at all (§7). The fold is pure: after a seek or a
 pause the picture is exactly what the script says at that moment, with no replayed accents.
 
-**Checks** (`npm run check-script`): errors for anything malformed or unresolved (unknown scene, element type
-or style, a ramp or exit naming an id that was never on stage, out-of-range values, an unsorted timeline);
-warnings for pacing (more than four elements, scene changes closer than 8 s, cues after the end) and a missing
+**Checks** (`npm run check-script`): errors for anything malformed or unresolved (unknown scene, element type,
+style or knob, a knob value outside its range, an unknown drive, a ramp or exit naming an id that was never
+on stage, out-of-range values, an unsorted timeline); warnings for pacing (more than four elements, scene changes closer than 8 s, cues after the end) and a missing
 `corpus/<id>.data.json` for a recording.
 
 ## 6. A complete example

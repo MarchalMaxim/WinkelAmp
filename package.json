@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "shots": "node scripts/screenshots.mjs",
     "check-script": "tsx scripts/check-script.ts",
+    "cast": "tsx scripts/cast-table.ts",
     "study": "tsx scripts/study.ts",
     "preview-script": "node scripts/preview-script.mjs"
   },
