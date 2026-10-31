@@ -85,10 +85,35 @@
   const wrap = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
   const sgn = () => (Math.random() < 0.5 ? -1 : 1);
 
+  // Knobs folded into fixed choices (2026-10-31, at most 5 knobs). Hesitation and threat response keep the drives they had
+  // as knobs, computed exactly as the harness's x.p does at its default depth 0.5, so the widget moves as before.
+  const drv = (x, base, min, max, sign, f) => Math.max(min, Math.min(max, base + sign * 0.5 * (max - min) * (x.feat[f] - 0)));
+  const hesOf = (x) => drv(x, 0.55, 0, 1.2, -1, 'rate');     // how long a new shape freezes (s); shorter when the music is fast
+  const threatOf = (x) => drv(x, 0.8, 0, 2, 1, 'bass');      // how hard they scatter from a threat; harder with more bass
+  const REG = 57;                                             // notes from A3 up spawn shapes
+  const FLOCK = 0.5;                                          // half loners, half schools
+
+  // Knob pictures: small versions of the shapes, pointing right, in the ember colours.
+  const EMB = (h, a = 1) => ramp(0, h, a);
+  function mini(g, type, x, y, s, col) {
+    const r = s / 2; g.save(); g.translate(x, y); g.fillStyle = col; g.strokeStyle = col; g.beginPath();
+    if (type === 'dot') { g.arc(0, 0, r * 0.7, 0, Math.PI * 2); g.fill(); }
+    else if (type === 'oval') { g.ellipse(0, 0, r, r * 0.6, 0, 0, Math.PI * 2); g.fill(); }
+    else if (type === 'ring') { g.lineWidth = 1.6; g.ellipse(0, 0, r * 0.85, r * 0.62, 0, 0, Math.PI * 2); g.stroke(); }
+    else if (type === 'crescent') {
+      g.rect(-r - 2, -r - 2, 2 * r + 4, 2 * r + 4); g.arc(-r * 0.5, 0, r * 0.85, 0, Math.PI * 2, true); g.clip('evenodd');
+      g.beginPath(); g.arc(0, 0, r * 0.9, 0, Math.PI * 2); g.fill();
+    } else if (type === 'tear') { g.arc(r * 0.35, 0, r * 0.45, -Math.PI / 2, Math.PI / 2); g.quadraticCurveTo(-r * 0.2, r * 0.35, -r, 0); g.quadraticCurveTo(-r * 0.2, -r * 0.35, r * 0.35, -r * 0.45); g.fill(); }
+    else if (type === 'comma') { for (let i = 6; i >= 0; i--) { const t = i / 6; g.beginPath(); g.arc(r * 0.4 - r * 1.2 * t, r * 0.55 * t * t, r * 0.32 * (1 - t) + 0.5, 0, Math.PI * 2); g.fill(); } }
+    else if (type === 'chevron') { g.moveTo(r * 0.85, 0); g.lineTo(-r * 0.5, -r * 0.7); g.lineTo(-r * 0.15, 0); g.lineTo(-r * 0.5, r * 0.7); g.closePath(); g.fill(); }
+    else { g.moveTo(r, 0); g.lineTo(r * 0.1, -r * 0.26); g.lineTo(-r, 0); g.lineTo(r * 0.1, r * 0.26); g.closePath(); g.fill(); }
+    g.restore();
+  }
+
   function addThreat(x, kind, tx, ty, R, str, vy = 0) {
     threats.push({ x: tx, y: ty, R, str, vy, age: 0, life: kind === 'loud' ? 0.9 : 0.7, kind });
     last = { x: tx, y: ty };
-    const resp = x.p('threat');
+    const resp = threatOf(x);
     for (const s of shapes) {
       const dx = s.x - tx, dy = s.y - ty, d = Math.hypot(dx, dy);
       if (d > R * (0.6 + 0.4 * Math.min(1, resp))) continue;
@@ -103,24 +128,43 @@
 
   TOOLS.push({
     id: 'flee', name: 'Skittish shapes', tag: 'v3',
-    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt on a t^exp speed curve, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers.',
+    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers.',
     params: [
-      { key: 'exp', label: 'speed exponent', min: 1, max: 5, step: 0.1, value: 3 },
-      { key: 'hes', label: 'hesitation (s)', min: 0, max: 1.2, value: 0.55, drive: '-rate' },
-      { key: 'twitch', label: 'twitchiness', min: 0, max: 1, value: 0.25, drive: '+rate' },
-      { key: 'mix', label: 'shapes round→sharp', min: 0, max: 1, value: 0.45 },
-      { key: 'streak', label: 'streak length', min: 0, max: 3, value: 0.8, drive: '+rate' },
-      { key: 'reg', label: 'spawn from MIDI', min: 36, max: 84, step: 1, value: 57 },
-      { key: 'threat', label: 'threat response', min: 0, max: 2, value: 0.8, drive: '+bass' },
-      { key: 'flock', label: 'alone→schools', min: 0, max: 1, value: 0.5 },
-      { key: 'pal', label: 'palette E·I·B·V', min: 0, max: 3, step: 1, value: 0 },
+      // Five knobs; keys, ranges, defaults and drives are unchanged from v3, so saved settings still apply.
+      { key: 'mix', label: 'round or sharp shapes', min: 0, max: 1, value: 0.45,
+        hint: 'Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles.',
+        icon: (g, v, w, h) => { const c = Math.round(v * 7), col = EMB(0.62);
+          [-1, 0, 1].forEach((d, i) => mini(g, TYPES[Math.max(0, Math.min(7, c + d))], 7 + i * 13, h / 2, i === 1 ? 15 : 11, col)); } },
+      { key: 'exp', label: 'how sudden the bolt', min: 1, max: 5, step: 0.1, value: 3,
+        hint: 'How a shape speeds up once it flees. Left: a steady glide away. Right: it creeps, then shoots off.',
+        icon: (g, v, w, h) => { const e = 1 + v * 4, x0 = 4, y0 = h - 4, W = w - 9, Hh = h - 8;
+          ICON.line(g, x0, y0, x0 + W, y0, ICON.dim, 1);
+          g.strokeStyle = EMB(0.6); g.lineWidth = 1.6; g.beginPath();
+          for (let i = 0; i <= 24; i++) { const t = i / 24; i ? g.lineTo(x0 + t * W, y0 - Math.pow(t, e) * Hh) : g.moveTo(x0, y0); }
+          g.stroke(); ICON.dot(g, x0 + W, y0 - Hh, 2.2, EMB(0.9)); } },
+      { key: 'twitch', label: 'how jumpy', min: 0, max: 1, value: 0.25, drive: '+rate',
+        hint: 'How nervous they are. Left: calm, smooth paths. Right: constant flinches and sudden swerves.',
+        icon: (g, v, w, h) => { const R = ICON.rng(4), amp = 0.4 + v * 7;
+          g.strokeStyle = EMB(0.5); g.lineWidth = 1.4; g.beginPath();
+          for (let i = 0; i <= 9; i++) { const x = 4 + i * (w - 10) / 9, y = h / 2 + (i % 2 ? 1 : -1) * amp * (0.4 + 0.6 * R()); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+          g.stroke(); ICON.dot(g, w - 5, h / 2, 2.6, EMB(0.85)); } },
+      { key: 'streak', label: 'trail length', min: 0, max: 3, value: 0.8, drive: '+rate',
+        hint: 'How far a fleeing shape smears behind itself. Left: no trail, only the shape. Right: long streaks of light.',
+        icon: (g, v, w, h) => { const hx = w - 7, y = h / 2, L = v * (w - 12);
+          if (L > 1) { const gr = g.createLinearGradient(hx, 0, hx - L, 0); gr.addColorStop(0, EMB(0.75, 0.9)); gr.addColorStop(1, EMB(0.2, 0));
+            g.fillStyle = gr; g.beginPath(); g.moveTo(hx, y - 3.5); g.lineTo(hx - L, y - 0.4); g.lineTo(hx - L, y + 0.4); g.lineTo(hx, y + 3.5); g.fill(); }
+          mini(g, 'oval', hx, y, 9, EMB(0.9)); } },
+      { key: 'pal', label: 'colours', min: 0, max: 3, step: 1, value: 0,
+        hint: 'The colours, from cool and dark when still to hot and bright when fleeing. Left: ember (red to yellow). Then ice (blue), bone (pale), and right: venom (violet to pink).',
+        icon: (g, v, w, h) => { const pal = Math.round(v * 3), n = 10, sw = (w - 6) / n;
+          for (let i = 0; i < n; i++) ICON.rect(g, 3 + i * sw, 5, Math.ceil(sw), h - 10, ramp(pal, i / (n - 1))); } },
     ],
     reset() {
       shapes = []; threats = []; chain = null; idle = 9; panic = 0; avgVel = 75; prevHi = -1; prevHiT = -9;
       cool = { bass: 0, loud: 0, leap: 0 }; last = { x: 640, y: 760 }; burst = null;
     },
     onChord(ch, x) {
-      const reg = x.p('reg'), resp = x.p('threat');
+      const reg = REG, resp = threatOf(x);
       const loudCut = avgVel + 12;
       avgVel += (ch.vel - avgVel) * 0.04;
 
@@ -192,7 +236,7 @@
         shapes.push({
           x: chain.x + x.rnd(-5, 5), y: chain.y + x.rnd(-5, 5), size, type, aspect, flip: sgn(),
           al: (0.55 + 0.45 * panic) * (0.6 + 0.4 * n.v / 110),
-          age: 0, hes: x.p('hes') * x.rnd(0.5, 1.5), tb: -1,
+          age: 0, hes: hesOf(x) * x.rnd(0.5, 1.5), tb: -1,
           T: x.rnd(0.8, 1.2) * (1.15 - 0.45 * panic), D: x.rnd(0.8, 1.2) * (260 + 420 * panic),
           h: away, off: 0, speed: 0, flash: 1, heat: 0,
         });
@@ -202,7 +246,7 @@
       const g = x.g, dt = x.dt;
       time += dt; idle += dt; budget = 4;
       panic += (smooth(0.12, 0.6, x.feat.rate) - panic) * (1 - Math.pow(0.5, dt / 0.4));
-      const e = x.p('exp'), tw = x.p('twitch'), streak = x.p('streak'), resp = x.p('threat'), flock = x.p('flock');
+      const e = x.p('exp'), tw = x.p('twitch'), streak = x.p('streak'), resp = threatOf(x), flock = FLOCK;
       const pal = Math.round(x.p('pal'));
 
       // Threats: move (bass ones rise), age, push.

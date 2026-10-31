@@ -11,6 +11,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   // Other agents write tool files in parallel: block Vite's live reload so a shot run isn't reloaded mid-way.
   await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  // Never post test state to the save server: it would overwrite the user's saved ratings and knobs.
+  await page.route('http://localhost:5174/**', (r) => r.fulfill({ status: 200, body: 'ok' }));
   page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('CONSOLE ERROR:', m.text()));
   await page.goto(`http://localhost:5173/lab/index.html?only=${tools}&song=${process.env.SONG ?? "prelude"}`);
@@ -21,7 +23,7 @@ try {
       await page.waitForTimeout(500);
       if (i % 2 === 0 || i === Number(secs) * 2) {
         const file = path.join(out, `${tools.replace(/,/g, '+')}-${t}-${i / 2}s.png`);
-        await page.locator('canvas').screenshot({ path: file });
+        await page.locator('#c').screenshot({ path: file });
       }
     }
     const errs = await page.evaluate(() => [...document.querySelectorAll('.err')].map((e) => e.textContent));

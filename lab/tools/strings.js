@@ -2,7 +2,8 @@
 // Threads lean toward consonant partners and knot up against dissonant ones; each chord braids its
 // notes together at the shuttle's spot and sends bright kinks running away from it; held notes
 // thicken and glow; the hardest, most crowded chords snap a thread and whip the whole weave.
-// The "bend" param curls the flat loom into arcs and, at 1, into closed woven rings.
+// The "bend" knob curls the flat loom into arcs and, at 1, into closed woven rings. Five knobs (the 2026-10-31 style);
+// the other five are fixed at the defaults the user accepted (FIX below).
 (() => {
   const SEG = 200, TAU = Math.PI * 2, LINGER = 0.9, MAXT = 22;
   const DISS = [0, 1, 0.6, 0.18, 0.1, 0.04, 0.85];       // roughness by interval class 0..6
@@ -11,6 +12,11 @@
     [[132, 8, 14], [244, 230, 210]],                      // .5: blood → bone
     [[160, 40, 0], [255, 216, 100]],                      // 1: ember → gold
   ];
+  // The knobs that are no longer on the card, fixed at the defaults the user accepted. Flow and pull still follow the
+  // music exactly as their old default drives did (base + half the old range × the feature).
+  const FIX = { spread: 0.7, weight: 1.1, snap: 0.5 };
+  const flowOf = (x) => Math.max(0, Math.min(2, 0.45 + 1 * 0.5 * (2 - 0) * x.feat.rate));     // faster → the weave flows quicker
+  const pullOf = (x) => Math.max(0, Math.min(1, 0.4 + 1 * 0.5 * (1 - 0) * x.feat.level));     // louder → consonant notes lean closer
   let th = new Map(), phase = 0, centre = 0.5, shuttle = 0.3, whip = 0, time = 0;
   const hash = (m, k) => { const s = Math.sin(m * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -29,18 +35,24 @@
 
   TOOLS.push({
     id: 'strings', name: 'Woven threads', tag: 'v2',
-    blurb: 'Each note is a curved thread in one woven band. Consonant notes lean together, dissonant ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. "bend" curls the loom into rings.',
+    blurb: 'Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Five knobs now, all starting at the defaults you accepted.',
+    // Five knobs (keys, ranges and drives unchanged, so saved settings still apply); the other five are fixed in FIX above.
     params: [
-      { key: 'bend', label: 'bend (loom→rings)', min: 0, max: 1, value: 0.32 },
-      { key: 'spread', label: 'pitch spread', min: 0, max: 1, value: 0.7 },
-      { key: 'weave', label: 'crossings', min: 1, max: 9, step: 1, value: 3 },
-      { key: 'sway', label: 'sway', min: 0, max: 160, value: 46, drive: '+level' },
-      { key: 'flow', label: 'flow speed', min: 0, max: 2, value: 0.45, drive: '+rate' },
-      { key: 'pull', label: 'consonance pull', min: 0, max: 1, value: 0.4, drive: '+level' },
-      { key: 'tangle', label: 'dissonance knots', min: 0, max: 1, value: 0.45, drive: '+density' },
-      { key: 'weight', label: 'thickness', min: 0.3, max: 3, value: 1.1 },
-      { key: 'heat', label: 'colour heat', min: 0, max: 1, value: 0.5 },
-      { key: 'snap', label: 'snap ease', min: 0, max: 1, value: 0.5 },
+      { key: 'bend', label: 'shape: band → rings', min: 0, max: 1, value: 0.32,
+        hint: 'How much the band of threads curls. Left: a straight band across the screen. Middle: an arch. Right: closed woven rings.',
+        icon: (g, v, w, h) => bendIcon(g, v, w, h) },
+      { key: 'weave', label: 'crossings', min: 1, max: 9, step: 1, value: 3,
+        hint: 'How many times the threads cross each other along the band. Left: one long, slow wave. Right: a tight weave.',
+        icon: (g, v, w, h) => { const c = 1 + Math.round(v * 8) * 0.5; ICON.wave(g, w, h, 0.6, c, '#c4483c', 1.4); ICON.wave(g, w, h, -0.6, c, ICON.ink, 1.4); } },
+      { key: 'sway', label: 'how much they sway', min: 0, max: 160, value: 46, drive: '+level',
+        hint: 'How far the threads swing up and down. Left: flat, still threads. Right: wide swinging waves.',
+        icon: (g, v, w, h) => { ICON.wave(g, w, h, 0.04 + v * 0.9, 1.5, '#c4483c', 1.4); ICON.alpha(g, 0.6, () => ICON.wave(g, w, h, -(0.04 + v * 0.9), 1.5, ICON.ink, 1.2)); } },
+      { key: 'tangle', label: 'knots on clashing notes', min: 0, max: 1, value: 0.45, drive: '+density',
+        hint: 'How much a thread curls into knots when its note clashes with another (a dissonance). Left: never knots. Right: big tangled curls.',
+        icon: (g, v, w, h) => knotIcon(g, v, w, h) },
+      { key: 'heat', label: 'colours', min: 0, max: 1, value: 0.5,
+        hint: 'The colours of the threads (low notes darker, high notes paler). Left: ink blue and ice. Middle: blood red and bone. Right: ember and gold.',
+        icon: (g, v, w, h) => { [0.05, 0.4, 0.75, 1].forEach((p, i) => { const c = palette(p, v); ICON.line(g, 3, 5 + i * 5.3, w - 3, 5 + i * 5.3, `rgb(${c.map(Math.round).join(',')})`, 2.6); }); } },
     ],
     reset() { th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
     onChord(ch, x) {
@@ -58,7 +70,7 @@
       });
       // Snap: force times crowding, so the lone fff tolls ring clean and the climax's barrage tears.
       const loud = (ch.vel - 84) / 24, crowd = 0.35 + x.feat.rate * 1.6;
-      const score = loud * crowd * (n >= 3 ? 1 : 0.5), ease = x.p('snap');
+      const score = loud * crowd * (n >= 3 ? 1 : 0.5), ease = FIX.snap;
       if (ease > 0 && score > 1.2 - ease) {
         const k = Math.min(n, 1 + Math.floor(score * 1.5));
         for (let i = 0; i < k; i++) { const s = th.get(notes[Math.floor(Math.random() * n)].m); if (s && !s.snap) s.snap = { u: (u0 + x.rnd(-0.15, 0.15) + 1) % 1, age: 0, A: x.rnd(60, 120) * (Math.random() < 0.5 ? 1 : -1) }; }
@@ -68,8 +80,8 @@
     frame(x) {
       const g = x.g, dt = x.dt, W = x.W, H = x.H;
       time += dt;
-      const bend = x.p('bend'), spread = x.p('spread'), weave = Math.round(x.p('weave')), sway = x.p('sway'), flow = x.p('flow');
-      const pull = x.p('pull'), tangle = x.p('tangle'), weight = x.p('weight'), heat = x.p('heat');
+      const bend = x.p('bend'), spread = FIX.spread, weave = Math.round(x.p('weave')), sway = x.p('sway'), flow = flowOf(x);
+      const pull = pullOf(x), tangle = x.p('tangle'), weight = FIX.weight, heat = x.p('heat');
       whip *= Math.exp(-dt / 0.55);
       phase += dt * TAU * (0.08 + flow * 0.3) + whip * dt * 5;
       // geometry: a strip of length L, rolled around a centre by angle th0 (0 = flat loom, 2π = rings)
@@ -180,4 +192,28 @@
     },
   });
   function glowOf(s) { return (s.glowLast ?? 0) * 0.97; }
+  // Knob pictures. bend: three threads on a strip rolled the way the widget rolls its loom (0 = flat, 1 = a closed ring).
+  function bendIcon(g, v, w, h) {
+    const L = 34, th0 = v * TAU, cols = ['#c4483c', ICON.ink, '#e0b04a'];
+    [-3, 0, 3].forEach((off, k) => {
+      g.strokeStyle = cols[k]; g.lineWidth = 1.3; g.beginPath();
+      for (let i = 0; i <= 60; i++) {
+        const u = i / 60;
+        if (th0 < 0.05) { const px = w / 2 + (u - 0.5) * L, py = h / 2 + off; i ? g.lineTo(px, py) : g.moveTo(px, py); continue; }
+        const Rc = L / th0, cy = h / 2 + (Rc * (1 + Math.cos(th0 / 2))) / 2, a = (u - 0.5) * th0, r = Rc - off;
+        const px = w / 2 + r * Math.sin(a), py = cy - r * Math.cos(a); i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+      g.stroke();
+    });
+  }
+  // tangle: a thread that curls into a knot in the middle, the curl growing with v; a plain thread below for comparison.
+  function knotIcon(g, v, w, h) {
+    ICON.line(g, 3, h / 2 + 7, w - 3, h / 2 + 7, ICON.dim, 1.2);
+    g.strokeStyle = '#c4483c'; g.lineWidth = 1.3; g.beginPath();
+    for (let i = 0; i <= 160; i++) {
+      const u = i / 160, e = Math.exp(-(((u - 0.5) / 0.2) ** 2)), r = v * 7.5 * e * e, a = TAU * 7 * u;
+      const px = 3 + u * (w - 6) + r * Math.cos(a), py = h / 2 - 2 + r * Math.sin(a); i ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.stroke();
+  }
 })();

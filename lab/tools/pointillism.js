@@ -6,6 +6,7 @@
   const W = 1280, H = 720, K = 8, CS = 0.75, CW = W * CS, CH = H * CS, SW = 320, SH = 180, SC = SW / W;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
   const crisp = [], wash = [];
+  const FIX = { spread: 30, sat: 0.72, hue: 0, range: 0.42, comp: 0.35 }; // the knobs that were dropped
   for (let i = 0; i < K; i++) { crisp.push(mk(CW, CH)); wash.push(mk(SW, SH)); }
   const ep = Array.from({ length: K }, () => ({ born: -1e9, closed: -1e9, used: false }));
   const wc = mk(SW, SH), wcg = wc.getContext('2d'), wb = mk(SW, SH), wbg = wb.getContext('2d');
@@ -40,7 +41,7 @@
   const feed = (m, v, d, w = 1) => { hist[m % 12] += w * (v / 127) * Math.min(2, 0.25 + d); };
   // Steps round the circle of fifths from the home key: 0 tonic, +1 dominant, -1 subdominant, ±6 tritone.
   const fifths = (m) => { const i = (((m % 12) - tonic) * 7 % 12 + 12) % 12; return i > 6 ? i - 12 : i; };
-  const hueOf = (m, x) => x.p('hue') + fifths(m) / 12 * 360 * x.p('range');
+  const hueOf = (m, x) => FIX.hue + fifths(m) / 12 * 360 * FIX.range;
   // Layout 0 field (columns by fifths, rows by register), 1 keyboard (x by pitch), 2 wheel (angle by fifths,
   // radius by register). Fractional values blend neighbouring layouts.
   function place(m, v, L) {
@@ -55,8 +56,8 @@
   }
   function burst(m, v, d, n, x, opt = {}) {
     const [cx, cy] = place(m, v, x.p('layout'));
-    const sp = x.p('spread') * (0.65 + 0.5 * Math.min(1, d / 2)) * (opt.wide ?? 1), size = x.p('dot') * (1.4 - 0.75 * x.pitch01(m)) * (opt.small ?? 1);
-    const h = opt.hue ?? hueOf(m, x), sat = x.p('sat') * 100, lit = 30 + 30 * v / 127;
+    const sp = FIX.spread * (0.65 + 0.5 * Math.min(1, d / 2)) * (opt.wide ?? 1), size = x.p('dot') * (1.4 - 0.75 * x.pitch01(m)) * (opt.small ?? 1);
+    const h = opt.hue ?? hueOf(m, x), sat = FIX.sat * 100, lit = 30 + 30 * v / 127;
     for (let i = 0; i < n; i++) {
       let tx, ty;
       if (opt.ring) { const a = R(0, Math.PI * 2), r = sp * R(1.1, 1.9); tx = cx + Math.cos(a) * r; ty = cy + Math.sin(a) * r; }
@@ -75,25 +76,47 @@
   const crispA = (a, bleed) => (a >= 1 ? 0 : Math.pow(1 - Math.max(0, a), 1.3) * (1 - 0.75 * bleed * Math.min(1, Math.max(0, a) * 1.6)));
   const washA = (a, bleed) => (a >= 1 ? 0 : bleed * Math.min(1, 0.25 + Math.max(0, a) * 3) * Math.pow(1 - Math.max(0, a), 0.8));
 
+  // Knob pictures: a note `f` steps round the circle of fifths gets the widget's own hue; mini() is place() at icon size.
+  const iconHue = (f) => `hsl(${((f / 12) * 360 * FIX.range + 360) % 360},72%,55%)`;
+  function mini(f, reg, L, w, h) {
+    const a = (f / 12) * Math.PI * 2 - Math.PI / 2, pos = [[w / 2 + (f / 6.5) * (w / 2 - 4), h - 4 - reg * (h - 8)], [4 + ((f + 5) / 11) * (w - 8), h / 2 + (reg - 0.5) * 4],
+      [w / 2 + Math.cos(a) * (8 + reg * 2) * 1.25, h / 2 + Math.sin(a) * (8 + reg * 2)]];
+    const i = Math.min(1, Math.floor(L)), t = L - i;
+    return [pos[i][0] + (pos[i + 1][0] - pos[i][0]) * t, pos[i][1] + (pos[i + 1][1] - pos[i][1]) * t];
+  }
+
   TOOLS.push({
     id: 'pointillism', name: 'Pointillism', tag: 'new',
     blurb: 'Every note dabs a burst of coloured dots (colour = how far the note is from the home key, burst size = how hard it is played); the dots settle and bleed into soft colour fields, so the harmony paints regions. Chords splash a halo of their opposite colour, and big ones make the whole canvas flinch.',
+    // At most 5 knobs (lab/README.md); all five keep their old keys, ranges and defaults. Fixed now (see FIX): spread 30,
+    // saturation 0.72, home-key hue 0 (red), colour range 0.42, complement halo 0.35.
     params: [
-      { key: 'dot', label: 'dot size', min: 1.5, max: 10, value: 4.5, drive: '-rate' },
-      { key: 'burst', label: 'burst size', min: 0.2, max: 3, value: 1, drive: '+level' },
-      { key: 'spread', label: 'spread', min: 8, max: 150, value: 30 },
-      { key: 'fade', label: 'fade time (s)', min: 1, max: 25, value: 8, drive: '-rate' },
-      { key: 'bleed', label: 'bleed', min: 0, max: 1, value: 0.55 },
-      { key: 'sat', label: 'saturation', min: 0, max: 1, value: 0.72 },
-      { key: 'hue', label: 'home-key hue', min: -180, max: 180, step: 1, value: 0 },
-      { key: 'range', label: 'colour range', min: 0, max: 1, value: 0.42 },
-      { key: 'comp', label: 'complement', min: 0, max: 1, value: 0.35 },
-      { key: 'layout', label: 'layout field/keys/wheel', min: 0, max: 2, value: 0 },
+      { key: 'dot', label: 'dot size', min: 1.5, max: 10, value: 4.5, drive: '-rate',
+        hint: 'How big each dot is. Left: fine stipple. Right: fat dabs of paint.',
+        icon: (g, v, w, h) => { const r = ICON.rng(4); for (let i = 0; i < 9; i++) ICON.dot(g, 7 + r() * (w - 14), 6 + r() * (h - 12), 0.9 + v * 3.4, iconHue(i - 4)); } },
+      { key: 'burst', label: 'dots per note', min: 0.2, max: 3, value: 1, drive: '+level',
+        hint: 'How many dots one note throws. Left: a few sparse dabs. Right: a dense spray.',
+        icon: (g, v, w, h) => { const r = ICON.rng(9), n = Math.round(3 + v * 34);
+          for (let i = 0; i < n; i++) ICON.dot(g, w / 2 + (r() + r() + r() - 1.5) * 13, h / 2 + (r() + r() + r() - 1.5) * 9, 1.3, iconHue(Math.round((r() - 0.5) * 3))); } },
+      // 'stay' replaces 'fade' (its '-rate' drive emptied the canvas in busy passages): busier playing now shortens it by at most 45%.
+      { key: 'stay', label: 'how long the painting stays', min: 1, max: 25, value: 8,
+        hint: 'How long the dots and colour fields stay before they fade. Left: a few seconds. Right: the canvas keeps a long memory.',
+        icon: (g, v, w, h) => { const life = 0.12 + 0.88 * v, step = (w - 4) / 4, r = ICON.rng(3);
+          for (let i = 0; i < 4; i++) { const a = Math.max(0, 1 - (i / 3) / life);
+            for (let k = 0; k < 6; k++) { const px = 3 + step * i + 1.5 + r() * (step - 3), py = 4 + r() * (h - 8); if (a > 0) ICON.alpha(g, a, () => ICON.dot(g, px, py, 1.4, iconHue(i - 1))); } } } },
+      { key: 'bleed', label: 'dots melt into colour', min: 0, max: 1, value: 0.55,
+        hint: 'How much old dots melt into soft fields of colour. Left: crisp dots on black. Right: dots dissolve into a blurred colour wash.',
+        icon: (g, v, w, h) => { const r = ICON.rng(6);
+          ICON.blur(g, 3, () => ICON.alpha(g, 0.85 * v, () => { ICON.dot(g, w * 0.35, h / 2, 9, iconHue(-1)); ICON.dot(g, w * 0.65, h / 2, 8, iconHue(2)); }));
+          for (let i = 0; i < 12; i++) ICON.alpha(g, 1 - 0.55 * v, () => ICON.dot(g, 6 + r() * (w - 12), 5 + r() * (h - 10), 1.4, iconHue(i < 6 ? -1 : 2))); } },
+      { key: 'layout', label: 'where the colours go', min: 0, max: 2, value: 0,
+        hint: 'How the notes are laid out. Left: a field (across: how far from the home key; up: high or low). Middle: a keyboard, low to high. Right: a wheel around the home key. In between blends the two.',
+        icon: (g, v, w, h) => { for (let f = -5; f <= 6; f++) { const reg = ((f + 5) % 3) / 2, [px, py] = mini(f, reg, v * 2, w, h); ICON.dot(g, px, py, 1.8, iconHue(f)); } } },
     ],
     reset(x) {
       pulse = 0; avgVel = 64;
       for (let i = 0; i < K; i++) { crisp[i].getContext('2d').clearRect(0, 0, CW, CH); wash[i].getContext('2d').clearRect(0, 0, SW, SH); ep[i] = { born: -1e9, closed: -1e9, used: false }; }
-      cur = 0; time = 0; fresh = []; heldAcc = new Map(); life = x.p('fade') ?? 7;
+      cur = 0; time = 0; fresh = []; heldAcc = new Map(); life = x.p('stay') * (1 - 0.45 * x.feat.rate);
       ep[0] = { born: 0, closed: 0, used: true };
       // Prime the home key from the last half minute.
       hist.fill(0); for (const [s, e, m, v] of window.NOTES) { if (s > x.t) break; if (s > x.t - 30) feed(m, v, e - s); }
@@ -108,17 +131,19 @@
       avgVel += (ch.vel - avgVel) * 0.06;
       if (big) pulse = Math.min(1.5, pulse + 0.5 + Math.max(0, ch.vel - 85) / 30);
       const thin = 1 / Math.sqrt(Math.max(1, ch.notes.length / 2));  // fat chords: fewer dots per note, so the field doesn't clog
-      for (const n of ch.notes) burst(n.m, n.v, n.d, Math.round(x.p('burst') * (4 + 20 * Math.pow(n.v / 127, 1.5)) * (big ? 1.5 : 1) * sparse * thin), x, { wide: (big ? 1.5 : 1) * (0.8 + 0.4 * sparse) });
-      if (ch.notes.length >= 2 && x.p('comp') > 0) {
+      // Loudness relative to the recent average, so a soft passage (Beethoven's quiet stretches) still paints visibly.
+      const eff = (v) => Math.max(v, Math.min(105, v * 72 / Math.max(45, avgVel)));
+      for (const n of ch.notes) burst(n.m, eff(n.v), n.d, Math.round(x.p('burst') * (4 + 20 * Math.pow(eff(n.v) / 127, 1.5)) * (big ? 1.5 : 1) * sparse * thin), x, { wide: (big ? 1.5 : 1) * (0.8 + 0.4 * sparse) });
+      if (ch.notes.length >= 2 && FIX.comp > 0) {
         // The chord's mean hue, turned 180°: a halo of the complement around the chord's loudest note.
         let cx = 0, cy = 0, lead = ch.notes[0]; for (const n of ch.notes) { const h = hueOf(n.m, x) * Math.PI / 180; cx += Math.cos(h); cy += Math.sin(h); if (n.v > lead.v) lead = n; }
         const hc = Math.atan2(cy, cx) * 180 / Math.PI + 180;
-        burst(lead.m, lead.v * 0.75, lead.d, Math.round(x.p('comp') * x.p('burst') * ch.notes.length * 7), x, { hue: hc, ring: true, small: 0.7 });
+        burst(lead.m, lead.v * 0.75, lead.d, Math.round(FIX.comp * x.p('burst') * ch.notes.length * 7), x, { hue: hc, ring: true, small: 0.7 });
       }
     },
     frame(x) {
       const g = x.g, bleed = x.p('bleed');
-      time += x.dt; pulse *= Math.pow(0.5, x.dt / 0.12); life += (x.p('fade') - life) * (1 - Math.pow(0.5, x.dt / 1.5));
+      time += x.dt; pulse *= Math.pow(0.5, x.dt / 0.12); life += (x.p('stay') * (1 - 0.45 * x.feat.rate) - life) * (1 - Math.pow(0.5, x.dt / 1.5));
       // Held notes keep adding dots, gently.
       const now = x.sounding(), keep = new Map();
       for (const n of now) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Toolbox round 2</title>
+<title>Widget lab</title>
 <style>
   :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --on: #b43a2a; }
   * { box-sizing: border-box; }
@@ -12,42 +12,78 @@
   h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
   p.sub { margin: 0 0 14px; color: var(--dim); }
   .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; overflow: hidden; }
-  canvas { width: 100%; height: 100%; display: block; }
+  #c { width: 100%; height: 100%; display: block; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 8px; }
   button { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
   button:hover { border-color: #5a4b4f; }
   .time { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 92px; }
   .track { position: relative; height: 10px; border-radius: 4px; background: #1b171b; cursor: pointer; margin-bottom: 14px; }
   .head { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; }
-  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
-  .tool { border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; cursor: pointer; background: #110e11; }
+  .legend { font-size: 12.5px; color: var(--dim); margin: 0 0 10px; line-height: 1.6; }
+  .legend b { color: var(--fg); font-weight: 600; }
+  .legend .how { display: block; }
+  .missing { font-size: 12px; color: #6d635b; margin: 0 0 8px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; }
+  .tool { border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; cursor: pointer; background: #110e11; min-width: 0; }
   .tool.on { border-color: var(--on); background: #1d1013; }
-  .tool b { display: block; font-weight: 600; margin-bottom: 2px; }
-  .tool .tag { font-size: 11px; color: var(--on); margin-left: 6px; font-weight: 500; }
-  .tool span { color: var(--dim); font-size: 13px; }
+  .tool > b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .tag { display: inline-block; font-size: 10.5px; line-height: 1; padding: 3px 6px 3px; border-radius: 9px; margin-left: 6px; font-weight: 600; vertical-align: 2px; letter-spacing: 0.02em; }
+  .tag.ver { color: #ffb9ab; background: #3a1a1c; }
+  .tag.v-love { color: #c8f0d2; background: #1d4a2b; }
+  .tag.v-keep { color: #cfe0f5; background: #213a5c; }
+  .tag.v-work { color: #f7deb0; background: #5a3e12; }
+  .tag.v-none { color: #b9b0a7; background: #2a2428; font-weight: 500; }
+  .tag.v-rev { color: #f7deb0; background: transparent; border: 1px solid #5a3e12; font-weight: 500; }
+  .tool .blurb { color: var(--dim); font-size: 13px; }
   .err { color: #ff8a7a; font-size: 12px; }
-  .params { margin-top: 7px; display: grid; gap: 3px; }
-  .prm { display: grid; grid-template-columns: 92px 1fr 84px; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
-  .prm input { width: 100%; accent-color: var(--on); }
-  .prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
-  .rate { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+  .params { margin-top: 8px; display: grid; gap: 7px; cursor: default; }
+  .prm { position: relative; font-size: 12px; color: var(--dim); }
+  .prm .top { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 6px; align-items: center; }
+  .prm .name { color: var(--fg); min-width: 0; line-height: 1.2; }
+  .prm .info { padding: 0 6px; font-size: 11px; line-height: 16px; border-radius: 50%; color: var(--dim); font-style: italic; font-family: Georgia, serif; }
+  .prm .row { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; align-items: center; margin-top: 3px; }
+  .prm.plain { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name sel' 'slider slider'; gap: 1px 6px; align-items: center; }
+  .prm.plain .name { grid-area: name; } .prm.plain select { grid-area: sel; } .prm.plain input { grid-area: slider; }
+  .prm.plain .name { color: var(--dim); }
+  .prm input { width: 100%; accent-color: var(--on); margin: 0; }
+  .prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; max-width: 124px; }
+  .prm canvas { display: block; width: 40px; height: 26px; border-radius: 3px; background: #0a080a; }
+  .prm canvas.live { background: #241b20; box-shadow: 0 0 0 1px #3a2c31; }
+  .prm .hint { display: none; color: #cbbfb4; font-size: 12px; line-height: 1.4; padding: 4px 0 0 46px; }
+  .prm.open .hint { display: block; }
+  @media (hover: hover) {
+    .prm:not(.open):hover .hint { display: block; position: absolute; z-index: 5; left: 46px; right: 0; bottom: 100%; margin-bottom: 4px;
+      padding: 6px 8px; background: #241b20; border: 1px solid #3a2c31; border-radius: 5px; box-shadow: 0 4px 14px #000a; }
+  }
+  .rate { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
   .rate button { padding: 2px 8px; font-size: 12px; color: var(--dim); }
   .rate button.picked { color: var(--fg); border-color: var(--on); background: #2a1418; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Toolbox, round 2: switch tools on and off, and mix them</h1>
-  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that tool. Throwaway sketches, not app code.</p>
+  <h1>Widget lab: switch widgets on and off, mix them, judge them</h1>
+  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that widget. Throwaway sketches, not app code.</p>
   <div class="stage"><canvas id="c" width="1280" height="720"></canvas></div>
   <div class="bar">
     <button id="play">▶ Play</button>
     <span id="moments" style="display:contents"></span>
     <span class="time" id="time">0:00</span>
     <button id="export" title="Copies your ratings and slider settings so you can paste them to Claude">Copy ratings + settings</button>
-    <span id="songs" style="margin-left:auto;display:flex;gap:6px"></span>
+    <span id="songs" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"></span>
   </div>
   <div class="track" id="track"><div class="head" id="head"></div></div>
+  <p class="legend">
+    <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
+    <b>louder</b> = the keys are struck harder ·
+    <b>faster</b> = more notes per second ·
+    <b>higher notes</b> = the top note climbs ·
+    <b>more bass</b> = more weight in the low notes ·
+    <b>fuller chords</b> = more notes sounding at once.
+    <span class="how">“louder → more” turns the knob up as the music gets louder; “louder → less” turns it down.
+    The two small pictures at the ends of a slider show what left and right do; the lit one by its name shows where it is now, moving with the music. Hover or tap <i>i</i> for a sentence about it.</span>
+  </p>
+  <p class="missing" id="missing"></p>
   <div class="tools" id="tools"></div>
 </main>
 <audio id="a" preload="auto"></audio>
@@ -67,31 +103,128 @@ document.getElementById('a').src = SONG.audio;
 document.write(`<script src="${SONG.notes}"><\/script>`);
 </script>
 <script>
-// Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
+// Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, params?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
 window.TOOLS = [];
+
+/* Knob pictures. A param may carry `icon(g, v, w, h)`: draw what the knob does at v (0..1 along the slider) on a w×h
+   canvas context (CSS pixels; the harness handles the screen's pixel density, clears it, and sets fill/stroke to ICON.ink,
+   lineWidth 1.5, round caps). The harness draws it at v=0 and v=1 at the slider's ends, and a live one by the name.
+   ICON holds helpers so most icons are one line, e.g. icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * 12, ICON.red).
+   Anything random must use ICON.rng(seed) so the picture doesn't jitter as it redraws. */
+window.ICON = (() => {
+  const I = {
+    ink: '#e9e2da', dim: '#6d635b', red: '#c43a2c', gold: '#e0b04a', blue: '#4f86c6', green: '#5aa36f', violet: '#9a6bd0',
+    /** Seeded random: const r = ICON.rng(3); r() → 0..1, same sequence every redraw. */
+    rng(seed = 1) { let s = (seed * 2654435761) >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); },
+    /** Mix two '#rrggbb' colours: t=0 → a, t=1 → b. */
+    lerp(a, b, t) { const p = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16); return `rgb(${[0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t)).join(',')})`; },
+    dot(g, x, y, r, col = I.ink) { g.fillStyle = col; g.beginPath(); g.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); g.fill(); },
+    ring(g, x, y, r, col = I.ink, lw = 1.5) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); g.stroke(); },
+    square(g, x, y, s, col = I.ink, rot = 0) { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = col; g.fillRect(-s / 2, -s / 2, s, s); g.restore(); },
+    rect(g, x, y, w, h, col = I.ink) { g.fillStyle = col; g.fillRect(x, y, w, h); },
+    line(g, x1, y1, x2, y2, col = I.ink, lw = 1.5) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); },
+    arrow(g, x1, y1, x2, y2, col = I.ink, lw = 1.5) {
+      I.line(g, x1, y1, x2, y2, col, lw); const a = Math.atan2(y2 - y1, x2 - x1), k = 3 + lw * 1.5;
+      g.fillStyle = col; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 - k * Math.cos(a - 0.5), y2 - k * Math.sin(a - 0.5)); g.lineTo(x2 - k * Math.cos(a + 0.5), y2 - k * Math.sin(a + 0.5)); g.fill();
+    },
+    /** n parallel lines across the box ('h' horizontal or 'v' vertical). */
+    lines(g, n, w, h, { dir = 'h', col = I.ink, lw = 1.2, pad = 3 } = {}) {
+      n = Math.max(0, Math.round(n));
+      for (let i = 0; i < n; i++) { const f = n === 1 ? 0.5 : i / (n - 1);
+        if (dir === 'h') { const y = pad + f * (h - 2 * pad); I.line(g, pad, y, w - pad, y, col, lw); } else { const x = pad + f * (w - 2 * pad); I.line(g, x, pad, x, h - pad, col, lw); } }
+    },
+    /** n scattered dots (seeded), radius r. */
+    dots(g, n, w, h, { seed = 7, r = 1.4, col = I.ink, pad = 3 } = {}) { const R = I.rng(seed); for (let i = 0; i < Math.round(n); i++) I.dot(g, pad + R() * (w - 2 * pad), pad + R() * (h - 2 * pad), r, col); },
+    /** A sine across the box: amp 0..1 of the half-height, `cycles` waves. */
+    wave(g, w, h, amp = 0.6, cycles = 2, col = I.ink, lw = 1.5) {
+      g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+      for (let x = 2; x <= w - 2; x++) { const y = h / 2 - Math.sin(((x - 2) / (w - 4)) * cycles * Math.PI * 2) * amp * (h / 2 - 2); x === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
+      g.stroke();
+    },
+    /** Run draw() under a blur of px pixels: ICON.blur(g, v * 3, () => ICON.square(g, w / 2, h / 2, 10)). */
+    blur(g, px, draw) { g.save(); g.filter = px > 0.05 ? `blur(${px.toFixed(2)}px)` : 'none'; draw(); g.restore(); },
+    /** Run draw() at an opacity 0..1. */
+    alpha(g, a, draw) { g.save(); g.globalAlpha = Math.max(0, Math.min(1, a)); draw(); g.restore(); },
+    /** Colour swatches side by side across the box. */
+    palette(g, colours, w, h, pad = 3) { const n = colours.length, sw = (w - 2 * pad) / n; colours.forEach((c, i) => I.rect(g, pad + i * sw, pad, Math.ceil(sw), h - 2 * pad, c)); },
+    /** A pie slice filled to frac (0..1) from 12 o'clock: amounts, durations. */
+    pie(g, x, y, r, frac, col = I.ink) {
+      I.ring(g, x, y, r, I.dim, 1); if (frac <= 0) return;
+      g.fillStyle = col; g.beginPath(); g.moveTo(x, y); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, frac)); g.closePath(); g.fill();
+    },
+    /** How long things last: a row of shapes from bright (left) fading to nothing; life 0..1 = how far along the row they stay visible. */
+    fade(g, w, h, life, col = I.ink, shape = 'square') {
+      const n = 5, step = (w - 4) / n;
+      for (let i = 0; i < n; i++) { const f = i / (n - 1), a = Math.max(0, 1 - f / Math.max(0.04, life));
+        if (a > 0) I.alpha(g, a, () => I.shape(g, shape, 2 + step * (i + 0.5), h / 2, Math.min(step - 1.5, h - 6), col)); }
+    },
+    /** Ghost copies around draw(), offset by up to amt pixels: shake, jitter. */
+    shake(g, amt, draw) { const R = I.rng(5); for (let i = 0; i < 3; i++) { g.save(); g.globalAlpha = amt > 0.2 ? 0.35 : 0; g.translate((R() - 0.5) * 2 * amt, (R() - 0.5) * 2 * amt); draw(); g.restore(); } draw(); },
+    /** A mini piano keyboard; keys between from and to (0..1 across the keyboard) lit in col. */
+    keys(g, w, h, from = 0, to = 1, col = I.red) {
+      const n = 10, kw = (w - 2) / n;
+      for (let i = 0; i < n; i++) { const f = (i + 0.5) / n; I.rect(g, 1 + i * kw, 2, kw - 1, h - 4, f >= from && f <= to ? col : '#cfc6bc'); }
+      for (const i of [0, 1, 3, 4, 5, 7, 8]) I.rect(g, 1 + (i + 0.62) * kw, 2, kw * 0.7, (h - 4) * 0.58, '#151214');
+    },
+    /** A dot with a tail behind it, tail length 0..1 of the box: trails, smears, memory. */
+    trail(g, len, w, h, col = I.ink) {
+      const x = w - 5, y = h / 2, L = len * (w - 10);
+      for (let i = 10; i > 0; i--) I.alpha(g, (1 - i / 10) * 0.8, () => I.dot(g, x - (L * i) / 10, y + Math.sin(i * 0.6) * 2, 1.3 + (1 - i / 10) * 1.2, col));
+      I.dot(g, x, y, 2.6, col);
+    },
+    /** A short word or symbol centred in the box. */
+    glyph(g, text, w, h, col = I.ink, px = 11) { g.fillStyle = col; g.font = `600 ${px}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 0.5); },
+    /** One named shape centred at x,y, size s: 'dot', 'ring', 'square', 'diamond', 'triangle', 'oval', 'line', 'tick', 'cross', 'star'. */
+    shape(g, name, x, y, s, col = I.ink) {
+      const r = s / 2;
+      switch (name) {
+        case 'dot': return I.dot(g, x, y, r, col);
+        case 'ring': return I.ring(g, x, y, r * 0.85, col);
+        case 'diamond': return I.square(g, x, y, s * 0.72, col, Math.PI / 4);
+        case 'triangle': g.fillStyle = col; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.9, y + r * 0.7); g.lineTo(x - r * 0.9, y + r * 0.7); g.fill(); return;
+        case 'oval': g.fillStyle = col; g.beginPath(); g.ellipse(x, y, r, r * 0.55, 0, 0, Math.PI * 2); g.fill(); return;
+        case 'line': return I.line(g, x - r, y, x + r, y, col);
+        case 'tick': return I.line(g, x, y - r, x, y + r, col);
+        case 'cross': I.line(g, x - r * 0.75, y - r * 0.75, x + r * 0.75, y + r * 0.75, col); return I.line(g, x - r * 0.75, y + r * 0.75, x + r * 0.75, y - r * 0.75, col);
+        case 'star': g.fillStyle = col; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r * 0.45 : r; g.lineTo(x + q * Math.cos(a), y + q * Math.sin(a)); } g.fill(); return;
+        default: return I.square(g, x, y, s, col);
+      }
+    },
+    /** The fallback for a knob without an icon: a bar filled to v. */
+    gauge(g, v, w, h) { I.rect(g, 3, h / 2 - 3, w - 6, 6, '#2c2428'); I.rect(g, 3, h / 2 - 3, (w - 6) * v, 6, I.dim); },
+  };
+  /* Ready-made icons for common knob kinds (each returns an icon function): icon: ICON.of.size('dot', ICON.gold). */
+  I.of = {
+    size: (shape = 'square', col) => (g, v, w, h) => I.shape(g, shape, w / 2, h / 2, 3 + v * (h - 5), col),
+    count: (max = 12, col) => (g, v, w, h) => I.dots(g, 1 + v * (max - 1), w, h, { col }),
+    blur: (shape = 'square', col) => (g, v, w, h) => I.blur(g, v * 3, () => I.shape(g, shape, w / 2, h / 2, h - 8, col)),
+    time: (col) => (g, v, w, h) => I.fade(g, w, h, 0.12 + v * 0.88, col),
+    speed: (col) => (g, v, w, h) => I.trail(g, 0.1 + v * 0.9, w, h, col),
+    lines: (max = 8, col) => (g, v, w, h) => I.lines(g, 1 + v * (max - 1), w, h, { col }),
+    choice: (shapes, col) => (g, v, w, h) => I.shape(g, shapes[Math.round(v * (shapes.length - 1))], w / 2, h / 2, h - 6, col),
+    colour: (a, b) => (g, v, w, h) => I.rect(g, 3, 3, w - 6, h - 6, I.lerp(a, b, v)),
+  };
+  return I;
+})();
+
+// The widgets, in card order: tonight's new ones, then (re)worked ones, then the rest. A missing or broken file only
+// leaves a note: Vite answers a missing file with its HTML page, so each file is fetched and checked before it runs.
+const TOOL_IDS = ['harmonograph', 'hilma', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
+  'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
+  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
+const LOAD_NOTES = { missing: [], broken: [] };
+async function loadTools() {
+  const texts = await Promise.all(TOOL_IDS.map(async (id) => {
+    try { const r = await fetch(`tools/${id}.js`, { cache: 'no-store' }); return r.ok && /javascript/.test(r.headers.get('content-type') || '') ? await r.text() : null; }
+    catch { return null; }
+  }));
+  TOOL_IDS.forEach((id, i) => {
+    if (texts[i] == null) return LOAD_NOTES.missing.push(id);
+    try { (0, eval)(`${texts[i]}\n//# sourceURL=${new URL(`tools/${id}.js`, location.href)}`); }
+    catch (e) { LOAD_NOTES.broken.push(`${id} (${e.message})`); console.warn('tool', id, 'did not load:', e); }
+  });
+}
 </script>
-<script src="tools/squares.js"></script>
-<script src="tools/flee.js"></script>
-<script src="tools/current.js"></script>
-<script src="tools/strings.js"></script>
-<script src="tools/murmuration.js"></script>
-<script src="tools/ripples.js"></script>
-<script src="tools/rorschach.js"></script>
-<script src="tools/kandinsky.js"></script>
-<script src="tools/moire.js"></script>
-<script src="tools/fields.js"></script>
-<script src="tools/marbling.js"></script>
-<script src="tools/brush.js"></script>
-<script src="tools/blocks.js"></script>
-<script src="tools/riley.js"></script>
-<script src="tools/halftone.js"></script>
-<script src="tools/fifths.js"></script>
-<script src="tools/suprematism.js"></script>
-<script src="tools/contours.js"></script>
-<script src="tools/tunnel.js"></script>
-<script src="tools/scribble.js"></script>
-<script src="tools/pointillism.js"></script>
-<script src="tools/casket.js"></script>
 <script>
 const W = 1280, H = 720, DUR = SONG.dur;
 const fmt0 = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -128,21 +261,42 @@ const ctx = {
 };
 function lo(t) { let a = 0, b = NOTES.length; while (a < b) { const k = (a + b) >> 1; if (NOTES[k][0] < t) a = k + 1; else b = k; } return a; }
 
-// ?only=flee,squares picks the tools (for the shot script).
+// ?only=flee,squares picks the tools (for the shot script); otherwise the ones marked `on`.
 const only = new URLSearchParams(location.search).get('only');
-const active = new Set(only ? only.split(',') : TOOLS.filter((x) => x.on).map((x) => x.id));
+const active = new Set(only ? only.split(',') : []);
 const errors = {};
 const RATES = ['love it', 'keep', 'needs work', 'drop'];
 let ratings = {}; try { ratings = JSON.parse(localStorage.getItem('wa-ratings') || '{}'); } catch {}
-// Parameters: a tool lists params [{ key, label, min, max, step?, value, drive? }] and reads ctx.p('key') each frame.
-// The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
-const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
+// The user's verdicts so far (lab/ratings.md), with the version they judged. A tool whose tag has moved on since is "revised".
+const VERDICTS = {
+  casket: { v: 'love', on: 'building into the app', note: 'built into the app' },
+  squares: { v: 'love', on: 'v2' },
+  rorschach: { v: 'love', on: 'v2', note: 'keep our defaults' },
+  kandinsky: { v: 'love', on: 'new', note: 'a complete visualization by itself; tone down the overlap with dread squares' },
+  flee: { v: 'love', on: 'v3' },
+  current: { v: 'love', on: 'v3' },
+  strings: { v: 'love', on: 'v2', note: 'accepted the defaults' },
+  murmuration: { v: 'needs work', on: 'v2', note: 'your favourite; re-forming must be clearly musical; fewer, plainer knobs' },
+  marbling: { v: 'needs work', on: 'new', note: 'extremely high potential, but it does not answer the sound correctly' },
+  fields: { v: 'keep', on: 'new', note: 'a good building block' },
+};
+const VCLASS = { love: 'v-love', keep: 'v-keep', 'needs work': 'v-work' };
+const isRevised = (tool) => VERDICTS[tool.id] && (tool.tag ?? '') !== VERDICTS[tool.id].on;
+const sortKey = (tool) => (!VERDICTS[tool.id] || isRevised(tool) ? 0 : 1000) + (TOOL_IDS.includes(tool.id) ? TOOL_IDS.indexOf(tool.id) : 999);
+
+// Parameters: a tool lists params [{ key, label, min, max, step?, value, drive?, hint?, icon? }] and reads ctx.p('key') each
+// frame. The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
+// Stored values stay '+level' etc. so saved settings keep loading; only the words shown changed.
+const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
+  ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
+  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less']];
 let PST = {}; try { PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
 const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
 // Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
 const BROWSER = /Edg\//.test(navigator.userAgent) ? 'edge' : /Electron|Claude/.test(navigator.userAgent) ? 'claude-pane' : 'chrome';
 let syncT = 0;
-const sync = () => { clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
+// Headless browsers (shot.mjs, test scripts) never sync: they'd overwrite the user's saved entry with defaults.
+const sync = () => { if (/HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
 const saveP = () => { try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
 ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
 ctx.p = (key) => {
@@ -153,16 +307,63 @@ ctx.p = (key) => {
 };
 const safe = (tool, fn, ...a) => { ctx.tool = tool; try { tool[fn]?.(...a); } catch (e) { if (!errors[tool.id]) { errors[tool.id] = String(e); render(); console.error(tool.id, e); } } };
 
+// Knob pictures: drawIcon paints a param's icon (or the gauge fallback) at v; a broken icon falls back instead of breaking the card.
+const IW = 40, IH = 26;
+function drawIcon(cv, q, v) {
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(IW * dpr)) { cv.width = Math.round(IW * dpr); cv.height = Math.round(IH * dpr); }
+  const ig = cv.getContext('2d'), paint = (fn) => {
+    ig.setTransform(dpr, 0, 0, dpr, 0, 0); ig.clearRect(0, 0, IW, IH); ig.save();
+    ig.fillStyle = ig.strokeStyle = ICON.ink; ig.lineWidth = 1.5; ig.lineCap = 'round'; ig.lineJoin = 'round';
+    try { fn(ig, Math.max(0, Math.min(1, v)), IW, IH); return true; } catch (e) { return false; } finally { ig.restore(); }
+  };
+  if (!(typeof q.icon === 'function' && paint(q.icon))) paint(ICON.gauge);
+}
+const norm = (q, x) => (q.max > q.min ? (x - q.min) / (q.max - q.min) : 0);
+let LIVE = []; // [{ tool, q, cv }] live icons on the page, redrawn as sliders move and (while playing) as the music drives them
+function drawLive(item) { const keep = ctx.tool; ctx.tool = item.tool; try { drawIcon(item.cv, item.q, norm(item.q, ctx.p(item.q.key))); } finally { ctx.tool = keep; } }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+function verdictTag(tool) {
+  const vd = VERDICTS[tool.id];
+  if (!vd) return '<span class="tag v-none">not judged yet</span>';
+  const tip = esc(`You said: ${vd.v} (on ${vd.on})${vd.note ? `: ${vd.note}` : ''}`);
+  return isRevised(tool) ? `<span class="tag v-rev" title="${tip}">reworked · was “${esc(vd.v)}”</span>`
+    : `<span class="tag ${VCLASS[vd.v] || 'v-none'}" title="${tip}">you: ${esc(vd.v)}</span>`;
+}
+function paramHTML(tool, q) {
+  const st = pst(tool, q), label = esc(q.label ?? q.key);
+  const select = `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
+  const slider = `<input type="range" data-k="${esc(q.key)}" aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}">`;
+  // Older tools' knobs (no picture, no hint) keep the compact one-line row.
+  if (!q.icon && !q.hint) return `<div class="prm plain" data-p="${esc(q.key)}"><span class="name">${label}</span>${slider}${select}</div>`;
+  return `<div class="prm" data-p="${esc(q.key)}">
+    <div class="top"><canvas class="live" data-i="live"></canvas><span class="name">${label}</span>${q.hint ? '<button class="info" data-info aria-label="what is this?">i</button>' : '<span></span>'}${select}</div>
+    <div class="row"><canvas data-i="0"></canvas>${slider}<canvas data-i="1"></canvas></div>
+    ${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}</div>`;
+}
+
 function render() {
-  const box = document.getElementById('tools'); box.innerHTML = '';
-  for (const tool of TOOLS) {
+  const box = document.getElementById('tools'); box.innerHTML = ''; LIVE = [];
+  const list = [...TOOLS].sort((a, b) => sortKey(a) - sortKey(b));
+  for (const tool of list) {
     const d = document.createElement('div'); d.className = 'tool' + (active.has(tool.id) ? ' on' : '');
-    d.innerHTML = `<b>${tool.name}${tool.tag ? `<span class="tag">${tool.tag}</span>` : ''}</b><span>${tool.blurb}</span>${errors[tool.id] ? `<div class="err">${errors[tool.id]}</div>` : ''}`
-      + (tool.params ? `<div class="params">${tool.params.map((q) => { const st = pst(tool, q); return `<label class="prm"><span>${q.label}</span><input type="range" data-k="${q.key}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}"><select data-k="${q.key}">${DRIVES.map((d) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${d ? d[0] + ' ' + d.slice(1) : 'fixed'}</option>`).join('')}</select></label>`; }).join('')}</div>` : '')
-      + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
-    d.querySelectorAll('[data-k]').forEach((el) => {
-      el.onclick = (ev) => ev.stopPropagation();
-      el.oninput = () => { const q = tool.params.find((x) => x.key === el.dataset.k), st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else st.base = Number(el.value); saveP(); };
+    let params = '';
+    try { params = Array.isArray(tool.params) && tool.params.length ? `<div class="params">${tool.params.map((q) => paramHTML(tool, q)).join('')}</div>` : ''; }
+    catch (e) { errors[tool.id] ??= `knobs: ${e}`; }
+    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}</b><span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
+      + params + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
+    // Knobs: touching anything in the knob area never toggles the tool.
+    d.querySelector('.params')?.addEventListener('click', (ev) => ev.stopPropagation());
+    d.querySelectorAll('.prm').forEach((row) => {
+      const q = tool.params.find((x) => String(x.key) === row.dataset.p); if (!q) return;
+      const [live, i0, i1] = ['live', '0', '1'].map((k) => row.querySelector(`canvas[data-i="${k}"]`));
+      const item = { tool, q, cv: live };
+      if (live) { drawIcon(i0, q, 0); drawIcon(i1, q, 1); LIVE.push(item); drawLive(item); }
+      row.querySelector('[data-info]')?.addEventListener('click', () => row.classList.toggle('open'));
+      row.querySelectorAll('[data-k]').forEach((el) => {
+        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
+      });
     });
     d.onclick = (ev) => {
       const r = ev.target.dataset?.r;
@@ -173,7 +374,7 @@ function render() {
   }
 }
 
-let ci = 0, lastT = 0;
+let ci = 0, lastT = 0, liveT = 0;
 function reset(t) {
   lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
   ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
@@ -212,6 +413,8 @@ function frame() {
     g.save(); safe(tool, 'frame', ctx); g.restore();
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
   }
+  // Live knob pictures follow the music ~8 times a second, for knobs that follow something.
+  if (ctx.now - liveT > 0.12) { liveT = ctx.now; for (const it of LIVE) if (pst(it.tool, it.q).drive) drawLive(it); }
 }
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 document.getElementById('play').onclick = () => (audio.paused ? audio.play() : audio.pause());
@@ -220,7 +423,14 @@ audio.onpause = () => (document.getElementById('play').textContent = '▶ Play')
 document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
-render(); reset(0); frame(); sync(); // sends what this browser already has as soon as the page opens
+loadTools().then(() => {
+  if (!only) for (const tool of TOOLS) if (tool.on) active.add(tool.id);
+  const notes = [];
+  if (LOAD_NOTES.missing.length) notes.push(`Not written yet: ${LOAD_NOTES.missing.join(', ')}.`);
+  if (LOAD_NOTES.broken.length) notes.push(`Could not load: ${LOAD_NOTES.broken.join('; ')}.`);
+  document.getElementById('missing').textContent = notes.join(' ');
+  render(); reset(audio.currentTime); frame(); sync(); // sends what this browser already has as soon as the page opens
+});
 </script>
 </body>
 </html>

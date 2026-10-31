@@ -22,7 +22,7 @@
 
   function add(x, n, kind, ch) {
     const r = x.pitch01(n.m), vk = 0.6 + 0.5 * n.v / 127;
-    const reg = 1 + x.p('register') * (0.5 - r) * 1.7;
+    const reg = 1 + 0.7 * (0.5 - r) * 1.7; // low notes bigger, high notes smaller
     let w, h, key, hy;
     if (kind === 'bar') { w = x.rnd(230, 430); h = x.rnd(40, 78); key = n.v > 108 && Math.random() < 0.35 ? 'red' : 'black'; hy = x.rnd(0.66, 0.86); }
     else if (kind === 'sliver') { w = x.rnd(180, 420); h = x.rnd(2, 5); key = Math.random() < 0.7 ? 'cream' : 'ochre'; hy = x.rnd(0.1, 0.32); }
@@ -40,20 +40,35 @@
       a: quarter * Math.PI / 2 + lean * 0.4 + from * 0.5, av: 0, born: 0, health: 1, dying: false, ph: x.rnd(0, 100), flash: 1 });
   }
 
+  const tiltK = (x) => x.p('push') * 0.9; // 'push' at its default (0.6) gives the old tilt response (~0.55)
+
   TOOLS.push({
     id: 'suprematism', name: 'Suprematism', tag: 'new',
     blurb: 'Malevich-style flat planes on a dark field: bass slams heavy black bars in low, high notes add thin slivers high, chords add red, ochre and cream blocks, and big chords flip planes on their side. Loud, dense passages tilt the whole composition and pile the planes into each other; quiet ones let them drift apart and level out.',
+    // Five knobs (the user's rule for this round). Folded into fixed choices: angle spread (still leans more when loud),
+    // drift, size by register, and flips on big chords (more of them when loud). 'push' merges tilt and collision pull.
     params: [
-      { key: 'count', label: 'plane count', min: 4, max: 60, step: 1, value: 22 },
-      { key: 'spread', label: 'angle spread', min: 0, max: 1, value: 0.25, drive: '+level' },
-      { key: 'temp', label: 'cold / hot', min: 0, max: 1, value: 0.5 },
-      { key: 'drift', label: 'drift', min: 0, max: 2, value: 0.6 },
-      { key: 'tilt', label: 'tilt response', min: 0, max: 1.4, value: 0.55 },
-      { key: 'pull', label: 'collision pull', min: 0, max: 1.8, value: 0.7, drive: '+density' },
-      { key: 'register', label: 'size by register', min: 0, max: 1, value: 0.7 },
-      { key: 'size', label: 'size', min: 0.4, max: 1.6, value: 0.85, drive: '+bass' },
-      { key: 'life', label: 'plane life (s)', min: 1, max: 20, value: 9, drive: '-rate' },
-      { key: 'flip', label: 'flip on big chords', min: 0, max: 1, value: 0.35, drive: '+level' },
+      { key: 'count', label: 'how many planes', min: 4, max: 60, step: 1, value: 22,
+        hint: 'How many planes can be on the field at once; the oldest leave first. Left: a sparse few. Right: a crowded field.',
+        icon: (g, v, w, h) => { const R = ICON.rng(4), n = Math.round(2 + v * 16), cols = [ICON.red, ICON.ink, ICON.gold, '#8a8078'];
+          for (let i = 0; i < n; i++) { const L = 5 + R() * 9; g.save(); g.translate(5 + R() * (w - 10), 4 + R() * (h - 8)); g.rotate((R() - 0.5) * 0.8); ICON.rect(g, -L / 2, -1.2, L, 2.4 + (i % 3 === 0 ? 2 : 0), cols[i % 4]); g.restore(); } } },
+      { key: 'life', label: 'how long a plane stays', min: 1, max: 20, value: 9, drive: '-rate',
+        hint: 'How long a plane stays before it shrinks away. Left: a second or two. Right: it holds for many bars.',
+        icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, ICON.red, 'square') },
+      { key: 'push', label: 'how hard loud music pushes', min: 0, max: 1.5, value: 0.6,
+        hint: 'How much loud, full passages tilt the whole composition and crowd the planes together. Left: it stays calm and level. Right: a steep tilt and a pile-up.',
+        icon: (g, v, w, h) => {
+          const bars = [[-11, -6, 14, ICON.ink], [9, -4, 12, ICON.red], [-8, 6, 12, ICON.red], [10, 6, 16, ICON.gold]];
+          g.save(); g.translate(w / 2, h / 2); g.rotate(-0.55 * v);
+          for (const [bx, by, L, c] of bars) { g.save(); g.translate(bx * (1 - 0.6 * v), by * (1 - 0.45 * v)); g.rotate(v * 0.5 * Math.sign(bx * by)); ICON.rect(g, -L / 2, -1.6, L, 3.2, c); g.restore(); }
+          g.restore();
+        } },
+      { key: 'temp', label: 'cold / hot colours', min: 0, max: 1, value: 0.5,
+        hint: 'The four inks. Left: cold, blue and steel greys. Middle: classic red, ochre and cream. Right: hot orange and gold.',
+        icon: (g, v, w, h) => { ICON.rect(g, 1, 1, w - 2, h - 2, ink('field', v)); ICON.rect(g, 4, 4, 20, 8, ink('red', v)); ICON.rect(g, 26, 5, 10, 16, ink('ochre', v)); ICON.rect(g, 6, 15, 17, 4, ink('cream', v)); ICON.rect(g, 4, 21, 30, 2.5, ink('black', v)); } },
+      { key: 'size', label: 'size', min: 0.4, max: 1.6, value: 0.85, drive: '+bass',
+        hint: 'How big the planes are. Left: small, with lots of empty field. Right: big slabs that fill the frame.',
+        icon: (g, v, w, h) => { const L = 8 + v * 28, T = 2.5 + v * 7; g.save(); g.translate(w / 2, h / 2); g.rotate(-0.25); ICON.rect(g, -L / 2, -T / 2, L, T, ICON.red); g.restore(); } },
     ],
     reset() { planes = []; tension = 0; gAng = 0; gVel = 0; time = 0; },
     onChord(ch, x) {
@@ -64,17 +79,17 @@
       const mids = ch.notes.filter((n) => n.m >= 48 && n.m <= 76);
       if (mids.length) { const n = mids[Math.floor(Math.random() * mids.length)]; add(x, n, n.d > 1.2 && Math.random() < 0.6 ? 'disc' : 'block', ch); }
       // The attack jolts the whole composition.
-      gVel += (Math.random() < 0.5 ? -1 : 1) * (ch.vel / 127) * (0.6 + ch.notes.length * 0.12) * x.p('tilt');
+      gVel += (Math.random() < 0.5 ? -1 : 1) * (ch.vel / 127) * (0.6 + ch.notes.length * 0.12) * tiltK(x);
       // Big chords turn planes on their side.
       if (ch.vel >= 88 || ch.notes.length >= 4) {
-        const k = x.p('flip'), alive = planes.filter((q) => !q.dying);
+        const k = 0.3 + 0.35 * x.feat.level, alive = planes.filter((q) => !q.dying);
         for (const q of alive) if (Math.random() < k) { q.quarter += Math.random() < 0.5 ? 1 : -1; q.flash = Math.max(q.flash, 0.6); if (Math.random() < 0.25) q.key = q.key === 'black' ? 'red' : q.key === 'red' ? 'black' : q.key; }
       }
     },
     frame(x) {
       const g = x.g, dt = x.dt, f = x.feat, W = x.W, H = x.H;
       time += dt;
-      const temp = x.p('temp'), spread = x.p('spread'), drift = x.p('drift'), tilt = x.p('tilt'), pull = x.p('pull'), size = x.p('size'), life = x.p('life');
+      const temp = x.p('temp'), spread = 0.25 + 0.4 * f.level, drift = 0.6, tilt = tiltK(x), pull = x.p('push') * 1.15, size = x.p('size'), life = x.p('life');
       // Tension: loudness and density, smoothed.
       const tt = Math.min(1, f.level * 0.65 + f.density * 0.45 + f.rate * 0.25);
       tension += (tt - tension) * (1 - Math.exp(-dt / 0.35));
@@ -91,7 +106,8 @@
       for (let i = planes.length - 1; i >= 0; i--) if (!planes[i].dying && ++alive > cap) planes[i].dying = true;
 
       const cx = W / 2, cy = H * 0.52;
-      const squeeze = Math.max(-0.6, 1 - pull * tension * 1.1) * (1 + 0.15 * (1 - tension) * drift);
+      // Under tension the planes crowd in, but never into one knot: dense passages used to squeeze them all to the centre.
+      const squeeze = Math.max(0.55, 1 - pull * tension * 0.6) * (1 + 0.15 * (1 - tension) * drift);
       for (const q of planes) {
         q.born += dt; q.flash *= Math.exp(-dt / 0.06);
         q.health -= dt / (q.dying ? 0.35 : life);

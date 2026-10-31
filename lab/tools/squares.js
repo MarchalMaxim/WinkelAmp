@@ -4,12 +4,23 @@
   TOOLS.push({
     id: 'squares', name: 'Dread squares', tag: 'v2', on: true,
     blurb: 'Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred.',
+    // The reference for the new knob style: at most 5 knobs, each with a plain hint and a small picture (see lab/README.md).
     params: [
-      { key: 'size', label: 'size', min: 0.3, max: 2, value: 1 },
-      { key: 'life', label: 'fade time (s)', min: 0.3, max: 4, value: 1.4 },
-      { key: 'blur', label: 'edge blur', min: 0, max: 3, value: 1 },
-      { key: 'split', label: 'low-note limit', min: 36, max: 72, step: 1, value: 50 },
-      { key: 'shake', label: 'shake', min: 0, max: 2, value: 1, drive: '+level' },
+      { key: 'size', label: 'size', min: 0.3, max: 2, value: 1,
+        hint: 'How big the squares are. Left: small tiles. Right: huge slabs.',
+        icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * (h - 4), ICON.red) },
+      { key: 'life', label: 'how long they stay', min: 0.3, max: 4, value: 1.4,
+        hint: 'How long a square stays. Left: a blink. Right: lingers for seconds.',
+        icon: (g, v, w, h) => ICON.fade(g, w, h, 0.1 + v * 0.9, ICON.red) },
+      { key: 'blur', label: 'soft edges', min: 0, max: 3, value: 1,
+        hint: 'How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones.',
+        icon: (g, v, w, h) => ICON.blur(g, v * 3, () => ICON.square(g, w / 2, h / 2, h - 8, ICON.red)) },
+      { key: 'split', label: 'which notes count as low', min: 36, max: 72, step: 1, value: 50,
+        hint: 'Only notes below this point make squares. Left: only the deepest bass. Right: up to the middle of the piano.',
+        icon: (g, v, w, h) => ICON.keys(g, w, h, 0, 0.17 + v * 0.42, ICON.red) },
+      { key: 'shake', label: 'shake on loud notes', min: 0, max: 2, value: 1, drive: '+level',
+        hint: 'How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt.',
+        icon: (g, v, w, h) => ICON.shake(g, v * 4, () => ICON.square(g, w / 2, h / 2, h - 8, ICON.red)) },
     ],
     reset() { sq = []; shake = 0; },
     onChord(ch, x) {

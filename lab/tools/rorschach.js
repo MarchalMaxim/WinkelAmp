@@ -1,6 +1,6 @@
-// Rorschach ink v2: the loved mirrored blots, now with a dozen knobs.
-// Ink lives on a small persistent canvas (one "fundamental domain" next to the fold), bleeds and fades on its
-// own clock, and is stamped out every frame as 2 (book), 4 (quad) or 2n (kaleidoscope) mirrored copies.
+// Rorschach ink v2: the loved mirrored blots. Five knobs (the 2026-10-31 knob style); the other nine are fixed at the
+// defaults the user loved (FIX below). Ink lives on a small persistent canvas (one "fundamental domain" next to the fold),
+// bleeds and fades on its own clock, and is stamped out every frame as 2 (book), 4 (quad) or 2n (kaleidoscope) mirrored copies.
 (() => {
   const IW = 320, IH = 360, PAD = 18, S = 2;               // ink canvas at 1/2 resolution, PAD = mirrored margin at the fold
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
@@ -25,6 +25,11 @@
   ];
   const pal = (c) => { const i = Math.min(PAL.length - 2, Math.floor(c)), f = c - i; return PAL[i].map((col, k) => col.map((v, j) => Math.round(v + (PAL[i + 1][k][j] - v) * f)).join(',')); };
   let BODY = '44,3,8', RIMC = '175,60,44', SHEEN = '230,120,90';
+  // The knobs that are no longer on the card, fixed at the defaults the user loved. Soak and feathering still follow the
+  // music exactly as their old default drives did (base + half the old range × the feature).
+  const FIX = { sizeBy: 0.5, split: 50, origin: 0.45, drift: 0.2, breathe: 0.7, rim: 1, paper: 0.25 };
+  const soakOf = (x) => Math.max(0.2, Math.min(3, 1 + 1 * 0.5 * (3 - 0.2) * x.feat.rate));        // faster → soaks quicker
+  const bleedOf = (x) => Math.max(0, Math.min(2.5, 0.8 + 1 * 0.5 * (2.5 - 0) * x.feat.density));  // fuller → feathers more
   let mode = 1, sinceBlot = 9, centres = [], lobes = [], creep = [], flecks = [], wet = [], fadeAcc = 0, bleedAcc = 0, shake = 0, pulse = 0, time = 0;
 
   // Where a blot is born, in ink coordinates, for the current symmetry (spread 0 = hugging the fold(s)).
@@ -45,11 +50,11 @@
 
   // Low notes: a blot of a few swelling lobes (ink soaking in) and creeping tendrils (feathering).
   function bloom(n, x) {
-    const sb = x.p('sizeBy'), soak = x.p('soak'), feath = x.p('bleed');
+    const sb = FIX.sizeBy, soak = soakOf(x), feath = bleedOf(x);
     const byVel = 0.3 + n.v / 110, byPitch = 0.45 + Math.max(0, 62 - n.m) / 22;   // loud = big | low = big
     const big = x.p('size') * Math.pow(byVel, 2 * (1 - sb)) * Math.pow(byPitch, 2 * sb) * 0.75 * (mode === 1 ? 1 : mode === 2 ? 0.8 : 0.7) * (n.fallback ? 0.7 : 1);
     const longer = 0.75 + 0.35 * Math.min(2, n.d);                                // held notes soak for longer
-    const c = spot(x.p('origin')), lifeK = Math.pow(1 / soak, 0.7);
+    const c = spot(FIX.origin), lifeK = Math.pow(1 / soak, 0.7);
     const k = 3 + Math.floor(Math.random() * 3);
     for (let i = 0; i < k; i++) {
       const a = R(0, Math.PI * 2), d = R(0, 26) * big;
@@ -128,6 +133,26 @@
   // One layer (rim, ink or sheen): every copy is ADDED into a scratch canvas, so the anti-aliased clip edges of two
   // neighbouring copies sum to exactly one and the seams vanish; then the layer goes onto the stage in one draw.
   const [lay, lg] = mk(1280, 720);
+  // The symmetry knob's picture: one small seeded blot, copied the way the widget copies its ink for m folds.
+  function mirrorIcon(g, m, w, h) {
+    const R = ICON.rng(4), blot = []; for (let i = 0; i < 4; i++) blot.push([R(), R(), 0.8 + R() * 1.3]);
+    const draw = (x0, y0, sx, sy) => { for (const [a, b, r] of blot) ICON.dot(g, x0 + a * sx, y0 + b * sy, r, ICON.red); };
+    g.save(); g.translate(w / 2, h / 2);
+    if (m <= 2) {
+      for (const sx of [1, -1]) for (const sy of m === 2 ? [1, -1] : [1]) {
+        g.save(); g.scale(sx, sy); if (m === 1) draw(2, -6, 10, 12); else draw(2, 2, 11, 7); g.restore();
+      }
+      ICON.line(g, 0, -h / 2 + 2, 0, h / 2 - 2, ICON.dim, 0.6); if (m === 2) ICON.line(g, -w / 2 + 2, 0, w / 2 - 2, 0, ICON.dim, 0.6);
+    } else {                               // kaleidoscope: a petal (dots shrinking outward) in each of the 2m mirrored wedges
+      const a = Math.PI / m, petal = [[3.5, 0.35, 1.5], [6.5, 0.5, 1.3], [9.5, 0.4, 1], [11.8, 0.25, 0.7]];
+      for (let k = 0; k < 2 * m; k++) {
+        g.save(); g.rotate(-Math.PI / 2 + 2 * a * Math.floor((k + 1) / 2)); if (k % 2) g.scale(1, -1);
+        for (const [r, f, s] of petal) ICON.dot(g, r, r * Math.tan(a) * f, s, ICON.red);
+        g.restore();
+      }
+    }
+    g.restore();
+  }
   function layer(g, W, H, rot, sc, src, ox, alpha, op) {
     lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalAlpha = 1; lg.globalCompositeOperation = 'source-over'; lg.clearRect(0, 0, W, H);
     lg.translate(W / 2, H / 2); lg.scale(sc, sc); lg.translate(-W / 2, -H / 2);
@@ -137,27 +162,35 @@
 
   TOOLS.push({
     id: 'rorschach', name: 'Rorschach ink', tag: 'v2',
-    blurb: 'Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. Now with knobs: symmetry (far left = book fold, then 4-way, then 3- to 8-fold kaleidoscope), ink colour (oxblood, indigo/bone, soot/gold, verdigris, violet/rose, bone), how blots grow, drift, breathe and dry.',
+    blurb: 'Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. Five knobs now, all starting at the defaults you loved.',
+    // Five knobs (keys, ranges and drives unchanged, so saved settings still apply); the other nine are fixed in FIX above.
     params: [
-      { key: 'sym', label: 'symmetry', min: 1, max: 8, step: 1, value: 1 },
-      { key: 'ink', label: 'ink colour', min: 0, max: 5, step: 0.01, value: 0 },
-      { key: 'size', label: 'blot size', min: 0.3, max: 2.5, value: 1 },
-      { key: 'sizeBy', label: 'size: loud↔low', min: 0, max: 1, value: 0.5 },
-      { key: 'split', label: 'blots below', min: 36, max: 76, step: 1, value: 50 },
-      { key: 'origin', label: 'birth spread', min: 0, max: 1, value: 0.45 },
-      { key: 'soak', label: 'soak speed', min: 0.2, max: 3, value: 1, drive: '+rate' },
-      { key: 'bleed', label: 'feathering', min: 0, max: 2.5, value: 0.8, drive: '+density' },
-      { key: 'spatter', label: 'spatter', min: 0, max: 3, value: 1, drive: '+level' },
-      { key: 'drift', label: 'drift out/in', min: -1, max: 1, value: 0.2 },
-      { key: 'breathe', label: 'breathe', min: 0, max: 2, value: 0.7 },
-      { key: 'fade', label: 'dry time (s)', min: 1, max: 13, value: 9, drive: '-level' },
-      { key: 'rim', label: 'rim glow', min: 0, max: 2, value: 1 },
-      { key: 'paper', label: 'paper grain', min: 0, max: 1, value: 0.25 },
+      { key: 'sym', label: 'mirror pattern', min: 1, max: 8, step: 1, value: 1,
+        hint: 'How the ink is mirrored. Left: one fold down the middle, like a folded page. Next: four-way. Right: a kaleidoscope star of up to 8 folds.',
+        icon: (g, v, w, h) => mirrorIcon(g, Math.round(1 + v * 7), w, h) },
+      { key: 'ink', label: 'ink colour', min: 0, max: 5, step: 0.01, value: 0,
+        hint: 'The ink and the glow round its edge. Left: oxblood on black. Then indigo, soot with gold, green, violet with rose. Right: pale bone ink.',
+        icon: (g, v, w, h) => {
+          const [body, rimc] = pal(v * 5);
+          for (const sx of [-1, 1]) { ICON.dot(g, w / 2 + sx * 8, h / 2, 8.5, `rgb(${rimc})`); ICON.dot(g, w / 2 + sx * 8, h / 2, 6, `rgb(${body})`); }
+        } },
+      { key: 'size', label: 'blot size', min: 0.3, max: 2.5, value: 1,
+        hint: 'How far each drop of ink spreads. Left: small spots. Right: big blots.',
+        icon: (g, v, w, h) => { const r = 1.5 + v * 7; for (const sx of [-1, 1]) ICON.dot(g, w / 2 + sx * (r + 1), h / 2, r, ICON.red); } },
+      { key: 'spatter', label: 'spatter', min: 0, max: 3, value: 1, drive: '+level',
+        hint: 'How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters.',
+        icon: (g, v, w, h) => {
+          ICON.dot(g, w / 2, h / 2, 4, ICON.red); const R = ICON.rng(11);
+          for (let i = 0; i < Math.round(v * 16); i++) { const a = R() * 6.283, d = 6 + R() * 11; ICON.dot(g, w / 2 + Math.cos(a) * d * 1.4, h / 2 + Math.sin(a) * d * 0.9, 0.7 + R() * 0.9, ICON.red); }
+        } },
+      { key: 'fade', label: 'how long the ink stays', min: 1, max: 13, value: 9, drive: '-level',
+        hint: 'How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds.',
+        icon: (g, v, w, h) => ICON.fade(g, w, h, 0.08 + v * 0.92, ICON.red, 'dot') },
     ],
     reset() { ig.clearRect(0, 0, IW, IH); centres = []; lobes = []; creep = []; flecks = []; wet = []; fadeAcc = 0; bleedAcc = 0; shake = 0; pulse = 0; sinceBlot = 9; },
     onChord(ch, x) {
       [BODY, RIMC, SHEEN] = pal(x.p('ink'));
-      const amt = x.p('spatter'), split = x.p('split');
+      const amt = x.p('spatter'), split = FIX.split;
       const violent = amt > 0.05 && ch.vel >= 112 - 8 * amt && ch.notes.length >= 3;
       let lows = 0;
       for (const n of ch.notes) {
@@ -166,14 +199,14 @@
       }
       // a thin bass line (an orchestra heard by a piano transcriber): if no ink has dropped for a while, the chord's lowest note blooms
       if (!lows && sinceBlot > 1.2) { let low = ch.notes[0]; for (const n of ch.notes) if (n.m < low.m) low = n; bloom({ ...low, fallback: true }, x); }
-      if (violent) burst(ch, amt, x.p('origin'));
+      if (violent) burst(ch, amt, FIX.origin);
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt; sinceBlot += dt;
       const m = Math.round(x.p('sym'));
       if (m !== mode) { mode = m; ig.clearRect(0, 0, IW, IH); centres = []; lobes = []; creep = []; flecks = []; wet = []; }
       [BODY, RIMC, SHEEN] = pal(x.p('ink'));
-      const soak = x.p('soak'), feath = x.p('bleed'), paperAmt = x.p('paper');
+      const soak = soakOf(x), feath = bleedOf(x), paperAmt = FIX.paper;
       // the ink slowly dries away (in steps so 8-bit alpha actually moves)
       fadeAcc += dt;
       if (fadeAcc > 0.4) {
@@ -184,7 +217,7 @@
       // the paper is wet: everything soaks a little further out, drifts, and the paper's fibres show through
       bleedAcc += dt;
       if (bleedAcc > 1.1 / soak) {
-        const dr = x.p('drift') * 3 * bleedAcc * soak;
+        const dr = FIX.drift * 3 * bleedAcc * soak;
         bleedAcc = 0;
         tg.clearRect(0, 0, IW + PAD, IH); tg.drawImage(ink, PAD, 0);
         tg.save(); tg.translate(PAD, 0); tg.scale(-1, 1); tg.drawImage(ink, 0, 0, PAD, IH, 0, 0, PAD, IH); tg.restore();
@@ -228,7 +261,7 @@
       if (mode === 2) { ig.save(); ig.clearRect(0, IH / 2, IW, IH / 2); ig.translate(0, IH); ig.scale(1, -1); ig.drawImage(ink, 0, 0, IW, IH / 2, 0, 0, IW, IH / 2); ig.restore(); }
 
       // rim: a blurred, lighter copy of the ink with its own shape cut out (mirrored margin keeps the fold seamless)
-      const rimAmt = x.p('rim');
+      const rimAmt = FIX.rim;
       if (rimAmt > 0.02) {
         rg.globalCompositeOperation = 'source-over'; rg.clearRect(0, 0, IW + PAD, IH);
         rg.filter = `blur(${(2.5 + 1.5 * rimAmt).toFixed(1)}px)`;
@@ -250,7 +283,7 @@
       wet = wet.filter((w) => w.age < 0.6); if (wet.length > 5) wet = wet.slice(-5);
 
       // the whole sheet breathes: a slow swell, plus a heave on every bloom
-      const br = x.p('breathe'); pulse *= Math.pow(0.5, dt / 0.3);
+      const br = FIX.breathe; pulse *= Math.pow(0.5, dt / 0.3);
       const sc = 1 + br * (0.02 * Math.sin(time * 1.1) + 0.06 * pulse);
       if (shake > 0.3) { g.translate(R(-shake, shake), R(-shake * 0.6, shake * 0.6)); shake *= Math.pow(0.5, dt / 0.12); }
       const W = x.W, H = x.H;

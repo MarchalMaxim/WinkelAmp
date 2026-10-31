@@ -25,24 +25,39 @@
     return out;
   }
 
+  const rampHex = (h, t) => { const c = ramp(h, t); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; };
+  // Fixed choices (were knobs): map 4 = mirrored circle-of-fifths (across) by octave (up); pits = notes softer than the recent average.
+  const LAYOUT = 4, SIGN = 2, LW = 1.4, RES = 9, WARP = 0.35;
+
   TOOLS.push({
     id: 'contours', name: 'Contours', tag: 'new',
-    blurb: 'Every note raises a soft hill (red) or sinks a pit (blue) on a mirrored map drawn as topographic contour lines: loud chords burst into many tight rings, soft passages drift and send rings outward. Pitch sets distance from the centre line, velocity the height, the bass the width.',
+    blurb: 'Every note raises a soft hill (warm) or, when played softer than the music around it, sinks a pit (cool) on a mirrored map drawn as topographic contour lines. Across: the note\'s place on the circle of fifths (one key = one region); up: its octave, so low notes sit low. Loud chords burst into many tight rings; calm passages drift and send rings outward.',
+    // At most 5 knobs (lab/README.md). Fixed now: line width 1.4, grid 9 px, turbulence 0.35, the mirrored fifths map,
+    // pits for softer-than-average notes. 'lines' is a new key (its range changed), so an old saved 'count' doesn't apply.
     params: [
-      { key: 'count', label: 'contours', min: 3, max: 30, step: 1, value: 7, drive: '+level' },
-      { key: 'width', label: 'line width', min: 0.4, max: 5, value: 1.4 },
-      { key: 'res', label: 'grid (px)', min: 5, max: 24, step: 1, value: 9 },
-      { key: 'flow', label: 'flow', min: 0, max: 2, value: 0.9, drive: '-level' },
-      { key: 'warp', label: 'turbulence', min: 0, max: 2, value: 0.35 },
-      { key: 'size', label: 'hill size', min: 0.4, max: 1.8, value: 0.9, drive: '+bass' },
-      { key: 'decay', label: 'decay (s)', min: 0.5, max: 10, value: 2.4 },
-      { key: 'heat', label: 'colour (ice-bone-blood)', min: 0, max: 1, value: 0.72, drive: '+level' },
-      { key: 'layout', label: 'map: keys/fifths/mirror/radial', min: 0, max: 3, step: 1, value: 2 },
-      { key: 'sign', label: 'pits: none/minor/soft/bass', min: 0, max: 3, step: 1, value: 2 },
+      { key: 'lines', label: 'how many lines', min: 3, max: 24, step: 1, value: 7, drive: '+level',
+        hint: 'How many contour lines a hill gets. Left: a few calm rings. Right: dense, tightly packed rings.',
+        icon: (g, v, w, h) => { const n = Math.round(2 + v * 7), c = rampHex(0.72, 0.6); for (let i = 1; i <= n; i++) ICON.ring(g, w / 2, h / 2, (i / n) * (h / 2 - 1.5), c, 1); } },
+      { key: 'size', label: 'how wide the hills', min: 0.4, max: 1.8, value: 0.9, drive: '+bass',
+        hint: 'How wide each note\'s hill spreads. Left: small, separate peaks. Right: broad hills that merge into ridges.',
+        icon: (g, v, w, h) => { const R = 3 + v * (h / 2 - 3), c = rampHex(0.72, 0.6); for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, (i / 4) * R, c, 1.1); } },
+      { key: 'decay', label: 'how long hills stay', min: 0.5, max: 10, value: 2.4,
+        hint: 'How long a hill stays before it sinks back. Left: a short pulse. Right: the map remembers for many seconds.',
+        icon: (g, v, w, h) => { const life = 0.12 + v * 0.88, c = rampHex(0.72, 0.65);
+          for (let i = 0; i < 3; i++) { const a = Math.max(0, 1 - (i / 2) / life); if (a > 0) ICON.alpha(g, a, () => { for (let k = 1; k <= 3; k++) ICON.ring(g, 7 + i * 13, h / 2, k * 2.1, c, 1); }); } } },
+      { key: 'flow', label: 'drift when calm', min: 0, max: 2, value: 0.9, drive: '-level',
+        hint: 'How much the map drifts and sends rings outward. Left: still. Right: hills wander and rings stream out of the peaks.',
+        icon: (g, v, w, h) => { const c = rampHex(0.72, 0.6);
+          for (let k = 2; k >= 0; k--) ICON.alpha(g, k ? 0.25 * v * (3 - k) : 1, () => { const cx = w / 2 - 4 + k * 5 * v; for (let i = 1; i <= 3; i++) ICON.ring(g, cx, h / 2, i * 3.6, c, 1); });
+          if (v > 0.15) ICON.arrow(g, w / 2 + 6, h / 2, w / 2 + 6 + 10 * v, h / 2, ICON.ink, 1.2); } },
+      // 'tint' replaces 'heat' (was driven by loudness; now fixed, so the widget keeps to 3 driven knobs)
+      { key: 'tint', label: 'colour', min: 0, max: 1, value: 0.72,
+        hint: 'The colour of the hills. Left: icy blue. Middle: bone. Right: blood red and ember.',
+        icon: (g, v, w, h) => { for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, i * 2.9, rampHex(v, 0.15 + 0.22 * (4 - i)), 1.6); } },
     ],
     reset() { hills = []; time = Math.random() * 500; phase = 0; flash = 0; },
     onChord(ch, x) {
-      const layout = Math.round(x.p('layout')), sign = Math.round(x.p('sign')), size = x.p('size');
+      const layout = LAYOUT, sign = SIGN, size = x.p('size');
       avgV += (ch.vel - avgV) * 0.12;
       // harmony: lowest note as root; a minor third above it (and no major third) = minor
       const pcs = new Set(ch.notes.map((n) => n.m % 12)), root = ch.lo % 12;
@@ -60,23 +75,26 @@
         if (layout === 0) { px = 0.07 + 0.86 * p; py = chordY + (Math.random() - 0.5) * 0.08; }
         else if (layout === 1) { px = 0.1 + 0.8 * (ord[n.m % 12] / 11); py = 0.86 - 0.72 * oct; }
         else if (layout === 2) { px = 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.02 + 0.44 * p); py = chordY + (Math.random() - 0.5) * 0.12; }
+        else if (layout === 4) { px = 0.5 + (Math.random() < 0.5 ? -1 : 1) * (0.05 + 0.4 * (ord[n.m % 12] / 11)); py = 0.84 - 0.68 * oct; }
         else { const a = (ord[n.m % 12] / 12) * Math.PI * 2 - Math.PI / 2 + time * 0.05, r = 0.08 + 0.36 * oct; px = 0.5 + Math.cos(a) * r * (x.H / x.W); py = 0.5 + Math.sin(a) * r; }
         px += (Math.random() - 0.5) * 0.02; py += (Math.random() - 0.5) * 0.03;
         let s = 1;
         if (sign === 1) s = minor ? -1 : 1;
         else if (sign === 2) s = n.v < avgV - 4 ? -1 : 1;
         else if (sign === 3) s = n.m < 48 ? -1 : 1;
-        const amp = Math.pow(n.v / 105, 1.3) * (1 + 0.8 * sparse - 0.25 * busy) * thick * s;
-        const sig = size * (22 + 52 * Math.pow(1 - p, 1.5) + 8 * Math.min(2, n.d)) * (1 + 0.35 * sparse);
+        const rel = 0.5 * n.v / 105 + 0.5 * n.v / Math.max(55, avgV); // half absolute, half relative: quiet passages still raise hills
+        const amp = Math.pow(rel, 1.3) * (1 + 0.8 * sparse - 0.25 * busy) * thick * s;
+        // narrow enough that octaves stay separate peaks, and capped: loud bass (which also widens them) can't swallow the screen
+        const sig = Math.min(64, size * (15 + 24 * Math.pow(1 - p, 1.5) + 4 * Math.min(2, n.d)) * (1 + 0.2 * sparse));
         hills.push({ x: px * x.W, y: py * x.H, amp, sig, age: 0, life: x.p('decay') * (0.75 + 0.2 * Math.min(3, n.d)) * (1 + 0.6 * sparse - 0.5 * busy) });
       }
       if (hills.length > 90) hills.splice(0, hills.length - 90);
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt;
-      grid(Math.round(x.p('res')));
-      const flow = x.p('flow'), warp = x.p('warp'), count = x.p('count'), heat = x.p('heat'), lw = x.p('width');
-      const layout = Math.round(x.p('layout'));
+      grid(RES);
+      const flow = x.p('flow'), warp = WARP, count = x.p('lines'), heat = x.p('tint'), lw = LW;
+      const layout = LAYOUT;
       flash *= Math.pow(0.5, dt / 0.12);
       phase -= dt * 0.45 * flow; // rings slowly emanate from the peaks when the music relaxes
 
@@ -113,11 +131,11 @@
         for (let j = j0; j <= j1; j++) { const r = j * gw, w = gy[j]; for (let i = i0; i <= i1; i++) F[r + i] += w * gx[i]; }
       }
       hills = hills.filter((h) => h.age < h.life * 5 && (h.age < 1 || Math.abs(h.cur) > 0.01));
-      if (layout === 2) { // fold: the map is mirrored about the centre line
+      if (layout === 2 || layout === 4) { // fold: the map is mirrored about the centre line
         for (let j = 0; j < gh; j++) { const r = j * gw; for (let i = 0; i < gw >> 1; i++) { const s = F[r + i] + F[r + gw - 1 - i]; F[r + i] = s; F[r + gw - 1 - i] = s; } }
       }
       // compress stacked hills so the climax saturates instead of exploding
-      for (let q = 0; q < F.length; q++) F[q] = 3 * Math.tanh(F[q] / 3);
+      for (let q = 0; q < F.length; q++) F[q] = 1.7 * Math.tanh(F[q] / 1.7); // low ceiling: stacked hills flatten into a plateau, not a screen of rings
 
       // Tint: a soft hypsometric glow under the lines (tiny canvas, upscaled smoothly).
       const D = img.data, hot = ramp(heat, 0.25), cold = ramp((1 - heat) * 0.5, 0.2);

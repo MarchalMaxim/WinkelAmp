@@ -175,20 +175,48 @@
     return hist[k];
   }
 
+  // Knobs folded into fixed choices (2026-10-31, at most 5 knobs). Curl and chord swirl keep the drives they had as knobs,
+  // computed exactly as the harness's x.p does at its default depth 0.5, so the water moves as before.
+  const drv = (x, base, min, max, sign, f) => Math.max(min, Math.min(max, base + sign * 0.5 * (max - min) * (x.feat[f] - 0)));
+  const curlOf = (x) => drv(x, 3.5, 0, 12, 1, 'density');    // how curly the water is; curlier with fuller chords
+  const swirlOf = (x) => drv(x, 1, 0, 3, 1, 'bass');         // how hard big chords tear vortices; harder with more bass
+  const STEER = 1, VISC = 0.45, PERSIST = 1;                 // steering by the melody, how fast motion settles, how long lines last
+
+  // Knob pictures: little braided threads in the thread colours.
+  const tc = (i, a = 1) => `rgba(${TCOL[i][0]},${TCOL[i][1]},${TCOL[i][2]},${a})`;
+  function strand(g, w, h, amp, ph, col, lw, cycles = 1.5) {
+    g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+    for (let x = 3; x <= w - 3; x++) { const y = h / 2 + Math.sin((x - 3) / (w - 6) * Math.PI * 2 * cycles + ph) * amp; x === 3 ? g.moveTo(x, y) : g.lineTo(x, y); }
+    g.stroke();
+  }
+
   TOOLS.push({
     id: 'current', name: 'The current', tag: 'v3',
     blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices.',
     params: [
-      { key: 'threads', label: 'threads', min: 1, max: 5, step: 1, value: 3 },
-      { key: 'width', label: 'thread width', min: 0.3, max: 2.5, value: 0.9, drive: '+level' },
-      { key: 'braid', label: 'braid spread', min: 0, max: 220, step: 1, value: 70 },
-      { key: 'steer', label: 'steering', min: 0, max: 3, value: 1 },
-      { key: 'flow', label: 'flow speed', min: 0.2, max: 3, value: 1, drive: '+rate' },
-      { key: 'curl', label: 'curl', min: 0, max: 12, value: 3.5, drive: '+density' },
-      { key: 'visc', label: 'viscosity', min: 0.05, max: 3, value: 0.45 },
-      { key: 'hue', label: 'dye colour', min: 0, max: 360, step: 1, value: 350 },
-      { key: 'swirl', label: 'chord swirl', min: 0, max: 3, value: 1, drive: '+bass' },
-      { key: 'persist', label: 'persistence', min: 0.3, max: 3, value: 1 },
+      // Five knobs; keys, ranges, defaults and drives are unchanged from v3, so saved settings still apply.
+      { key: 'threads', label: 'how many threads', min: 1, max: 5, step: 1, value: 3,
+        hint: 'How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass.',
+        icon: (g, v, w, h) => { const n = Math.round(1 + v * 4);
+          for (let i = n - 1; i >= 0; i--) strand(g, w, h, n > 1 ? 8 : 0, (i / n) * Math.PI * 2, tc(i), i ? 1.2 : 1.6, 1); } },
+      { key: 'braid', label: 'how wide they weave', min: 0, max: 220, step: 1, value: 70,
+        hint: 'How far the other threads swing around the melody’s thread. Left: tight together, almost one line. Right: wide loops that cross far apart.',
+        icon: (g, v, w, h) => { const a = 0.6 + v * (h / 2 - 3.5);
+          strand(g, w, h, a, Math.PI, tc(2), 1.2); strand(g, w, h, a, 0, tc(1), 1.2); strand(g, w, h, a * 0.12, 0, tc(0), 1.6); } },
+      { key: 'width', label: 'thread thickness', min: 0.3, max: 2.5, value: 0.9, drive: '+level',
+        hint: 'How thick the threads are drawn. Left: hair-thin. Right: thick, glowing cords.',
+        icon: (g, v, w, h) => { const lw = 0.5 + v * 4;
+          strand(g, w, h, 5, 0, tc(1, 0.12), lw * 2.4); strand(g, w, h, 5, 0, tc(0), lw); } },
+      { key: 'flow', label: 'water speed', min: 0.2, max: 3, value: 1, drive: '+rate',
+        hint: 'How fast the water runs and the threads travel. Left: a slow, lazy drift. Right: a rushing stream.',
+        icon: (g, v, w, h) => { const L = 5 + v * (w - 14), col = '#6f9fc4';
+          [[6, 3], [h / 2, 9], [h - 6, 0]].forEach(([y, dx]) => ICON.arrow(g, 4 + dx * (1 - v), y, Math.min(w - 3, 4 + dx * (1 - v) + L), y, col, 1.3)); } },
+      { key: 'hue', label: 'ink colour', min: 0, max: 360, step: 1, value: 350,
+        hint: 'The colour the chords pour into the water. Left and right are both red; in between it runs orange, yellow, green, blue, violet.',
+        icon: (g, v, w, h) => { const c = hsl(v * 360, 0.85, 0.45).map((q) => Math.round(q * 255));
+          ICON.blur(g, 2.5, () => { g.fillStyle = `rgb(${c})`; g.beginPath(); g.ellipse(w / 2, h / 2 - 2, w / 2 - 6, h / 2 - 6, 0, 0, Math.PI * 2); g.fill(); });
+          for (let i = 0; i < 12; i++) ICON.rect(g, 3 + i * (w - 6) / 12, h - 4, Math.ceil((w - 6) / 12), 2.5, `hsl(${i * 30},85%,50%)`);
+          ICON.rect(g, 2 + v * (w - 6), h - 6, 2, 5.5, ICON.ink); } },
     ],
     reset(x) {
       u.fill(0); v.fill(0); p.fill(0); R.fill(0); G.fill(0); B.fill(0);
@@ -197,7 +225,7 @@
       hist = []; time = 0; rate = 0; flash = 0; flowPh = 0;
     },
     onChord(ch, x) {
-      const T = Math.round(x.p('threads')), steer = x.p('steer'), loud = ch.vel / 110;
+      const T = Math.round(x.p('threads')), steer = STEER, loud = ch.vel / 110;
       const stepM = main.lastTop === null ? 0 : clamp(ch.hi - main.lastTop, -7, 7);
       main.ta += stepM * 0.13 * steer / (1 + rate * 0.15); main.lastTop = ch.hi; rate = Math.min(12, rate + 1);
       if (stepM) main.side = Math.sign(stepM);
@@ -222,7 +250,7 @@
         splatDye(bh.x - ca * 30, bh.y - sa * 30, col, amt, 3.5 + Math.min(6, ch.notes.length) * 1.0);
       }
       // Big chords tear the water: a pair of opposite vortices behind the head rolls the dye into a mushroom.
-      const sw = x.p('swirl');
+      const sw = swirlOf(x);
       if (ch.vel >= 88 && ch.notes.length >= 3 && sw > 0.01) {
         const s = (1 + (ch.vel - 88) / 16) * sw, back = 50, offs = 34 + 10 * s;
         const qx = main.x - ca * back, qy = main.y - sa * back, turn = Math.random() < 0.5 ? 1 : -1;
@@ -236,13 +264,13 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt;
-      const T = Math.round(x.p('threads')), flow = x.p('flow'), persist = x.p('persist'), wMul = x.p('width'), braid = x.p('braid');
+      const T = Math.round(x.p('threads')), flow = x.p('flow'), persist = PERSIST, wMul = x.p('width'), braid = x.p('braid');
       rate *= Math.pow(0.5, dt / 0.6); flash *= Math.pow(0.5, dt / 0.15);
       // The main head: heading turned by melodic steps, leaning up for high notes and down for low ones, kept off the walls.
       const top = x.top();
       if (top) {
         const wantY = x.H * (0.72 - 0.44 * x.pitch01(top.m)), dy = (wantY - main.y) / x.H;
-        main.ta += clamp(dy * Math.cos(main.a), -1, 1) * dt * 1.6 * x.p('steer');
+        main.ta += clamp(dy * Math.cos(main.a), -1, 1) * dt * 1.6 * STEER;
       }
       const m = 170, ex = main.x < m ? m - main.x : main.x > x.W - m ? x.W - m - main.x : 0, ey = main.y < m ? m - main.y : main.y > x.H - m ? x.H - m - main.y : 0;
       if (ex || ey) {
@@ -281,7 +309,7 @@
         else { const q = h.pts[h.pts.length - 1]; q.x = h.x; q.y = h.y; q.e = Math.max(q.e, h.e); }
       }
 
-      step(dt, x.p('curl'), x.p('visc'), persist, flow);
+      step(dt, curlOf(x), VISC, persist, flow);
 
       const cap = Math.min(1300, 3200 / T); let total = 0;
       for (let i = 0; i < T; i++) {

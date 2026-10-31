@@ -52,20 +52,38 @@
     if (n > 2) g.closePath();
   }
 
+  // Knob pictures: a chord triangle drawn the way the web draws it (bowed edges), with an optional fill.
+  const PINK = '#e0508a', FUNC = 0.8; // FUNC: how strongly colour follows harmonic function (1) vs a single crimson (0)
+  function tri(g, cx, cy, r, bow, k, tw, col, lw = 1.2, fill = 0) {
+    const ps = [0, 4, 7].map((f) => [cx + Math.cos(f * STEP - Math.PI / 2 + tw) * r * k, cy + Math.sin(f * STEP - Math.PI / 2 + tw) * r * k]);
+    g.beginPath(); g.moveTo(ps[0][0], ps[0][1]);
+    for (let i = 0; i < 3; i++) { const p = ps[i], q = ps[(i + 1) % 3]; g.quadraticCurveTo(cx + ((p[0] + q[0]) / 2 - cx) * (1 - bow), cy + ((p[1] + q[1]) / 2 - cy) * (1 - bow), q[0], q[1]); }
+    g.closePath();
+    if (fill > 0) { g.save(); g.globalAlpha = fill * 0.85; g.fillStyle = col; g.fill(); g.restore(); }
+    g.strokeStyle = col; g.lineWidth = lw; g.stroke();
+  }
+
   TOOLS.push({
     id: 'fifths', name: 'Harmonic web', tag: 'new',
     blurb: 'The 12 notes sit on a circle of fifths; every attack strings a glowing bowed polygon between the notes sounding, and old chords thin and sink inward into a woven web. The key it hears turns the whole loom so the home note sits on top; colour says tonic (bone), dominant side (blood) or subdominant side (indigo).',
+    // Five knobs (the user's rule for this round). Folded into fixed choices: radius, key follow, node glow, colour by
+    // function, and the spin (busy passages still swing the loom a little by themselves).
     params: [
-      { key: 'radius', label: 'radius', min: 0.4, max: 1.25, value: 0.88 },
-      { key: 'weight', label: 'line weight', min: 0.3, max: 4, value: 1.2, drive: '+level' },
-      { key: 'decay', label: 'weave memory (s)', min: 0.5, max: 30, value: 9 },
-      { key: 'bow', label: 'bow (string art)', min: -1, max: 1, value: 0.3, drive: '+pitch' },
-      { key: 'sink', label: 'sink inward', min: 0, max: 1, value: 0.55 },
-      { key: 'follow', label: 'key follow', min: 0, max: 1, value: 0.6 },
-      { key: 'spin', label: 'spin (°/s)', min: -20, max: 20, value: 0, drive: '+rate' },
-      { key: 'glow', label: 'node glow', min: 0, max: 2.5, value: 1 },
-      { key: 'func', label: 'colour by function', min: 0, max: 1, value: 0.8 },
-      { key: 'fill', label: 'polygon fill', min: 0, max: 1, value: 0.2, drive: '+level' },
+      { key: 'decay', label: 'how long the web remembers', min: 0.5, max: 30, value: 9,
+        hint: 'How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together.',
+        icon: (g, v, w, h) => { for (let i = 4; i >= 0; i--) { const a = Math.max(0, 1 - i / (0.6 + v * 4.4)); if (a > 0) ICON.alpha(g, a, () => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, i * 0.55, PINK)); } } },
+      { key: 'weight', label: 'line thickness', min: 0.3, max: 4, value: 1.2, drive: '+level',
+        hint: 'How thick the strings are. Left: hairlines. Right: thick glowing cords.',
+        icon: (g, v, w, h) => { g.strokeStyle = PINK; g.lineWidth = 0.6 + v * 5; g.beginPath(); g.moveTo(5, h - 7); g.quadraticCurveTo(w / 2, 2, w - 5, h - 7); g.stroke(); } },
+      { key: 'bow', label: 'how the strings curve', min: -1, max: 1, value: 0.3, drive: '+pitch',
+        hint: 'How each string between two notes bends. Left: bulging outward like petals. Middle: straight. Right: pulled in toward the centre like string art.',
+        icon: (g, v, w, h) => tri(g, w / 2, h / 2 + 1.5, 11, -1 + 2 * v, 1, 0, PINK, 1.6) },
+      { key: 'sink', label: 'old chords sink inward', min: 0, max: 1, value: 0.55,
+        hint: 'Whether old chords shrink toward the centre as they age, so the history nests inside the circle. Left: they stay where they were played. Right: they sink deep.',
+        icon: (g, v, w, h) => { [1, 0.6, 0.35].forEach((a, i) => ICON.alpha(g, a, () => tri(g, w / 2, h / 2 + 1, 11 * (1 - v * 0.36 * i), 0.2, 1, (i % 2 ? 1 : -1) * 0.12 * i, PINK))); } },
+      { key: 'fill', label: 'filled shapes', min: 0, max: 1, value: 0.2, drive: '+level',
+        hint: 'How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes.',
+        icon: (g, v, w, h) => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, 0, PINK, 1.4, v) },
     ],
     reset() { prevPc = -1; polys = []; trail = []; node.fill(0); hist.fill(0); keyKnown = false; spinAcc = 0; flash = 0; scale = 1; },
     onChord(ch, x) {
@@ -95,7 +113,7 @@
       const reg = 0.3; // low notes sit a little inside the ring, high ones outside
       P.v = [...by.entries()].map(([pc, e]) => ({ f: FIFTH(pc), r: 1 + reg * (x.pitch01(e.m / e.c) - 0.5) * 0.9, v: e.v })).sort((a, b) => a.f - b.f);
       { let top = P.notes[0]; for (const n of P.notes) if (n.m > top.m) top = n; prevPc = top.m % 12; prevM = top.m; prevT = ch.t; }
-      P.bass = bass % 12; P.col = fnColour(P.bass, x.p('func'));
+      P.bass = bass % 12; P.col = fnColour(P.bass, FUNC);
       P.big = P.vel >= 92 && P.notes.length >= 3;
       if (P.big) flash = Math.max(flash, Math.min(1, (P.vel - 80) / 30));
       // The journey: the chord's centre of gravity inside the circle.
@@ -112,14 +130,14 @@
       const hk = Math.pow(0.5, dt / 5); for (let i = 0; i < 12; i++) { hist[i] *= hk; node[i] *= Math.pow(0.5, dt / 0.3); }
       for (const n of x.sounding()) { const pc = n.m % 12, held = 0.3 * n.v / 105; if (node[pc] < held) node[pc] = held; } // held notes keep their peg warm
       const target = -FIFTH(tonic) * STEP;
-      const fol = x.p('follow');
+      const fol = 0.6; // how quickly the loom turns to a new key
       if (!keyKnown) { if (fol > 0) keyRot = target; keyKnown = polys.length > 0; }
       if (fol > 0) { let d = ((target - keyRot) % TAU + TAU * 1.5) % TAU - Math.PI; keyRot += d * (1 - Math.pow(0.5, dt / (0.25 + 5 * (1 - fol)))); }
       // Spin is a sprung swing, not a running total: busy passages swing the loom, and it settles back home.
-      spinAcc += x.p('spin') * Math.PI / 180 * dt; spinAcc *= Math.pow(0.5, dt / 1.2);
+      spinAcc += 16 * x.feat.rate * Math.PI / 180 * dt; spinAcc *= Math.pow(0.5, dt / 1.2);
       flash *= Math.pow(0.5, dt / 0.18);
       scale += (1 + 0.07 * flash - scale) * Math.min(1, dt * 30);
-      const Rpx = x.p('radius') * 330 * scale, W2 = x.W / 2, H2 = x.H / 2;
+      const Rpx = 0.88 * 330 * scale, W2 = x.W / 2, H2 = x.H / 2;
       const weight = x.p('weight'), fillA = x.p('fill'), bowNow = x.p('bow'), sink = x.p('sink');
 
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.fillRect(0, 0, x.W, x.H);
@@ -132,6 +150,10 @@
       // The weave: oldest first, thinning and darkening with age. A dense weave (agitato, long memory) is dimmed so the
       // additive overlap keeps its colour instead of burning to white.
       const dens = Math.min(1, Math.sqrt(28 / Math.max(1, polys.length)));
+      // Several lit chords at once (agitato, the climax) share the light too: before this, overlapping bone fills burned
+      // the middle of the web to a white blob.
+      let freshSum = 0; for (const P of polys) if (P.v.length > 1) freshSum += Math.max(0, 1 - P.age / P.hold);
+      const kf = 1 / Math.pow(Math.max(1, freshSum / 1.3), 0.75);
       for (const P of polys) {
         P.age += dt;
         const life = Math.max(0, 1 - P.age / decay); if (life <= 0 || P.v.length < 2) continue;
@@ -140,14 +162,14 @@
         const sk = sinkK(P.age, decay, sink);
         g.beginPath(); trace(g, P, Rpx, bow, sk, (1 - sk) * 0.5 * Math.sign(P.j + 0.3));
         if (fresh > 0) {
-          if (P.v.length > 2 && fillA > 0) { g.fillStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(fillA * (0.25 + 0.75 * fresh) * (P.big ? 1.4 : 1)).toFixed(3)})`; g.fill(); }
+          if (P.v.length > 2 && fillA > 0) { g.fillStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(Math.min(0.42, fillA * (0.25 + 0.75 * fresh) * (P.big ? 1.3 : 1)) * kf).toFixed(3)})`; g.fill(); }
           const wb = weight * (P.big ? 1.8 : 1);
-          g.strokeStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(0.07 * fresh).toFixed(3)})`; g.lineWidth = wb * (10 + 22 * fresh); g.stroke();
-          g.strokeStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(0.16 * fresh).toFixed(3)})`; g.lineWidth = wb * (4 + 8 * fresh); g.stroke();
+          g.strokeStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(0.07 * fresh * kf).toFixed(3)})`; g.lineWidth = wb * (10 + 22 * fresh); g.stroke();
+          g.strokeStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(0.16 * fresh * kf).toFixed(3)})`; g.lineWidth = wb * (4 + 8 * fresh); g.stroke();
         } else if (P.v.length > 2 && fillA > 0) {
           g.fillStyle = `rgba(${r | 0},${gg | 0},${b | 0},${(fillA * 0.06 * a * dens).toFixed(3)})`; g.fill();
         }
-        g.strokeStyle = `rgba(${Math.min(255, r + 40 * fresh) | 0},${Math.min(255, gg + 60 * fresh) | 0},${Math.min(255, b + 50 * fresh) | 0},${((0.1 + 0.8 * a * 0.35) * dens + 0.8 * a * 0.65 * fresh).toFixed(3)})`;
+        g.strokeStyle = `rgba(${Math.min(255, r + 40 * fresh) | 0},${Math.min(255, gg + 60 * fresh) | 0},${Math.min(255, b + 50 * fresh) | 0},${((0.1 + 0.8 * a * 0.35) * dens + 0.8 * a * 0.65 * fresh * Math.sqrt(kf)).toFixed(3)})`;
         g.lineWidth = weight * (0.4 + 0.6 * P.vel / 110 + 2.6 * fresh * P.vel / 110); g.stroke();
       }
       polys = polys.filter((P) => P.age < decay);
@@ -166,10 +188,10 @@
       if (head) { g.fillStyle = 'rgba(255,240,215,0.9)'; g.beginPath(); g.arc(head.x * Rpx, head.y * Rpx, 2.5 + 3 * Math.max(0, 1 - head.age / 0.4), 0, TAU); g.fill(); }
 
       // Nodes: dim pegs, lit by sounding notes; the tonic peg wears a ring.
-      const glow = x.p('glow');
+      const glow = 1;
       for (let pc = 0; pc < 12; pc++) {
         const [px, py] = pt(FIFTH(pc), 1, Rpx), e = Math.min(1.3, node[pc]);
-        const col = fnColour(pc, x.p('func'));
+        const col = fnColour(pc, FUNC);
         g.fillStyle = 'rgba(150,120,115,0.35)'; g.beginPath(); g.arc(px, py, 2.2, 0, TAU); g.fill();
         // The strike: a thick arc of the ring around a struck peg, as wide as the note is loud.
         if (e > 0.05) {

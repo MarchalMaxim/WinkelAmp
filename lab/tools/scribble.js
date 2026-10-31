@@ -83,20 +83,41 @@
     p.cx += ex - p.x; p.cy += ey - p.y; p.x = ex; p.y = ey; p.hist.length = 0;
   }
 
+  // Knob picture: a looped pen line from x0 to x1 (turns loops of radius r).
+  function coilIcon(g, x0, x1, y, r, turns, col, lw) {
+    g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+    for (let i = 0; i <= 90; i++) {
+      const t = i / 90, a = t * turns * TAU - Math.PI, px = x0 + r + (x1 - x0 - 2 * r) * t + Math.cos(a) * r, py = y + Math.sin(a) * r * 0.85;
+      i ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.stroke();
+  }
+  // What the dropped knobs were fixed at.
+  const FIX = { press: 1, scratch: 1, red: 0.6, ink: 0.33 };
+
   TOOLS.push({
     id: 'scribble', name: 'Scribble', tag: 'new',
     blurb: 'Nervous pens scrawl continuous loops, one pen per register: notes jolt and press them, loops coil tight in dense, dissonant passages and open into long arcs when it is soft. Chords make a pen scratch back over its own line (often in red), the biggest chords strike a long stroke, and old lines fade like graphite.',
+    // At most 5 knobs (lab/README.md). Fixed now: pressure response 1, chord scratch 1, red accents 0.6, bone ink, dark field;
+    // the jitter follows loudness on its own. New keys where a default changed, so old saved settings don't override them.
     params: [
-      { key: 'speed', label: 'pen speed', min: 0.2, max: 3, value: 1, drive: '+rate' },
-      { key: 'loops', label: 'loopiness', min: 0, max: 1, value: 0.5, drive: '+rate' },
-      { key: 'press', label: 'pressure response', min: 0, max: 2, value: 1 },
-      { key: 'jitter', label: 'jitter', min: 0, max: 1, value: 0.3, drive: '+level' },
-      { key: 'scratch', label: 'chord scratch', min: 0, max: 2, value: 1 },
-      { key: 'pens', label: 'number of pens', min: 1, max: 6, step: 1, value: 3 },
-      { key: 'fade', label: 'fade half-life (s)', min: 0.4, max: 12, value: 3.5 },
-      { key: 'ink', label: 'ink: chalk/bone/ochre/red', min: 0, max: 1, value: 0.33 },
-      { key: 'red', label: 'red accents', min: 0, max: 1, value: 0.6 },
-      { key: 'paper', label: 'field (dark ↔ paper)', min: 0, max: 1, value: 0 },
+      { key: 'speed', label: 'how fast the pens run', min: 0.2, max: 3, value: 1, drive: '+rate',
+        hint: 'How fast the pens travel. Left: a slow, short crawl. Right: long lines racing across the sheet.',
+        icon: (g, v, w, h) => { const L = 7 + v * (w - 12); coilIcon(g, 3, 3 + L, h / 2, 3.5, 0.5 + v * 2.5, ICON.ink, 1.4); ICON.dot(g, 3 + L, h / 2, 2.2, ICON.red); } },
+      { key: 'loops', label: 'how loopy', min: 0, max: 1, value: 0.5, drive: '+rate',
+        hint: 'The shape of the scrawl. Left: long open arcs. Right: tight coils, loop over loop.',
+        icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 8.5 - 3.5 * v, 0.45 + 5.5 * v, ICON.ink, 1.3) },
+      { key: 'pens', label: 'how many pens', min: 1, max: 6, step: 1, value: 3,
+        hint: 'How many pens draw at once, each for its own part of the keyboard. Left: one lone pen. Right: six.',
+        icon: (g, v, w, h) => { const n = Math.round(1 + v * 5), rh = (h - 4) / n;
+          for (let i = 0; i < n; i++) coilIcon(g, 3 + (i % 2) * 4, w - 7 + (i % 2) * 4, 2 + rh * (i + 0.5), Math.min(4, rh * 0.4), 2.2, ICON.ink, 1.1); } },
+      { key: 'stay', label: 'how long lines stay', min: 1, max: 20, value: 7,
+        hint: 'How long a line stays before it fades like graphite. Left: gone in a second. Right: the sheet fills up.',
+        icon: (g, v, w, h) => { const life = 0.1 + 0.9 * v;
+          for (let i = 0; i < 3; i++) ICON.alpha(g, Math.max(0, 1 - i / 2 / life), () => coilIcon(g, 1 + i * 13, 12 + i * 13, h / 2, 4.5, 1.6, ICON.ink, 1.3)); } },
+      { key: 'weight', label: 'how heavy the line', min: 0.3, max: 2.5, value: 1.2,
+        hint: 'How thick the pen line is. Left: a hairline. Right: heavy, pressed graphite.',
+        icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.5 + v * 3.3) },
     ],
     reset(x) {
       lg.globalCompositeOperation = 'source-over'; lg.globalAlpha = 1; lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);
@@ -114,7 +135,7 @@
         harsh += ic === 1 ? 1 : ic === 2 ? 0.6 : ic === 6 ? 0.7 : 0;
       }
       diss = Math.max(diss, pairs ? clamp(harsh / pairs * 2.2) : 0);
-      const pp = x.p('press');
+      const pp = FIX.press;
       for (const q of ch.notes) {
         let i = 0; while (i < n - 1 && q.m >= edges[i + 1]) i++;
         const p = pens[i], v = q.v / 127;
@@ -123,11 +144,11 @@
         p.hv += R(-1, 1) * 7 * v;                    // the jolt: a kink in the line on the attack
         p.ty = clamp(p.ty * 0.5 + pitchY(q.m) * 0.5, LH * 0.22, LH * 0.78);
       }
-      const sc = x.p('scratch');
+      const sc = FIX.scratch;
       const amt = sc * clamp((ch.vel - 58) / 45) * clamp(0.35 + ch.notes.length / 6);
       if (amt > 0.12) {
-        const redP = x.p('red') * (0.35 + 0.65 * clamp(amt));
-        const ink = paperMode ? pal(INK_P, x.p('ink')) : mix(pal(INK_D, x.p('ink')), [255, 255, 255], 0.25);
+        const redP = FIX.red * (0.35 + 0.65 * clamp(amt));
+        const ink = paperMode ? pal(INK_P, FIX.ink) : mix(pal(INK_D, FIX.ink), [255, 255, 255], 0.25);
         const red = paperMode ? RED_P : RED_D;
         // the pens that played scratch; the lowest one when unsure
         const hit = new Set(ch.notes.map((q) => { let i = 0; while (i < n - 1 && q.m >= edges[i + 1]) i++; return i; }));
@@ -139,7 +160,7 @@
         if (((ch.vel >= 92 && ch.notes.length >= 3) || ch.vel >= 102) && sc > 0.3 && time - lastStab > 0.7) {
           lastStab = time;
           const p = pens[Math.floor(Math.random() * n)];
-          stab(p, clamp(amt), Math.random() < x.p('red') ? red : ink);
+          stab(p, clamp(amt), Math.random() < FIX.red ? red : ink);
           shake = Math.max(shake, 4 + (ch.vel - 98) * 0.5);
         }
       }
@@ -148,13 +169,13 @@
       const g = x.g, dt = x.dt; time += dt;
       syncPens(Math.round(x.p('pens')));
       // field: dark (the shared fade) or paper (layer stores absorption)
-      const pv = x.p('paper');
+      const pv = 0; // the paper field is gone (it painted over any widget mixed with it); the code stays for later
       paperMode = pv >= 0.5;
       paperCol = paperMode ? mix([70, 68, 64], PAPER, (pv - 0.5) * 2) : [0, 0, 0];
 
       // graphite fade, in steps big enough that 8-bit rounding can't stick (plus a light burn for the last levels)
       fadeAcc += dt;
-      const STEP = 0.08, every = x.p('fade') * Math.log(1 - STEP) / Math.log(0.5);
+      const STEP = 0.08, every = x.p('stay') * Math.log(1 - STEP) / Math.log(0.5);
       while (fadeAcc >= every) {
         fadeAcc -= every;
         lg.globalCompositeOperation = 'source-over'; lg.fillStyle = `rgba(0,0,0,${STEP})`; lg.fillRect(0, 0, LW, LH);
@@ -165,18 +186,18 @@
       diss *= Math.pow(0.5, dt / 1.2);
       const tgt = clamp(0.55 * diss + 1.0 * x.feat.rate);
       tension += (tgt - tension) * (1 - Math.pow(0.5, dt / 0.5));
-      const loops = x.p('loops'), speed = x.p('speed'), jit = x.p('jitter'), pp = x.p('press');
+      const loops = x.p('loops'), speed = x.p('speed'), jit = clamp(0.3 + 0.5 * x.feat.level), pp = FIX.press;
       const k = clamp(loops * (0.2 + 1.2 * tension));
-      const ink = paperMode ? pal(INK_P, x.p('ink')) : pal(INK_D, x.p('ink'));
+      const ink = paperMode ? pal(INK_P, FIX.ink) : pal(INK_D, FIX.ink);
 
       for (const p of pens) {
         p.burst *= Math.pow(0.5, dt / 0.14);
-        const floor = 0.1 + 0.5 * x.feat.level;
+        const floor = 0.22 + 0.45 * x.feat.level; // a quiet pen still leaves a readable line
         p.press = Math.max(floor * pp, p.press * Math.pow(0.5, dt / 0.8));
-        const vd = Math.min(700, 120 * speed * (0.3 + 0.7 * x.feat.level + 2.2 * p.burst));
+        const vd = Math.min(700, 120 * speed * (0.6 + 0.6 * x.feat.level + 2.2 * p.burst));
         const Rt = (150 - 138 * Math.pow(k, 0.7)) * (0.75 + 0.5 * Math.sin(time * 0.37 + p.wob));
         p.R += (Rt - p.R) * (1 - Math.pow(0.5, dt / 0.3));
-        const vt = vd * (0.5 + 2.6 * k), om = Math.min(26, vt / Math.max(8, p.R));   // at most ~4 loops a second
+        const vt = vd * (0.9 + 2.6 * k), om = Math.min(26, vt / Math.max(8, p.R));   // at most ~4 loops a second
         const S = Math.min(40, Math.max(1, Math.ceil(Math.max(vd * dt / 3, om * dt / 0.13))));
         const sdt = dt / S, pts = p.fresh ? [] : [p.x, p.y]; p.fresh = false;
         for (let s = 0; s < S; s++) {
@@ -205,8 +226,8 @@
         }
         if (Math.random() < dt * 0.15) p.dir = -p.dir;
         const pr = clamp(p.press);
-        const w = 0.7 + 8 * Math.pow(pr, 1.3) * (0.4 + 0.6 * pp);
-        const a = clamp(0.22 + 0.85 * pr);
+        const w = (1.25 + 7 * Math.pow(pr, 1.3) * (0.4 + 0.6 * pp)) * x.p('weight');
+        const a = clamp(0.32 + 0.8 * pr);
         const bandInk = mix(ink, paperMode ? [0, 0, 0] : [255, 255, 255], 0.12 * (p.i / Math.max(1, pens.length - 1)));
         line(pts, w, bandInk, a);
       }

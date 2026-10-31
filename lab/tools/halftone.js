@@ -18,17 +18,37 @@
   TOOLS.push({
     id: 'halftone', name: 'Halftone', tag: 'new',
     blurb: 'Two overprinted dot screens, deep red and pale. Each attack sends a wave of swelling dots out from a point placed by pitch: low notes big slow swells on the red screen, high notes small fast ripples on the pale one; held chords print a faint standing interference pattern, and the loudest full chords flash the red screen in negative.',
+    // Five knobs (the user's rule for this round). Folded into fixed choices: screen angle 15°, the negative flash on the
+    // loudest full chords, the plate colours, and wave speed (now follows how fast the music is played by itself).
     params: [
-      { key: 'grid', label: 'grid pitch (px)', min: 10, max: 44, step: 1, value: 20 },
-      { key: 'shape', label: 'shape: dot/sq/cross/line', min: 0, max: 3, step: 1, value: 0 },
-      { key: 'rot', label: 'screen angle', min: -45, max: 45, step: 1, value: 15 },
-      { key: 'flip', label: 'big-chord negative', min: 0, max: 1, value: 0.6 },
-      { key: 'speed', label: 'wave speed', min: 0.3, max: 3, value: 1, drive: '+rate' },
-      { key: 'decay', label: 'wave life (s)', min: 0.4, max: 6, value: 1.9, drive: '-rate' },
-      { key: 'contrast', label: 'contrast', min: 0, max: 1, value: 0.45, drive: '+level' },
-      { key: 'standing', label: 'held harmony', min: 0, max: 1.5, value: 0.6, drive: '+density' },
-      { key: 'hueA', label: 'low plate hue', min: 0, max: 360, step: 1, value: 356 },
-      { key: 'hueB', label: 'high plate hue', min: 0, max: 360, step: 1, value: 44 },
+      { key: 'grid', label: 'dot size', min: 10, max: 44, step: 1, value: 20,
+        hint: 'How coarse the dot screen is. Left: a fine screen of tiny dots. Right: a coarse screen of big dots.',
+        icon: (g, v, w, h) => { const s = 4.5 + v * 8; for (let y = 2 + s / 2; y < h; y += s) for (let x = 2 + s / 2; x < w; x += s) ICON.dot(g, x, y, s * 0.34, ICON.red); } },
+      { key: 'shape', label: 'dot shape', min: 0, max: 3, step: 1, value: 0,
+        hint: 'What the screen is printed with. Left: round dots, then squares, then crosses. Right: lines.',
+        icon: (g, v, w, h) => {
+          const k = Math.round(v * 3), R = ICON.red;
+          if (k === 3) { [1.2, 2.6, 1.8].forEach((q, i) => ICON.rect(g, 3, 5 + i * 8 - q, w - 6, 2 * q, R)); return; }
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+            const x = 8 + i * 12, y = 8 + j * 10, r = j ? 3.6 : 2.6;
+            if (k === 0) ICON.dot(g, x, y, r, R);
+            else if (k === 1) ICON.square(g, x, y, r * 1.7, R);
+            else { ICON.rect(g, x - r, y - 0.9, 2 * r, 1.8, R); ICON.rect(g, x - 0.9, y - r, 1.8, 2 * r, R); }
+          }
+        } },
+      // New key (was 'decay', driven by speed): that drive cut waves to a flash in fast passages, so dense b5 printed almost nothing.
+      { key: 'life', label: 'how long the waves last', min: 0.4, max: 6, value: 2.2,
+        hint: 'How long a wave of dots keeps spreading before it fades. Left: a quick pulse. Right: slow rings that linger.',
+        icon: (g, v, w, h) => { for (let i = 0; i < 5; i++) { const a = Math.max(0, 1 - i / (0.7 + v * 4.3)); if (a > 0) ICON.alpha(g, a, () => ICON.ring(g, 7, h / 2, 2.5 + i * 7, ICON.red, 2)); } } },
+      { key: 'contrast', label: 'hard print', min: 0, max: 1, value: 0.45, drive: '+level',
+        hint: 'How the dots swell. Left: soft, every size in between, like a photo. Right: hard, each dot is either full or gone, like a stamp.',
+        icon: (g, v, w, h) => {
+          const kc = 2.5 + 22 * v, t0 = 0.42, f = (u) => 1 / (1 + Math.exp(-kc * (u - t0))), l0 = f(0), l1 = f(1);
+          for (let i = 0; i < 6; i++) { const u = i / 5, t = (1 - v) * u + v * (f(u) - l0) / (l1 - l0); ICON.dot(g, 4 + i * 6.4, h / 2, 0.5 + 2.7 * t, ICON.red); }
+        } },
+      { key: 'standing', label: 'stripes from held chords', min: 0, max: 1.5, value: 0.6, drive: '+density',
+        hint: 'While a chord rings, its notes print a faint standing pattern of stripes. Left: none, only the waves. Right: strong stripes.',
+        icon: (g, v, w, h) => { for (let y = 4; y < h; y += 6) for (let x = 4; x < w; x += 6) ICON.dot(g, x, y, 1.2 * (1 - v) + v * (0.3 + 2.5 * (0.5 + 0.5 * Math.cos((x - y * 0.7) * 0.33))), ICON.gold); } },
     ],
     reset() { waves = []; time = 0; kick = 0; kickRot = 0; flip = 0; lastFlip = -9; ref = 80; },
     onChord(ch, x) {
@@ -57,10 +77,11 @@
     frame(x) {
       const g = x.g, W = x.W, H = x.H;
       time += x.dt; kick *= Math.pow(0.5, x.dt / 0.12); flip *= Math.pow(0.5, x.dt / 0.09); kickRot *= Math.pow(0.5, x.dt / 0.25);
-      const grid = x.p('grid'), shape = Math.round(x.p('shape')), speed = x.p('speed'), life = x.p('decay');
+      // Waves spread faster when the music is played faster (was a knob; now built in).
+      const grid = x.p('grid'), shape = Math.round(x.p('shape')), speed = 0.85 + 0.7 * x.feat.rate, life = x.p('life') * (1 - 0.3 * x.feat.rate);
       const con = x.p('contrast'), stand = x.p('standing');
-      const rot0 = x.p('rot') * Math.PI / 180 + kickRot, off = Math.PI / 6, neg = flip * x.p('flip');
-      const hues = [x.p('hueA'), x.p('hueB')];
+      const rot0 = 15 * Math.PI / 180 + kickRot, off = Math.PI / 6, neg = flip * 0.6; // fixed screen angle; the negative flash on the loudest chords
+      const hues = [356, 44]; // deep red low plate, pale gold high plate
 
       // Per-frame wave scalars, kept out of the dot loop.
       const live = [[], []];
@@ -73,7 +94,8 @@
       }
       waves = waves.filter((w) => time - w.born < life * 2.5);
       // A crowd of waves (the climax) shares the ink, so the screen keeps its rings instead of printing solid.
-      for (const L of live) { const k = 1 / Math.sqrt(Math.max(1, L.length / 7)); for (const w of L) w.a *= k; }
+      // Shared by how much ink they carry, not by how many there are: the many soft, short b5 notes printed almost nothing.
+      for (const L of live) { let sa = 0; for (const w of L) sa += w.a; const k = 1 / Math.pow(Math.max(1, sa / 3.2), 0.68); for (const w of L) w.a *= k; }
 
       // Standing pattern: each held note is a plane wave whose angle is its place on the circle of fifths
       // and whose spatial wavelength follows its octave.
@@ -89,7 +111,7 @@
       for (const L of held) { const s = 1 / Math.sqrt(Math.max(1, L.length)); for (const h of L) h.a *= s; }
 
       // Contrast: a logistic curve; at 1 a dot is either full or gone (the print look).
-      const kc = 2.5 + 22 * con, th0 = 0.42, l0 = 1 / (1 + Math.exp(kc * th0)), l1 = 1 / (1 + Math.exp(-kc * (1 - th0)));
+      const kc = 2.5 + 22 * con, th0 = 0.4, l0 = 1 / (1 + Math.exp(kc * th0)), l1 = 1 / (1 + Math.exp(-kc * (1 - th0)));
       const tone = (v) => ((1 / (1 + Math.exp(-kc * (v - th0)))) - l0) / (l1 - l0);
 
       const N = Math.ceil(Math.hypot(W, H) / 2 / grid) + 1, rMax = grid * (shape === 3 ? 0.5 : 0.62), rMin = 0.7;
