@@ -5,7 +5,8 @@
 // `widget@listen`. A slot with no layer whose instance keeps no pulse of its own takes today's statements, verbatim;
 // any other goes through the shared drawLayered (lab/layers/slot.js). A routed instance hears its part: it is evaluated
 // with the part's NOTES and CHORDS, gets the part's chords, and its own pulse, features and sounding notes are swapped
-// into ctx around each of its calls.
+// into ctx around each of its calls. A slot with a region (T15) is seen in a spot or a window (slot.js): a windowed
+// instance draws on its own canvas, through hdContext at S > 1, and reset() and resetWidget() clear it to black.
 import { groupChords, soundingAt } from './chords';
 import { advanceFeatures, knobValue, newFeatures, pitch01, resolveKnobs } from './features';
 import { hdContext } from './hd-context';
@@ -15,7 +16,7 @@ import type { InstanceState, LayerHost, WaLayers } from './layers';
 import type { Chord, IconLib, InstanceSpec, KnobMap, LabHarness, Note, SlotLayer, SongNotes, SoundingNote, ToolDef, WidgetCtx } from './types';
 
 /** A widget drawn this step: weight 1 = exactly as the lab draws it; receiving = it gets this step's attacks; layer =
-    its curve (and, with T15, its region). id is the instance key. */
+    its curve, its region and its glide. id is the instance key. */
 export interface Slot { id: string; receiving: boolean; weight: number; layer?: SlotLayer }
 export interface RuntimeLike {
   /** widget ids (today's call) or instance specs, in load order */
@@ -43,7 +44,7 @@ export class WidgetRuntime implements RuntimeLike {
   private readonly g: CanvasRenderingContext2D;
   private readonly icon: IconLib;
   private readonly song: SongNotes;
-  private readonly layers: WaLayers | undefined;
+  private readonly layers: (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;
   private readonly tools = new Map<string, ToolDef>();
   private readonly insts = new Map<string, InstanceState>();
   private readonly order: string[] = [];
@@ -52,6 +53,8 @@ export class WidgetRuntime implements RuntimeLike {
   private readonly cur: { key: string; notes: Note[] };
   private readonly host: LayerHost;
   private scratch: HTMLCanvasElement | null = null;
+  /** Each windowed instance's widget-facing window context (the HD proxy at S > 1), by instance key. */
+  private readonly winG = new Map<string, CanvasRenderingContext2D>();
   private ci = 0;
   /** The time of the last step (or reset): rt.lastT is already the new time when a clock calls step(). */
   private stepT = 0;
@@ -71,7 +74,7 @@ export class WidgetRuntime implements RuntimeLike {
     if (!g) throw new Error('no 2D canvas');
     this.g = g;
     this.song = song;
-    this.layers = lib.layers;
+    this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js (T15)
     this.chords = groupChords(song.notes);
     this.icon = makeIcon(lib.harness.iconSource);
     const knobs = this.knobs, cur = (this.cur = { key: '', notes: song.notes });
@@ -95,23 +98,33 @@ export class WidgetRuntime implements RuntimeLike {
     };
     this.ctx = ctx;
     const make = (w: number, h: number) => Object.assign(document.createElement('canvas'), { width: w, height: h });
-    this.host = {
+    const host: LayerHost & { windowG(inst: InstanceState): CanvasRenderingContext2D } = {
       ctx, g, canvas, S,
+      // host.ctx, not ctx: a windowed call runs with host.ctx set to the instance's window view (slot.js), whose canvas
+      // is the window; the base transform at S > 1 goes on that canvas's context.
       call: (inst, fn, ch) => {
-        if (fn === 'onChord') { this.deliveredLog?.push([inst.key, ch!.t]); this.safe(inst.key, 'onChord', ch, ctx); }
-        else this.safe(inst.key, fn, ctx);
+        const x = host.ctx, real = x === ctx ? g : x.canvas.getContext('2d')!;
+        if (fn === 'onChord') { this.deliveredLog?.push([inst.key, ch!.t]); this.safe(inst.key, 'onChord', real, ch, x); }
+        else this.safe(inst.key, fn, real, x);
       },
       scratch: () => (this.scratch ??= make(W * S, H * S)),
       windowOf: (inst) => {
-        if (!inst.win) {   // T15 draws windows; opaque black when created
+        if (!inst.win) {   // opaque black when created
           const win = make(W * S, H * S), wg = win.getContext('2d')!;
           wg.fillStyle = '#000'; wg.fillRect(0, 0, W * S, H * S);
           inst.win = win;
         }
         return inst.win;
       },
+      /** The widget-facing context of an instance's window: through hdContext, one per instance (g itself at S = 1). */
+      windowG: (inst) => {
+        let wg = this.winG.get(inst.key);
+        if (!wg) { wg = hdContext(host.windowOf(inst).getContext('2d')!, S, () => ctx.tool?.id ?? 'a widget'); this.winG.set(inst.key, wg); }
+        return wg;
+      },
       make,
     };
+    this.host = host;
   }
 
   /** Evaluates each not-yet-loaded instance once, in this order (load order is draw order and, through load-time
@@ -171,11 +184,22 @@ export class WidgetRuntime implements RuntimeLike {
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000';
     if (this.S > 1) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillRect(0, 0, W * this.S, H * this.S); } else g.fillRect(0, 0, W, H);
     this.stepT = t; this.drawnPrev = new Set();
-    if (this.layers) for (const inst of this.insts.values()) this.layers.coldInstance(inst, t);
-    for (const id of this.order) this.safe(id, 'reset', ctx);
+    if (this.layers) {
+      for (const inst of this.insts.values()) {
+        this.layers.coldInstance(inst, t);
+        if (inst.win) this.layers.clearWindow(inst.win);   // windows go black with the shared canvas
+      }
+    }
+    for (const id of this.order) this.safe(id, 'reset', g, ctx);
     this.resets++;
   }
-  resetWidget(key: string): void { if (this.tools.has(key)) this.safe(key, 'reset', this.ctx); }
+  /** One instance's reset() (a restart), its window cleared to black. */
+  resetWidget(key: string): void {
+    if (!this.tools.has(key)) return;
+    const win = this.insts.get(key)?.win;
+    if (win && this.layers) this.layers.clearWindow(win);
+    this.safe(key, 'reset', this.g, this.ctx);
+  }
 
   /** One picture at song time t, dt after the last: the lab's step(), with the instances given by slots. */
   step(t: number, dt: number, slots: readonly Slot[]): void {
@@ -209,8 +233,8 @@ export class WidgetRuntime implements RuntimeLike {
         const sg = sc.getContext('2d')!;
         sg.globalCompositeOperation = 'copy'; sg.drawImage(ctx.canvas, 0, 0); sg.globalCompositeOperation = 'source-over';
       }
-      if (slot.receiving) for (const ch of fired) this.safe(slot.id, 'onChord', ch, ctx);
-      g.save(); this.safe(slot.id, 'frame', ctx); g.restore();
+      if (slot.receiving) for (const ch of fired) this.safe(slot.id, 'onChord', g, ch, ctx);
+      g.save(); this.safe(slot.id, 'frame', g, ctx); g.restore();
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
       if (sc) {
         if (S > 1) g.setTransform(1, 0, 0, 1, 0, 0);
@@ -234,10 +258,10 @@ export class WidgetRuntime implements RuntimeLike {
 
   /** The lab's safe(): ctx.tool set, the first error per instance kept, the step never stops. An own instance's pulse,
       features and notes are in ctx for the call, and the global ones back after it. */
-  private safe(key: string, fn: 'reset' | 'onChord' | 'frame', ...a: unknown[]): void {
+  private safe(key: string, fn: 'reset' | 'onChord' | 'frame', real: CanvasRenderingContext2D, ...a: unknown[]): void {
     const { ctx, cur } = this, tool = this.tools.get(key)!, inst = this.insts.get(key);
     ctx.tool = tool; cur.key = key;
-    if (this.S > 1) this.g.setTransform(this.S, 0, 0, this.S, 0, 0);   // the base transform: 1280×720 units
+    if (this.S > 1) real.setTransform(this.S, 0, 0, this.S, 0, 0);   // the base transform: 1280×720 units
     const swap = inst !== undefined && inst.own;
     const level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = cur.notes;
     if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes; }

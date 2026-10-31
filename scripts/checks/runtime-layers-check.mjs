@@ -9,9 +9,14 @@
 //   4. thinning at a constant 0.5 delivers exactly the attacks that `passes` predicts in Node;
 //   5. strings@melody and strings@bassline together are two instances, without errors, with different pulses;
 //   6. Math.random is called as often per step with a constant-1 curve as without one.
+// Regions (T15), at scale 1 and at scale 2 (render.html?scale=2):
+//   7. a window over the whole canvas (x .5, y .5, w 1, h 1, feather 0, rot 0, blend over, fit stretch) with the widget
+//      alone draws exactly what the widget draws without a region;
+//   8. a spot of the same box with feather 0 draws exactly what the widget draws without a region.
 //
-//   npm run runtime-check [-- --look | --look-only]   --look also writes the T12 contact sheets to renders/look/T12/;
-//                                                     --look-only writes them without the checks
+//   npm run runtime-check [-- --look | --look-only] [-- --look-set=T12|T15] [-- --regions]
+//     --look also writes the contact sheets to renders/look/T12/ and renders/look/T15/; --look-only writes them without
+//     the checks; --look-set keeps one of the two sets; --regions runs only checks 7 and 8
 //
 // Local only: needs the lab's notes files and system Chrome; starts its own Vite server from port 5190.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -23,6 +28,8 @@ import { createServer } from 'vite';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const argv = process.argv.slice(2);
 const LOOK_ONLY = argv.includes('--look-only'), LOOK = LOOK_ONLY || argv.includes('--look');
+const REGIONS_ONLY = argv.includes('--regions');   // only checks 7 and 8
+const LOOK_SET = (argv.find((a) => a.startsWith('--look-set=')) ?? '').slice('--look-set='.length);
 const HZ = 60;
 
 for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
@@ -38,7 +45,7 @@ const { loadLayers } = await vite.ssrLoadModule('/scripts/node/layers.ts');
 const WA = loadLayers(ROOT);
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
+let page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
 await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
 await page.route(/localhost:517\d/, (r) => r.abort());
 const pageErrors = [];
@@ -78,7 +85,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const noErrors = (r) => Object.keys(r.errors).length === 0;
 
 // 1. A constant-1 curve ≡ no layers.
-if (!LOOK_ONLY) {
+if (!LOOK_ONLY && !REGIONS_ONLY) {
   const at = { seek: 122, marks: [123, 124.5, 126] };
   const a = await run({ only: 'strings' }, at);
   const b = await run({ layers: [{ widget: 'strings', intensity: [{ t: 0, v: 1 }] }] }, at);
@@ -92,7 +99,7 @@ if (!LOOK_ONLY) {
 
 // 2. A routed instance on a part equal to all the notes ≡ the plain widget, for widgets without randomness.
 const deterministic = [];
-if (!LOOK_ONLY) {
+if (!LOOK_ONLY && !REGIONS_ONLY) {
   const at = { seek: 122, marks: [123, 124.5, 126] };
   const readers = harness.toolIds.filter((id) => /window\.NOTES/.test(readFileSync(path.join(ROOT, 'lab/tools', `${id}.js`), 'utf8')));
   const candidates = [...new Set(['strings', ...readers])];
@@ -110,7 +117,7 @@ if (!LOOK_ONLY) {
 }
 
 // 3. Seek invariance.
-if (!LOOK_ONLY) {
+if (!LOOK_ONLY && !REGIONS_ONLY) {
   const curve = [{ t: 118, v: 0 }, { t: 120, v: 0 }, { t: 120, v: 1 }];
   const framesSame = [];
   let logs = true, detail = '';
@@ -126,7 +133,7 @@ if (!LOOK_ONLY) {
 }
 
 // 4. Thinning at a constant 0.5 = passes in Node.
-if (!LOOK_ONLY) {
+if (!LOOK_ONLY && !REGIONS_ONLY) {
   const r = await run({ layers: [{ widget: 'squares', intensity: [{ t: 0, v: 0.5 }] }] }, { seek: 120, marks: [130] });
   const times = await page.evaluate(() => window.renderRuntime.rt.chords.map((c) => c.t));
   const salt = WA.fnv32('squares');
@@ -137,7 +144,7 @@ if (!LOOK_ONLY) {
 }
 
 // 5. Two instances of one widget on two lines.
-if (!LOOK_ONLY) {
+if (!LOOK_ONLY && !REGIONS_ONLY) {
   await open({ layers: [{ widget: 'strings', listen: 'melody' }, { widget: 'strings', listen: 'bassline' }] });
   const r = await page.evaluate(() => {
     window.renderSeek(120, 1); window.renderTo(125);
@@ -151,8 +158,66 @@ if (!LOOK_ONLY) {
     `${r.keys.join(', ')}; pitch ${r.pm?.toFixed(3)} vs ${r.pb?.toFixed(3)}; notes ${r.nm} vs ${r.nb}`);
 }
 
+// 7 and 8. A window and a spot over the whole canvas with a hard edge ≡ no region, at scale 1 and 2. Exact hashes on
+// Chrome's software 2D canvas: on the GPU canvas, merely using the shared canvas as a drawImage source each step (the
+// spot's snapshot, as the paste-back at a weight below 1 has always done) moves a few dozen antialiased edge pixels,
+// whatever is drawn with the copy; and each pixel read-back can move the canvas between GPU and CPU drawing, after which
+// two runs differ by ±1–2 on a third of the picture. So on the GPU the same pictures are compared pixel by pixel, read
+// once at the end, within that edge noise.
+if (!LOOK_ONLY) {
+  const box = { shape: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, feather: 0, rot: 0 };
+  const win = { mode: 'window', ...box, blend: 'over', fit: 'stretch' }, spot = { mode: 'spot', ...box };
+  // strings, squares, kandinsky and rorschach draw; casket and blocks read the canvas; pixelsort and stella draw after
+  // the others (queued) and stella hooks ctx.sounding.
+  const ids = ['strings', 'squares', 'kandinsky', 'rorschach', 'casket', 'blocks', 'pixelsort', 'stella'];
+  const at = { seek: 122, marks: [123, 124.5, 126] };
+  const gpu = page;
+  const softBrowser = await chromium.launch({ channel: 'chrome', args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
+  const soft = await softBrowser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
+  await soft.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  await soft.route(/localhost:517\d/, (r) => r.abort());
+  soft.on('pageerror', (e) => pageErrors.push(e.message));
+  /** The pixels at the last mark, the only read-back of the run. */
+  const pixelsAt = async (params) => {
+    await open(params);
+    const b64 = await page.evaluate(({ seek, end }) => { window.renderSeek(seek, 1); window.renderTo(end); return window.renderPixels(); }, { seek: at.seek, end: at.marks[2] });
+    return Buffer.from(b64, 'base64');
+  };
+  const diff = (x, y) => { let mx = 0, n = 0; for (let i = 0; i < x.length; i++) { const d = Math.abs(x[i] - y[i]); if (d) n++; if (d > mx) mx = d; } return { mx, share: n / x.length }; };
+  for (const scale of ['1', '2']) {
+    page = soft;
+    const wDiff = [], sDiff = [], errs = [];
+    for (const id of ids) {
+      const ref = await run({ only: id, scale }, at);
+      const w = await run({ layers: [{ widget: id, region: win }], scale }, at);
+      const sp = await run({ layers: [{ widget: id, region: spot }], scale }, at);
+      for (const [r, n] of [[ref, 'none'], [w, 'window'], [sp, 'spot']]) if (!noErrors(r)) errs.push(`${id} ${n}: ${JSON.stringify(r.errors)}`);
+      if (!same(ref.hashes, w.hashes)) wDiff.push(`${id} (${ref.hashes[2]} vs ${w.hashes[2]})`);
+      if (!same(ref.hashes, sp.hashes)) sDiff.push(`${id} (${ref.hashes[2]} vs ${sp.hashes[2]})`);
+    }
+    check(!wDiff.length && !errs.length, `7. scale ${scale}, software canvas: a whole-canvas window with the widget alone draws exactly what no region draws`,
+      `${ids.join(', ')}; differ: ${wDiff.join(', ') || 'none'}${errs.length ? `; errors: ${errs.join('; ')}` : ''}`);
+    check(!sDiff.length && !errs.length, `8. scale ${scale}, software canvas: a whole-canvas hard spot draws exactly what no region draws`,
+      `differ: ${sDiff.join(', ') || 'none'}`);
+    page = gpu;
+    const worst = { window: { mx: 0, share: 0 }, spot: { mx: 0, share: 0 } };
+    for (const id of ids) {
+      const ref = await pixelsAt({ only: id, scale });
+      for (const [mode, region] of [['window', win], ['spot', spot]]) {
+        const d = diff(ref, await pixelsAt({ layers: [{ widget: id, region }], scale }));
+        if (d.share > worst[mode].share) worst[mode] = { ...d, id };
+      }
+    }
+    const fine = (d) => d.share < 0.0005;
+    check(fine(worst.window) && fine(worst.spot), `7–8. scale ${scale}, GPU canvas: the same within the snapshot's edge noise (under 0.05 % of channels)`,
+      `worst window: ${(worst.window.share * 100).toFixed(4)} % of channels, max ${worst.window.mx}${worst.window.id ? ` (${worst.window.id})` : ''}; `
+      + `worst spot: ${(worst.spot.share * 100).toFixed(4)} %, max ${worst.spot.mx}${worst.spot.id ? ` (${worst.spot.id})` : ''}`);
+  }
+  await softBrowser.close();
+}
+
 // The look (T12 Step 5): contact sheets to renders/look/T12/.
-if (LOOK) {
+if (LOOK && LOOK_SET !== 'T15') {
   const OUT = path.join(ROOT, 'renders/look/T12');
   mkdirSync(OUT, { recursive: true });
   /** In the page: seek, then a frame at each mark (song s) in a grid of cols cells cw wide, captioned with the time. */
@@ -210,6 +275,82 @@ if (LOOK) {
   write('winter-strings.png', await pair('chopin-winter-wind', 21, 25,
     { params: { layers: [{ widget: 'strings', listen: 'melody' }] }, title: 'Winter Wind 25 s: strings on the melody' },
     { params: { only: 'strings' }, title: 'strings on all notes' }));
+}
+
+// The look (T15 Step 3): renders/look/T15/. Each picture is a row of cells, a frame (or a crop of one, in device pixels,
+// at scale 2) per cell, captioned.
+if (LOOK && LOOK_SET !== 'T12') {
+  const OUT = path.join(ROOT, 'renders/look/T15');
+  mkdirSync(OUT, { recursive: true });
+  const write = (name, b64) => { writeFileSync(path.join(OUT, name), Buffer.from(b64, 'base64')); console.log(`wrote renders/look/T15/${name}`); };
+  /** In the page, after open(): cells of cw px wide, each the frame at a mark, cropped; outlines[i] (a region, or null)
+      is drawn dashed over cell i, on the sheet only, to show where the region is. With glide, hand-built slots. */
+  const sheetJs = ({ seek, marks, cols, cw, crop, title, glide, outlines }) => {
+    const src = document.getElementById('c'), rt = window.renderRuntime.rt, ctx = rt.ctx;
+    const [sx, sy, sw, sh] = crop ?? [0, 0, src.width, src.height];
+    const ch = Math.round((cw * sh) / sw), rows = Math.ceil(marks.length / cols), top = 26;
+    const out = Object.assign(document.createElement('canvas'), { width: cols * cw, height: rows * ch + top });
+    const g = out.getContext('2d');
+    g.fillStyle = '#333'; g.fillRect(0, 0, out.width, out.height);
+    g.fillStyle = '#fff'; g.font = '15px sans-serif'; g.fillText(title, 8, 18);
+    window.renderSeek(seek, 1);
+    const to = (m) => {
+      if (!glide) { window.renderTo(m); return; }
+      // Hand-built slots: the base widget, and the windowed one whose region glides from A to B over fade s after b.
+      while (rt.lastT < m - 1e-9) {
+        const t = Math.min(m, rt.lastT + 1 / 60), d = t - rt.lastT;
+        rt.lastT = t; ctx.now += d;
+        const layer = t < glide.b ? { region: glide.A }
+          : t < glide.b + glide.fade ? { region: glide.B, glide: { from: glide.A, u: (t - glide.b) / glide.fade } } : { region: glide.B };
+        rt.step(t, d, [{ id: glide.base, receiving: true, weight: 1 }, { id: glide.id, receiving: true, weight: 1, layer }]);
+      }
+    };
+    marks.forEach((m, i) => {
+      to(m);
+      const x = (i % cols) * cw, y = top + Math.floor(i / cols) * ch;
+      g.drawImage(src, sx, sy, sw, sh, x, y, cw - 2, ch - 2);
+      const r = outlines?.[i];
+      if (r) {
+        const k = (cw - 2) / sw;
+        g.save(); g.beginPath(); g.rect(x, y, cw - 2, ch - 2); g.clip();
+        g.translate(x + (r.x * src.width - sx) * k, y + (r.y * src.height - sy) * k); g.rotate(((r.rot || 0) * Math.PI) / 180);
+        g.strokeStyle = 'rgba(0,255,255,0.7)'; g.setLineDash([4, 4]); g.lineWidth = 1;
+        const w = r.w * src.width * k, h = r.h * src.height * k;
+        g.beginPath();
+        if (r.shape === 'ellipse') g.ellipse(0, 0, w / 2, h / 2, 0, 0, 2 * Math.PI); else g.rect(-w / 2, -h / 2, w, h);
+        g.stroke(); g.restore();
+      }
+      g.fillStyle = '#ff0'; g.font = '13px sans-serif'; g.fillText(`${m.toFixed(2)} s`, x + 6, y + 16);
+    });
+    return out.toDataURL('image/png').split(',')[1];
+  };
+  const sheet = async (params, song, o) => { await open(params, song); return page.evaluate(sheetJs, o); };
+  const ell = { mode: 'spot', shape: 'ellipse', x: 0.5, y: 0.5, w: 0.5, h: 0.62, feather: 0.25 };
+  const winR = { mode: 'window', shape: 'rect', x: 0.62, y: 0.42, w: 0.42, h: 0.42, rot: 14, feather: 0.12, blend: 'over', fit: 'cover' };
+  const A = { mode: 'window', shape: 'rect', x: 0.27, y: 0.3, w: 0.36, h: 0.36, rot: 0, feather: 0.15, blend: 'over', fit: 'cover' };
+  const B = { mode: 'window', shape: 'rect', x: 0.7, y: 0.66, w: 0.48, h: 0.48, rot: -20, feather: 0.3, blend: 'over', fit: 'cover' };
+  const glide = { base: 'kandinsky', id: 'rorschach', A, B, b: 122, fade: 3 };
+  const glideAt = (t) => (t < glide.b ? A : t < glide.b + glide.fade ? WA.glideRegion(A, B, (t - glide.b) / glide.fade) : B);
+  for (const scale of ['1', '2']) {
+    const S = Number(scale), sfx = S > 1 ? '-x2' : '';
+    // At scale 2: a crop of 1280×720 device pixels (a quarter of the picture, at 1:1) around the region's edge.
+    const crop = (cx, cy) => (S > 1 ? [Math.round(cx * 2560 - 640), Math.round(cy * 1440 - 360), 1280, 720] : undefined);
+    const cw = S > 1 ? 640 : 480;
+    write(`spot-casket-over-squares${sfx}.png`, await sheet({ only: 'squares', layers: [{ widget: 'casket', region: ell }], scale }, 'prelude',
+      { seek: 120, marks: [124, 125, 126], cols: 3, cw, crop: crop(0.3, 0.3), outlines: [ell, ell, ell],
+        title: `casket in a spot ellipse (feather .25) over squares, Prelude, scale ${S}${S > 1 ? ', crop at 1:1 device px' : ''}` }));
+    write(`squares-casket-full${sfx}.png`, await sheet({ only: 'squares,casket', scale }, 'prelude',
+      { seek: 120, marks: [124, 125, 126], cols: 3, cw, crop: crop(0.3, 0.3), title: `casket full-screen over squares (reference), scale ${S}` }));
+    write(`window-rorschach-over-kandinsky${sfx}.png`, await sheet({ only: 'kandinsky', layers: [{ widget: 'rorschach', region: winR }], scale }, 'b5',
+      { seek: 0, marks: [4, 8, 16, 30], cols: 4, cw: S > 1 ? 480 : 360, crop: crop(0.62, 0.42), outlines: [winR, winR, winR, winR],
+        title: `rorschach in a window rect rotated 14°, feather .12, cover, over kandinsky, b5 from 0 s, scale ${S} (dashed: the region, drawn on this sheet only)` }));
+    write(`window-rorschach-alone${sfx}.png`, await sheet({ only: 'rorschach', scale }, 'b5',
+      { seek: 0, marks: [4, 8, 16, 30], cols: 4, cw: S > 1 ? 480 : 360, title: `rorschach alone, full-screen (what the window holds), b5, scale ${S}` }));
+    const marks = Array.from({ length: 17 }, (_, i) => 121.5 + i * 0.25);
+    write(`window-glide${sfx}.png`, await sheet({ only: 'kandinsky', scale }, 'prelude',
+      { seek: 118, marks, cols: 6, cw: 320, glide, outlines: marks.map(glideAt),
+        title: `rorschach's window glides top-left → bottom-right across a boundary at 122 s (fade 3 s), over kandinsky, Prelude, scale ${S}` }));
+  }
 }
 
 await browser.close();
