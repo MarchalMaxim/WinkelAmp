@@ -287,14 +287,16 @@ if (!LOOK_ONLY) {
   // stage is right there), so it must keep and restore the whole stack: with strings or halftone above it, the stage
   // outside the box (2 px margin) is byte-equal to the same stack without stella, at every mark. A put-back kept at
   // stella's place in the stack would wipe what the layers above drew. A hard spot, and a soft one (ellipse, feather,
-  // rotation) at a weight.
+  // rotation) at a weight. Timeslice too, under strings or squares (neither repaints the ground): it keeps the stage
+  // after drawing its threads across it and puts that copy back over the whole stage at the next fade, so its queued
+  // pass must run clipped to the region (T24).
   await freshSoft();
   {
     // over the top-left corner, where stella's stripes run along the edges
     const spots = { hard: { mode: 'spot', shape: 'rect', x: 0.2, y: 0.2, w: 0.4, h: 0.4, feather: 0, rot: 0 },
       'ellipse, feather .3, 20°, weight .6': { mode: 'spot', shape: 'ellipse', x: 0.2, y: 0.2, w: 0.5, h: 0.5, feather: 0.3, rot: 20, weight: 0.6 } };
     const bad = [], seen = [];
-    const go = (stack, region) => page.evaluate(({ stack, region }) => {
+    const go = (stack, region, who) => page.evaluate(({ stack, region, who }) => {
       const rt = window.renderRuntime.rt, ctx = rt.ctx, stage = document.getElementById('c');
       const out = [];
       window.renderSeek(118, 1);
@@ -302,39 +304,43 @@ if (!LOOK_ONLY) {
         while (rt.lastT < end - 1e-9) {
           const t = Math.min(end, rt.lastT + 1 / 60), d = t - rt.lastT;
           rt.lastT = t; ctx.now += d;
-          rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === 'stella' && region ? { weight: region.weight ?? 1, layer: { region } } : {}) })));
+          rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === who && region ? { weight: region.weight ?? 1, layer: { region } } : {}) })));
         }
         out.push(window.renderPixels());
       }
       return { px: out, errors: { ...window.renderErrors }, w: stage.width, h: stage.height };
-    }, { stack, region });
-    for (const above of ['strings', 'halftone']) {
-      await open({ only: ['kandinsky', 'stella', above].join(',') });
-      const ref = await go(['kandinsky', above], null);
+    }, { stack, region, who });
+    for (const [who, above] of [['stella', 'strings'], ['stella', 'halftone'], ['timeslice', 'strings'], ['timeslice', 'squares']]) {
+      await open({ only: ['kandinsky', who, above].join(',') });
+      const ref = await go(['kandinsky', above], null, who);
       for (const [name, region] of Object.entries(spots)) {
-        await open({ only: ['kandinsky', 'stella', above].join(',') });
-        const r = await go(['kandinsky', 'stella', above], region);
-        if (Object.keys(r.errors).length) bad.push(`${above} ${name}: errors ${JSON.stringify(r.errors)}`);
-        // the box's bounding rectangle, rotated, plus the margin
-        const rad = (region.rot * Math.PI) / 180, bw = region.w * r.w, bh = region.h * r.h;
-        const hw = (Math.abs(Math.cos(rad)) * bw + Math.abs(Math.sin(rad)) * bh) / 2 + 2, hh = (Math.abs(Math.sin(rad)) * bw + Math.abs(Math.cos(rad)) * bh) / 2 + 2;
-        const cx = region.x * r.w, cy = region.y * r.h;
+        await open({ only: ['kandinsky', who, above].join(',') });
+        const r = await go(['kandinsky', who, above], region, who);
+        if (Object.keys(r.errors).length) bad.push(`${who} under ${above} ${name}: errors ${JSON.stringify(r.errors)}`);
+        // the region's footprint, rotated, plus the margin: the box for a rect, the ellipse in it for an ellipse (its
+        // corners count as outside)
+        const rad = (region.rot * Math.PI) / 180, hw = (region.w * r.w) / 2 + 2, hh = (region.h * r.h) / 2 + 2;
+        const cx = region.x * r.w, cy = region.y * r.h, cos = Math.cos(rad), sin = Math.sin(rad);
+        const foot = (x, y) => {
+          const dx = x + 0.5 - cx, dy = y + 0.5 - cy, u = dx * cos + dy * sin, v = -dx * sin + dy * cos;
+          return region.shape === 'ellipse' ? (u / hw) ** 2 + (v / hh) ** 2 < 1 : Math.abs(u) < hw && Math.abs(v) < hh;
+        };
         let inside = 0;
         r.px.forEach((b64, k) => {
           const px = Buffer.from(b64, 'base64'), rf = Buffer.from(ref.px[k], 'base64');
           let n = 0;
           for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
             const i = (y * r.w + x) * 4, d = px[i] !== rf[i] || px[i + 1] !== rf[i + 1] || px[i + 2] !== rf[i + 2];
-            if (Math.abs(x + 0.5 - cx) < hw && Math.abs(y + 0.5 - cy) < hh) { if (d) inside++; continue; }
+            if (foot(x, y)) { if (d) inside++; continue; }
             if (d) n++;
           }
-          if (n) bad.push(`${above} ${name}, mark ${k}: ${n} pixels outside the box differ from the stack without stella`);
+          if (n) bad.push(`${who} under ${above} ${name}, mark ${k}: ${n} pixels outside the region differ from the stack without ${who}`);
         });
-        seen.push(`${above} ${name}: ${inside} differ inside`);
-        if (!inside) bad.push(`${above} ${name}: stella drew nothing inside the box`);
+        seen.push(`${who} under ${above} ${name}: ${inside} differ inside`);
+        if (!inside) bad.push(`${who} under ${above} ${name}: ${who} drew nothing inside the region`);
       }
     }
-    check(!bad.length && pageErrors.length === 0, '9. stella in a spot under strings or halftone: the stage outside the box is what the stack without stella draws (software canvas, three marks, a hard and a soft spot)',
+    check(!bad.length && pageErrors.length === 0, '9. stella in a spot under strings or halftone, timeslice under strings or squares: the stage outside the region is what the stack without it draws (software canvas, three marks, a hard and a soft spot)',
       bad.join('; ') || `outside equal; ${seen.join('; ')}`);
     page = gpu;
   }

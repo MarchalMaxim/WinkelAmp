@@ -148,6 +148,18 @@
     g.restore();
   }
 
+  /** Clips g to the region's footprint in device pixels: its box (rotated) for a rect, the ellipse in it for an ellipse.
+      The caller saves before and restores after; the transform is left at the box's. */
+  function clipTo(g, r, b) {
+    var bw = Math.abs(b.w), bh = Math.abs(b.h);
+    g.setTransform(1, 0, 0, 1, b.cx, b.cy); if (b.rot) g.rotate(b.rot);
+    g.beginPath();
+    if (r.shape === 'ellipse') g.ellipse(0, 0, bw / 2, bh / 2, 0, 0, 2 * Math.PI);
+    else g.rect(-bw / 2, -bh / 2, bw, bh);
+    g.clip();
+    g.beginPath();
+  }
+
   /** Copies the stage into the host's scratch ('copy', so it is the stage exactly) and returns the scratch. */
   function keepStage(h) {
     var sc = h.scratch(), sg = sc.getContext('2d');
@@ -165,7 +177,9 @@
       What the widget queues (queueMicrotask: its pass "after the others") is not run here but handed on to the host's
       queue, so it runs at the end of the step as it does without a region, over the layers above too; each queued pass
       (and what it queues in turn) runs between a copy of the stage and pasteThrough with this step's mask, box and
-      weight, so it changes the stage only inside the region. A widget that puts its pass back at the top of the next
+      weight, so it changes the stage only inside the region; it runs clipped to the region's footprint as well, so a
+      widget that keeps a copy of the stage after drawing on it (timeslice's threads, put back over the whole stage at
+      the next fade) keeps nothing it drew outside. A widget that puts its pass back at the top of the next
       step (stella hooks ctx.sounding()) thus keeps and restores the whole stack as it does without a region, and never
       wipes what the layers above it drew. */
   function spot(h, s, r, w, delivered) {
@@ -176,12 +190,14 @@
       return function () {
         var keep = keepStage(h), q0 = G.queueMicrotask;
         G.queueMicrotask = wrapQ;
+        g.save();
         try {
-          if (S > 1) g.setTransform(S, 0, 0, S, 0, 0);   // queued widget code draws in widget units
+          clipTo(g, r, b);
+          g.setTransform(S, 0, 0, S, 0, 0);   // queued widget code draws in widget units (the identity at S = 1)
           f();
         } catch (err) {
           if (typeof h.error === 'function') h.error(inst, err); else if (typeof console !== 'undefined') console.warn(err);
-        } finally { G.queueMicrotask = q0; }
+        } finally { G.queueMicrotask = q0; g.restore(); }
         pasteThrough(h, keep, m, b, w);
       };
     }

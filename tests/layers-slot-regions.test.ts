@@ -115,6 +115,24 @@ describe('spot', () => {
     expect(errs).toEqual(['rorschach: Error: boom']);   // the error kept, the paste still done
     expect(later[later.length - 1]).toBe('g.restore()');
   });
+  it('runs a queued pass clipped to the region\'s footprint (the rotated box, or the ellipse in it), then lifts the clip before the paste', async () => {
+    for (const [shape, path] of [['rect', 'g.rect(-160,-90,320,180)'], ['ellipse', `g.ellipse(0,0,160,90,0,0,${Math.round(2 * Math.PI * 1000) / 1000})`]] as const) {
+      const log: string[] = [], { h } = host(log, 2), i = inst();
+      h.call = (_inst, fn) => { if (fn === 'frame') queueMicrotask(() => { log.push('pass'); }); };
+      WA.drawLayered(h, slot(i, { layer: { region: { ...full('spot'), shape, x: 0.25, y: 0.25, w: 0.125, h: 0.125, rot: 90 } } }));
+      const atSlot = log.length;
+      await new Promise<void>((res) => setTimeout(res, 0));
+      const later = log.slice(atSlot), k = (s: string) => later.indexOf(s);
+      expect(k('pass'), shape).toBeGreaterThan(0);
+      const save = k('g.save()'), clip = k('g.clip()'), pass = k('pass');
+      expect(save).toBeGreaterThan(k('sg.drawImage(g,0,0)'));   // the stage kept, then the clip
+      expect(later.slice(save, clip)).toEqual(['g.save()', 'g.setTransform(1,0,0,1,640,360)', `g.rotate(${Math.round((Math.PI / 2) * 1000) / 1000})`,
+        'g.beginPath()', path]);
+      expect(later.slice(clip + 1, pass)).toEqual(['g.beginPath()', 'g.setTransform(2,0,0,2,0,0)']);   // widget units at S = 2
+      expect(later[pass + 1]).toBe('g.restore()');   // the clip lifted before pasteThrough
+      expect(later.indexOf('sg.globalCompositeOperation=destination-out', pass)).toBeGreaterThan(pass + 1);
+    }
+  });
 });
 
 describe('window', () => {

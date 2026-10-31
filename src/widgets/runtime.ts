@@ -123,7 +123,8 @@ export class WidgetRuntime implements RuntimeLike {
         return wg;
       },
       make,
-      /** An error in a region layer's queued post-pass (slot.js runs those at the layer's place): kept as safe() keeps
+      /** An error in a region layer's queued post-pass (slot.js runs a window's at its slot, a spot's at the end of the
+          step through its mask; both report here): kept as safe() keeps
           the first error per instance. */
       error: (inst, e) => { if (!this.errors[inst.key]) { this.errors[inst.key] = String(e); console.error(inst.key, e); } },
     };
