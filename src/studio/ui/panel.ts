@@ -14,7 +14,7 @@ import { tagsOf } from '../../widgets/tags';
 import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
 import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
-import { describePlace, listenLabel, mountLayerControls } from './layer-controls';
+import { describePlace, mountLayerControls, partWords } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
@@ -50,7 +50,7 @@ const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4)
 /** What a layer hears, where it is seen and whether it follows a curve, in a few words ('' when none is set). */
 function layerParts(l: Layer): string {
   const p = listenOf(l), parts: string[] = [];
-  if (p) parts.push(`hears ${listenLabel(p).toLowerCase()}`);
+  if (p) parts.push(`hears ${partWords(p)}`);
   const place = describePlace(l.region);
   if (place) parts.push(place);
   if (l.intensity?.length) parts.push('follows a curve');

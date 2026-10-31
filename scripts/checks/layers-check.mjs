@@ -24,7 +24,7 @@ const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, port
   pack = packs.demo;
   const D = Math.round(pack.duration * 1000) / 1000;
   return { demo: { version: 1, id: 'demo', song: 'demo', title: 'Layers check', sections: [
-    { start: 0, end: 16, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'strings' }] },
+    { start: 0, end: 16, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'strings' }, { widget: 'casket' }] },
     { start: 16, end: D, label: 'Two', layers: [{ widget: 'kandinsky' }] },
   ] } };
 } });
@@ -83,6 +83,14 @@ try {
       const after = (await show()).sections[0].layers[1];
       const sel = await page.$eval('.lc-listen select', (s) => s.value);
       check('Ctrl+Z removes it, and the select follows', after.listen === undefined && sel === 'all', `listen ${after.listen}, select ${sel}`);
+      // The same with the select still focused (Ctrl+Z right after choosing).
+      await page.selectOption('.lc-listen select', 'melody');
+      await page.focus('.lc-listen select');
+      await page.keyboard.press('Control+z');
+      await page.waitForTimeout(100);
+      const focused = await page.evaluate(() => ({ listen: window.__studio.store.state.show.sections[0].layers[1].listen, sel: document.querySelector('.lc-listen select').value, focus: document.activeElement?.tagName }));
+      check('Ctrl+Z with the select still focused: removed, and the select follows', focused.listen === undefined && focused.sel === 'all', JSON.stringify(focused));
+      check('strings (it draws, it does not read the canvas) has no reader hint', (await page.locator('.layer.open .lc-hint').count()) === 0);
       await page.selectOption('.lc-listen select', 'violin');   // for the picture of "while its part plays"
       await blur();
     }
@@ -158,6 +166,15 @@ try {
     });
     check(`nothing overflows at ${phone ? 'phone width (390)' : '1280×800'}`, over.sw <= over.w && !over.out.length, JSON.stringify(over));
     await page.click('[data-act="add"]');   // close the picker
+
+    // A reader (casket): the hint that in a window it cuts only its own picture.
+    await page.click('.layer.open .layer-name');
+    await page.click('.layer[data-k="2"] .layer-name');
+    await page.waitForSelector('.layer.open[data-k="2"] .lc');
+    await page.click('.layer.open [data-mode="window"]');
+    const hint = await page.locator('.layer.open .lc-hint').textContent().catch(() => '');
+    if (!phone) check('casket in a window says it cuts only its own picture', /in a window it cuts only its own picture/.test(hint ?? ''), hint ?? '');
+    await shot(`panel-where-reader${sfx}`, '.layer.open .lc-part:nth-of-type(2)');
   }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } finally {

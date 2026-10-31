@@ -46,6 +46,9 @@ export function listenLabel(l: Listen): string {
   return TRACKS[l as TrackId]?.label ?? l;
 }
 
+/** The same in running text: lower case, but "French horns" keeps its capital. */
+export const partWords = (l: Listen): string => listenLabel(l).toLowerCase().replace(/\bfrench\b/g, 'French');
+
 /** The widgets that read the shared canvas (they cut or smear what is below): a spotlight keeps them doing that in
     place; in a window they read only their own picture. */
 export const READERS: readonly string[] = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
@@ -159,8 +162,12 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   const above = $<HTMLInputElement>('[data-above]'), aboveOut = $<HTMLOutputElement>('[data-above-out]');
   above.value = String(gateDefault(d.pack.loudness, d.span()));
 
+  /** The options, plus one for a part this song lacks when the layer names one; rebuilt only when that changes. */
+  let extra: Listen | null | undefined;
   const fillSelect = (cur: Listen) => {
     const has = opts.some((o) => o.value === cur);
+    if ((has ? null : cur) === extra) { sel.value = cur; return; }
+    extra = has ? null : cur;
     const all = has ? opts : [...opts, { group: 'Not in this recording', value: cur, label: `${listenLabel(cur)}: plays on all notes here` }];
     const groups = [...new Set(all.map((o) => o.group))];
     sel.innerHTML = groups.map((g) => {
@@ -193,7 +200,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     for (let x = 0; x < SPARK_W; x++) if (cols[x]) { const h = Math.max(2, Math.round((Math.sqrt(cols[x] / top)) * SPARK_H)); g.fillRect(x, SPARK_H - h, 1, h); }
     g.fillStyle = '#ffffff22'; g.fillRect(0, SPARK_H - 1, SPARK_W, 1);
     spark.title = `${here} notes in this section`;
-    note.textContent = listen && heard === 'all' ? `This song has no ${listenLabel(listen).toLowerCase()}: the layer plays on all notes.`
+    note.textContent = listen && heard === 'all' ? `This song has no ${partWords(listen)}: the layer plays on all notes.`
       : here ? `${here} note${here === 1 ? '' : 's'} in this section${listen ? '; it moves with these only' : ''}.` : 'Silent in this section: the layer stays still here.';
     note.classList.toggle('warn', !!listen && heard === 'all');
   };
@@ -203,7 +210,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     const was = listenOf(d.layer() ?? { widget: d.widget }) ?? 'all', want = sel.value;
     if (!d.edit({ listen: want === 'all' ? null : want }, group('listen'))) {
       sel.value = was;
-      note.textContent = `This widget already plays on ${listenLabel(want).toLowerCase()} in this section, in another layer.`;
+      note.textContent = `This widget already plays on ${partWords(want)} in this section, in another layer.`;
       note.classList.add('warn');
     }
   });
@@ -251,7 +258,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   const sync = () => {
     const l = d.layer(); if (!l) return;
     const listen = listenOf(l), r = l.region, span = d.span();
-    if (document.activeElement !== sel) fillSelect(listen ?? 'all');
+    fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
     drawSpark(listen, span);
     box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.mode || undefined) === r?.mode)));
     $<HTMLElement>('.lc-say').textContent = !r ? 'Seen across the whole picture, as in the lab.'
@@ -262,7 +269,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     if (r) {
       shape.value = r.shape;
       const f = r.feather ?? 0.25;
-      if (document.activeElement !== feather) feather.value = String(f);
+      feather.value = String(f);
       featherOut.textContent = softWord(f);
       fit.value = r.fit ?? 'cover';
       blend.checked = r.blend === 'lighten';

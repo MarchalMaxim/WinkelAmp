@@ -3,7 +3,7 @@
 // widget picker's tag filter.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { defaultRegion, describePlace, listenOptions, READERS } from '../src/studio/ui/layer-controls';
+import { defaultRegion, describePlace, listenOptions, partWords, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import type { SongPack } from '../src/studio/pack/pack';
 import type { TagWords } from '../src/widgets/tags';
@@ -45,6 +45,12 @@ describe('defaultRegion', () => {
     for (const id of READERS) expect(defaultRegion(id).mode).toBe('spot');
     expect(defaultRegion('kandinsky')).toEqual({ mode: 'window', shape: 'ellipse', x: 0.5, y: 0.5, w: 0.5, h: 0.5, feather: 0.25 });
     expect(defaultRegion('a')).not.toBe(defaultRegion('a'));   // a fresh object each time
+  });
+
+  it('names a part in running text', () => {
+    expect(partWords('horn')).toBe('French horns');
+    expect(partWords('bassline')).toBe('bass line');
+    expect(partWords('family:strings')).toBe('all strings');
   });
 
   it('says the place in words', () => {
