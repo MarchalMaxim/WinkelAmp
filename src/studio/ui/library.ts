@@ -26,10 +26,12 @@ export class Library {
   readonly el: HTMLElement;
   private open = false;
   private back: HTMLElement | null = null;
-  /** While the drawer is open it has the keys: Escape closes it, and the studio's own keys (Space, S, Delete…) wait. */
+  /** While the drawer is open it has the keys: Escape closes it, the studio's own keys (Space, S, Delete…) wait;
+      Ctrl/Cmd keys (save, undo) still reach the studio. */
   private readonly onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.toggle(false); return; }
+    if (e.ctrlKey || e.metaKey) return;
     e.stopPropagation();   // not preventDefault: Tab and Enter on a song still do what they do
-    if (e.key === 'Escape') { e.preventDefault(); this.toggle(false); }
   };
 
   constructor(private readonly current: string | null, private readonly writable: boolean) {
