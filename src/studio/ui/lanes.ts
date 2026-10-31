@@ -56,6 +56,19 @@ export function bendFromDrag(v0: number, v1: number, dyFraction: number): number
 }
 const BEND_PER_LANE = 2;
 
+/** The pivots with a new one at t (value v) in order, a split segment keeping its hold or ease, and its index; null
+    when the layer already has `max` pivots in the section (an edit would keep only the first max, dropping the last). */
+export function addPivot(piv: readonly Pivot[], t: number, v: number, max: number): { pivots: Pivot[]; index: number } | null {
+  if (piv.length >= max) return null;
+  const out = piv.map((p) => ({ ...p }));
+  let at = out.findIndex((p) => p.t > t);
+  if (at < 0) at = out.length;
+  const prev = out[at - 1], np: Pivot = { t, v };
+  if (prev?.shape === 'hold' || prev?.shape === 'ease') np.shape = prev.shape;
+  out.splice(at, 0, np);
+  return { pivots: out, index: at };
+}
+
 export type Hit = { kind: 'pivot'; index: number } | { kind: 'segment'; index: number } | { kind: 'empty' };
 
 const PIVOT_R = 6, SEGMENT_D = 5, SAMPLES = 32;
@@ -451,12 +464,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       } else {
         // A new pivot where the pointer is, on the curve's line of pivots; the button still down drags it.
         const t = snapTime(G.t(px), snapOpts(pc, e)), val = Math.round(clamp(G.v(py), 0, 1) * 1000) / 1000;
-        const piv = fresh(pc);
-        let at = piv.findIndex((p) => p.t > t);
-        if (at < 0) at = piv.length;
-        const prev = piv[at - 1], np: Pivot = { t, v: val };
-        if (prev?.shape === 'hold' || prev?.shape === 'ease') np.shape = prev.shape;   // a split segment keeps its shape
-        piv.splice(at, 0, np);
+        const added = addPivot(fresh(pc), t, val, L.MAX_PIVOTS);
+        if (!added) { showTip(v, px, `${L.MAX_PIVOTS} pivots: the most a layer takes in a section`); return; }
+        const piv = added.pivots, at = added.index;
         commit(pc, piv, group);
         pc.pivots = piv;
         drag = { ...base, kind: 'pivot', index: at, t0: t, v0: val, t, v: val, moved: true };

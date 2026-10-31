@@ -87,6 +87,16 @@ describe('glideRegion', () => {
     expect(q.x).toBeCloseTo(0.1 + 0.6 * s, 12);
   });
 
+  it('turns the short way round across ±180°, and lands on b exactly', () => {
+    const c = R({ ...a, rot: 170 }), d = R({ ...a, rot: -170 });
+    expect(WA.glideRegion(c, d, 0.5).rot).toBeCloseTo(180, 12);   // 20° apart: through 180, not through 0
+    expect(WA.glideRegion(d, c, 0.5).rot).toBeCloseTo(-180, 12);
+    expect(WA.glideRegion(c, d, 0).rot).toBe(170);
+    expect(WA.glideRegion(c, d, 1).rot).toBe(-170);
+    const e = R({ ...a, rot: -90 }), f = R({ ...a, rot: 90 });   // exactly half a turn: as before, through 0
+    expect(WA.glideRegion(e, f, 0.5).rot).toBeCloseTo(0, 12);
+  });
+
   it("takes mode, shape, blend and fit from b", () => {
     const m = WA.glideRegion(a, b, 0.3);
     expect(m.mode).toBe('spot'); expect(m.shape).toBe('rect'); expect(m.blend).toBe('lighten'); expect(m.fit).toBe('contain');

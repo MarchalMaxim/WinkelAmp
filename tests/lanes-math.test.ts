@@ -2,7 +2,7 @@
 // the segment, and what the pointer is over.
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { bendFromDrag, hitTest, snapTime } from '../src/studio/ui/lanes';
+import { addPivot, bendFromDrag, hitTest, snapTime } from '../src/studio/ui/lanes';
 import type { Pivot } from '../src/widgets/types';
 
 const span = { start: 0, end: 20 };
@@ -84,5 +84,21 @@ describe('hitTest', () => {
     expect(yMid).toBeLessThan(30);
     expect(hitTest(B, x, y, 50, yMid + 2, curve)).toEqual({ kind: 'segment', index: 0 });
     expect(hitTest(B, x, y, 50, 50, curve)).toEqual({ kind: 'empty' });
+  });
+});
+
+describe('addPivot', () => {
+  it('inserts in order; a split hold or ease segment keeps its shape', () => {
+    const P: Pivot[] = [{ t: 1, v: 0, shape: 'hold' }, { t: 5, v: 1 }, { t: 9, v: 0 }];
+    expect(addPivot(P, 3, 0.5, 256)).toEqual({ pivots: [P[0], { t: 3, v: 0.5, shape: 'hold' }, P[1], P[2]], index: 1 });
+    expect(addPivot(P, 7, 0.5, 256)).toEqual({ pivots: [P[0], P[1], { t: 7, v: 0.5 }, P[2]], index: 2 });
+    expect(addPivot(P, 12, 1, 256)!.index).toBe(3);
+    expect(addPivot([], 2, 1, 256)).toEqual({ pivots: [{ t: 2, v: 1 }], index: 0 });
+    expect(P).toHaveLength(3);   // not mutated
+  });
+  it('refuses a pivot past the cap instead of letting the edit drop the last one', () => {
+    const full: Pivot[] = Array.from({ length: 256 }, (_, i) => ({ t: i / 10, v: i % 2 }));
+    expect(addPivot(full, 5.05, 0.5, 256)).toBeNull();
+    expect(addPivot(full.slice(1), 5.05, 0.5, 256)!.pivots).toHaveLength(256);
   });
 });

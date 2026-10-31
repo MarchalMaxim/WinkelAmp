@@ -203,6 +203,20 @@ describe('split and merge over pivots', () => {
     const plain = make();
     expect(edit(plain, { kind: 'merge', section: 0 }).sections[0].layers).toBe(plain.sections[0].layers);
   });
+
+  it('merge keeps every pivot of two full curves, and an edit that only moves one keeps them all', () => {
+    const full = (t0: number) => Array.from({ length: MAX_PIVOTS }, (_, i) => ({ t: t0 + (i * 9.9) / MAX_PIVOTS, v: i % 2 }));
+    const a = full(0), b = full(10);
+    const m = edit(make(a, b), { kind: 'merge', section: 0 });
+    const p = piv(m, 0)!;
+    expect(p.length).toBeGreaterThan(MAX_PIVOTS);
+    close(samples(p, 0, 9.999), samples(a, 0, 9.999));
+    close(samples(p, 10, 20), samples(b, 10, 20));
+    const moved = p.map((x, i) => (i === 3 ? { ...x, v: 0.5 } : x));
+    expect(piv(edit(m, { kind: 'setLayer', section: 0, layer: 0, patch: { intensity: moved } }), 0)).toHaveLength(p.length);
+    const grown = [...moved, { t: 19.99, v: 1 }];   // but it never grows past its own length
+    expect(piv(edit(m, { kind: 'setLayer', section: 0, layer: 0, patch: { intensity: grown } }), 0)).toHaveLength(p.length);
+  });
 });
 
 describe('Store', () => {

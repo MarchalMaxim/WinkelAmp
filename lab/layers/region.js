@@ -60,7 +60,12 @@
     s = s * s * (3 - 2 * s);
     var mix = function (p, q) { return p * (1 - s) + q * s; };
     out.x = mix(a.x, b.x); out.y = mix(a.y, b.y); out.w = mix(a.w, b.w); out.h = mix(a.h, b.h);
-    if (a.rot !== undefined || b.rot !== undefined) out.rot = mix(a.rot || 0, b.rot || 0);
+    if (a.rot !== undefined || b.rot !== undefined) {
+      // The short way round: 170° → −170° turns 20°, not 340° (more than half a turn apart, b is taken a turn closer).
+      var r0 = a.rot || 0, r1 = b.rot || 0;
+      if (r1 - r0 > 180) r1 -= 360; else if (r0 - r1 > 180) r1 += 360;
+      out.rot = s >= 1 ? (b.rot || 0) : mix(r0, r1);
+    }
     if (a.feather !== undefined || b.feather !== undefined) {
       out.feather = mix(a.feather === undefined ? DEFAULT_FEATHER : a.feather, b.feather === undefined ? DEFAULT_FEATHER : b.feather);
     }

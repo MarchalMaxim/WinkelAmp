@@ -96,7 +96,9 @@ function joinPivots(A: readonly Pivot[] | undefined, B: readonly Pivot[] | undef
   raw.push(...c);
   // A pivot followed by one at the same time and value says nothing: the later one governs the next segment.
   const out = raw.filter((x, i) => !(i + 1 < raw.length && raw[i + 1].t === x.t && raw[i + 1].v === x.v));
-  return out.slice(0, MAX_PIVOTS);
+  // Never capped: a merge of two full curves keeps both (validateShow only warns over MAX_PIVOTS, and setLayer never
+  // shortens a curve that is already longer).
+  return out;
 }
 
 export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
@@ -205,7 +207,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
         else { const r = repairRegion(p.region); if (!r) return show; next.region = r; }
       }
       if (p.intensity !== undefined) {
-        const piv = p.intensity === null ? undefined : repairPivots(p.intensity, 'intensity', { start: sec.start, end: sec.end }, undefined, true);
+        // Capped at MAX_PIVOTS, or at the curve's own length when a merge made it longer: an edit never drops pivots
+        // of a curve it only moves, and never grows one past the cap.
+        let piv = p.intensity === null ? undefined : repairPivots(p.intensity, 'intensity', { start: sec.start, end: sec.end });
+        const cap = Math.max(MAX_PIVOTS, l.intensity?.length ?? 0);
+        if (piv && piv.length > cap) piv = piv.slice(0, cap);
         if (piv) next.intensity = piv; else delete next.intensity;
       }
       if (JSON.stringify(next) === JSON.stringify(l)) return show;
