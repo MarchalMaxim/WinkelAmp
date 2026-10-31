@@ -1,0 +1,9 @@
+# LF for the studio's files (the lab's and older files keep their own endings).
+README.md text eol=lf
+vite.config.ts text eol=lf
+docs/superpowers/** text eol=lf
+src/studio/** text eol=lf
+src/widgets/** text eol=lf
+scripts/studio-*.mjs text eol=lf
+tests/studio-*.test.ts text eol=lf
+tests/show-*.test.ts text eol=lf
