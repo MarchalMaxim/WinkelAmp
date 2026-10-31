@@ -22,21 +22,13 @@ import { findDrops, segment } from '../src/audio/structure';
 import { CharacterEngine } from '../src/character/character';
 import { ARCHETYPE_IDS, type ArchetypeId, type Descriptors } from '../src/character/types';
 import type { Drop, MelodyNote, Section, SongData, StructureRow } from '../src/stage/types';
+import { chordChanges, ONSET_LAG, PULSE_MIN, trackBeats } from '../src/audio/song-analysis';
 import { decode } from './analyze-file';
 import { heatmap, linePlot, noteName, pianoRoll, type Mark, type Rgb } from './lib/plot';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SR = 44100;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-/**
- * Descriptor onsets (and the onset function behind the beat grid) come out this
- * much after the sound, even dated to the hop before the detector fires: the new
- * attack sits in the Hann window's tapered tail at first. Measured on rendered
- * piano scores (median 38–40 ms) and synthetic tone bursts (25 ms).
- */
-const ONSET_LAG = 0.035;
-/** Beats are kept only where the music has a pulse to speak of (descriptor pulseClarity, 0..1). */
-const PULSE_MIN = 0.3;
 /** Melody phrases: a rest longer than this ends one. */
 const PHRASE_GAP = 1;
 /** Motifs: at least this many notes, repeated with the same intervals. */
@@ -91,55 +83,6 @@ function args() {
 // Offline post-processing
 // ---------------------------------------------------------------------------
 
-/**
- * A beat grid over the onset function (Ellis 2007): the tempo from its
- * autocorrelation (preferring ~120 BPM), then dynamic programming for beats that
- * sit on onsets and keep that period. Returns hop indices and the period (hops).
- */
-function trackBeats(odf: Float32Array, fps: number): { beats: number[]; period: number } {
-  const n = odf.length;
-  // High-pass (minus a 1 s moving mean), rectified, unit sd.
-  const env = new Float32Array(n);
-  const w = Math.round(fps / 2);
-  let acc = 0;
-  const pre = new Float64Array(n + 1);
-  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + odf[i];
-  for (let i = 0; i < n; i++) {
-    const a = Math.max(0, i - w), b = Math.min(n, i + w + 1);
-    env[i] = Math.max(0, odf[i] - (pre[b] - pre[a]) / (b - a));
-    acc += env[i] * env[i];
-  }
-  const sd = Math.sqrt(acc / Math.max(1, n)) || 1;
-  for (let i = 0; i < n; i++) env[i] /= sd;
-  // Tempo: autocorrelation over 40–240 BPM, log-Gaussian weight around 0.5 s.
-  let best = 0, period = Math.round(fps / 2);
-  for (let lag = Math.round(fps * 0.25); lag <= Math.round(fps * 1.5); lag++) {
-    let s = 0;
-    for (let i = lag; i < n; i++) s += env[i] * env[i - lag];
-    const wgt = Math.exp(-0.5 * (Math.log2(lag / fps / 0.5) / 1) ** 2);
-    if (s * wgt > best) [best, period] = [s * wgt, lag];
-  }
-  // DP: score[t] = env[t] + max over the previous beat (t − 2P … t − P/2) of score − α·log²(gap / P).
-  const ALPHA = 400;
-  const score = new Float32Array(n);
-  const back = new Int32Array(n).fill(-1);
-  for (let t = 0; t < n; t++) {
-    let m = 0, arg = -1;
-    for (let p = t - 2 * period; p <= t - Math.round(period / 2); p++) {
-      if (p < 0) continue;
-      const v = score[p] - ALPHA * Math.log((t - p) / period) ** 2;
-      if (arg < 0 || v > m) [m, arg] = [v, p];
-    }
-    score[t] = env[t] + (arg >= 0 ? Math.max(0, m) : 0);
-    back[t] = arg >= 0 && m > 0 ? arg : -1;
-  }
-  let t = n - 1;
-  for (let i = Math.max(0, n - period); i < n; i++) if (score[i] > score[t]) t = i;
-  const beats: number[] = [];
-  for (; t >= 0; t = back[t]) beats.push(t);
-  return { beats: beats.reverse(), period };
-}
-
 interface TempoSpread {
   /** Median BPM, and the 10th / 90th percentile of the per-second tempo. */
   bpm: number;
@@ -176,63 +119,6 @@ function tempoSpread(D: Descriptors[], h0: number, h1: number, fps = 60): TempoS
 
 const steadiness = (t: TempoSpread | null) =>
   !t ? 'no measurable tempo' : t.spread < 0.1 ? 'steady' : t.spread < 0.3 ? 'flexible' : 'free or changing';
-
-/** Major / minor triads against chroma: cosine of the mean-removed vectors. */
-const TRIADS = (() => {
-  const out: { root: number; minor: boolean; v: Float64Array }[] = [];
-  for (let root = 0; root < 12; root++) {
-    for (const minor of [false, true]) {
-      const v = new Float64Array(12).fill(-0.25);
-      for (const k of [0, minor ? 3 : 4, 7]) v[(root + k) % 12] = 0.75;
-      out.push({ root, minor, v });
-    }
-  }
-  return out;
-})();
-
-/**
- * Chord changes from chroma averaged over 0.5 s, judged every 0.1 s: a new chord
- * must win four judgements running (0.4 s), so passing notes don't count.
- */
-function chords(chroma: Float32Array, quiet: Uint8Array, fps: number, latency: number) {
-  const hops = quiet.length;
-  const pre = new Float64Array((hops + 1) * 12);
-  for (let h = 0; h < hops; h++) for (let k = 0; k < 12; k++) pre[(h + 1) * 12 + k] = pre[h * 12 + k] + chroma[h * 12 + k];
-  const step = Math.round(fps / 10), half = Math.round(fps / 4);
-  const out: SongData['chords'] = [];
-  let cur = -1, cand = -1, run = 0, candT = 0;
-  const v = new Float64Array(12);
-  for (let h = 0; h < hops; h += step) {
-    const a = Math.max(0, h - half), b = Math.min(hops, h + half);
-    let mean = 0;
-    for (let k = 0; k < 12; k++) mean += (v[k] = (pre[b * 12 + k] - pre[a * 12 + k]) / (b - a)) / 12;
-    let bestI = -1, best = 0.5; // a weak match is no chord
-    if (!quiet[h]) {
-      let n2 = 0;
-      for (let k = 0; k < 12; k++) n2 += (v[k] - mean) ** 2;
-      for (let i = 0; i < TRIADS.length && n2 > 1e-6; i++) {
-        let d = 0;
-        for (let k = 0; k < 12; k++) d += (v[k] - mean) * TRIADS[i].v[k];
-        const cos = d / Math.sqrt(n2 * 0.75);
-        if (cos > best) [best, bestI] = [cos, i];
-      }
-    }
-    if (bestI === cur || bestI < 0) {
-      cand = -1;
-      run = 0;
-      continue;
-    }
-    if (bestI !== cand) [cand, run, candT] = [bestI, 0, (h + 1) / fps - latency];
-    if (++run >= 4) {
-      cur = cand;
-      const peak = Math.max(1e-9, ...v);
-      out.push({ t: r3(Math.max(0, candT)), root: TRIADS[cur].root, minor: TRIADS[cur].minor, chroma: [...v].map((x) => r2(x / peak)) });
-      cand = -1;
-      run = 0;
-    }
-  }
-  return out;
-}
 
 type Shape = 'static' | 'rising' | 'falling' | 'arch' | 'valley';
 
@@ -459,7 +345,7 @@ function main() {
   }));
   const sections: Section[] = segment(rows, 1 / fps).map((s) => ({ start: r3(s.start), end: r3(s.end), novelty: r2(s.novelty) }));
   const drops: Drop[] = findDrops(Float32Array.from(res.features, (f) => f.bass), 1 / fps).map((d) => ({ time: r3(d.time), strength: r2(d.strength) }));
-  const chordList = chords(chroma, quiet, fps, latency);
+  const chordList = chordChanges(chroma, quiet, fps, latency);
   lap(`structure (${sections.length} sections, ${drops.length} drops)`);
 
   // Loudness climaxes: the five loudest peaks of the 2 s-smoothed loudness, apart from each other.
