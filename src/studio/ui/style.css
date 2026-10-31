@@ -64,6 +64,30 @@ button.link:hover { color: var(--fg); }
 .now { font: italic 16px/1.2 var(--serif); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .spacer { flex: 1; }
 
+/* Export: the menu over the transport, the REC indicator while the song records. */
+.export { position: relative; }
+.export-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 9px; background: transparent; color: var(--dim); }
+.export-btn:hover:not(:disabled) { color: var(--fg); }
+.export-btn svg { width: 18px; height: 18px; }
+.export-menu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 20; width: min(340px, calc(100vw - 24px)); display: grid; gap: 10px;
+  padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px #000a; }
+.export-menu p { margin: 0; }
+.menu-title { font: 400 18px/1.2 var(--serif); }
+.presets { display: grid; gap: 4px; margin: 0; padding: 0; border: none; }
+.presets legend { padding: 0; margin-bottom: 4px; }
+.presets label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+.presets input { accent-color: var(--on); margin: 0; transform: translateY(1px); }
+.export-menu code { display: inline-block; white-space: nowrap; margin-top: 3px; }
+.rec-go { text-align: left; }
+.rec-size { display: block; font-size: 12px; opacity: 0.8; }
+.rec-ind { display: inline-flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0402c; box-shadow: 0 0 0 3px #e0402c33; animation: rec-pulse 1.2s ease-in-out infinite; }
+.rec-ind.paused .rec-dot { animation: none; background: var(--dim); box-shadow: none; }
+.rec-ind button { padding: 4px 10px; font-size: 12.5px; }
+@keyframes rec-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot { animation: none; } }
+.recording .timeline-host { opacity: 0.6; pointer-events: none; }
+
 .notices { display: grid; gap: 6px; }
 .notices:empty { display: none; }
 .notice { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; background: #140f12; border: 1px solid var(--line); border-left: 3px solid #5b6f8a; border-radius: 5px; font-size: 13px; }
@@ -271,6 +295,8 @@ button.poster-inner:hover .poster-play { border-color: var(--fg); }
   .handle:not(.near) { display: none; }
   .sec-cast { display: none; }
   .now { font-size: 15px; }
+  .export-menu { position: fixed; left: 12px; right: 12px; bottom: 12px; width: auto; }
+  .export-btn { padding: 6px 9px; }
 }
 @media (max-width: 420px) {
   .save button.icon { width: 30px; }

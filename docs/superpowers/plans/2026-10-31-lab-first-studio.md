@@ -460,7 +460,7 @@ export const DEFAULT_RECORDER_OPTIONS: RecorderOptions = { videoBitsPerSecond: 1
 export function pickMimeType(isSupported: (type: string) => boolean): string | undefined;   // first of TYPES (MP4 H.264+AAC first)
 // new Recorder(canvas, audio, opts = DEFAULT_RECORDER_OPTIONS); pause(); resume()
 // src/studio/ui/record.ts
-export const RECORD_PRESETS = { share: { videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 128_000, fps: 60 },
+export const RECORD_PRESETS = { share: { videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 128_000, fps: 30 /* T6: was 60 */ },
                                 high:  { videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 192_000, fps: 60 } } as const;
 export function mbPerMinute(o: RecorderOptions): number;               // (video + audio)·60/8/1e6, one decimal: share → 8.5
 export function recordingName(showId: string, mime: string, at: Date): string;   // 'prelude-2026-10-31-02-03-04.mp4' (.webm for webm)
@@ -469,6 +469,13 @@ export class ShowRecorder { constructor(player: Player, canvas: HTMLCanvasElemen
   readonly state: 'idle' | 'recording' | 'paused' | 'saving' }
 // recording: seek to `from`, reset the picture, start recorder + playback together; audio `ended` → stop → download;
 // tab hidden → audio.pause() + recorder.pause(), visible → resume both; UI edits and seeks are locked meanwhile.
+// Added in T6: share records at 30 fps. Measured on the Prelude: Chrome's H.264 MediaRecorder takes the bit rate as a
+// wish with a quality floor (at 60 fps 1 Mb/s gave ≈ 20 MB a minute, 500 kb/s the same; at 30 fps ≈ 9.6 MB a minute,
+// 1.13 × the aim). `Player.locked` (seek() ignores calls while true); ShowRecorder also has `stopAfter: number | null`
+// (the ?recordCheck hook), `onChange`, `onSaved(r: { name, bytes, mime, seconds })`, `seconds` (song s recorded),
+// `startedAt`, `mimeType`, `recorderState` and `static supported()`; the song's pause/play pause/resume the recording
+// (Space while recording pauses both); `from` > 0 pre-rolls the picture 3 s at 60 Hz (conductor.preview) instead of
+// starting black. `installExport(deps): ShowRecorder` builds the Export menu and REC indicator in the transport.
 ```
 `render.html` (T2; T4 adds `?show`): both modes install the seeded random before anything loads, set `window.Worker = undefined`
 and route `queueMicrotask` into `rt.post`, exactly as the lab's `?render=1` does.

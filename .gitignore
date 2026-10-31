@@ -18,3 +18,6 @@ lab/showcase/*.png
 
 # Song packs (npm run ingest): the recordings and everything computed from them, local only.
 songs/
+
+# Videos from npm run render-show and recordings: they carry the recordings, local only.
+renders/

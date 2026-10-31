@@ -17,6 +17,8 @@ const at = (a: number, b: number) => Math.abs(a - b) < 1e-3;
 
 export class Player {
   onTick?: (t: number) => void;
+  /** While a recording runs: seeks (the timeline, the arrow keys, a section's start) are ignored. */
+  locked = false;
   private stream: MediaStream | null = null;
   private readonly stop: () => void;
   /** While paused: the show and time the picture on screen was drawn for (by playing up to the pause, or a preview). */
@@ -42,6 +44,7 @@ export class Player {
 
   /** Paused → conductor.preview(t), so the picture shows what plays there; playing → the picture starts again at t. */
   seek(t: number): void {
+    if (this.locked) return;
     const d = this.duration || Infinity;
     t = Math.max(0, Math.min(d - 0.01, t));
     this.audio.currentTime = t;
@@ -81,6 +84,8 @@ export class Player {
     if (this.stream) return this.stream;
     const ac = new AudioContext(), src = ac.createMediaElementSource(this.audio), dest = ac.createMediaStreamDestination();
     src.connect(ac.destination); src.connect(dest);
+    // Made outside a click the context starts suspended, and the element would then play silently (and record silence).
+    if (ac.state === 'suspended') void ac.resume().catch(() => {});
     return (this.stream = dest.stream);
   }
 

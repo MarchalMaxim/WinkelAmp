@@ -23,6 +23,7 @@ import { installKeys } from './keys';
 import { Library, splitTitle } from './library';
 import { Panel, type CatalogueEntry } from './panel';
 import { Player } from './player';
+import { installExport } from './record';
 import { isDirty, Store, type Notice } from './store';
 import { clock, Timeline } from './timeline';
 
@@ -243,6 +244,7 @@ async function boot(): Promise<void> {
   });
   ui.timeline.append(timeline.el);
   const splitAtPlayhead = () => {
+    if (store.state.ui.recording) return;
     const s = store.state.show!, t = player.time, i = sectionAt(s, t);
     store.dispatch({ type: 'edit', edit: { kind: 'split', section: i, t } });
     if (store.state.show === s) store.dispatch({ type: 'notice', notice: { id: 'split', level: 'info', text: 'Too close to where the section starts or ends to split: sections last at least a second.' } });
@@ -323,6 +325,13 @@ async function boot(): Promise<void> {
   audio.addEventListener('loadedmetadata', () => { (ui.play as HTMLButtonElement).disabled = false; store.notify(); player.onTick?.(player.time); });
   audio.addEventListener('error', () => store.dispatch({ type: 'notice', notice: { id: 'audio', level: 'error', text: `The recording did not load (${api.audioUrl(pack)}).` } }));
   ui.play.addEventListener('click', () => player.toggle());
+
+  // Export: record the show to an MP4 here (the song plays through once), or the command for a frame-exact one.
+  const recorder = installExport({
+    store, player, canvas, host: ui.play.parentElement!, before: ui.hide,
+    renderCommand: api.writable ? `npm run render-show -- ${pack.id}` : null,
+    notify: (level, text) => store.dispatch({ type: 'notice', notice: { id: 'record', level, text } }),
+  });
 
   // Save.
   const save = async () => {
@@ -418,7 +427,7 @@ async function boot(): Promise<void> {
     setTimeout(() => void reloadFromDisk(false), 1500);
   });
 
-  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue };
+  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue, recorder };
 }
 
 boot().catch((e) => {
