@@ -25,6 +25,12 @@ export function songHref(id: string): string { return `?song=${encodeURIComponen
 export class Library {
   readonly el: HTMLElement;
   private open = false;
+  private back: HTMLElement | null = null;
+  /** While the drawer is open it has the keys: Escape closes it, and the studio's own keys (Space, S, Delete…) wait. */
+  private readonly onKey = (e: KeyboardEvent): void => {
+    e.stopPropagation();   // not preventDefault: Tab and Enter on a song still do what they do
+    if (e.key === 'Escape') { e.preventDefault(); this.toggle(false); }
+  };
 
   constructor(private readonly current: string | null, private readonly writable: boolean) {
     this.el = document.createElement('div');
@@ -41,16 +47,24 @@ export class Library {
         </footer>
       </nav>`;
     this.el.querySelectorAll('[data-close]').forEach((x) => x.addEventListener('click', () => this.toggle(false)));
-    this.el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); this.toggle(false); } });
   }
 
   get isOpen(): boolean { return this.open; }
 
   toggle(open = !this.open): void {
+    if (open === this.open) return;
     this.open = open;
     this.el.hidden = !open;
     document.body.classList.toggle('library-open', open);
-    if (open) this.el.querySelector<HTMLElement>('.songs a, [data-close]')?.focus();
+    if (open) {
+      this.back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      window.addEventListener('keydown', this.onKey, { capture: true });
+      const q = (sel: string) => this.el.querySelector<HTMLElement>(sel);
+      (q('.songs a.on') ?? q('.songs a') ?? q('.library-sheet button[data-close]'))?.focus();
+    } else {
+      window.removeEventListener('keydown', this.onKey, { capture: true });
+      this.back?.focus(); this.back = null;
+    }
   }
 
   render(songs: LibraryEntry[]): void {
