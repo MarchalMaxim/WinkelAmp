@@ -69,7 +69,7 @@ window.COMBOS = [
   { ids: ['brush', 'fields'],
     blurb: 'The melody is brushed in bone-white ink, with red slashes on the big chords, over Rothko colour fields that change with the harmony: a calligraphy line on a painting that keeps recolouring underneath.',
     knobs: { fields: { home: -0.6, chords: 0.5 } },
-    tip: 'Fields stay on the cool side (deep blues and plums): on warm orange floods the red slashes sink into the ground.',
+    tip: 'Home colour −0.6 and chords 0.5 (shot): the fields stay violet and blue, where the red slashes stand out; at the defaults the casket turns them red and orange and the slashes sink in.',
     at: { b5: 343, prelude: 88 }, when: 'everywhere, as long as the fields stay cool' },
   { ids: ['fifths', 'riley'],
     blurb: 'Riley’s stripes become a stencil: on loud chords the harmonic web’s coloured chord shape glows through only the black bands, its bright outline drawn across both.',
