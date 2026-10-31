@@ -157,7 +157,9 @@
 const SONGS = {
   prelude: { title: 'Rachmaninoff: Prelude in C♯ minor', audio: 'prelude.mp3', notes: 'notes.js', dur: 232.1,
     moments: [[0, 'dread', 'Dread'], [83, 'agitato', 'Agitato'], [124, 'casket', 'The casket'], [176, 'return', 'Return'], [208, 'agitato']] },
-  b5: { title: 'Beethoven: Symphony No. 5, I', audio: 'beethoven5.mp3', notes: 'notes-b5.js', dur: 424.8,
+  // pack: lab/pack-<id>.js (npm run lab-notes -- <id>, git-ignored) sets window.PACK = { tracks, beats, loudness }: the
+  // instrument tracks a layer can listen to. Without the file every part falls back to all the notes.
+  b5: { title: 'Beethoven: Symphony No. 5, I', audio: 'beethoven5.mp3', notes: 'notes-b5.js', pack: 'pack-beethoven5.js', dur: 424.8,
     // My guesses from the note density; the hard stops at 1:20 and 2:40 are the motto's fermatas.
     moments: [[0, 'casket', 'Fate knocks'], [20, 'agitato'], [80, 'casket', 'Repeat'], [100, 'agitato'], [160, 'casket', 'Development'], [180, 'agitato'],
       [258, 'return', 'Oboe’s lament'], [275, 'agitato', 'Recapitulation'], [340, 'casket', 'Coda']] },
@@ -173,7 +175,7 @@ const SONGS = {
     // and the last run up end the étude at 3:44. After 3:51 the file holds something else (quiet E-flat bells): not the étude.
     moments: [[0, 'dread', 'Lento'], [20, 'agitato', 'The storm'], [102, 'dread', 'Far keys'], [162, 'agitato', 'A minor again'],
       [216, 'casket', 'Last chords'], [231, 'return']] },
-  'vivaldi-winter': { title: 'Vivaldi: Winter (all three movements)', audio: 'vivaldi-winter.mp3', notes: 'notes-vivaldi-winter.js', dur: 566.1,
+  'vivaldi-winter': { title: 'Vivaldi: Winter (all three movements)', audio: 'vivaldi-winter.mp3', notes: 'notes-vivaldi-winter.js', pack: 'pack-vivaldi-winter.js', dur: 566.1,
     // Strings, not piano: the piano transcriber misses whole passages (the third movement's solo violin on ice, 5:55-6:27).
     // I Allegro non molto 0:00-3:30 (shivering, the horrid wind, stamping feet, chattering teeth), II Largo 3:30 (rain),
     // III Allegro 5:48 (walking on ice; the warm south wind in its lento ~8:08; all the winds at war from 8:40).
@@ -201,6 +203,13 @@ if (!RENDER) document.getElementById('a').src = SONG.audio;
 document.write(`<script src="${SONG.notes}"><\/script>`);
 </script>
 <script src="combos.js"></script>
+<!-- Layers (listen to a part, sit in a region, follow an intensity curve): the same files the studio evaluates, written
+     once (lab/layers/, plan 2026-10-31 §2). Each puts its part on window.WA_LAYERS. File-name order, as the studio's. -->
+<script src="layers/automation.js"></script>
+<script src="layers/lines.js"></script>
+<script src="layers/persist.js"></script>
+<script src="layers/region.js"></script>
+<script src="layers/slot.js"></script>
 <script>
 // Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, params?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
 window.TOOLS = [];
@@ -314,6 +323,7 @@ const TOOL_IDS = ['timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenly
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
   'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
 const LOAD_NOTES = { missing: [], broken: [] };
+const TOOL_SRC = {};   // id → the widget file's text: a layer instance that listens to a part runs its own copy
 async function loadTools() {
   const texts = await Promise.all(TOOL_IDS.map(async (id) => {
     try { const r = await fetch(`tools/${id}.js`, { cache: 'no-store' }); return r.ok && /javascript/.test(r.headers.get('content-type') || '') ? await r.text() : null; }
@@ -321,9 +331,20 @@ async function loadTools() {
   }));
   TOOL_IDS.forEach((id, i) => {
     if (texts[i] == null) return LOAD_NOTES.missing.push(id);
+    TOOL_SRC[id] = texts[i];
     try { (0, eval)(`${texts[i]}\n//# sourceURL=${new URL(`tools/${id}.js`, location.href)}`); }
     catch (e) { LOAD_NOTES.broken.push(`${id} (${e.message})`); console.warn('tool', id, 'did not load:', e); }
   });
+}
+/** The song's pack file (SONGS[…].pack): window.PACK = { tracks, beats, loudness }. It is git-ignored, so it may be
+    missing: then PACK stays undefined and a layer listening to an instrument hears all the notes. */
+async function loadPack() {
+  if (!SONG.pack) return;
+  try {
+    const r = await fetch(SONG.pack, { cache: 'no-store' });
+    if (!r.ok || !/javascript/.test(r.headers.get('content-type') || '')) return;
+    (0, eval)(`${await r.text()}\n//# sourceURL=${new URL(SONG.pack, location.href)}`);
+  } catch (e) { console.warn('pack', SONG.pack, 'did not load:', e); }
 }
 </script>
 <script>
@@ -352,6 +373,8 @@ for (const [s, e, m, v] of NOTES) {
 }
 const MOMENTS = SONG.moments;
 
+/** The notes behind ctx.sounding() and ctx.top(): NOTES, or a part's while an instance that listens to it is called. */
+const SND = { notes: NOTES };
 /** What every tool gets each frame. */
 const ctx = {
   g, W, H, canvas: c,
@@ -362,8 +385,12 @@ const ctx = {
   level: 0,      // 0..1 smoothed loudness from recent attack velocities
   rate: 0,       // attacks per second, smoothed
   rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
-  /** Notes sounding at song time t: [{ m, v, start, end }]. */
-  sounding() { const out = []; for (let i = lo(ctx.t - 8); i < NOTES.length && NOTES[i][0] <= ctx.t; i++) { const [s, e, m, v] = NOTES[i]; if (e > ctx.t) out.push({ m, v, start: s, end: e }); } return out; },
+  /** Notes sounding at song time t: [{ m, v, start, end }]. While a layer instance that hears a part is called, its
+      part's (SND.notes; the shared lines.js soundingAt, as the studio's). */
+  sounding() {
+    if (SND.notes !== NOTES) return WA_LAYERS.soundingAt(SND.notes, ctx.t);
+    const out = []; for (let i = lo(ctx.t - 8); i < NOTES.length && NOTES[i][0] <= ctx.t; i++) { const [s, e, m, v] = NOTES[i]; if (e > ctx.t) out.push({ m, v, start: s, end: e }); } return out;
+  },
   /** Highest note sounding now, or null. */
   top() { let b = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
   /** MIDI → 0..1 (piano range 21..108). */
@@ -432,8 +459,25 @@ const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, driv
 const BROWSER = /Edg\//.test(navigator.userAgent) ? 'edge' : /Electron|Claude/.test(navigator.userAgent) ? 'claude-pane' : 'chrome';
 let syncT = 0;
 // Headless browsers (shot.mjs, test scripts) never sync: they'd overwrite the user's saved entry with defaults.
-const sync = () => { if (RENDER || /HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
+const sync = () => { if (RENDER || /HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST, layers: layerList() }) }).catch(() => {}), 300); };
 const saveP = () => { if (RENDER) return; try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
+/* Layers (plan 2026-10-31 §11): LAYERS[id] = { listen?, region?, intensity? } in the show's field shapes (listen: 'all',
+   a track id, 'family:<f>' or a line; region: { mode, shape, x, y, w, h, … }; intensity: pivots [{ t, v, shape?, bend? }]
+   from a preset). Kept in localStorage 'wa-layers' (this lab's own key), posted with the ratings, copied as `layers`.
+   Render mode reads ?layers= instead: a JSON list of { widget, listen?, region?, intensity? }. */
+let LAYERS = {}; try { if (!RENDER) LAYERS = JSON.parse(localStorage.getItem('wa-layers') || '{}'); } catch {}
+if (!LAYERS || typeof LAYERS !== 'object' || Array.isArray(LAYERS)) LAYERS = {};
+const RENDER_LAYERS = (() => {
+  if (!RENDER) return null;
+  try {
+    const l = JSON.parse(new URLSearchParams(location.search).get('layers') || '[]');
+    if (Array.isArray(l) && l.every((x) => x && typeof x.widget === 'string')) return l;
+  } catch {}
+  window.renderFailed = 'layers= is a JSON list of { widget, listen?, region?, intensity? }'; return [];
+})();
+/** The layer entries as the show's list: [{ widget, listen?, region?, intensity? }], in TOOL_IDS order. */
+const layerList = () => RENDER_LAYERS ?? TOOL_IDS.filter((id) => LAYERS[id] && typeof LAYERS[id] === 'object').map((id) => ({ widget: id, ...LAYERS[id] }));
+const saveL = () => { if (RENDER) return; try { localStorage.setItem('wa-layers', JSON.stringify(LAYERS)); } catch {} sync(); };
 ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
 ctx.p = (key) => {
   const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
@@ -505,7 +549,7 @@ function render() {
     d.onclick = (ev) => {
       const r = ev.target.dataset?.r;
       if (r) { ratings[tool.id] = ratings[tool.id] === r ? undefined : r; try { localStorage.setItem('wa-ratings', JSON.stringify(ratings)); } catch {} sync(); render(); return; }
-      active.has(tool.id) ? active.delete(tool.id) : (active.add(tool.id), safe(tool, 'reset', ctx)); render();
+      active.has(tool.id) ? active.delete(tool.id) : (active.add(tool.id), resetWidget(tool)); render();
     };
     box.append(d);
   }
@@ -580,7 +624,7 @@ function tryCombo(k) {
   comboUndo = undo;
   if (undo.knobs.length) saveP();
   active.clear();
-  for (const id of c.ids) { active.add(id); safe(toolOf(id), 'reset', ctx); }
+  for (const id of c.ids) { active.add(id); resetWidget(toolOf(id)); }
   document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open'));
   render();
   const at = c.at?.[SONG_ID];
@@ -590,7 +634,7 @@ function undoCombo() {
   const u = comboUndo; comboUndo = null; if (!u) return;
   for (const [tool, q, base] of u.knobs) pst(tool, q).base = base;
   if (u.knobs.length) saveP();
-  active.clear(); for (const id of u.on) { active.add(id); const t = toolOf(id); if (t) safe(t, 'reset', ctx); }
+  active.clear(); for (const id of u.on) { active.add(id); const t = toolOf(id); if (t) resetWidget(t); }
   render();
 }
 
@@ -614,12 +658,150 @@ function renderOnNow() {
 // Upright screens: cards jumped to land just under the sticky stage, not behind it.
 new ResizeObserver(([e]) => document.documentElement.style.setProperty('--deck-h', `${Math.ceil(e.target.offsetHeight)}px`)).observe(document.getElementById('deck'));
 
+/* Layer instances (plan 2026-10-31 §6 and §11), as the studio's WidgetRuntime keeps them, so both draw the same picture.
+   An entry that listens to a part is its own instance, keyed widget@listen: a second copy of the widget evaluated with
+   the part's NOTES (behind a window whose NOTES is the part) and its CHORDS, with its own pulse. An entry with a curve
+   makes the widget itself keep its own pulse. INST: key → { key, tool, base, inst: the shared InstanceState }, in load
+   order. LAYER_RUN: widget id → its slots { key, layer }, drawn in the card's place. A widget without an entry, or with
+   one that changes nothing, is not in LAYER_RUN: step() draws it with today's statements. */
+const INST = new Map();
+let LAYER_RUN = new Map();
+let STEP_T = 0, DRAWN_PREV = new Set();   // the last step's time and the instances it drew (an own one missing comes back cold)
+const SONG_NOTES = () => ({ notes: NOTES, tracks: window.PACK?.tracks });
+const layerKey = (l) => (l.listen === undefined || l.listen === 'all' ? l.widget : `${l.widget}@${l.listen}`);
+/** window, except NOTES: the part's notes; functions bound to the real window (src/widgets/instantiate.ts). */
+const windowWithNotes = (notes) => new Proxy(window, { get(_, p) { if (p === 'NOTES') return notes; const v = window[p]; return typeof v === 'function' ? v.bind(window) : v; } });
+/** A second copy of a widget, as instantiate.ts runs one: routed, with the part's CHORDS and a window over its notes. */
+function instantiate(id, notes, chords) {
+  const tools = [], src = `${TOOL_SRC[id]}\n//# sourceURL=lab/tools/${id}.js`;
+  if (notes) new Function('TOOLS', 'ICON', 'CHORDS', 'window', src)(tools, ICON, chords, windowWithNotes(notes));
+  else new Function('TOOLS', 'ICON', 'CHORDS', src)(tools, ICON, CHORDS);
+  const mine = tools.filter((t) => t && t.id === id);
+  if (tools.length !== 1 || mine.length !== 1) throw new Error(`lab/tools/${id}.js must push exactly one tool with id '${id}'`);
+  return mine[0];
+}
+/** The instances the entries need, in TOOL_IDS order then entry order (driver.ts labLayerSpecs and WidgetRuntime.load):
+    a new key is instantiated once; one already there only takes `own`. Returns the keys made now. */
+function applyLayers(list) {
+  const made = [], L = WA_LAYERS;
+  for (const id of TOOL_IDS) for (const l of list) {
+    if (l.widget !== id) continue;
+    const key = layerKey(l), listen = key === id ? undefined : l.listen, own = listen !== undefined || !!l.intensity?.length;
+    const have = INST.get(key);
+    if (have) { setOwn(have.inst, own || have.inst.routed); continue; }
+    const base = TOOLS.find((t) => t.id === id);
+    if (key === id) {
+      // The widget itself (WidgetRuntime keeps an instance for every widget): own when its entry has a curve.
+      if (!base) continue;
+      const inst = newInst(key, id, NOTES, CHORDS, false, false); L.coldInstance(inst, STEP_T); setOwn(inst, own);
+      INST.set(key, { key, tool: base, base: true, inst }); made.push(key); continue;
+    }
+    if (TOOL_SRC[id] == null || !base) { errors[key] = `no widget ${id}`; continue; }
+    let notes = NOTES, routed = false;
+    const heard = L.listenNotes(SONG_NOTES(), listen);
+    if (heard.heard !== 'all') { notes = heard.notes; routed = true; }   // a part the song lacks: all notes, unrouted
+    const chords = routed ? L.groupChords(notes) : CHORDS;
+    try {
+      const tool = instantiate(id, routed ? notes : null, chords);
+      const inst = newInst(key, id, notes, chords, true, routed); L.coldInstance(inst, STEP_T);
+      INST.set(key, { key, tool, base: false, inst }); made.push(key);
+    } catch (e) { errors[key] = `load: ${e.message}`; console.warn('layer', key, 'did not load:', e); }
+  }
+  LAYER_RUN = new Map();
+  for (const l of list) {
+    const key = layerKey(l), it = INST.get(key), layer = {};
+    if (l.intensity?.length) layer.pivots = l.intensity;
+    if (l.region) layer.region = l.region;
+    const slot = { key, it, layer: layer.pivots || layer.region ? layer : undefined };
+    if (key !== l.widget && !it) continue;   // it did not load
+    LAYER_RUN.set(l.widget, [...(LAYER_RUN.get(l.widget) ?? []), slot]);
+  }
+  // A widget whose only entry changes nothing draws as today.
+  for (const [id, slots] of LAYER_RUN) if (slots.length === 1 && slots[0].key === id && !slots[0].layer && !slots[0].it?.inst.own) LAYER_RUN.delete(id);
+  return made;
+}
+function newInst(key, widget, notes, chords, own, routed) {
+  return { key, widget, salt: WA_LAYERS.fnv32(key), notes, chords, ci: 0, pulse: { level: 0, rate: 0 }, feat: WA_LAYERS.newFeatures(),
+    own, routed, persist: WA_LAYERS.PERSIST[widget] ?? 'redraw', win: null };
+}
+/** An instance that starts keeping its own pulse takes the global one as it is now (WidgetRuntime.setOwn). */
+function setOwn(inst, own) {
+  if (own && !inst.own) { inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; Object.assign(inst.feat, ctx.feat); }
+  inst.own = own;
+}
+/** safe() for an instance: an own one's pulse, features and notes are in ctx for the call, the global ones back after.
+    x: the ctx the widget gets (the shared one, or a windowed instance's view of it). */
+function callInst(it, fn, x, ch) {
+  const inst = it.inst, swap = inst.own, level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = SND.notes;
+  if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; SND.notes = inst.notes; }
+  try { if (fn === 'onChord') safe(it.tool, 'onChord', ch, x); else safe(it.tool, fn, x); }
+  finally { if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; SND.notes = notes; } }
+}
+/** What lab/layers/slot.js's drawLayered draws through (src/widgets/layers.ts LayerHost), at 1280×720. */
+const makeCanvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+let LAYER_SCRATCH = null;
+const labHost = {
+  ctx, g, canvas: c, S: 1,
+  // labHost.ctx, not ctx: a windowed call runs with it set to the instance's window view (slot.js).
+  call: (inst, fn, ch) => callInst(INST.get(inst.key), fn, labHost.ctx, ch),
+  scratch: () => (LAYER_SCRATCH ??= makeCanvas(W, H)),
+  windowOf: (inst) => {
+    if (!inst.win) { const win = makeCanvas(W, H), wg = win.getContext('2d'); wg.fillStyle = '#000'; wg.fillRect(0, 0, W, H); inst.win = win; }
+    return inst.win;
+  },
+  make: makeCanvas,
+  error: (inst, e) => { const id = INST.get(inst.key)?.tool.id ?? inst.widget; if (!errors[id]) { errors[id] = String(e); render(); console.error(inst.key, e); } },
+};
+/** One layered slot of an active widget: today's statements for an entry that changes nothing, else drawLayered. */
+function drawSlot(s, fired, t, dt, drawn) {
+  const it = s.it;
+  if (!it) {   // the widget itself, plain (beside another entry of it)
+    const tool = TOOLS.find((x) => x.id === s.key); if (!tool) return;
+    for (const ch of fired) safe(tool, 'onChord', ch, ctx);
+    g.save(); safe(tool, 'frame', ctx); g.restore();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
+    return;
+  }
+  drawn.add(it.key);
+  if (!s.layer && !it.inst.own) {
+    for (const ch of fired) callInst(it, 'onChord', ctx, ch);
+    g.save(); callInst(it, 'frame', ctx); g.restore();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
+    return;
+  }
+  if (it.inst.own && !DRAWN_PREV.has(it.key)) WA_LAYERS.coldInstance(it.inst, STEP_T);   // back after an absence
+  WA_LAYERS.drawLayered(labHost, { inst: it.inst, receiving: true, weight: 1, layer: s.layer ?? {}, fired, lastT: STEP_T, t, dt });
+}
+/** A widget restarted (its card switched on): its reset, and its layer instances' with their windows cleared. */
+function resetWidget(tool) {
+  safe(tool, 'reset', ctx);
+  for (const it of INST.values()) {
+    if (it.inst.widget !== tool.id || it.base) continue;
+    if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win);
+    callInst(it, 'reset', ctx);
+  }
+}
+/** The layer entries for the cards (T22): get(id) → the entry or undefined; set(id, entry | null) stores it, loads
+    what it needs and restarts what it made. */
+window.labLayers = {
+  get: (id) => LAYERS[id],
+  set(id, entry) {
+    if (entry) LAYERS[id] = entry; else delete LAYERS[id];
+    saveL();
+    for (const key of applyLayers(layerList())) { const it = INST.get(key); if (!it.base) callInst(it, 'reset', ctx); }
+  },
+};
+
 let ci = 0, lastT = 0, liveT = 0;
 function reset(t) {
   lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
   ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  // Every layer instance starts cold at t, its window black (WidgetRuntime.reset).
+  for (const it of INST.values()) { WA_LAYERS.coldInstance(it.inst, t); if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win); }
   for (const tool of TOOLS) safe(tool, 'reset', ctx);
+  for (const it of INST.values()) if (!it.base) callInst(it, 'reset', ctx);
+  STEP_T = t; DRAWN_PREV = new Set();
 }
 function seek(t) { audio.currentTime = t; reset(t); if (audio.paused) audio.play(); }
 
@@ -655,12 +837,17 @@ function step(t, dt) {
   // An 8-bit fade sticks at ~4/255 and leaves grey ghosts: a light colour-burn takes the last few levels to black.
   g.globalCompositeOperation = 'color-burn'; g.fillStyle = 'rgb(252,252,252)'; g.fillRect(0, 0, W, H);
   g.globalCompositeOperation = 'source-over';
+  const drawn = new Set();
   for (const tool of TOOLS) {
     if (!active.has(tool.id)) continue;
+    // A widget with layer entries draws as those instances, in its place, through the shared slot.js.
+    const lay = LAYER_RUN.get(tool.id);
+    if (lay) { for (const s of lay) drawSlot(s, fired, t, dt, drawn); continue; }
     for (const ch of fired) safe(tool, 'onChord', ch, ctx);
     g.save(); safe(tool, 'frame', ctx); g.restore();
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
   }
+  DRAWN_PREV = drawn; STEP_T = t;
   while (RENDER_POST.length) { try { RENDER_POST.shift()(); } catch (e) { console.warn(e); } }
 }
 // The renderer's controls (?render=1). renderSeek(t): everything back to song time t, as a seek does, with the features
@@ -686,8 +873,10 @@ audio.onplay = () => (document.getElementById('play').textContent = '❚❚ Paus
 audio.onpause = () => (document.getElementById('play').textContent = '▶ Play');
 document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
-document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
-loadTools().then(() => {
+document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
+Promise.all([loadTools(), loadPack()]).then(() => {
+  applyLayers(layerList());
+  if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
   let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}
   if (carry?.on) { for (const id of carry.on) if (TOOLS.some((t) => t.id === id)) active.add(id); }
   else if (!only) for (const tool of TOOLS) if (tool.on) active.add(tool.id);

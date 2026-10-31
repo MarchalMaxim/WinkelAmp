@@ -72,12 +72,22 @@ export function readLabHarness(html: string): LabHarness {
   return { toolIds, verdicts: verdicts as Record<string, Verdict>, drives: drives as [Drive, string][], iconSource };
 }
 
-/** The lab's songs (`const SONGS =`): id → title, notes file (relative to lab/), length and moments. */
+declare module './types' {
+  interface LabSong {
+    /** The song's pack data for the lab (plan 2026-10-31 §11): lab/pack-<id>.js, written by `npm run lab-notes -- <id>`
+        (git-ignored), sets window.PACK = { tracks, beats, loudness }. Both the lab and render.html?labSong load it. */
+    pack?: string;
+  }
+}
+
+/** The lab's songs (`const SONGS =`): id → title, notes file (relative to lab/), length and moments, and the pack
+    file when it names one. */
 export function readLabSongs(html: string): Record<string, LabSong> {
   const songs = evaluate(expressionAfter(html, 'const SONGS ='));
   if (!songs || typeof songs !== 'object') throw new Error('lab/index.html: SONGS is not an object');
   for (const [id, s] of Object.entries(songs as Record<string, LabSong>)) {
     if (typeof s?.notes !== 'string' || !Array.isArray(s.moments) || !s.moments.length) throw new Error(`lab/index.html: SONGS.${id} has no notes or moments`);
+    if (s.pack !== undefined && (typeof s.pack !== 'string' || !/^pack-[\w.-]+\.js$/.test(s.pack))) throw new Error(`lab/index.html: SONGS.${id}.pack is not a pack-<id>.js file name`);
   }
   return songs as Record<string, LabSong>;
 }
