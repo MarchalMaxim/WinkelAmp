@@ -58,12 +58,43 @@
   .rate { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
   .rate button { padding: 2px 8px; font-size: 12px; color: var(--dim); }
   .rate button.picked { color: var(--fg); border-color: var(--on); background: #2a1418; }
+  .tool.hl { box-shadow: 0 0 0 2px #e9e2da55; transition: box-shadow 0.2s; }
+  /* The widgets now playing, under the track: click one to jump to its card, × to switch it off. */
+  .onnow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--dim); margin: -6px 0 10px; min-height: 24px; }
+  .onnow button { padding: 2px 4px 2px 9px; font-size: 12px; border-color: var(--on); background: #1d1013; display: inline-flex; gap: 4px; align-items: center; }
+  .onnow button i { font-style: normal; color: var(--dim); padding: 0 4px; border-radius: 4px; }
+  .onnow button i:hover { color: var(--fg); background: #3a1a1c; }
+  /* Tuning without scrolling. Wide screens: the stage (canvas, transport, track) is a column that stays put on the left
+     while the cards scroll beside it. Upright screens (phones, tablets): the stage sticks to the top and the cards
+     scroll under it. Anything else (narrower landscape windows, e.g. shot.mjs's 1280×900) keeps the plain stack, so the
+     canvas there stays as wide as before. The canvas's pixels (1280×720) never depend on any of this: only its CSS size. */
+  @media (min-width: 1300px) {
+    main { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) clamp(560px, 40vw, 820px); grid-template-rows: auto 1fr;
+      grid-template-areas: 'head cards' 'deck cards'; gap: 0 18px; align-items: start; }
+    main > header { grid-area: head; } .deck { grid-area: deck; } .cards { grid-area: cards; }
+    .deck { position: sticky; top: 0; padding-top: 10px; max-height: 100vh; overflow-y: auto; scrollbar-width: thin; }
+    /* As wide as the column, but never so tall that the transport falls off a short window. */
+    .stage { width: min(100%, calc((100vh - 230px) * 16 / 9)); }
+    .tools { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+  }
+  @media (max-width: 1299px) and (orientation: portrait) {
+    .deck { position: sticky; top: 0; z-index: 10; background: var(--bg); margin: 0 -16px; padding: 8px 16px 0; box-shadow: 0 8px 12px -10px #000; }
+    .deck .bar, .deck .onnow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-top: 8px; }
+    .deck .bar > *, .deck .onnow > * { flex: none; white-space: nowrap; }
+    .deck .bar select { max-width: 70vw; }
+    .deck .onnow { margin: -6px 0 6px; }
+    .deck .track { margin-bottom: 12px; }
+    .tool { scroll-margin-top: calc(var(--deck-h, 0px) + 8px); }
+  }
 </style>
 </head>
 <body>
 <main>
+  <header>
   <h1>Widget lab: switch widgets on and off, mix them, judge them</h1>
   <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that widget. Throwaway sketches, not app code.</p>
+  </header>
+  <div class="deck" id="deck">
   <div class="stage"><canvas id="c" width="1280" height="720"></canvas></div>
   <div class="bar">
     <button id="play">▶ Play</button>
@@ -73,6 +104,9 @@
     <select id="songs" title="Song" style="margin-left:auto;background:#1b171b;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 8px;font:inherit;max-width:100%"></select>
   </div>
   <div class="track" id="track"><div class="head" id="head"></div></div>
+  <div class="onnow" id="onnow"></div>
+  </div>
+  <div class="cards">
   <p class="legend">
     <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
     <b>louder</b> = the keys are struck harder ·
@@ -85,6 +119,7 @@
   </p>
   <p class="missing" id="missing"></p>
   <div class="tools" id="tools"></div>
+  </div>
 </main>
 <audio id="a" preload="auto"></audio>
 <script>
@@ -409,7 +444,7 @@ function render() {
   const box = document.getElementById('tools'); box.innerHTML = ''; LIVE = [];
   const list = [...TOOLS].sort((a, b) => sortKey(a) - sortKey(b));
   for (const tool of list) {
-    const d = document.createElement('div'); d.className = 'tool' + (active.has(tool.id) ? ' on' : '');
+    const d = document.createElement('div'); d.className = 'tool' + (active.has(tool.id) ? ' on' : ''); d.dataset.id = tool.id;
     let params = '';
     try { params = Array.isArray(tool.params) && tool.params.length ? `<div class="params">${tool.params.map((q) => paramHTML(tool, q)).join('')}</div>` : ''; }
     catch (e) { errors[tool.id] ??= `knobs: ${e}`; }
@@ -434,7 +469,23 @@ function render() {
     };
     box.append(d);
   }
+  renderOnNow();
 }
+/** The chips under the track: what's playing now. A name jumps to its card (lit for a moment), × switches it off. */
+function renderOnNow() {
+  const on = TOOLS.filter((t) => active.has(t.id)), el = document.getElementById('onnow');
+  el.innerHTML = on.length ? 'On:' + on.map((t) => `<button data-go="${esc(t.id)}" title="Jump to its knobs">${esc(t.name)}<i data-off title="Switch it off">×</i></button>`).join('')
+    : 'Nothing on: click a card to switch a widget on.';
+  el.querySelectorAll('[data-go]').forEach((b) => (b.onclick = (ev) => {
+    const tool = TOOLS.find((t) => t.id === b.dataset.go), card = document.querySelector(`.tool[data-id="${CSS.escape(b.dataset.go)}"]`);
+    if (ev.target.dataset.off !== undefined) { active.delete(tool.id); render(); return; }
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.add('hl'); setTimeout(() => card.classList.remove('hl'), 1200);
+  }));
+}
+// Upright screens: cards jumped to land just under the sticky stage, not behind it.
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--deck-h', `${Math.ceil(e.target.offsetHeight)}px`)).observe(document.getElementById('deck'));
 
 let ci = 0, lastT = 0, liveT = 0;
 function reset(t) {

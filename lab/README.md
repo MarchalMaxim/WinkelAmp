@@ -5,6 +5,10 @@ that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing h
 
 - `index.html`: the lab. Toggle and mix widgets, tune their knobs (each can be fixed or driven by a feature of the music),
   rate them. Serve the repo with `npm run dev` and open http://localhost:5173/lab/index.html (`?song=b5` for Beethoven).
+  The picture never scrolls away while you tune: on screens 1300 px wide or more it holds a column on the left and the
+  cards scroll beside it; on upright screens (phones) it sticks to the top. The chips under the track name what's on:
+  click one to jump to its card, × to switch it off. Narrower landscape windows (and `shot.mjs`'s 1280×900) keep the
+  plain stack, so stills there come out as wide as before.
 - `tools/<id>.js`: one widget each (`TOOLS.push({ id, name, blurb, tag, params, reset, onChord, frame })`). The page loads
   the ids listed in `TOOL_IDS` in `index.html` (add yours there); a missing or broken file only shows a note above the cards.
   `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers), kept for reference.
