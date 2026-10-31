@@ -305,7 +305,15 @@ const W = 1280, H = 720, DUR = SONG.dur;
 const fmt0 = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 document.getElementById('moments').innerHTML = SONG.moments.filter((m) => m[2]).map(([t, , label]) => `<button data-t="${t}">${label} (${fmt0(t)})</button>`).join('');
 document.getElementById('songs').innerHTML = Object.entries(SONGS).map(([id, s]) => `<option value="${id}"${id === SONG_ID ? ' selected' : ''}>${s.title}</option>`).join('');
-document.getElementById('songs').onchange = (e) => { location.search = `?song=${encodeURIComponent(e.target.value)}`; };
+// A new song reloads the page: what's on and the card you were at come along (this tab only), so you keep tuning there.
+const cardsTop = () => (document.documentElement.classList.contains('side') ? 0 : Math.max(0, document.getElementById('deck').getBoundingClientRect().bottom));
+document.getElementById('songs').onchange = (e) => {
+  try {
+    const top = cardsTop(), card = [...document.querySelectorAll('.tool')].find((d) => d.getBoundingClientRect().bottom > top + 40);
+    sessionStorage.setItem('wa-carry', JSON.stringify({ on: [...active], card: card?.dataset.id, dy: card ? card.getBoundingClientRect().top - top : 0 }));
+  } catch {}
+  location.search = `?song=${encodeURIComponent(e.target.value)}`;
+};
 const c = document.getElementById('c'), g = c.getContext('2d');
 const audio = document.getElementById('a');
 
@@ -566,12 +574,17 @@ document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Num
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
 loadTools().then(() => {
-  if (!only) for (const tool of TOOLS) if (tool.on) active.add(tool.id);
+  let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}
+  if (carry?.on) { for (const id of carry.on) if (TOOLS.some((t) => t.id === id)) active.add(id); }
+  else if (!only) for (const tool of TOOLS) if (tool.on) active.add(tool.id);
   const notes = [];
   if (LOAD_NOTES.missing.length) notes.push(`Not written yet: ${LOAD_NOTES.missing.join(', ')}.`);
   if (LOAD_NOTES.broken.length) notes.push(`Could not load: ${LOAD_NOTES.broken.join('; ')}.`);
   document.getElementById('missing').textContent = notes.join(' ');
   render();
+  const back = carry?.card && document.querySelector(`.tool[data-id="${CSS.escape(carry.card)}"]`);
+  // Twice: on a phone the stage only sticks (and gets shorter, the title gone) once the page has scrolled.
+  if (back) for (let i = 0; i < 2; i++) scrollBy(0, back.getBoundingClientRect().top - cardsTop() - (carry.dy || 0));
   if (RENDER) { window.renderErrors = errors; window.renderTools = TOOLS.filter((t) => active.has(t.id)).map((t) => ({ id: t.id, name: t.name })); window.renderReady = true; return; }
   reset(audio.currentTime); frame(); sync(); // sends what this browser already has as soon as the page opens
 });
