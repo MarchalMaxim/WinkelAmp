@@ -65,3 +65,23 @@ tests, I liked the visualizations more than the current state of the project wit
 MIDI and stuff. So: the goal is to move towards the visualizations as they are in the demo page. Please don't get yourself
 restricted because of some prototype we made earlier!"
 → The overnight WebGL port of the loved widgets was stopped (squares had landed in src/stage before the stop).
+
+## Round 6 (2026-10-31): after the visual-music pioneers
+Fourteen new widgets, all **not judged yet** (see `round6/README.md`, `showcase/31-…` to `44-…`, `showcase/00-showreel-round6.mp4`).
+
+| widget | verdict | notes |
+|---|---|---|
+| fischinger (Optical Poem formations) | not judged yet | |
+| mclaren (Synchromy panels) | not judged yet | horizontal bars in the panels, not upright stripes |
+| lenlye (scratched film) | not judged yet | |
+| whitney (dot rosettes from intervals) | not judged yet | |
+| klee (polyphony mosaic) | not judged yet | |
+| miro (Constellations) | not judged yet | |
+| delaunay (simultaneous discs) | not judged yet | |
+| albers (Homage to the Square) | not judged yet | |
+| lewitt (wall drawings by rule) | not judged yet | |
+| ridges (Unknown Pleasures) | not judged yet | |
+| matisse (cut-outs) | not judged yet | |
+| kusama (dots and infinity nets) | not judged yet | |
+| ikeda (black-and-white data) | not judged yet | |
+| horizon (Sugimoto seascape) | not judged yet | meant to sit under other widgets |

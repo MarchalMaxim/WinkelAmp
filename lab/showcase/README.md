@@ -2,11 +2,14 @@
 
 One video per widget, each widget alone, over the same five passages of your two recordings. Open `index.html` in this
 folder (double-click it, or http://localhost:5173/lab/showcase/index.html with the dev server running) to watch them all
-on one page, the showreel first. The `.mp4` files are not in git (they hold your recordings); only this README and the
+on one page, the showreels first. The `.mp4` files are not in git (they hold your recordings); only this README and the
 page are.
 
 **`00-showreel.mp4`** (3:00, 960x540, about 25 MB, small enough to send to a phone): 6 s of each widget, in the order below,
 each from its busiest stretch of "the casket" (chosen by measuring how much is on screen and moving, then checked by eye).
+
+**`00-showreel-round6.mp4`** (1:24, 960x540, about 17 MB): the same for the 14 widgets new in round 6 (31 to 44), 6 s of
+each from its busiest stretch of "the casket", picked the same way.
 
 ## The videos (76 s each, 1280x720, 30 fps)
 
@@ -46,6 +49,20 @@ note and lets it die away, and nothing new is played until 0:13 of the recording
 | 28 | Mandala | new, not judged | A radial bloom: fuller chords make more copies; it turns with the tempo and breathes with loudness. |
 | 29 | Agnes Martin | new, not judged | Pale washed bands under a pencil grid. Deliberately quiet: it is made for the chorale and nearly ignores loud music, so it barely moves here. |
 | 30 | The casket | love (built into the app) | For reference: the picture melts, paint drips, big chords slash cuts. |
+| 31 | Fischinger | new in round 6, not judged yet | Every note swoops a coloured disc, ring or bar in from the deep blue; each chord calls a formation (row, arch, ring, V, spiral...), the same chord always the same figure, and every attack makes the whole company hop toward you. |
+| 32 | McLaren | new in round 6, not judged yet | After Synchromy: every note prints bars into a tall panel (deep notes a few thick rungs, high notes a fine comb, loud notes reach wider) that echo into the next panels; busy music splits the screen into more panels. |
+| 33 | Len Lye | new in round 6, not judged yet | White scratches on black film that boil frame by frame: wriggling pillars for the bass, zigzags and coils in the middle, sparks on top; loud chords burst into a spinning jagged star. |
+| 34 | Whitney | new in round 6, not judged yet | Hundreds of dots, each turning a little faster than the one inside it: the chord sets the rosette (a fifth 2 arms, a fourth 3, a third 4 or 5); notes stir the dots and they settle into the new figure. |
+| 35 | Klee | new in round 6, not judged yet | A tile mosaic: each voice paints along its own row in its own glaze, rising and falling with its pitch; where voices cross, the colours mix, and held notes deepen. |
+| 36 | Miró | new in round 6, not judged yet | The melody draws one thin black line over a pale sheet: short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents. |
+| 37 | Delaunay | new in round 6, not judged yet | Three discs of coloured rings (bass, middle, treble): each note lights its ring at its own clock position with the opposite colour beside it, and the ring jumps and swells outward. |
+| 38 | Albers | new in round 6, not judged yet | Homage to the Square: nested flat squares coloured by the chord (major glows inward, minor sinks); a new chord re-tints slowly from the middle out; loud attacks push the squares off-centre. Covers widgets drawn before it. |
+| 39 | LeWitt | new in round 6, not judged yet | Each note is a point on a pale wall and each attack carries out a rule in coloured pencil (lines from the corners, arcs, squares...); the lines pile up, and a new section starts a fresh wall with the next rule. |
+| 40 | Ridges | new in round 6, not judged yet | After the Unknown Pleasures cover: white ridgelines on black, each a slice of the keyboard; every note raises a peak as tall as it is loud, the front line is now and older lines roll away behind it. |
+| 41 | Matisse | new in round 6, not judged yet | Cut paper: each note lays a flat gouache piece (low notes big dark algae, middle coils, high small bright stars); chords lift and move pieces, a loud deep chord can slide in a new coloured ground. |
+| 42 | Kusama | new in round 6, not judged yet | One flat colour with dots in its partner colour: each note starts a colony at its pitch that spreads while held, full chords lay an infinity net, and the harmony picks the colour pair, flooding it in as one huge dot. |
+| 43 | Ikeda | new in round 6, not judged yet | Black and white data: each note is a barcode that strobes on the attack, settles on its note-name row and wears away bar by bar; glyph rows stream and a one-pixel score scrolls past a playhead. |
+| 44 | Horizon | new in round 6, not judged yet | A Sugimoto seascape: a soft horizon between a grey sky and a long-exposure sea; the harmony tints it very faintly and each note sends a shimmer along the line. Meant to look almost still; made to sit under other widgets. |
 
 ## How they were made
 
@@ -60,5 +77,5 @@ note and lets it die away, and nothing new is played until 0:13 of the recording
   settings saved in a browser. Randomness is seeded, so the same widget gives the same video every time.
 - Each passage gets 3 s of unrecorded pre-roll so the picture is not empty when it starts, a short dip to black between
   passages, its name for the first 2.5 s, and the widget's name in the corner throughout.
-- The showreel was cut from these files with ffmpeg (6 s windows, the title for the first 3 s, two-pass x264 at about
-  1 Mbit/s to keep it under 28 MB).
+- The showreels were cut from these files with ffmpeg (6 s windows, the title for the first 3 s, two-pass x264 at about
+  1 Mbit/s for the first, 1.5 Mbit/s for the shorter round-6 reel, to keep them under 28 MB).
