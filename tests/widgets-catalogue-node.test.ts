@@ -1,7 +1,8 @@
 /// <reference types="node" />
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
+import { readLabHarness } from '../src/widgets/lab-harness';
 
 const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
 
@@ -34,10 +35,11 @@ describe('loadCatalogue (every lab/tools file in node:vm)', () => {
     }
   });
 
-  it('carries the verdicts', () => {
+  it('carries the lab verdicts, whatever the current round says', () => {
+    const { verdicts } = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
+    for (const [id, m] of widgets) expect(m.verdict, id).toEqual(verdicts[id] ?? null);
     expect(widgets.get('casket')?.verdict?.v).toBe('love');
     expect(widgets.get('fields')?.verdict?.v).toBe('keep');
-    expect(widgets.get('murmuration')?.verdict?.v).toBe('needs work');
   });
 
   it('never loads lab/tools/dropped/', () => {
