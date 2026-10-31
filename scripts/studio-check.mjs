@@ -13,46 +13,31 @@
 // Local only: needs ffmpeg and system Chrome (and lab/notes.js + lab/prelude.mp3 for the lab-card comparison, which is
 // skipped without them).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { checker, needFfmpeg, openStudio, ROOT } from './lib/studio-session.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const HEADED = argv.includes('--headed'), KEEP = argv.includes('--keep');
-if (spawnSync('ffmpeg', ['-version']).status !== 0) { console.log('studio-check: skipped (no ffmpeg on the PATH)'); process.exit(0); }
+needFfmpeg('studio-check');
 
-const tmp = mkdtempSync(path.join(tmpdir(), 'wa-studio-check-'));
-const songs = path.join(tmp, 'songs'), shows = path.join(tmp, 'shows');
-mkdirSync(songs); mkdirSync(shows);
-process.env.WINKELAMP_SONGS = songs; process.env.WINKELAMP_SHOWS = shows;
+const { check, finish } = checker();
 
-const results = [];
-const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`); };
-
-// The song: 30 s of a sine with the fixture's chords as its notes.
-const wav = path.join(tmp, 'demo.wav');
-spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=f=220:d=30', wav]);
-const ing = spawnSync(process.execPath, ['--import', 'tsx', path.join(ROOT, 'scripts/ingest.ts'), wav, '--id', 'demo', '--title', 'Studio check: Demo',
-  '--notes', path.join(ROOT, 'scripts/fixtures/demo-notes.json')], { cwd: ROOT, encoding: 'utf8', env: process.env, timeout: 120_000 });
-if (ing.status !== 0) { console.error(ing.stdout, ing.stderr); process.exit(1); }
-const pack = JSON.parse(readFileSync(path.join(songs, 'demo', 'pack.json'), 'utf8'));
-const D = Math.round(pack.duration * 1000) / 1000;
-const GOOD = { version: 1, id: 'demo', song: 'demo', title: 'Studio check', sections: [
-  { start: 0, end: 10, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
-  { start: 10, end: 20, label: 'Two', fade: 3, layers: [{ widget: 'kandinsky' }] },
-  { start: 20, end: D, label: 'Three', layers: [{ widget: 'kandinsky' }, { widget: 'casket' }] },
-] };
-writeFileSync(path.join(shows, 'demo.json'), `${JSON.stringify(GOOD, null, 2)}\n`);
-
-const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5196, strictPort: false, hmr: false } });
-await vite.listen();
-const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
+// The song: 30 s of a sine with the fixture's chords as its notes (the session's fixture), and its show.
+let GOOD, pack;
+const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, shows: (packs) => {
+  pack = packs.demo;
+  const D = Math.round(pack.duration * 1000) / 1000;
+  GOOD = { version: 1, id: 'demo', song: 'demo', title: 'Studio check', sections: [
+    { start: 0, end: 10, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
+    { start: 10, end: 20, label: 'Two', fade: 3, layers: [{ widget: 'kandinsky' }] },
+    { start: 20, end: D, label: 'Three', layers: [{ widget: 'kandinsky' }, { widget: 'casket' }] },
+  ] };
+  return { demo: GOOD };
+} });
+const { vite, browser, page, errors, base: BASE, dirs: { tmp, songs, shows } } = st;
 const { validateShow } = await vite.ssrLoadModule('/src/studio/show/show.ts');
-const browser = await chromium.launch({ channel: 'chrome', headless: !HEADED, args: ['--autoplay-policy=no-user-gesture-required'] });
 
 const litShare = (page) => page.evaluate(() => {
   const c = window.__studio.runtime.ctx.canvas, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -66,12 +51,6 @@ const hash = (page) => page.evaluate(() => {
 const state = (page) => page.evaluate(() => ({ dirty: document.querySelector('.save-state')?.classList.contains('dirty'), text: document.querySelector('.save-state')?.textContent }));
 
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(`${BASE}/?song=demo`);
-  await page.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
-
   // The library lists the song.
   await page.click('[data-songs]');
   const listed = await page.locator('.library .song').allInnerTexts();
@@ -367,11 +346,7 @@ try {
   check('legacy.html loads without page errors', lerr.length === 0 && welcome === 1, lerr.join(' | '));
   await legacy.close();
 } finally {
-  await browser.close();
-  await vite.close();
-  if (!KEEP) rmSync(tmp, { recursive: true, force: true }); else console.log(`kept ${tmp}`);
+  await st.close();
 }
 
-const failed = results.filter((r) => !r.ok);
-console.log(`\nstudio-check: ${results.length - failed.length}/${results.length} passed`);
-process.exit(failed.length ? 1 : 0);
+process.exit(finish('studio-check'));

@@ -9,6 +9,8 @@
     "scripts/describe-song.ts",
     "scripts/widget-docs.ts",
     "scripts/studio-api.ts",
+    "scripts/setup-ymt3.ts",
+    "scripts/lab-notes.ts",
     "scripts/ears/**/*.ts",
     "scripts/node/**/*.ts"
   ]

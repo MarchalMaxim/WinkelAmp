@@ -11,6 +11,8 @@ lab/*.mp3
 lab/*.wav
 lab/*.ogg
 lab/notes*.js
+# The lab's per-song pack data (npm run lab-notes): tracks, beats and loudness computed from the recordings.
+lab/pack-*.js
 
 # Showcase videos (lab/render.mjs) carry the recordings: local only.
 lab/showcase/*.mp4
