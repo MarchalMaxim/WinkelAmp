@@ -1,7 +1,7 @@
 // The studio draws the lab's pixels: each case renders the same widgets at the same song time in the lab
 // (lab/index.html?render=1) and in the studio's runtime (render.html?labSong=…), and compares the canvases.
 //
-//   npm run fidelity [-- --only casket,squares] [--quick] [--stills <dir>]
+//   npm run fidelity [-- --only casket,squares] [--quick] [--stills <dir>] [--record <file>] [--against <file>]
 //
 // Local only: needs lab/notes.js and lab/notes-b5.js (the user's transcriptions, not in git), system Chrome. Starts its
 // own Vite server. A control page (a second lab load) measures how far the lab differs from itself; a case passes when
@@ -13,8 +13,14 @@
 // more than 4 s after the seek (lewitt starts a new wall when ctx.moment changes, but not within 4 s of a reset).
 // --only keeps the cases whose widget set includes one of the ids; --quick keeps one case per widget set;
 // --stills writes lab | studio | difference PNGs of the frames compared, for looking at.
+// --record <file> writes every comparison's frame hashes (lab and studio side) as JSON; --against <file> fails on any
+// lab-side hash that differs from the file's for the same comparison (this guards widget edits: record before, compare
+// after), and on a studio-side hash that moved away from a steady lab (lab = recorded = its control, studio ≠ lab: a
+// runtime change). A lab hash that moved while the lab is off its control this run is reported as unstable. The GPU
+// is not perfectly repeatable between runs either (a few edge pixels): re-run a flagged case with --only before
+// believing it. Comparisons missing from the file are listed, not failed.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -26,6 +32,8 @@ const opt = (name) => { const i = argv.indexOf(`--${name}`); return i < 0 ? null
 const ONLY = opt('only')?.split(',').filter(Boolean) ?? null;
 const QUICK = argv.includes('--quick');
 const STILLS = opt('stills');
+const RECORD = opt('record'), AGAINST = opt('against');
+const recorded = AGAINST ? JSON.parse(readFileSync(path.resolve(AGAINST), 'utf8')).hashes : null;
 const HZ = 60, FPS = 30, PREROLL = 3, CHECKS = [1, 2.5, 4], FLOOR = 40, FLOOR_MAX = 32;
 
 for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
@@ -37,7 +45,6 @@ const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host:
 await vite.listen();
 const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
 const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');
-const { readFileSync } = await import('node:fs');
 const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), 'utf8'));
 
 // The cases: [song, ids, start, checks?].
@@ -140,7 +147,8 @@ for (const { song, ids, checks, starts } of groups.values()) {
           sides.control.evaluate(advance, { start, k0, k1: k0, fps: FPS, preroll: PREROLL })]);
         if (own !== h.studio) throw new Error(`render.html renderFrameHash ${own} differs from the canvas hash ${h.studio}`);
       }
-      const row = { song, ids, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control, blank: h.lab === BLANK };
+      const row = { song, ids, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control, blank: h.lab === BLANK,
+        key: `${song}|${ids}|${start}|${at}`, lab: h.lab, studioHash: h.studio };
       if (!row.same || !row.controlSame) {
         const px = Object.fromEntries(await Promise.all(Object.entries(sides).map(async ([side, page]) =>
           [side, Buffer.from(await page.evaluate(pixels), 'base64')])));
@@ -148,6 +156,20 @@ for (const { song, ids, checks, starts } of groups.values()) {
       }
       row.pass = row.same || (row.studio.off <= FLOOR && row.studio.max <= FLOOR_MAX)
         || (row.studio.share <= row.control.share + 0.001 && row.studio.max <= row.control.max + 8);
+      if (recorded) {
+        const was = recorded[row.key];
+        if (!was) row.unrecorded = true;
+        else {
+          // A lab hash that moved where the lab also differs from its control this run is the GPU, not an edit:
+          // unstable, not failed. A studio hash that moved away from a steady lab (lab = recorded = control, studio ≠
+          // lab) is a runtime change, and fails; one that moved onto the lab was a GPU flake in the recording.
+          const steady = h.lab === h.control;
+          row.labChanged = was.lab !== h.lab && steady; row.labUnstable = was.lab !== h.lab && !steady;
+          row.studioChanged = was.studio !== h.studio;
+          row.studioRegressed = row.studioChanged && was.lab === h.lab && steady && h.studio !== h.lab;
+          if (row.labChanged || row.studioRegressed) row.pass = false;
+        }
+      }
       if (STILLS) {
         mkdirSync(STILLS, { recursive: true });
         const name = `${song}-${ids.replace(/,/g, '+')}-${start}+${at}`;
@@ -178,9 +200,26 @@ console.log('\nsong     widgets                         start  at    result');
 for (const r of rows) {
   const res = r.same ? (r.controlSame ? 'identical' : `identical (control off ${pct(r.control.share)}, max ${r.control.max})`)
     : `studio off ${pct(r.studio.share)} (${r.studio.off} px) max ${r.studio.max} | control off ${pct(r.control.share)} max ${r.control.max}`;
-  console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}`);
+  console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}${r.labChanged ? ' (lab hash changed)' : ''}${r.studioRegressed ? ' (studio hash changed)' : ''}`);
 }
 const failed = rows.filter((r) => !r.pass);
+if (RECORD) {
+  const hashes = Object.fromEntries(rows.map((r) => [r.key, { lab: r.lab, studio: r.studioHash }]));
+  mkdirSync(path.dirname(path.resolve(RECORD)), { recursive: true });
+  writeFileSync(path.resolve(RECORD), JSON.stringify({ recorded: new Date().toISOString(), hashes }, null, 1) + '\n');
+  console.log(`recorded ${rows.length} comparisons' hashes to ${RECORD}`);
+}
+if (recorded) {
+  const labChanged = rows.filter((r) => r.labChanged), unrec = rows.filter((r) => r.unrecorded);
+  const regressed = rows.filter((r) => r.studioRegressed), unstable = rows.filter((r) => r.labUnstable);
+  console.log(`against ${AGAINST}: ${labChanged.length} lab-side hash${labChanged.length === 1 ? '' : 'es'} changed`
+    + `, ${regressed.length} studio-side moved off a steady lab (${rows.filter((r) => r.studioChanged).length} studio-side changed in all)`
+    + `, ${unstable.length} lab-side unstable (the lab off its control this run), ${unrec.length} not in the file`);
+  for (const r of labChanged) console.log(`  lab hash changed: ${r.key}`);
+  for (const r of regressed) console.log(`  studio hash moved off a steady lab: ${r.key}`);
+  for (const r of unstable) console.log(`  lab hash unstable: ${r.key}`);
+  for (const r of unrec) console.log(`  not recorded: ${r.key}`);
+}
 const sets = [...new Set(rows.map((r) => `${r.song} ${r.ids}`))];
 const allBlank = sets.filter((k) => rows.filter((r) => `${r.song} ${r.ids}` === k).every((r) => r.blank));
 console.log(`\n${rows.length - failed.length}/${rows.length} comparisons pass, ${rows.filter((r) => r.same).length} identical`

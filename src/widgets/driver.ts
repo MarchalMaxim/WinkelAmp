@@ -50,6 +50,8 @@ declare global {
     renderPixels?: () => string;
     renderInfo?: { duration: number; title: string };
     renderTools?: { id: string; name: string }[];
+    /** the canvas's real size: 1280·S × 720·S */
+    renderSize?: { w: number; h: number };
   }
 }
 
@@ -67,7 +69,10 @@ export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: nu
   };
   window.renderTo = (t) => window.renderStep!(t - rt.lastT);
   window.renderErrors = rt.errors;
-  const pixels = () => ctx.g.getImageData(0, 0, ctx.W, ctx.H).data;
+  // The REAL context over the real size: at scale S ctx.g is a proxy that refuses pixel reads, and ctx.W × ctx.H a quarter.
+  const canvas = ctx.canvas, real = canvas.getContext('2d')!;
+  const pixels = () => real.getImageData(0, 0, canvas.width, canvas.height).data;
+  window.renderSize = { w: canvas.width, h: canvas.height };
   window.renderFrameHash = () => fnv1a(pixels());
   window.renderPixels = () => base64(pixels());
 }
