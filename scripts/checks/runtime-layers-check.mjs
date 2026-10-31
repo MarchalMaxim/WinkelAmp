@@ -348,8 +348,8 @@ if (LOOK && LOOK_SET !== 'T12') {
       { seek: 0, marks: [4, 8, 16, 30], cols: 4, cw: S > 1 ? 480 : 360, title: `rorschach alone, full-screen (what the window holds), b5, scale ${S}` }));
     const marks = Array.from({ length: 17 }, (_, i) => 121.5 + i * 0.25);
     write(`window-glide${sfx}.png`, await sheet({ only: 'kandinsky', scale }, 'prelude',
-      { seek: 118, marks, cols: 6, cw: 320, glide, outlines: marks.map(glideAt),
-        title: `rorschach's window glides top-left → bottom-right across a boundary at 122 s (fade 3 s), over kandinsky, Prelude, scale ${S}` }));
+      { seek: 118, marks, cols: S > 1 ? 4 : 6, cw: S > 1 ? 640 : 320, crop: crop(0.7, 0.66), glide, outlines: marks.map(glideAt),
+        title: `rorschach's window glides top-left → bottom-right across a boundary at 122 s (fade 3 s), over kandinsky, Prelude, scale ${S}${S > 1 ? ', crop around where it lands' : ''}` }));
   }
 }
 
