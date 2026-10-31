@@ -96,6 +96,107 @@ rorschach when low and quiet), an accent when it fits (squares for loud bass, fl
 where it is loud and full. It uses only loved or kept widgets, at their defaults. It is a starting point: a composed
 show should follow the music's form (and the user's words) more closely than that.
 
+## Composing as a composer: how the two first shows were made
+
+`shows/rach-prelude-recording.json` and `shows/beethoven5.json` were written by hand this way. Repeat it for a new song.
+
+### 1. Find the form, closer than describe-song
+
+`describe-song` gives 10 s steps; the turns of a piece need finer ones. Group the pack's notes into attacks (as the
+widgets do: a note joins the attack when it starts < 0.04 s after it) and print, per 4 s: attacks, notes per attack,
+mean and peak velocity, the range, how many notes sit below MIDI 50, and the pack's loudness. Then list the attacks
+(time, velocity, notes) around each turn you see. In the Prelude that showed every part to the tenth of a second:
+the bells (the A–G♯–C♯ octaves at 5.2, 7.0, 8.9 s), the chorale (1.4 attacks/s, middle register, a bass note per bar),
+the agitato (from 84.55 s, 8–9 attacks/s), the crescendo (from 116 s the attacks thicken to 2.7 notes at velocity 90+),
+the climax (the motto fff in 7-note chords at 125.86 s), the return (the low C♯ toll at 178.74 s), the silence after
+the last chord (204–213 s) and, at the end of this recording, 20 s of a faster piece in another key.
+
+The GPU transcriber is a piano model. On an orchestra (Beethoven: onset coverage 0.5) it hears the loud tutti and
+little of quiet strings or a solo oboe, so the notes alone do not show the form. Read the audio too, with the venv's
+librosa (`C:/Users/maxim/.venvs/wa/Scripts/python.exe -I`): `onset_strength` + `onset_detect`, `rms` in dB and
+`chroma_cqt` per onset find repeated-note figures and the near-silent stretches (the oboe cadenza is −28 to −33 dB from
+257.6 to 272.4 s, where the pack has two notes).
+
+### 2. Turn the user's words into widgets, places and knobs
+
+Write down each phrase of the description and what answers it. For the Prelude, in the user's words:
+
+| the user | the show |
+|---|---|
+| "low-frequency notes are scary, fearful and strong, heavy… dark red… square and big. That's the start" | The bells: dread squares alone, `size` 1.5. Dread (the chorale): rorschach's oxblood ink under the squares |
+| "progresses into something more rapid… chords stumble over each other… blurry ovals that fade into existence. Yellow-red: hastily, ephemeral, skittish" | Agitato: skittish shapes on their ember palette, `mix` 0.15 (soft dots and ovals), over the squares |
+| "The crescendo starts… total panic" | The crescendo (116 s, where the attacks thicken, not at the climax): the casket joins on top |
+| "Visuals are dripping from the screen, and the chords initiate cuts over the canvas" | casket `melt` 3, `drips` 0.8 in the crescendo and the climax; the climax's chords (velocity 100+) all cut at the default `cutAt` |
+| "pure disgust" | The casket (the climax): rorschach `spatter` 2 under the squares, so the cuts slice ink |
+| (their favourite, murmuration) | Return: murmuration alone, `strike` 0.85 and `hold` 3, so each slow chord of the ending re-forms the flock into its figure: the musical trigger the user asked for |
+
+Knobs move only where a phrase asks for what the knob does, and the commit says which. A knob may also answer the
+recording: on the orchestral Beethoven, kandinsky's `paint` 0.75 keeps the few transcribed notes on screen longer.
+
+### 3. A recurring event: short sections that keep the base
+
+"The fate motif must punctuate the show every time it strikes" is not a part of the form but an event inside every
+part. Shows have only sections, so each strike is a section of its own:
+
+- from just before the strike's first attack to the end of its held note (2–15 s; never under 1 s);
+- its layers are the surrounding part's layers (they continue: no reset, they keep taking attacks) plus an accent on
+  top that enters, and so is reset, at every strike: dread squares (`split` 72 so the mid-register notes the
+  transcriber hears in a tutti make slabs too, `life` 3 so they last through the fermata) and the casket (`cutAt` 80);
+- `fade` 0 into the strike (whatever leaves there is cut), 1.5 s after it (the accent fades out under the music);
+- strikes closer than a few seconds are one section (the codetta's last bars and the repeat's opening are one).
+
+Decide what counts before you mark it. Here: the motto stated by the whole orchestra, loud, landing on a held note
+(a fermata or a breath), and the horn call that opens each second theme. The development and the coda are built
+from the rhythm; marking every occurrence would strobe. The fifteen strikes: 0, 17.5, 39.25 (horn call), 78.7 (the
+codetta and the repeat's opening), 98.5, 120.2 (horn call), 158.3 (the codetta and the development's opening), 191.4,
+227.95, 235.15 (the return of the motto), 255.4 (the fermata before the oboe), 282.0 (horn call), 332.4, 396.3 and
+409.8 s to the end. Found as above: three equally spaced attacks of one pitch class (0.1–0.36 s apart) then a held
+note, from the audio's onsets and chroma and from the notes, checked by hand against the loudness.
+
+Each part gets its own picture, and a part that returns gets its picture back: first theme kandinsky (exposition,
+repeat, recapitulation); closing kandinsky + skittish shapes; second theme woven threads (`heat` 0.85, ember);
+development rorschach (`sym` 4, `ink` 1: indigo, four-way) + murmuration; oboe cadenza colour fields (`home` −1,
+`n` 1: one deep blue field) under one thread of the current (`threads` 1); coda rorschach (`sym` 8, `ink` 2: soot and
+gold, `size` 0.7, `fade` 5) + skittish shapes. A show with 33 sections is easier to write from a short plan (parts and
+strike times) with a few lines of script; write the result with `canonicalShow` and check it.
+
+### 4. Look, then change what the frames show
+
+Render the whole song (`npm run render-show -- <id>`: about 0.45 s per video second, the Prelude in 1:45, Beethoven
+in 3:15) and read three kinds of picture:
+
+- a contact sheet of the whole show, one frame per 4–5 s (`ffmpeg -i renders/<id>.mp4 -vf "fps=1/5,scale=240:-1,tile=8x8" sheet.png`);
+- frames 0.3–1 s after each boundary and each strike (does the change land? is the accent visible?);
+- one full-size frame per picture (is it beautiful, and does it look like the words?).
+
+What the first looks showed and what changed:
+
+- Prelude: the chorale with the current was a small thread in a black screen → rorschach's oxblood ink under the
+  squares (dark red, heavy, mirrored). The climax without rorschach was mostly black between the cuts → rorschach
+  under squares and casket, so there is something to cut and melt. The return on colour fields was flat orange bands,
+  and murmuration alone was a small knot that rarely re-formed → murmuration alone with `strike` 0.85, `hold` 3.
+- Beethoven: half the strikes showed nothing, because the transcriber gave them no notes below MIDI 50 (the squares'
+  default split) → `split` 72, `life` 3. The oboe cadenza was black for 15 s (no notes) → colour fields under one
+  thread. The gold coda kaleidoscope filled the whole screen → `size` 0.7, `fade` 5. After the second look the slabs
+  at `size` 1.2 hid the base picture during the long strikes → `size` 1.
+
+Sections without notes stay black (the shared fade): quiet passages the transcriber does not hear are dark unless a
+widget draws without attacks (colour fields; the current's thread). That can be right (the Prelude's silence before
+its last 20 s) or a hole (the oboe).
+
+### 5. Share
+
+`render-show` writes 720p at CRF 18 (Beethoven's first movement: 165 MB). For WhatsApp, re-encode two-pass to a size:
+video kb/s = MB × 8000 / seconds − 128, e.g. 27.5 MB for 425 s → 389 kb/s, at 960×540:
+
+```sh
+ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:v 389k -pass 1 -an -f mp4 NUL
+ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:v 389k -pass 2 -pix_fmt yuv420p \
+  -c:a aac -b:a 128k -movflags +faststart winkelamp-beethoven5.mp4
+```
+
+The Prelude (232 s) keeps 720p at 819 kb/s. Both come out at 28 MB.
+
 ## The widgets
 
 <!-- widgets:start -->
