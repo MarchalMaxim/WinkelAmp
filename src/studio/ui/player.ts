@@ -8,8 +8,9 @@ import type { Show } from '../show/show';
 import { startLive } from '../../widgets/driver';
 import type { WidgetRuntime } from '../../widgets/runtime';
 
-/** How long the playhead rests before the paused picture settles; a quick preview slower than SLOW_MS is not followed
-    by the ~2–4× longer settled one (a heavy section on a slow machine would hang for seconds). */
+/** How long the playhead rests before the paused picture settles; a quick preview slower than SLOW_MS (timed up to a
+    one-pixel read, so the canvas work the browser defers counts too) is not followed by the ~2–4× longer settled one:
+    a heavy section on a slow machine would hang for seconds. */
 const SETTLE_MS = 350, SLOW_MS = 150;
 /** The element may round a time it is given: within a millisecond is the same moment. */
 const at = (a: number, b: number) => Math.abs(a - b) < 1e-3;
@@ -62,6 +63,7 @@ export class Player {
   private preview(t: number): void {
     const t0 = performance.now();
     this.conductor.preview(t);
+    this.runtime.ctx.g.getImageData(0, 0, 1, 1);   // waits for the drawing, which the browser may do later
     const show = this.conductor.current, quick = performance.now() - t0;
     this.pictured = { show, t };
     clearTimeout(this.settleTimer);

@@ -320,7 +320,7 @@ export class Conductor implements Stepper {
 export interface Warmup { seconds: number; hz: number }
 export const QUICK: Warmup;     // { seconds: 1, hz: 60 }: at once, also while scrubbing
 export const SETTLED: Warmup;   // { seconds: 4, hz: 20 }: once the playhead rests (the Player, 350 ms after a quick preview
-                                // that took ≤ 150 ms), so Kandinsky or the current show what playing builds; 1/20 s is live's longest step
+                                // that took ≤ 150 ms, drawing included), so Kandinsky or the current show what playing builds; 1/20 s is live's longest step
 export function samePreview(a: Show, b: Show, t: number): boolean;
 //   would preview(t) (QUICK or SETTLED) draw the same for b as for a: scheduleAt (ids, attacks, weights, knobs) at the reset and every
 //   preview step, and entriesBetween over the preview window, equal (moments left out: a name or a split renumbers them)
