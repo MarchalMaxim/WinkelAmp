@@ -14,6 +14,7 @@ import { ARCHETYPES } from '../character/archetypes';
 import { noteRgb } from '../character/palette';
 import { neutralDescriptors, type ArchetypeId, type Gesture, type Material, type SoundEvent } from '../character/types';
 import { CUT_COLOR } from './cut';
+import { WIDGETS } from './elements';
 import { Stage } from './stage';
 import { normalizeSpec } from './script';
 import { type Accent, DEFAULT_LOOK, type ElementSpec, type Look, type MelodyFrame, type StageFrame } from './types';
@@ -123,7 +124,24 @@ export const CASES: Record<string, Case> = {
     cast: [el('bloom', 'fields', { intensity: 0.4 }), el('bass', 'orbs'), el('pulse', 'rings'), el('wave', 'line', { region: 'top' }),
       el('sparks', 'stars'), el('melody', 'ribbon'), el('fluid', '', { intensity: 0.5 })],
   },
+  // Knob drives on stage: the trail shortens as the notes come faster, the bursts fly harder as it gets
+  // louder, the rings die faster when it is loud. Silence must still hold everything.
+  drives: {
+    archetype: 'sugar', look: { trails: 0.4 },
+    cast: [
+      el('melody', 'beads', { knobs: { trail: { value: 6, drive: '-rate', depth: 1 } } }),
+      el('sparks', 'stars', { knobs: { speed: { drive: '+level', depth: 1 } } }),
+      el('pulse', 'rings', { intensity: 0.5, knobs: { decay: { drive: '+level' } } }),
+    ],
+  },
 };
+
+// A widget that has no case of its own yet gets one per style, so a new widget file is on the
+// contact sheet (`<type>-<style>`) without anyone editing this file.
+for (const w of WIDGETS) {
+  if (Object.values(CASES).some((c) => c.cast.some((e) => e.type === w.type))) continue;
+  for (const s of w.styleNames) CASES[`${w.type}-${s}`] ??= { archetype: 'gold', cast: [el(w.type, s)] };
+}
 
 // ---- Frames -------------------------------------------------------------------------
 

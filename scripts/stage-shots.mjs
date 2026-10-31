@@ -127,7 +127,7 @@ try {
   }
 
   if (!flag('no-silence')) {
-    for (const c of ['all', 'abyss', 'sugar', 'mist', 'accents', 'casket', 'cut-m4']) {
+    for (const c of ['all', 'abyss', 'sugar', 'mist', 'accents', 'casket', 'cut-m4', 'drives']) {
       await page.evaluate((c) => window.harness.set(c), c);
       await advanceTo(4.3);
       await page.evaluate(() => window.harness.silence(120));
@@ -142,7 +142,7 @@ try {
     }
     // A noisy room: the clock is frozen, but the feed keeps reporting noise events, onsets,
     // beat hits and a noise waveform. Nothing may change: not one pixel over 8/255.
-    for (const c of ['all', 'sugar', 'abyss', 'wave-line', 'sparks-stars', 'pulse-rings', 'casket']) {
+    for (const c of ['all', 'sugar', 'abyss', 'wave-line', 'sparks-stars', 'pulse-rings', 'casket', 'drives']) {
       await page.evaluate((c) => window.harness.set(c), c);
       await advanceTo(4.3);
       await page.evaluate(() => window.harness.silence(120));
