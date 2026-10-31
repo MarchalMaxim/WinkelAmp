@@ -88,6 +88,13 @@ function pixels() {
 }
 const png = () => document.getElementById('c').toDataURL('image/png').slice(22);
 
+// The hash of an opaque black canvas: two blank frames always match, so they prove nothing and are counted apart.
+const BLANK = (() => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < 1280 * 720 * 4; i++) { h ^= i % 4 === 3 ? 255 : 0; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, '0');
+})();
+
 function diff(a, b) {
   let off = 0, max = 0;
   for (let i = 0; i < a.length; i += 4) {
@@ -116,7 +123,15 @@ for (const { song, ids, starts } of groups.values()) {
       const h = Object.fromEntries(await Promise.all(Object.entries(sides).map(async ([side, page]) =>
         [side, await page.evaluate(advance, { start, k0, k1, fps: FPS, preroll: PREROLL })])));
       k0 = k1;
-      const row = { song, ids, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control };
+      if (at === CHECKS[0]) {
+        // The studio's own render API hashes as this test does (render-show relies on it). Every page reads back the
+        // same number of times: Chrome moves a canvas read often off the GPU, which changes later pixels.
+        const [own] = await Promise.all([sides.studio.evaluate(() => window.renderFrameHash()),
+          sides.lab.evaluate(advance, { start, k0, k1: k0, fps: FPS, preroll: PREROLL }),
+          sides.control.evaluate(advance, { start, k0, k1: k0, fps: FPS, preroll: PREROLL })]);
+        if (own !== h.studio) throw new Error(`render.html renderFrameHash ${own} differs from the canvas hash ${h.studio}`);
+      }
+      const row = { song, ids, start, at, same: h.lab === h.studio, controlSame: h.lab === h.control, blank: h.lab === BLANK };
       if (!row.same || !row.controlSame) {
         const px = Object.fromEntries(await Promise.all(Object.entries(sides).map(async ([side, page]) =>
           [side, Buffer.from(await page.evaluate(pixels), 'base64')])));
@@ -153,8 +168,13 @@ console.log('\nsong     widgets                         start  at    result');
 for (const r of rows) {
   const res = r.same ? (r.controlSame ? 'identical' : `identical (control off ${pct(r.control.share)}, max ${r.control.max})`)
     : `studio off ${pct(r.studio.share)} max ${r.studio.max} | control off ${pct(r.control.share)} max ${r.control.max}`;
-  console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}`);
+  console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}`);
 }
 const failed = rows.filter((r) => !r.pass);
-console.log(`\n${rows.length - failed.length}/${rows.length} comparisons pass, ${rows.filter((r) => r.same).length} identical; ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+const sets = [...new Set(rows.map((r) => `${r.song} ${r.ids}`))];
+const allBlank = sets.filter((k) => rows.filter((r) => `${r.song} ${r.ids}` === k).every((r) => r.blank));
+console.log(`\n${rows.length - failed.length}/${rows.length} comparisons pass, ${rows.filter((r) => r.same).length} identical`
+  + ` (${rows.filter((r) => r.same && !r.blank).length} of them with a picture; ${rows.filter((r) => r.blank).length} blank frames);`
+  + ` ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+if (allBlank.length) console.log(`blank at every check, so fidelity unproven: ${allBlank.join('; ')}`);
 process.exit(failed.length ? 1 : 0);
