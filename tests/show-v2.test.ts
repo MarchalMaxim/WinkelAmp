@@ -71,15 +71,18 @@ describe('show v2: committed shows', () => {
     const text = readFileSync(resolve(SHOWS, f), 'utf8').replace(/\r\n/g, '\n');
     const before = canonicalShow(JSON.parse(text) as Show);
     const routed = JSON.parse(text) as Show;
-    routed.sections[0].layers[0].listen = 'melody';
+    // the first layer that listens to all notes (vivaldi-winter.json routes its first one already)
+    const [si, li] = routed.sections.flatMap((s, i) => s.layers.map((l, j) => [i, j, l.listen] as const)).find((x) => x[2] === undefined)!;
+    const layer = () => routed.sections[si].layers[li];
+    layer().listen = 'melody';
     const v2 = canonicalShow(routed);
     expect(v2).toContain('\n  "version": 2,');
     expect(v2).toContain(`"listen": "melody"`);
-    expect(Object.keys((JSON.parse(v2) as Show).sections[0].layers[0])[1]).toBe('listen');
+    expect(Object.keys((JSON.parse(v2) as Show).sections[si].layers[li])[1]).toBe('listen');
     expect(validateShow(JSON.parse(v2)).errors).toEqual([]);
-    delete routed.sections[0].layers[0].listen;
+    delete layer().listen;
     expect(canonicalShow(routed)).toBe(before);
-    routed.sections[0].layers[0].listen = 'all';   // 'all' is all notes: nothing to write
+    layer().listen = 'all';   // 'all' is all notes: nothing to write
     expect(canonicalShow(routed)).toBe(before);
   });
 });
