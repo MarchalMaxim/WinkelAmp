@@ -13,11 +13,30 @@
  */
 import { MELODY_RANGE } from '../../audio/melody';
 import type { SoundEvent } from '../../character/types';
-import { Brush, clamp01, ease, elementColor, fin, regionRect, scale, Shape, sizeK, type StrokePoint, styleOf, vivid } from '../gl';
-import { type CastMember, type Region, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { Brush, clamp01, ease, elementColor, fin, regionRect, scale, Shape, sizeK, type StrokePoint, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, Region, StageElement, StageFrame, StageShared } from '../types';
 
-/** Music seconds of trail. */
+/** Music seconds of trail (the `trail` knob's default). */
 const LIFE = 4;
+/** The director casts the melody only while a tune is voiced this much of the time. */
+const VOICED = 0.4;
+
+export const widget = defineWidget({
+  type: 'melody',
+  styles: [
+    { name: 'ribbon', doc: 'a smooth glowing band' },
+    { name: 'beads', doc: 'one bead per note, bigger for longer notes' },
+    { name: 'ink', doc: 'dye poured into a fluid when one is on stage, else dry brush strokes' },
+  ],
+  knobs: [{ name: 'trail', min: 1, max: 8, value: LIFE, doc: 'music seconds of the phrase left on screen' }],
+  follows: 'the predominant melody: pitch, note on/off, duration (precomputed for a scripted song, so it is exact and on time)',
+  use: 'whenever a clear tune is present. Higher notes sit higher (further out under a kaleidoscope mirror); the last ~4 s of the phrase stay visible',
+  layer: 70,
+  crisp: true,
+  stream: (s) => (fin(s.melodyVoiced) > VOICED ? 1 : 0),
+  create: (): StageElement => new Melody(),
+});
 /** Head position across the region. */
 const HEAD = 0.8;
 /** Under a kaleidoscope: the ring's radius (in screen heights) for the lowest and the highest pitch. */
@@ -63,12 +82,12 @@ const fit = (lo: number, hi: number): [number, number] =>
  *         the wedge from its upright edge, so the reflections close the thread into a ring
  *         with a head on each of `mirror` spokes, one straight above the centre.
  */
-export function melodyLayout(region: Region, mirror: number, aspect: number): MelodyPlace {
+export function melodyLayout(region: Region, mirror: number, aspect: number, life = LIFE): MelodyPlace {
   if (mirror > 4) {
     /** The kept wedge: half of one 2π / mirror segment. */
     const sweep = Math.PI / mirror;
     return (age, h) => {
-      const a = Math.PI / 2 - (age / LIFE) * sweep;
+      const a = Math.PI / 2 - (age / life) * sweep;
       const r = RING[0] + (RING[1] - RING[0]) * h;
       return [0.5 + (r * Math.cos(a)) / aspect, 0.5 + r * Math.sin(a)];
     };
@@ -81,7 +100,7 @@ export function melodyLayout(region: Region, mirror: number, aspect: number): Me
   }
   if (mirror === 4) [y0, y1] = fit(y0, y1);
   const hx = x0 + (x1 - x0) * head;
-  return (age, h) => [hx - (age / LIFE) * (hx - x0), y0 + (y1 - y0) * (0.06 + 0.88 * h)];
+  return (age, h) => [hx - (age / life) * (hx - x0), y0 + (y1 - y0) * (0.06 + 0.88 * h)];
 }
 
 export class Melody implements StageElement {
@@ -96,7 +115,7 @@ export class Melody implements StageElement {
     this.shared = shared;
   }
 
-  private update(fr: StageFrame) {
+  private update(fr: StageFrame, life: number) {
     const now = fr.clock.time;
     const mel = fr.melody;
     const voiced = mel.voiced && Number.isFinite(mel.pitch) && mel.salience > 0.02;
@@ -115,7 +134,7 @@ export class Melody implements StageElement {
         this.pts.push({ t: now, p: NaN, s: 0 });
         this.smooth = NaN;
       }
-      while (this.pts.length && now - this.pts[0].t > LIFE) this.pts.shift();
+      while (this.pts.length && now - this.pts[0].t > life) this.pts.shift();
       // Beads: one per note; a new note (or a pitch change without a noteOn) starts the next.
       if (voiced) {
         if (!this.bead || mel.noteOn || Math.abs(mel.pitch - this.bead.p) > 0.7) {
@@ -126,24 +145,25 @@ export class Melody implements StageElement {
           this.bead.s = Math.max(this.bead.s, clamp01(fin(mel.salience)));
         }
       } else this.bead = null;
-      while (this.beads.length && now - this.beads[0].t1 > LIFE) this.beads.shift();
+      while (this.beads.length && now - this.beads[0].t1 > life) this.beads.shift();
     }
   }
 
   draw(fr: StageFrame, member: CastMember) {
-    this.update(fr);
+    const life = widget.knob(fr, member, 'trail');
+    this.update(fr, life);
     const s = this.shared;
     const prm = member.spec.params;
-    const style = styleOf(prm.style, STYLES.melody);
+    const style = widget.style(member);
     const gain = member.presence * prm.intensity;
     if (gain < 0.002) return;
     const now = fr.clock.time;
     // The mirror the post pass applies this frame (pins included), so the head is never folded away.
-    const place = melodyLayout(prm.region, fr.directives.look.mirror, s.aspect);
+    const place = melodyLayout(prm.region, fr.directives.look.mirror, s.aspect, life);
     /** Where a point of the tune, drawn at music time t with pitch p, is now. */
     const at = (t: number, p: number) => place(now - t, pitchHeight(p));
     const k = sizeK(prm.size);
-    const fade = (t: number) => Math.pow(clamp01(1 - (now - t) / LIFE), 1.3);
+    const fade = (t: number) => Math.pow(clamp01(1 - (now - t) / life), 1.3);
     const colorAt = (p: number, bright: number) => scale(vivid(elementColor(prm.color, s, 0.55 + 0.45 * pitchHeight(p), p)), bright);
 
     if (style === 'beads') {

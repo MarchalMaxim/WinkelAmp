@@ -21,6 +21,7 @@
 import { mulberry32 } from '../audio/instruments';
 import type { Character } from '../character/types';
 import { LIBRARY, type LibraryScene } from './library';
+import { widgetOf } from './elements';
 import { normalizeSpec } from './script';
 import { DEFAULT_LOOK, type CastMember, type ElementType, type Look, type StageDirectives, type Streams } from './types';
 
@@ -43,8 +44,6 @@ const LEADER_HOLD = 8;
 const MAX_CAST = 5;
 /** Scores this close are a tie (broken by the seeded PRNG). */
 const TIE = 1e-9;
-const MELODY_GATE = 0.4;
-const PULSE_GATE = 0.35;
 
 type Spec = CastMember['spec'];
 
@@ -63,21 +62,14 @@ interface Member {
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const fin = (x: number) => (Number.isFinite(x) ? x : 0);
 
-/** How much of its stream an element type has now (its presence target). */
+/**
+ * How much of its stream an element type has now (its presence target): the widget's
+ * `stream`. Without one (fluid and bloom carry the mood and the harmony; the wave is the
+ * sound itself) it is always 1: the clock dims silence.
+ */
 function want(type: ElementType, s: Streams): number {
-  switch (type) {
-    case 'melody':
-      return fin(s.melodyVoiced) > MELODY_GATE ? 1 : 0;
-    case 'pulse':
-      return fin(s.pulse) > PULSE_GATE ? 1 : 0;
-    case 'sparks':
-      return clamp01(fin(s.highActivity));
-    case 'bass':
-      return clamp01(fin(s.bass));
-    // Fluid and bloom carry the mood and the harmony; the wave is the sound itself. The clock dims silence.
-    default:
-      return 1;
-  }
+  const stream = widgetOf(type)?.stream;
+  return stream ? clamp01(fin(stream(s))) : 1;
 }
 
 /** How well `scene` suits the character's archetype blend. */

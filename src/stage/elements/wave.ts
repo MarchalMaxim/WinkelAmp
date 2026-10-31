@@ -7,8 +7,23 @@
  *   line    across the region
  *   circle  wrapped round the region's centre
  */
-import { clamp01, ease, elementColor, fin, regionRect, scale, sizeK, type StrokePoint, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { clamp01, ease, elementColor, fin, regionRect, scale, sizeK, type StrokePoint, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
+
+export const widget = defineWidget({
+  type: 'wave',
+  styles: [
+    { name: 'line', doc: 'across the region' },
+    { name: 'circle', doc: 'wrapped round its centre' },
+  ],
+  knobs: [{ name: 'width', min: 0.25, max: 4, value: 1, doc: 'how thick the trace is drawn (× its own width)' }],
+  follows: 'the raw waveform (an oscilloscope)',
+  use: 'the fine detail of a single voice or a drone; electronic textures',
+  layer: 50,
+  crisp: true,
+  create: (): StageElement => new Wave(),
+});
 
 /** Samples shown, and points drawn. */
 const SPAN = 1024;
@@ -60,7 +75,7 @@ export class Wave implements StageElement {
     const level = this.level;
     const c =vivid(elementColor(prm.color, s, 0.92, fr.f.note), 0.5);
     const bright = gain * (0.7 + 0.9 * level);
-    const width = (0.0022 + 0.003 * level) * k;
+    const width = (0.0022 + 0.003 * level) * k * widget.knob(fr, member, 'width');
     const sample = (j: number) => {
       // Average the samples under each point: a cheap low-pass, so the trace isn't aliased hash.
       const a = start + Math.floor((j * n) / POINTS);
@@ -70,7 +85,7 @@ export class Wave implements StageElement {
       return Math.max(-1.2, Math.min(1.2, (sum / (b - a)) * norm));
     };
     const pts: StrokePoint[] = [];
-    if (styleOf(prm.style, STYLES.wave) === 'circle') {
+    if (widget.style(member) === 'circle') {
       const cx = (x0 + x1) / 2;
       const cy = (y0 + y1) / 2;
       const r0 = 0.22 * Math.min(y1 - y0, (x1 - x0) * s.aspect) * k;

@@ -5,8 +5,26 @@
  *   orbs   three soft glowing bodies that swell with the bass
  *   tides  horizontal swells rolling along the bottom
  */
-import { createProgram, ease, elementColor, fin, mix, PASS_HEAD, type Program, QUAD_VS, scale, setRegion, Shape, sizeK, styleOf, vivid, regionRect, clamp01 } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { createProgram, ease, elementColor, fin, mix, PASS_HEAD, type Program, QUAD_VS, scale, setRegion, Shape, sizeK, vivid, regionRect, clamp01 } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
+
+/** Music seconds the shapes take to sink after the bass drops (the `sink` knob's default). */
+const SINK = 0.35;
+
+export const widget = defineWidget({
+  type: 'bass',
+  styles: [
+    { name: 'orbs', doc: 'three soft bodies that swell with the bass' },
+    { name: 'tides', doc: 'swells rolling along the bottom' },
+  ],
+  knobs: [{ name: 'sink', min: 0.05, max: 2, value: SINK, doc: 'music seconds the shapes take to settle after the bass drops' }],
+  follows: "the bass level and the music's weight",
+  use: 'heavy, low, dark music; a bass line that matters',
+  layer: 20,
+  stream: (s) => clamp01(fin(s.bass)),
+  create: (): StageElement => new Bass(),
+});
 
 const TIDES = PASS_HEAD + /* glsl */ `
 uniform float uTime, uAmp, uWeight, uGain;
@@ -48,7 +66,7 @@ export class Bass implements StageElement {
     const dm = fr.musicDt;
     const bass = clamp01(fin(fr.f.bass));
     // Swell fast, sink slowly; a jump in the bass is a hit that briefly inflates the shapes.
-    this.level = ease(this.level, bass, dm, bass > this.level ? 0.05 : 0.35);
+    this.level = ease(this.level, bass, dm, bass > this.level ? 0.05 : widget.knob(fr, member, 'sink'));
     if (dm > 0) {
       if (bass - this.prev > 0.12) this.hit = Math.max(this.hit, bass);
       this.hit *= Math.exp(-dm * 4);
@@ -63,7 +81,7 @@ export class Bass implements StageElement {
     const lv = clamp01((this.level + this.hit * 0.4) * s.react);
     const g = fr.gesture;
     const t = fr.clock.time;
-    if (styleOf(prm.style, STYLES.bass) === 'tides') {
+    if (widget.style(member) === 'tides') {
       const gl = this.gl;
       this.prog ??= createProgram(gl, QUAD_VS, TIDES, 'stage.tides');
       const { u, prog } = this.prog;

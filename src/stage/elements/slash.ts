@@ -18,10 +18,24 @@
 import { noteRgb } from '../../character/palette';
 import { CUT_COLOR } from '../cut';
 import { clamp01, fin, styleOf } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
 
-/** Music seconds between cuts at least: a rolled chord or a flam is one slash, not three. */
+/** Music seconds between cuts at least: a rolled chord or a flam is one slash, not three (the `rest` knob's default). */
 const REST = 0.12;
+
+export const widget = defineWidget({
+  type: 'slash',
+  styles: [
+    { name: 'chords', doc: 'only loud, chord-like attacks (three or more pitch classes, or bass and treble at once) while the music itself is loud, at most one cut per 120 ms' },
+    { name: 'every', doc: 'any onset above a lower threshold' },
+  ],
+  knobs: [{ name: 'rest', min: 0.03, max: 1, value: REST, doc: 'music seconds at least between two cuts' }],
+  follows: 'strong attacks (onsets, on the frame they sound): each one cuts the picture (see the `cut` accent). Draws nothing itself',
+  use: 'a section where the chords should do the cutting: panic, horror, a climax that tears. `intensity` lowers the threshold (at 0.7 a fff piano climax cuts on about every big chord), `size` scales the shove, `color` the scar (`mood`: a sickly pale yellow)',
+  layer: 90,
+  create: (): StageElement => new Slash(),
+});
 /**
  * Event strength needed at intensity 0, and how much intensity 1 lowers it. Scripted
  * events are 0.35 + 0.65 · onset strength; live ones are also scaled by the energy,
@@ -55,9 +69,9 @@ export function chordLike(chroma: ArrayLike<number>, spread: number): boolean {
  * (0..1) describe the music now; `now` and `last` (the previous cut) are music
  * time; nothing cuts while music time stands still.
  */
-export function slashCut(style: string, intensity: number, hit: number, chord: boolean, loudness: number, now: number, last: number, musicDt: number): number | null {
-  if (!(musicDt > 0) || !(hit > 0) || now - last < REST) return null;
-  const st = styleOf(style, STYLES.slash) as keyof typeof THRESHOLD;
+export function slashCut(style: string, intensity: number, hit: number, chord: boolean, loudness: number, now: number, last: number, musicDt: number, rest = REST): number | null {
+  if (!(musicDt > 0) || !(hit > 0) || now - last < rest) return null;
+  const st = styleOf(style, widget.styleNames) as keyof typeof THRESHOLD;
   if (st === 'chords') {
     if (!chord) return null;
     hit *= clamp01((fin(loudness) - LOUD[0]) / (LOUD[1] - LOUD[0]));
@@ -99,7 +113,7 @@ export class Slash implements StageElement {
       note = e.note;
     }
     const now = fin(fr.clock.time);
-    const st = slashCut(prm.style, prm.intensity, hit, chordLike(fr.chroma, fr.d.registerSpread), fr.d.loudness, now, this.last, fr.musicDt);
+    const st = slashCut(prm.style, prm.intensity, hit, chordLike(fr.chroma, fr.d.registerSpread), fr.d.loudness, now, this.last, fr.musicDt, widget.knob(fr, member, 'rest'));
     if (st === null) return;
     this.last = now;
     const color = prm.color === 'note' && note >= 0 ? srgb(noteRgb(note)) : (prm.color !== 'mood' && hexRgb(prm.color)) || CUT_COLOR;

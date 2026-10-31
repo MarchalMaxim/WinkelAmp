@@ -10,8 +10,22 @@
 import { fifthsPosition } from '../../visual/color';
 import type { Rgb } from '../../character/types';
 import { tintKeepLuma } from '../../character/palette';
-import { clamp01, createProgram, ease, elementColor, fin, hueRgb, mixRgb, PASS_HEAD, type Program, QUAD_VS, setRegion, sizeK, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { clamp01, createProgram, ease, elementColor, fin, hueRgb, mixRgb, PASS_HEAD, type Program, QUAD_VS, setRegion, sizeK, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
+
+export const widget = defineWidget({
+  type: 'bloom',
+  styles: [
+    { name: 'fields', doc: 'large soft clouds' },
+    { name: 'aurora', doc: 'curtains hanging from the top' },
+  ],
+  knobs: [{ name: 'fade', min: 0.1, max: 4, value: 1, doc: 'music seconds a chord change takes to cross-fade' }],
+  follows: 'the harmony: chord root on the circle of fifths → hue, minor cooler and paler, cross-fades on chord changes',
+  use: 'harmony-led, sustained, lush passages; a colour bed',
+  layer: 10,
+  create: (): StageElement => new Bloom(),
+});
 
 export interface Chord {
   root: number;
@@ -130,7 +144,7 @@ export class Bloom implements StageElement {
         this.chord = c;
         this.fade = this.old ? 0 : 1;
       }
-      this.fade = Math.min(1, this.fade + dm / 1);
+      this.fade = Math.min(1, this.fade + dm / widget.knob(fr, member, 'fade'));
     }
     this.level = ease(this.level, clamp01(fin(fr.f.level)), dm, 0.6);
     const gain = member.presence * prm.intensity;
@@ -145,7 +159,7 @@ export class Bloom implements StageElement {
     gl.uniform1f(u.uTime, fr.clock.time);
     gl.uniform1f(u.uGain, gain * (0.16 + 0.34 * this.level * s.react));
     gl.uniform1f(u.uSize, sizeK(prm.size));
-    gl.uniform1f(u.uStyle, styleOf(prm.style, STYLES.bloom) === 'aurora' ? 1 : 0);
+    gl.uniform1f(u.uStyle, widget.style(member) === 'aurora' ? 1 : 0);
     gl.uniform3f(u.uCol, col[0], col[1], col[2]);
     gl.uniform3f(u.uOld, old[0], old[1], old[2]);
     gl.uniform3f(u.uDeep, deep[0], deep[1], deep[2]);

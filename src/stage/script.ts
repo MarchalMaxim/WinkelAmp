@@ -6,9 +6,9 @@
  * from what was composed. Hand-written (no schema library, no dependencies) and
  * free of Node APIs, because the app bundles it to load the corpus.
  */
+import { STYLES } from './elements';
 import {
   DEFAULT_PARAMS,
-  STYLES,
   type AccentKind,
   type CastMember,
   type ElementParams,

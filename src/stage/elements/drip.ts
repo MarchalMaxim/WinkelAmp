@@ -11,12 +11,26 @@
  * `intensity` → how many per attack, `size` → how wide.
  */
 import type { Rgb } from '../../character/types';
-import { Brush, clamp01, fin, mixRgb, regionRect, scale, Shape, sizeK, type StrokePoint, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { Brush, clamp01, fin, mixRgb, regionRect, scale, Shape, sizeK, type StrokePoint, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
 
 const MAX = 160;
-/** Speed gained per music second (× e^ACCEL·dt): the sketch's 1 % a frame at 60 fps. */
+/** Speed gained per music second (× e^ACCEL·dt): the sketch's 1 % a frame at 60 fps (the `accel` knob's default). */
 const ACCEL = 0.6;
+
+export const widget = defineWidget({
+  type: 'drip',
+  styles: [
+    { name: 'paint', doc: "the palette's mid and highlight" },
+    { name: 'tar', doc: 'its shadow, near black' },
+  ],
+  knobs: [{ name: 'accel', min: 0, max: 2, value: ACCEL, doc: 'how fast a drip speeds up as it falls (per music second)' }],
+  follows: 'onsets: streaks falling from the top of the region, accelerating',
+  use: 'the picture running, dripping off the screen; with `look.melt`. `intensity` → how many, `size` → how wide',
+  layer: 30,
+  create: (): StageElement => new Drip(),
+});
 /** The tail drawn above the head, screen heights. */
 const TAIL = 0.055;
 
@@ -45,7 +59,7 @@ export class Drip implements StageElement {
     const s = this.shared;
     const r = s.rand;
     const prm = member.spec.params;
-    const style = styleOf(prm.style, STYLES.drip);
+    const style = widget.style(member);
     const [x0, y0, x1, y1] = regionRect(prm.region);
     const dm = fr.musicDt;
     const k = sizeK(prm.size);
@@ -75,7 +89,7 @@ export class Drip implements StageElement {
     }
 
     if (dm > 0) {
-      const acc = Math.exp(ACCEL * dm);
+      const acc = Math.exp(widget.knob(fr, member, 'accel') * dm);
       for (const d of this.ds) {
         d.y -= d.v * dm;
         d.v *= acc;

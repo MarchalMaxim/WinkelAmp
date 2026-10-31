@@ -10,21 +10,22 @@
  */
 import type { Rgb } from '../character/types';
 import { type Cut, cutAt, freshCuts, SCAR_LIFE, type Scar } from './cut';
-import { ELEMENTS } from './elements';
+import { ELEMENTS, widgetOf } from './elements';
 import { clamp01, detectCaps, fin, parseColor, rng, SpriteBatch, StrokeBatch, type Caps, type GL } from './gl';
 import { FeatureTracker } from './kit';
 import { StagePost } from './post';
 import type { CastMember, ElementType, StageElement, StageFrame, StageShared } from './types';
 
 /**
- * Draw order. Additive, so it only matters for hand-offs: the melody's ink reaches a fluid drawn after it.
- * A slash draws nothing: it asks for cuts, which the stage makes after everyone has drawn.
+ * Draw order: each widget's `layer`. Additive, so it only matters for hand-offs: the melody's ink
+ * reaches a fluid drawn after it. A slash draws nothing: it asks for cuts, which the stage makes
+ * after everyone has drawn.
  */
-const ORDER: ElementType[] = ['bloom', 'bass', 'drip', 'pulse', 'wave', 'sparks', 'melody', 'fluid', 'slash'];
+const layer = (type: string) => widgetOf(type)?.layer ?? 0;
 /** Scars on screen at most (the final pass has four slots). */
 const MAX_SCARS = 4;
-/** Elements that carry their own history: drawn sharp, with only a faint echo in the feedback (see post.ts). */
-const CRISP = new Set<ElementType>(['melody', 'pulse', 'wave']);
+/** Elements that carry their own history (a widget's `crisp`): drawn sharp, with only a faint echo in the feedback (see post.ts). */
+const crisp = (type: string) => !!widgetOf(type)?.crisp;
 /** Render pixels at most (scene + feedback + bloom); the canvas itself stays at full size. */
 const MAX_PIXELS = 2.2e6;
 
@@ -176,11 +177,11 @@ export class Stage {
     s.cuts.length = 0;
 
     this.post.beginScene();
-    const order = cast.slice().sort((a, b) => ORDER.indexOf(a.spec.type) - ORDER.indexOf(b.spec.type));
+    const order = cast.slice().sort((a, b) => layer(a.spec.type) - layer(b.spec.type));
     for (const m of order) {
       const el = this.live.get(m.spec.id);
       if (!el) continue;
-      this.post.bindScene(CRISP.has(el.type));
+      this.post.bindScene(crisp(el.type));
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       el.draw(fr, m);

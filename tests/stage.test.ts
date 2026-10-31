@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { chordOf, chordRgb } from '../src/stage/elements/bloom';
 import { melodyLayout, pitchHeight } from '../src/stage/elements/melody';
 import { trigger } from '../src/stage/elements/wave';
-import { ELEMENTS } from '../src/stage/elements';
+import { ELEMENTS, STYLES } from '../src/stage/elements';
 import { ease, parseColor, regionRect, styleOf } from '../src/stage/gl';
 import { reconcile } from '../src/stage/stage';
 import { normalizeSpec } from '../src/stage/script';
-import { type CastMember, type ElementType, type Region, STYLES } from '../src/stage/types';
+import type { CastMember, ElementType, Region } from '../src/stage/types';
 
 const member = (id: string, type: ElementType): CastMember => ({ spec: normalizeSpec({ id, type }), presence: 1 });
 

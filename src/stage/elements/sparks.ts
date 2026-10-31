@@ -8,8 +8,24 @@
  *   dust    many tiny slow motes
  *   embers  warm streaks that rise
  */
-import { clamp01, elementColor, fin, mix, mixRgb, regionRect, scale, Shape, sizeK, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { clamp01, elementColor, fin, mix, mixRgb, regionRect, scale, Shape, sizeK, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
+
+export const widget = defineWidget({
+  type: 'sparks',
+  styles: [
+    { name: 'stars', doc: 'twinkling points (star-shaped when the material is angular)' },
+    { name: 'dust', doc: 'many tiny slow motes' },
+    { name: 'embers', doc: 'warm streaks that rise' },
+  ],
+  knobs: [{ name: 'speed', min: 0.25, max: 3, value: 1, doc: "how fast a burst flies apart (× the style's own speed)" }],
+  follows: 'onsets and high notes (bursts where they sound)',
+  use: 'quick high notes, staccato, pizzicato, sparkle; `dust` for quiet texture',
+  layer: 60,
+  stream: (s) => clamp01(fin(s.highActivity)),
+  create: (): StageElement => new Sparks(),
+});
 
 const MAX = 1500;
 
@@ -59,7 +75,7 @@ export class Sparks implements StageElement {
   draw(fr: StageFrame, member: CastMember) {
     const s = this.shared;
     const prm = member.spec.params;
-    const style = styleOf(prm.style, STYLES.sparks);
+    const style = widget.style(member);
     const [x0, y0, x1, y1] = regionRect(prm.region);
     const w = x1 - x0;
     const h = y1 - y0;
@@ -69,7 +85,7 @@ export class Sparks implements StageElement {
       const c = vivid(elementColor(prm.color, s, 0.7 + 0.3 * r(), note), 0.5);
       return style === 'embers' ? mixRgb(c, [1, 0.42, 0.08], 0.45) : c;
     };
-    const speed = (style === 'embers' ? 0.12 : 0.22) * sizeK(prm.size);
+    const speed = (style === 'embers' ? 0.12 : 0.22) * sizeK(prm.size) * widget.knob(fr, member, 'speed');
 
     // Spawning (presence gates it: a fading element stops throwing new sparks). Only while the
     // music moves: with the clock frozen a spark would never age, so a cough would hang in the air.

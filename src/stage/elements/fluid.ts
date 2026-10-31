@@ -11,7 +11,18 @@
  */
 import { LivingCanvas } from '../../visual/living/living';
 import { clamp01, fin } from '../gl';
+import { defineWidget } from '../kit';
 import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
+
+export const widget = defineWidget({
+  type: 'fluid',
+  styles: [{ name: 'living', doc: 'the Living Canvas' }],
+  knobs: [],
+  follows: 'the overall character: the Living Canvas (fluid, sparks, aura), its material set by the mood',
+  use: 'atmosphere, turbulence, a full-screen bed; heavy and stormy music',
+  layer: 80,
+  create: (): StageElement => new Fluid(),
+});
 
 export class Fluid implements StageElement {
   readonly type = 'fluid' as const;

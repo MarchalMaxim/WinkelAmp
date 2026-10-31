@@ -8,11 +8,33 @@
  *
  * Ages and decays run on music time, so a held silence holds the last throb.
  */
-import { clamp01, createProgram, ease, elementColor, fin, PASS_HEAD, type Program, QUAD_VS, regionRect, scale, setRegion, Shape, sizeK, styleOf, vivid } from '../gl';
-import { type CastMember, STYLES, type StageElement, type StageFrame, type StageShared } from '../types';
+import { clamp01, createProgram, ease, elementColor, fin, PASS_HEAD, type Program, QUAD_VS, regionRect, scale, setRegion, Shape, sizeK, vivid } from '../gl';
+import { defineWidget } from '../kit';
+import type { CastMember, StageElement, StageFrame, StageShared } from '../types';
 
-/** Below this pulse clarity there is no beat to show. */
+/** Below this pulse clarity there is no beat to show (the `gate` knob's default). */
 export const CLARITY = 0.3;
+/** The director casts the pulse only above this pulse clarity. */
+const CAST_CLARITY = 0.35;
+
+export const widget = defineWidget({
+  type: 'pulse',
+  styles: [
+    { name: 'rings', doc: "a ring from the region's centre" },
+    { name: 'grid', doc: 'a throbbing lattice' },
+    { name: 'flash', doc: 'the region lights up' },
+  ],
+  knobs: [
+    { name: 'gate', min: 0, max: 1, value: CLARITY, doc: 'the pulse clarity below which there is no beat to show' },
+    { name: 'decay', min: 0.25, max: 3, value: 1, doc: "how fast each throb dies away (× the style's own rate)" },
+  ],
+  follows: 'the beat (hidden while pulse clarity < 0.3)',
+  use: 'music with a clear, steady beat (dance, march, ragtime). Not for rubato',
+  layer: 40,
+  crisp: true,
+  stream: (s) => (fin(s.pulse) > CAST_CLARITY ? 1 : 0),
+  create: (): StageElement => new Pulse(),
+});
 
 const PASS = PASS_HEAD + /* glsl */ `
 uniform float uEnv, uGain, uStyle, uCell;
@@ -61,12 +83,12 @@ export class Pulse implements StageElement {
   draw(fr: StageFrame, member: CastMember) {
     const s = this.shared;
     const prm = member.spec.params;
-    const style = styleOf(prm.style, STYLES.pulse);
+    const style = widget.style(member);
     const now = fr.clock.time;
     const dm = fr.musicDt;
-    const clear = fin(fr.d.pulseClarity) >= CLARITY;
+    const clear = fin(fr.d.pulseClarity) >= widget.knob(fr, member, 'gate');
     this.vis = clear ? ease(this.vis, 1, dm, 0.3) : ease(this.vis, 0, dm, 0.15);
-    if (dm > 0) this.env *= Math.exp(-dm * (style === 'flash' ? 7 : 5));
+    if (dm > 0) this.env *= Math.exp(-dm * (style === 'flash' ? 7 : 5) * widget.knob(fr, member, 'decay'));
     // Only while the music moves: with the clock frozen a ring would never expand or fade.
     if (fr.beat.hit && clear && dm > 0) {
       const st = clamp01(fin(fr.beat.strength) || 1);

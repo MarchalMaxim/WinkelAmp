@@ -63,8 +63,8 @@ export interface StructureRow {
 
 // ---- Scripts: what a composed show says (corpus/<id>.json) ----
 
-/** The cast: each element type follows one stream of the music (see the design spec's table). */
-export type ElementType = 'melody' | 'bass' | 'sparks' | 'bloom' | 'pulse' | 'wave' | 'fluid' | 'slash' | 'drip';
+/** The cast: each element type follows one stream of the music. Derived from the widget registry (elements/index.ts). */
+export type ElementType = import('./elements').ElementType;
 
 /** Where on screen an element prefers to be. */
 export type Region = 'full' | 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -77,24 +77,11 @@ export interface ElementParams {
   region: Region;
   /** 'mood' follows the character palette, 'note' colors by pitch class, or a fixed '#rgb' / '#rrggbb'. */
   color: 'mood' | 'note' | string;
-  /** One of STYLES[type]; '' means the type's first style. */
+  /** One of the type's styles (elements/index.ts STYLES); '' means its first style. */
   style: string;
   /** The element's own knobs (see its widget file): a base value, or { value?, drive?, depth? }. Absent: the defaults. */
   knobs?: Record<string, KnobSetting>;
 }
-
-/** The looks each element type can take; the first is its default. */
-export const STYLES: Record<ElementType, readonly string[]> = {
-  melody: ['ribbon', 'beads', 'ink'],
-  bass: ['orbs', 'tides'],
-  sparks: ['stars', 'dust', 'embers'],
-  bloom: ['fields', 'aurora'],
-  pulse: ['rings', 'grid', 'flash'],
-  wave: ['line', 'circle'],
-  fluid: ['living'],
-  slash: ['chords', 'every'],
-  drip: ['paint', 'tar'],
-};
 
 /** An element as a script writes it: only what differs from DEFAULT_PARAMS. */
 export interface ElementSpec {
