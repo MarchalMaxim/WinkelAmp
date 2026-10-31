@@ -258,7 +258,19 @@ async function boot(): Promise<void> {
   });
   store.notify();
 
+  // A widget that throws is stopped by the runtime (its first error kept): say so once, and show it on its layer.
+  const reported = new Set<string>();
+  const reportWidgetErrors = () => {
+    for (const id in runtime.errors) {
+      if (reported.has(id)) continue;
+      reported.add(id);
+      panel.widgetFailed();
+      store.dispatch({ type: 'notice', notice: { id: `widget:${id}`, level: 'error', text: `${metas.get(id)?.name ?? id} stopped: ${runtime.errors[id].replace(/^Error: /, '')}` } });
+    }
+  };
+
   player.onTick = (t) => {
+    reportWidgetErrors();
     timeline.setTime(t);
     const sec = Math.floor(t);
     if (sec !== lastSecond) { lastSecond = sec; ui.clock.innerHTML = `${clock(t)} <span class="dim">/ ${clock(player.duration || pack.duration)}</span>`; }

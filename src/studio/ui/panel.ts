@@ -51,7 +51,8 @@ export class Panel {
   private rows: { row: KnobRow; layer: number }[] = [];
   private knobDrag = 0;
   private liveAt = 0;
-  private descLoaded = false;
+  /** The description as typed and as saved, kept across tab switches (the tab is drawn again each time). */
+  private desc: { text: string; saved: string } | null = null;
 
   constructor(private readonly d: Deps) {
     this.el = document.createElement('aside');
@@ -74,6 +75,9 @@ export class Panel {
     const key = JSON.stringify([i, s.show.sections.length, sec.layers.map((l) => l.widget), s.selected.layer, this.picking, s.ui.recording]);
     if (key !== this.key) { this.key = key; this.buildSection(s); } else this.syncSection(s);
   }
+
+  /** A widget failed: the section tab is drawn again on the next update, so the open layer shows why. */
+  widgetFailed(): void { if (this.tab === 'section') this.key = ''; }
 
   /** Live knob pictures follow the music ~8 times a second, for knobs that follow something. */
   tick(now: number): void {
@@ -230,14 +234,17 @@ export class Panel {
       <dl class="facts"></dl>
       <div class="problems"></div>`;
     const ta = this.body.querySelector<HTMLTextAreaElement>('.describe')!, state = this.body.querySelector('.describe-state')!;
-    if (!this.descLoaded) {
-      this.d.api.description(id).then((t) => { ta.value = t; this.descLoaded = true; ta.dataset.saved = t; }).catch(() => { state.textContent = 'could not read the description'; });
+    const mark = () => { state.textContent = this.desc && this.desc.text !== this.desc.saved ? 'not saved yet' : ''; };
+    if (this.desc) { ta.value = this.desc.text; mark(); }
+    else {
+      this.d.api.description(id).then((t) => { if (this.desc) return; this.desc = { text: t, saved: t }; ta.value = t; })
+        .catch(() => { state.textContent = 'could not read the description'; });
     }
-    ta.addEventListener('input', () => { state.textContent = ta.value !== (ta.dataset.saved ?? '') ? 'not saved yet' : ''; });
+    ta.addEventListener('input', () => { this.desc = { text: ta.value, saved: this.desc?.saved ?? '' }; mark(); });
     this.body.querySelector('[data-act="describe"]')!.addEventListener('click', async () => {
       try {
         await this.d.api.saveDescription(id, ta.value);
-        ta.dataset.saved = ta.value;
+        this.desc = { text: ta.value, saved: ta.value };
         state.textContent = this.d.api.writable ? `saved to shows/${id}.description.md` : 'kept in this browser';
       } catch (e) { state.textContent = String((e as Error).message ?? e); }
     });
