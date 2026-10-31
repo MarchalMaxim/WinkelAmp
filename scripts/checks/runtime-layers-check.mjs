@@ -12,11 +12,13 @@
 // Regions (T15), at scale 1 and at scale 2 (render.html?scale=2):
 //   7. a window over the whole canvas (x .5, y .5, w 1, h 1, feather 0, rot 0, blend over, fit stretch) with the widget
 //      alone draws exactly what the widget draws without a region;
-//   8. a spot of the same box with feather 0 draws exactly what the widget draws without a region.
+//   8. a spot of the same box with feather 0 draws exactly what the widget draws without a region;
+//   9. stella (which hooks ctx.sounding for its put-back) on the stage, then in a window: its window picture never goes
+//      over the stage, which outside the box is what a run windowed from the start draws.
 //
-//   npm run runtime-check [-- --look | --look-only] [-- --look-set=T12|T15] [-- --regions]
+//   npm run runtime-check [-- --look | --look-only] [-- --look-set=T12|T15] [-- --regions | --only-9]
 //     --look also writes the contact sheets to renders/look/T12/ and renders/look/T15/; --look-only writes them without
-//     the checks; --look-set keeps one of the two sets; --regions runs only checks 7 and 8
+//     the checks; --look-set keeps one of the two sets; --regions runs only checks 7, 8 and 9; --only-9 only check 9
 //
 // Local only: needs the lab's notes files and system Chrome; starts its own Vite server from port 5190.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,7 +30,8 @@ import { createServer } from 'vite';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const argv = process.argv.slice(2);
 const LOOK_ONLY = argv.includes('--look-only'), LOOK = LOOK_ONLY || argv.includes('--look');
-const REGIONS_ONLY = argv.includes('--regions');   // only checks 7 and 8
+const ONLY9 = argv.includes('--only-9');   // only check 9
+const REGIONS_ONLY = ONLY9 || argv.includes('--regions');   // only checks 7, 8 and 9
 const LOOK_SET = (argv.find((a) => a.startsWith('--look-set=')) ?? '').slice('--look-set='.length);
 const HZ = 60;
 
@@ -167,9 +170,10 @@ if (!LOOK_ONLY && !REGIONS_ONLY) {
 if (!LOOK_ONLY) {
   const box = { shape: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, feather: 0, rot: 0 };
   const win = { mode: 'window', ...box, blend: 'over', fit: 'stretch' }, spot = { mode: 'spot', ...box };
-  // strings, squares, kandinsky and rorschach draw; casket and blocks read the canvas; pixelsort and stella draw after
-  // the others (queued) and stella hooks ctx.sounding.
-  const ids = ['strings', 'squares', 'kandinsky', 'rorschach', 'casket', 'blocks', 'pixelsort', 'stella'];
+  // strings, squares, kandinsky and rorschach draw; casket and blocks read the canvas; pixelsort, stella, fold and
+  // timeslice draw after the others (queued) and stella hooks ctx.sounding.
+  // fold and timeslice queue their pass too, and timeslice keeps copies of x.canvas.
+  const ids = ['strings', 'squares', 'kandinsky', 'rorschach', 'casket', 'blocks', 'pixelsort', 'stella', 'fold', 'timeslice'];
   const at = { seek: 122, marks: [123, 124.5, 126] };
   const gpu = page;
   const softBrowser = await chromium.launch({ channel: 'chrome', args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
@@ -184,7 +188,7 @@ if (!LOOK_ONLY) {
     return Buffer.from(b64, 'base64');
   };
   const diff = (x, y) => { let mx = 0, n = 0; for (let i = 0; i < x.length; i++) { const d = Math.abs(x[i] - y[i]); if (d) n++; if (d > mx) mx = d; } return { mx, share: n / x.length }; };
-  for (const scale of ['1', '2']) {
+  for (const scale of ONLY9 ? [] : ['1', '2']) {
     page = soft;
     const wDiff = [], sDiff = [], errs = [];
     for (const id of ids) {
@@ -212,6 +216,64 @@ if (!LOOK_ONLY) {
     check(fine(worst.window) && fine(worst.spot), `7–8. scale ${scale}, GPU canvas: the same within the snapshot's edge noise (under 0.05 % of channels)`,
       `worst window: ${(worst.window.share * 100).toFixed(4)} % of channels, max ${worst.window.mx}${worst.window.id ? ` (${worst.window.id})` : ''}; `
       + `worst spot: ${(worst.spot.share * 100).toFixed(4)} %, max ${worst.spot.mx}${worst.spot.id ? ` (${worst.spot.id})` : ''}`);
+  }
+  // 9. A widget that hooks ctx.sounding (stella's put-back) and draws on the stage, then in a window, never pastes its
+  // window picture over the stage: during the window phases no 'copy' drawImage reaches the stage, and the stage
+  // outside the box (2 px margin) is byte-equal to a run windowed from the start. Hand-built slots on the software
+  // canvas; with halftone above it (it calls ctx.sounding() in its frame, mid-step) and without.
+  page = soft;
+  {
+    const box = { mode: 'window', shape: 'rect', x: 0.25, y: 0.25, w: 0.3, h: 0.3, feather: 0, rot: 0, blend: 'over', fit: 'cover' };
+    const cases = { 'window from 118': [[122, 'win']], 'stage 118–120, then window': [[120, 'stage'], [122, 'win']],
+      'window, stage 119–120, window': [[119, 'win'], [120, 'stage'], [122, 'win']] };
+    const bad = [];
+    for (const stack of [['kandinsky', 'stella'], ['kandinsky', 'stella', 'halftone']]) {
+      let ref = null;
+      for (const [name, phases] of Object.entries(cases)) {
+        await open({ only: stack.join(',') });
+        const r = await page.evaluate(({ stack, phases, box }) => {
+          const rt = window.renderRuntime.rt, ctx = rt.ctx, stage = document.getElementById('c');
+          let copies = 0, on = false;
+          const di = CanvasRenderingContext2D.prototype.drawImage;
+          CanvasRenderingContext2D.prototype.drawImage = function (...a) {
+            if (on && this.canvas === stage && this.globalCompositeOperation === 'copy') copies++;
+            return di.apply(this, a);
+          };
+          try {
+            window.renderSeek(118, 1);
+            let prev = 'win';
+            for (const [end, mode] of phases) {
+              // The first window step after the stage puts back stella's last stage frame on the stage (a copy, rightly).
+              let first = mode === 'win' && prev === 'stage';
+              while (rt.lastT < end - 1e-9) {
+                const t = Math.min(end, rt.lastT + 1 / 60), d = t - rt.lastT;
+                rt.lastT = t; ctx.now += d;
+                on = mode === 'win' && !first; first = false;
+                rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === 'stella' && mode === 'win' ? { layer: { region: box } } : {}) })));
+              }
+              prev = mode;
+            }
+            on = false;
+          } finally { CanvasRenderingContext2D.prototype.drawImage = di; }
+          return { copies, px: window.renderPixels(), errors: { ...window.renderErrors }, w: stage.width, h: stage.height };
+        }, { stack, phases, box });
+        const px = Buffer.from(r.px, 'base64');
+        if (Object.keys(r.errors).length) bad.push(`${stack.join('+')} ${name}: errors ${JSON.stringify(r.errors)}`);
+        if (r.copies) bad.push(`${stack.join('+')} ${name}: ${r.copies} 'copy' drawImages on the stage`);
+        if (!ref) { ref = px; continue; }
+        const x0 = box.x - box.w / 2, y0 = box.y - box.h / 2, m = 2;
+        let n = 0;
+        for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+          if (x >= x0 * r.w - m && x < (x0 + box.w) * r.w + m && y >= y0 * r.h - m && y < (y0 + box.h) * r.h + m) continue;
+          const i = (y * r.w + x) * 4;
+          if (px[i] !== ref[i] || px[i + 1] !== ref[i + 1] || px[i + 2] !== ref[i + 2]) n++;
+        }
+        if (n) bad.push(`${stack.join('+')} ${name}: ${n} pixels outside the box differ from the run windowed from the start`);
+      }
+    }
+    check(!bad.length && pageErrors.length === 0, '9. stella on the stage, then in a window: no stage-wide put-back, the stage outside the box as if windowed from the start (software canvas; with and without halftone reading ctx.sounding mid-step)',
+      bad.join('; ') || 'kandinsky+stella, kandinsky+stella+halftone: 0 copies, outside equal');
+    page = gpu;
   }
   await softBrowser.close();
 }

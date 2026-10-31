@@ -98,7 +98,7 @@ export class WidgetRuntime implements RuntimeLike {
     };
     this.ctx = ctx;
     const make = (w: number, h: number) => Object.assign(document.createElement('canvas'), { width: w, height: h });
-    const host: LayerHost & { windowG(inst: InstanceState): CanvasRenderingContext2D } = {
+    const host: LayerHost & { windowG(inst: InstanceState): CanvasRenderingContext2D; error(inst: InstanceState, e: unknown): void } = {
       ctx, g, canvas, S,
       // host.ctx, not ctx: a windowed call runs with host.ctx set to the instance's window view (slot.js), whose canvas
       // is the window; the base transform at S > 1 goes on that canvas's context.
@@ -123,6 +123,9 @@ export class WidgetRuntime implements RuntimeLike {
         return wg;
       },
       make,
+      /** An error in a region layer's queued post-pass (slot.js runs those at the layer's place): kept as safe() keeps
+          the first error per instance. */
+      error: (inst, e) => { if (!this.errors[inst.key]) { this.errors[inst.key] = String(e); console.error(inst.key, e); } },
     };
     this.host = host;
   }

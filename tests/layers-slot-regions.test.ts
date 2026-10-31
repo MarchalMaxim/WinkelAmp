@@ -109,7 +109,7 @@ describe('window', () => {
     expect(log).toContain('g.setTransform(1,0,0,1,960,180)');
     expect(log).toContain('g.globalCompositeOperation=lighten');
     expect(log).toContain(`g.globalAlpha=${Math.round(0.8 * WA.vis(0.5, 'redraw') * 1000) / 1000}`);   // redraw, not strokes
-    expect(log[log.length - 2]).toBe('g.drawImage(m2,-320,-180,640,360)');
+    expect(log.slice(-3)).toEqual(['g.drawImage(m2,-320,-180,640,360)', 'g.restore()', 'sounding']);   // then the window's put-back
     expect(log.some((l) => l.startsWith('sg.'))).toBe(false);   // no snapshot of the stage
   });
   it('starts black when it was not drawn in the last step, and only then', () => {
@@ -132,5 +132,16 @@ describe('window', () => {
     const stamp = log.findIndex((l) => l.startsWith('g.drawImage('));
     expect(log.indexOf('post on win')).toBeGreaterThan(-1);
     expect(log.indexOf('post 2')).toBeLessThan(stamp);
+  });
+  it('hands an error in queued code to h.error, drains the rest of the queue and stamps', () => {
+    const log: string[] = [], { h } = host(log), i = inst(), errs: string[] = [];
+    h.call = (_inst, fn) => {
+      if (fn === 'frame') { queueMicrotask(() => { throw new Error('boom'); }); queueMicrotask(() => log.push('post after')); }
+    };
+    (h as LayerHost & { error(i: InstanceState, e: unknown): void }).error = (j, e) => errs.push(`${j.key}: ${String(e)}`);
+    WA.drawLayered(h, slot(i, { layer: { region: full('window') } }));
+    expect(errs).toEqual(['rorschach: Error: boom']);
+    expect(log).toContain('post after');
+    expect(log.some((l) => l.startsWith('g.drawImage('))).toBe(true);
   });
 });

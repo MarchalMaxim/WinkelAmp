@@ -100,18 +100,26 @@
   /** Runs fn with queueMicrotask collected, then what was queued (and what that queues) before returning. A widget that
       draws "after the others" (pixelsort, fold, timeslice, stella) thus does it at its own place in the stack, and on
       its own canvas when it is in a window, so its pass stays inside its region. g: the real context drawn on; at S > 1
-      its base transform is set before the queued code, as the runtime does at the end of a step. */
-  function withPosts(fn, g, S) {
-    var G = globalThis, q = [], prev = G.queueMicrotask;
+      its base transform is set before the queued code, as the runtime does at the end of a step. An error in queued
+      code goes to h.error(inst, err) (the runtime keeps it with the instance's other errors), or, without one, is
+      thrown again from a real microtask, where an unregioned post-pass's error would surface; the queue is drained
+      either way, and the step goes on. */
+  function withPosts(h, inst, fn, g, S) {
+    var G = globalThis, q = [], prev = G.queueMicrotask, errs = [];
     G.queueMicrotask = function (f) { q.push(f); };
     try {
       fn();
       if (q.length && S > 1) g.setTransform(S, 0, 0, S, 0, 0);
       while (q.length) {
         var f = q.shift();
-        try { f(); } catch (err) { if (typeof console !== 'undefined') console.warn(err); }
+        try { f(); } catch (err) { errs.push(err); }
       }
     } finally { G.queueMicrotask = prev; }
+    for (var i = 0; i < errs.length; i++) {
+      if (typeof h.error === 'function') h.error(inst, errs[i]);
+      else if (typeof prev === 'function') (function (err) { prev.call(G, function () { throw err; }); })(errs[i]);
+      else if (typeof console !== 'undefined') console.warn(errs[i]);
+    }
   }
 
   /** The runtime's per-slot calls: the attacks if receiving, save/frame/restore, then the four resets, on g (the real
@@ -129,7 +137,7 @@
   function spot(h, s, r, w, delivered) {
     var inst = s.inst, g = h.g, sc = h.scratch(), sg = sc.getContext('2d');
     sg.globalCompositeOperation = 'copy'; sg.drawImage(h.canvas, 0, 0); sg.globalCompositeOperation = 'source-over';
-    withPosts(function () { calls(h, inst, s.receiving, delivered, g); }, g, h.S);
+    withPosts(h, inst, function () { calls(h, inst, s.receiving, delivered, g); }, g, h.S);
     var b = WA.regionBox(r, h.canvas.width, h.canvas.height), m = maskOf(h, inst, r, inst.persist);
     var bw = Math.abs(b.w), bh = Math.abs(b.h);
     sg.save();
@@ -168,21 +176,22 @@
 
   /** window: the instance's own canvas takes the shared canvas's step (the harness's top-of-step sounding(), then the
       fade and burn), the widget draws there as if alone, then the window is scaled into the region's box (fit), masked
-      (destination-in) and stamped rotated at the box with globalAlpha w, 'over' or 'lighten'. A window not drawn in the
-      last step (it enters, or comes back) starts black. Its mask and its weight's vis take the 'redraw' class whatever
-      the widget's: the stamp is a whole picture, redrawn every step. */
+      (destination-in) and stamped rotated at the box with globalAlpha w, 'over' or 'lighten'; then the window's
+      sounding() once more, for a put-back hooked on it (stella), so it never waits for the stage's. A window not drawn
+      in the last step (it enters, or comes back) starts black. Its mask and its weight's vis take the 'redraw' class
+      whatever the widget's: the stamp is a whole picture, redrawn every step. */
   function windowed(h, s, r, w, delivered) {
     var inst = s.inst, S = h.S, win = h.windowOf(inst), wg = win.getContext('2d'), RW = win.width, RH = win.height, e = extra(inst);
     if (e.winT !== s.lastT) WA.clearWindow(win);
     var x = viewOf(h, inst, win), c0 = h.ctx;
-    try { x.sounding(); } catch (err) { /* only for a widget that hooks it (stella's put-back) */ }
+    try { x.sounding(); } catch (err) { /* only for a widget that hooks it (stella's put-back, done at the end already) */ }
     wg.globalCompositeOperation = 'source-over'; wg.globalAlpha = 1;
     if (S > 1) wg.setTransform(1, 0, 0, 1, 0, 0);
     wg.fillStyle = 'rgba(0,0,0,0.12)'; wg.fillRect(0, 0, RW, RH);
     wg.globalCompositeOperation = 'color-burn'; wg.fillStyle = 'rgb(252,252,252)'; wg.fillRect(0, 0, RW, RH);
     wg.globalCompositeOperation = 'source-over';
     h.ctx = x;
-    try { withPosts(function () { calls(h, inst, s.receiving, delivered, wg); }, wg, S); }
+    try { withPosts(h, inst, function () { calls(h, inst, s.receiving, delivered, wg); }, wg, S); }
     finally { h.ctx = c0; }
     e.winT = s.t;
     var b = WA.regionBox(r, h.canvas.width, h.canvas.height), px = boxPixels(b), bw = Math.abs(b.w), bh = Math.abs(b.h);
@@ -200,6 +209,11 @@
     g.globalCompositeOperation = r.blend === 'lighten' ? 'lighten' : 'source-over'; g.globalAlpha = clampW(w);
     g.drawImage(e.box, -bw / 2, -bh / 2, bw, bh);
     g.restore();
+    // The window's own top-of-step, now that its picture is stamped: a widget that hooks sounding() to put back what it
+    // drew over (stella) does so on the window here, so nothing it left pending can fire later through the shared
+    // ctx's sounding(), which it may have hooked while it drew on the stage and which would paste the window's picture
+    // over the whole stage. Nothing draws into the window until the next step, so this is the same as doing it then.
+    try { x.sounding(); } catch (err) { /* see above */ }
   }
 
   /** One layered slot: delivered attacks, the own pulse, the weight, then the runtime's per-slot statements with them
