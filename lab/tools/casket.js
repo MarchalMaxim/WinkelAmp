@@ -1,18 +1,26 @@
 // The casket from round 1 (melt + drips + chord cuts); being built into the app now. It had no knobs: the five below
 // (the 2026-10-31 style) all start at its old fixed numbers, so at the defaults it looks and moves exactly as before.
 (() => {
-  const snap = document.createElement('canvas'); snap.width = 1280; snap.height = 720; const sg = snap.getContext('2d');
+  // snap: a copy of the shared canvas at its real size (1280×720 at scale 1, ×S in a supersampled render)
+  let snap = null, sg = null, S = 1;
+  function grab(x) {
+    const c = x.canvas;
+    if (!snap || snap.width !== c.width || snap.height !== c.height) {
+      snap = document.createElement('canvas'); snap.width = c.width; snap.height = c.height; sg = snap.getContext('2d');
+    }
+    S = c.width / x.W; sg.drawImage(c, 0, 0);
+  }
   let drips = [], scars = [], shake = 0, time = 0;
   const SCAR = '#ebf0aa', RED = '#a0141a', OLIVE = '#969628';
   function cut(x, vel) {
-    const g = x.g; sg.drawImage(x.canvas, 0, 0);
+    const g = x.g; grab(x);
     const ang = x.rnd(-1.2, 1.2) + (Math.random() < 0.5 ? 0 : Math.PI / 2), cx = x.rnd(x.W * 0.25, x.W * 0.75), cy = x.rnd(x.H * 0.25, x.H * 0.75);
     const dx = Math.cos(ang), dy = Math.sin(ang), d = (14 + (vel - 90) * 2.2) * x.p('gap');
     for (const side of [1, -1]) {
       g.save(); g.beginPath(); const nx = -dy * side, ny = dx * side;
       g.moveTo(cx - dx * 3000, cy - dy * 3000); g.lineTo(cx + dx * 3000, cy + dy * 3000);
       g.lineTo(cx + dx * 3000 + nx * 3000, cy + dy * 3000 + ny * 3000); g.lineTo(cx - dx * 3000 + nx * 3000, cy - dy * 3000 + ny * 3000);
-      g.closePath(); g.clip(); g.drawImage(snap, dx * d * side, dy * d * side); g.restore();
+      g.closePath(); g.clip(); g.drawImage(snap, dx * d * side, dy * d * side, x.W, x.H); g.restore();
     }
     scars.push({ cx, cy, dx, dy, age: 0 }); shake = 14 * x.p('shake');
   }
@@ -79,10 +87,10 @@
     frame(x) {
       const g = x.g; time += x.dt;
       const melt = x.p('melt');
-      sg.drawImage(x.canvas, 0, 0);
+      grab(x);
       for (let i = 0; i < x.W; i += 10) {
         const sp = (1 + Math.sin(i * 0.037 + time * 0.7) * 0.5 + Math.sin(i * 0.11) * 0.5) * melt * x.dt * 60;
-        g.drawImage(snap, i, 0, 10, x.H, i, sp, 10, x.H);
+        g.drawImage(snap, i * S, 0, 10 * S, x.H * S, i, sp, 10, x.H);
       }
       if (shake > 0.3) { g.translate(x.rnd(-shake, shake), x.rnd(-shake, shake)); shake *= Math.pow(0.86, x.dt * 60); }   // per song-second, so it decays the same on any screen
       for (const d of drips) {

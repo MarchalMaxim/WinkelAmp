@@ -29,7 +29,7 @@
     if (!under) return;
     const g = x.g; g.save();
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
-    g.drawImage(under, 0, 0); g.restore();
+    g.drawImage(under, 0, 0, x.W, x.H); g.restore();   // under is the real size: drawn over 1280×720 units
   }
   function keep(x) {
     if (!under || under.width !== x.canvas.width || under.height !== x.canvas.height) {

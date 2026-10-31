@@ -8,7 +8,17 @@
 (() => {
   const W = 1280, H = 720;
   const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
-  const [snap, sg] = mk(), [tmp, tg] = mk(), [bc, bg] = mk();   // bc: the base bars, which linger on their own clock
+  const [bc, bg] = mk();   // bc: the base bars, which linger on their own clock
+  // snap (the picture this frame) and tmp (one block's tinted copy): the shared canvas's real size, ×S in a
+  // supersampled render; source rectangles in them are user units × S
+  let snap = null, sg = null, tmp = null, tg = null, S = 1;
+  function sized(x) {
+    const c = x.canvas; S = c.width / x.W;
+    if (!snap || snap.width !== c.width || snap.height !== c.height) {
+      snap = document.createElement('canvas'); snap.width = c.width; snap.height = c.height; sg = snap.getContext('2d');
+      tmp = document.createElement('canvas'); tmp.width = c.width; tmp.height = c.height; tg = tmp.getContext('2d');
+    }
+  }
   let blocks = [], flashes = [], energy = 0, lastT = 0;
   const R = (a, b) => a + Math.random() * (b - a);
   const lerp = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
@@ -30,8 +40,8 @@
     const settle = x.p('settle');
     Object.assign(b, { age: 0, settle, sox: b.ox, soy: b.oy, shx: b.ox, shy: b.oy });
     if (Math.random() < FREEZE) {           // freeze: keep the picture as it was at the attack
-      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(b.w)); c.height = Math.max(1, Math.round(b.h));
-      c.getContext('2d').drawImage(x.canvas, b.sx, b.sy, b.w, b.h, 0, 0, b.w, b.h); b.img = c;
+      const s = x.canvas.width / x.W, c = document.createElement('canvas'); c.width = Math.max(1, Math.round(b.w * s)); c.height = Math.max(1, Math.round(b.h * s));
+      c.getContext('2d').drawImage(x.canvas, b.sx * s, b.sy * s, b.w * s, b.h * s, 0, 0, b.w * s, b.h * s); b.img = c; b.imgS = s;
     }
     blocks.push(b); if (blocks.length > 64) blocks.shift();
   }
@@ -136,7 +146,7 @@
       g.globalAlpha = Math.min(1, 0.12 * o / (1 - 0.88 * o)); g.drawImage(bc, 0, 0);
       g.globalAlpha = 1;
       if (!blocks.length && !flashes.length) return;
-      sg.globalCompositeOperation = 'copy'; sg.drawImage(x.canvas, 0, 0);
+      sized(x); sg.globalCompositeOperation = 'copy'; sg.drawImage(x.canvas, 0, 0);
       const tintA = 'rgb(255,36,28)', tintB = `rgb(${BONE})`;
       for (const b of blocks) {
         b.age += dt;
@@ -145,14 +155,14 @@
         if (Math.random() < 1 - Math.exp(-dt * 11)) { b.shx = Math.round(b.sox * e / 4) * 4; b.shy = Math.round(b.soy * e / 4) * 4; }
         const ox = b.shx, oy = b.shy, dx = b.sx + ox, dy = b.sy + oy;
         if (b.img) {                               // a frozen fragment, fading as it settles
-          g.globalAlpha = Math.min(1, e * 1.6); g.drawImage(b.img, dx, dy); g.globalAlpha = 1; continue;
+          g.globalAlpha = Math.min(1, e * 1.6); g.drawImage(b.img, dx, dy, b.img.width / b.imgS, b.img.height / b.imgS); g.globalAlpha = 1; continue;
         }
         if (!ox && !oy) continue;
         if (b.smear) {                              // stretch the trailing edge across the gap
-          if (ox) { const ex = ox > 0 ? b.sx : b.sx + b.w - 2; g.drawImage(snap, ex, b.sy, 2, b.h, ox > 0 ? b.sx : dx + b.w, b.sy, Math.abs(ox), b.h); }
-          if (oy) { const ey = oy > 0 ? b.sy : b.sy + b.h - 2; g.drawImage(snap, b.sx, ey, b.w, 2, b.sx, oy > 0 ? b.sy : dy + b.h, b.w, Math.abs(oy)); }
+          if (ox) { const ex = ox > 0 ? b.sx : b.sx + b.w - 2; g.drawImage(snap, ex * S, b.sy * S, 2 * S, b.h * S, ox > 0 ? b.sx : dx + b.w, b.sy, Math.abs(ox), b.h); }
+          if (oy) { const ey = oy > 0 ? b.sy : b.sy + b.h - 2; g.drawImage(snap, b.sx * S, ey * S, b.w * S, 2 * S, b.sx, oy > 0 ? b.sy : dy + b.h, b.w, Math.abs(oy)); }
         }
-        g.drawImage(snap, b.sx, b.sy, b.w, b.h, dx, dy, b.w, b.h);
+        g.drawImage(snap, b.sx * S, b.sy * S, b.w * S, b.h * S, dx, dy, b.w, b.h);
         // the seam: a thin bright edge along the side the block slid along, like a torn scanline
         if (b.h > 5 && b.w > 5) {
           g.globalAlpha = 0.55 * Math.min(1, e * 1.5) * (0.4 + 0.6 * b.power); g.fillStyle = b.power > 0.6 ? tintB : tintA;
@@ -163,10 +173,10 @@
         if (s >= 2 && b.age < 0.15 + b.settle * 0.8) {   // (only while the tear is fresh: the split is the costly part)                               // colour split: a red ghost one way, a bone ghost the other
           const w = Math.min(W, Math.ceil(b.w)), h = Math.min(H, Math.ceil(b.h));
           for (const [tint, off, al] of [[tintA, s, 0.85], [tintB, -s, 0.3]]) {
-            tg.globalCompositeOperation = 'copy'; tg.drawImage(snap, b.sx, b.sy, w, h, 0, 0, w, h);
-            tg.globalCompositeOperation = 'multiply'; tg.fillStyle = tint; tg.fillRect(0, 0, w, h);
+            tg.globalCompositeOperation = 'copy'; tg.drawImage(snap, b.sx * S, b.sy * S, w * S, h * S, 0, 0, w * S, h * S);
+            tg.globalCompositeOperation = 'multiply'; tg.fillStyle = tint; tg.fillRect(0, 0, w * S, h * S);
             g.globalCompositeOperation = 'lighter'; g.globalAlpha = al * Math.min(1, e * 2);
-            g.drawImage(tmp, 0, 0, w, h, dx + off, dy, w, h);
+            g.drawImage(tmp, 0, 0, w * S, h * S, dx + off, dy, w, h);
           }
           g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
         }

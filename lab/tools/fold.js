@@ -60,7 +60,7 @@
   // The edge copies and the copy itself never overlap and between them always cover the screen; only the edges the
   // wedge's part of the screen actually reaches past are drawn (its corners, taken back through the matrix, say which).
   const put = (g, a, b, c, d, cx, cy, W, H, a0, a1) => {
-    g.setTransform(a, b, c, d, cx - a * cx - c * cy, cy - b * cx - d * cy); g.drawImage(snap, 0, 0);
+    g.setTransform(a, b, c, d, cx - a * cx - c * cy, cy - b * cx - d * cy); g.drawImage(snap, 0, 0, W, H);
     if (Math.abs(Math.abs(a) - 1) < 1e-3) return;
     const hw = W / 2, hh = H / 2, pts = [];
     for (const t of [a0, a1]) { const co = Math.cos(t), si = Math.sin(t), r = Math.min(hw / Math.max(1e-9, Math.abs(co)), hh / Math.max(1e-9, Math.abs(si))); pts.push(co * r, si * r); }
@@ -74,7 +74,7 @@
     }
     for (const [need, ea, ed, ee, ef] of [[L, -1, 1, 0, 0], [R, -1, 1, 2 * W, 0], [T, 1, -1, 0, 0], [B, 1, -1, 0, 2 * H]]) {
       if (!need) continue;
-      g.save(); g.transform(ea, 0, 0, ed, ee, ef); g.drawImage(snap, 0, 0); g.restore();
+      g.save(); g.transform(ea, 0, 0, ed, ee, ef); g.drawImage(snap, 0, 0, W, H); g.restore();
     }
   };
   // n folds: source wedge [s, s + 180°/n]; wedge j is its rotation by j·180°/n (j even) or its mirror across the line at
@@ -97,7 +97,9 @@
     queued = false;
     try {
       const g = x.g, W = x.W || 1280, H = x.H || 720, cx = W / 2, cy = H / 2;
-      if (!snap) { snap = document.createElement('canvas'); snap.width = W; snap.height = H; sg = snap.getContext('2d'); }
+      // the copy: the shared canvas at its real size (×S in a supersampled render), drawn back over W×H units
+      const c = x.canvas;
+      if (!snap || snap.width !== c.width || snap.height !== c.height) { snap = document.createElement('canvas'); snap.width = c.width; snap.height = c.height; sg = snap.getContext('2d'); }
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.shadowBlur = 0;
       // The mirror's strength: ordinary playing gives the full mirror, only quiet passages (no chord above soft for a few

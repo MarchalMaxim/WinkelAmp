@@ -58,7 +58,7 @@
       return;
     }
     if (!snap) { snap = document.createElement('canvas'); snap.width = LW; snap.height = LH; sg = snap.getContext('2d', { willReadFrequently: true }); sg.globalCompositeOperation = 'copy'; sg.imageSmoothingEnabled = false; }
-    sg.drawImage(x.canvas, 0, 0, W, H, 0, 0, LW, LH); pix = sg.getImageData(0, 0, LW, LH).data;
+    sg.drawImage(x.canvas, 0, 0, x.canvas.width, x.canvas.height, 0, 0, LW, LH); pix = sg.getImageData(0, 0, LW, LH).data;   // the whole picture, at any size
   }
   const lumOf = (cx, cy) => { if (cx < 0 || cy < 0 || cx >= LW || cy >= LH) return -1; const i = (cy * LW + cx) * 4; return (pix[i] * 0.3 + pix[i + 1] * 0.55 + pix[i + 2] * 0.15) / 255; };
   const satOf = (cx, cy) => { const i = (cy * LW + cx) * 4, r = pix[i], g = pix[i + 1], b = pix[i + 2]; return (Math.max(r, g, b) - Math.min(r, g, b)) / 255; };

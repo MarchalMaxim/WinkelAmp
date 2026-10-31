@@ -2,7 +2,8 @@
 // Each frame the whole canvas is redrawn a little larger (and turned) about a vanishing point, so everything already
 // on screen streams outward toward you. Attacks drop nested outlines at the mouth; their echoes become the walls.
 (() => {
-  const snap = document.createElement('canvas'); snap.width = 1280; snap.height = 720; const sg = snap.getContext('2d');
+  // snap: the shared canvas at its real size (×S in a supersampled render), drawn back over 1280×720 units
+  let snap = null, sg = null;
   let objs = [], vp = { x: 640, y: 360 }, surge = 0, spin = 0, time = 0, kick = 0, mel = 0.5;
   const TAU = Math.PI * 2;
   // Palettes: [low-note hue, high-note hue, sat low, sat high, light low, light high].
@@ -109,13 +110,16 @@
 
       // Feedback: the (already faded) canvas, scaled and turned about the vanishing point.
       // The shared fade takes 12% a frame; a 'lighter' second pass gives back up to that, so 'wall memory' is the real decay.
+      if (!snap || snap.width !== x.canvas.width || snap.height !== x.canvas.height) {
+        snap = document.createElement('canvas'); snap.width = x.canvas.width; snap.height = x.canvas.height; sg = snap.getContext('2d');
+      }
       sg.globalCompositeOperation = 'copy'; sg.drawImage(x.canvas, 0, 0);
       const b = Math.pow(0.5, dt / x.p('trail')) / 0.88;
       g.fillStyle = '#000'; g.fillRect(0, 0, x.W, x.H);
       g.save();
       g.translate(vp.x, vp.y); g.rotate(dRot); g.scale(sc, sc); g.translate(-vp.x, -vp.y);
-      g.globalAlpha = Math.min(1, b); g.drawImage(snap, 0, 0);
-      if (b > 1) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = b - 1; g.drawImage(snap, 0, 0); }
+      g.globalAlpha = Math.min(1, b); g.drawImage(snap, 0, 0, x.W, x.H);
+      if (b > 1) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = b - 1; g.drawImage(snap, 0, 0, x.W, x.H); }
       g.restore();
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
 
