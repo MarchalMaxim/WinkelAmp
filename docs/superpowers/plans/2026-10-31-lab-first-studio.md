@@ -249,6 +249,8 @@ export class WidgetRuntime implements RuntimeLike {
 //   g.save(); frame(); g.restore(); then globalCompositeOperation 'source-over', globalAlpha 1, filter 'none', shadowBlur 0;
 //   weight < 1 → draw the scratch over it at alpha 1 − weight (the widget's contribution this frame fades, whatever it draws).
 // Every call goes through the lab's safe(): ctx.tool set, first error per widget kept in errors, the step never stops.
+// Added in T2: `readonly post: (() => void)[]`, drained at the end of every step (the lab's render-mode RENDER_POST);
+// render pages route `queueMicrotask` into it, so pixelsort draws after the others there, as in the lab's render mode.
 export interface Stepper { reset(t: number): void; step(t: number, dt: number): void }
 export function startLive(s: Stepper, rt: WidgetRuntime, audio: HTMLMediaElement, onFrame?: (t: number) => void): () => void;  // rAF = the lab's frame()
 export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: number) => void, hz: number): void;
@@ -439,7 +441,8 @@ export class ShowRecorder { constructor(player: Player, canvas: HTMLCanvasElemen
 // recording: seek to `from`, reset the picture, start recorder + playback together; audio `ended` → stop → download;
 // tab hidden → audio.pause() + recorder.pause(), visible → resume both; UI edits and seeks are locked meanwhile.
 ```
-`render.html` (T2; T4 adds `?show`): both modes install the seeded random before anything loads.
+`render.html` (T2; T4 adds `?show`): both modes install the seeded random before anything loads, set `window.Worker = undefined`
+and route `queueMicrotask` into `rt.post`, exactly as the lab's `?render=1` does.
 `?labSong=prelude|b5&only=<ids>[&hz=60]` loads `/lab/notes.js` or `/lab/notes-b5.js` like the lab and loads ALL
 `toolIds` in lab order through `labCompat` (rorschach draws its paper with `Math.random` at load, so load order is part
 of the pixels); `?show=<id>[&hz=60]` loads the show, its pack and a Conductor (meta from `toMeta(rt.tool(id), null)`).
@@ -511,7 +514,7 @@ Modify `package.json` (`fidelity`).
 
 **Interfaces:** Produces §2, §3. `sources.ts` (browser only): `labWidgetSources(): Record<string, string>` from
 `import.meta.glob('/lab/tools/*.js', { query: '?raw', import: 'default', eager: true })` keyed by file name (bundled, so
-`dist` works; `lab/tools/dropped/` is not matched) and `labHarness(): LabHarness` from `import('/lab/index.html?raw')`.
+`dist` works; `lab/tools/dropped/` is not matched) and `labHarness(): LabHarness` from a static `import '/lab/index.html?raw'` (so `labHarness()` stays synchronous).
 `instantiate(id: string, source: string, env: { icon: IconLib; chords: Chord[] }): ToolDef`.
 `catalogue.ts`: `toMeta(tool: ToolDef, verdict: Verdict | null): WidgetMeta`.
 
@@ -545,8 +548,10 @@ Modify `package.json` (`fidelity`).
   176 and b5 0, 345; `squares,casket` at prelude 126; `kandinsky,rorschach` at b5 0. Control: the lab against a second
   lab load. One page per side per widget set, its cases in the same order on every page (widgets keep closure state
   across `renderSeek`, like the lab's). Pass per case: hashes equal, or share of pixels off by > 2 ≤ the control's
-  + 0.1 % and max diff ≤ the control's + 8. `pixelsort` is skipped (Worker + `createImageBitmap` + microtask: not deterministic in either page).
-  Run → all PASS; print the table.
+  + 0.1 % and max diff ≤ the control's + 8. The lab has no `renderFrameHash`/`renderPixels` (and `lab/` is not edited), so the
+  script computes both in-page with one identical function on every page, at the same frames. `pixelsort` is included: with
+  the render-mode `queueMicrotask` route above it is deterministic in both pages. Options: `--only <ids>`, `--quick` (one
+  start per widget set), `--stills <dir>` (lab | studio | difference PNGs). Run → all PASS; print the table.
 - [ ] **Step 5:** `npm test`, `npm run typecheck` → PASS. Commit (`src/widgets render.html src/studio/render-page.ts scripts/fidelity.mjs package.json tests`): `Studio: the widget runtime, pixel-identical to the lab`.
 
 ### Task 3: Show format, validator, transitions, auto-composer, Claude composes
