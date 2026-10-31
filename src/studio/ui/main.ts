@@ -25,6 +25,7 @@ import { Library, splitTitle } from './library';
 import { Panel, type CatalogueEntry } from './panel';
 import { Player } from './player';
 import { installExport } from './record';
+import { mountRegionOverlay } from './region-overlay';
 import { isDirty, Store, type Notice } from './store';
 import { clock, Timeline } from './timeline';
 
@@ -259,6 +260,8 @@ async function boot(): Promise<void> {
     time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek,
   });
   ui.panel.append(panel.el);
+  // The open layer's region, placed with handles on the stage (an SVG over the canvas, never drawn into it).
+  const overlay = mountRegionOverlay(ui.stage, canvas, store);
 
   // Poster: the piece's name on black until the music starts.
   ui.poster.hidden = false;
@@ -294,7 +297,7 @@ async function boot(): Promise<void> {
   };
   store.subscribe((s) => {
     if (s.show && s.show !== shown) { shown = s.show; conductor.setShow(s.show); refreshSoon(); lastNow = -1; drawNow(player.time); }
-    timeline.update(s); panel.update(s); drawHeader();
+    timeline.update(s); panel.update(s); overlay.update(s); drawHeader();
     document.body.classList.toggle('ui-hidden', s.ui.hidden);
   });
   store.notify();
@@ -431,7 +434,7 @@ async function boot(): Promise<void> {
     setTimeout(() => void reloadFromDisk(false), 1500);
   });
 
-  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue, recorder };
+  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue, recorder, overlay };
 }
 
 boot().catch((e) => {
