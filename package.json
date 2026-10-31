@@ -15,7 +15,8 @@
     "cast": "tsx scripts/cast-table.ts",
     "study": "tsx scripts/study.ts",
     "preview-script": "node scripts/preview-script.mjs",
-    "ingest": "tsx scripts/ingest.ts"
+    "ingest": "tsx scripts/ingest.ts",
+    "fidelity": "node scripts/fidelity.mjs"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.31.1",
