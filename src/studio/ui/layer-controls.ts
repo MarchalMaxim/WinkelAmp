@@ -105,8 +105,9 @@ export interface LayerControlsDeps {
   layer(): Layer | undefined;
   /** One setLayer edit; group: the undo step it belongs to. Returns whether the show changed. */
   edit(patch: LayerPatch, group: string): boolean;
-  /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back). */
-  memory: Map<string, Region>; memoryKey: string;
+  /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back), under the
+      key memoryKey() gives for this layer now (its section and instance key, so a reorder never hands it to another). */
+  memory: Map<string, Region>; memoryKey(): string;
 }
 
 let step = 0;
@@ -220,9 +221,9 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   const place = (r: Region | null, g: string) => d.edit({ region: r }, g);
   box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => {
     const mode = b.dataset.mode as '' | Region['mode'], r = region();
-    if (!mode) { if (r) { d.memory.set(d.memoryKey, r); place(null, group('place')); } return; }
+    if (!mode) { if (r) { d.memory.set(d.memoryKey(), r); place(null, group('place')); } return; }
     if (r?.mode === mode) return;
-    const base: Region = r ?? d.memory.get(d.memoryKey) ?? defaultRegion(d.widget);
+    const base: Region = r ?? d.memory.get(d.memoryKey()) ?? defaultRegion(d.widget);
     const next: Region = { ...base, mode };
     if (mode === 'spot') { delete next.blend; delete next.fit; }
     place(next, group('place'));

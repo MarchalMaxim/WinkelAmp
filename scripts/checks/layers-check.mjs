@@ -113,6 +113,14 @@ try {
       await page.keyboard.press('Control+z');
       const r4 = (await show()).sections[0].layers[1].region;
       check('Ctrl+Z after Reset place gives the changed window back', r4?.shape === 'rect' && r4.blend === 'lighten', JSON.stringify(r4));
+      // Whole screen, then Window: the place it had comes back (remembered by section and instance key).
+      await page.click('.layer.open [data-mode=""]');
+      await page.waitForTimeout(100);
+      const r5 = (await show()).sections[0].layers[1].region;
+      await page.click('.layer.open [data-mode="window"]');
+      await page.waitForTimeout(100);
+      const r6 = (await show()).sections[0].layers[1].region;
+      check('Whole screen, then Window, brings the same place back', r5 === undefined && JSON.stringify(r6) === JSON.stringify(r4), `${JSON.stringify(r5)} then ${JSON.stringify(r6)}`);
     }
     await shot(`panel-where${sfx}`, '.layer.open .lc-part:nth-of-type(2)');
 

@@ -3,7 +3,8 @@
 // widget picker's tag filter.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { defaultRegion, describePlace, listenOptions, partWords, READERS } from '../src/studio/ui/layer-controls';
+import { loadLayers } from '../scripts/node/layers';
+import { defaultRegion, describePlace, gateDefault, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import type { SongPack } from '../src/studio/pack/pack';
 import type { TagWords } from '../src/widgets/tags';
@@ -57,6 +58,76 @@ describe('defaultRegion', () => {
     expect(describePlace(undefined)).toBe('');
     expect(describePlace(defaultRegion('casket'))).toBe('in a spotlight');
     expect(describePlace(defaultRegion('kandinsky'))).toBe('in a window');
+  });
+});
+
+describe('gateDefault', () => {
+  const loud = (values: number[]) => ({ hop: 0.1 as const, values });
+  const one = { start: 0, end: 1 };   // the first ten values
+
+  it("the section's 60th percentile, to 0.05", () => {
+    // sorted: 0.05 0.12 0.22 0.33 0.41 0.62 0.67 0.71 0.88 0.95; floor(0.6 * 9) = 5 -> 0.62 -> 0.6
+    expect(gateDefault(loud([0.12, 0.95, 0.33, 0.41, 0.88, 0.22, 0.67, 0.71, 0.05, 0.62]), one)).toBeCloseTo(0.6, 12);
+    expect(gateDefault(loud(Array(10).fill(0.46)), one)).toBeCloseTo(0.45, 12);
+    expect(gateDefault(loud(Array(10).fill(0.48)), one)).toBeCloseTo(0.5, 12);
+  });
+
+  it('reads only the values inside the span', () => {
+    const v = [...Array(10).fill(0.2), ...Array(10).fill(0.7)];
+    expect(gateDefault(loud(v), { start: 1, end: 2 })).toBeCloseTo(0.7, 12);
+    expect(gateDefault(loud(v), one)).toBeCloseTo(0.2, 12);
+  });
+
+  it('kept between 0.1 and 0.9', () => {
+    expect(gateDefault(loud(Array(10).fill(0.02)), one)).toBe(0.1);
+    expect(gateDefault(loud(Array(10).fill(0)), one)).toBe(0.1);
+    expect(gateDefault(loud(Array(10).fill(0.98)), one)).toBe(0.9);
+    expect(gateDefault(loud(Array(10).fill(1)), one)).toBe(0.9);
+  });
+
+  it('0.5 for an empty span, and NaN values are left out', () => {
+    expect(gateDefault(loud([]), one)).toBe(0.5);
+    expect(gateDefault(loud(Array(10).fill(0.3)), { start: 5, end: 6 })).toBe(0.5);   // past the end
+    expect(gateDefault(loud(Array(10).fill(0.3)), { start: 0.5, end: 0.5 })).toBe(0.5);
+    expect(gateDefault(loud(Array(10).fill(NaN)), one)).toBe(0.5);
+    expect(gateDefault(loud([NaN, NaN, NaN, NaN, NaN, 0.8, 0.8, NaN, NaN, NaN]), one)).toBeCloseTo(0.8, 12);
+  });
+});
+
+describe('presetPivots', () => {
+  const L = loadLayers();
+  const P = L.presets;
+  const span = { start: 10, end: 30 };
+  const beats = Array.from({ length: 81 }, (_, i) => i * 0.5);
+  const all: Note[] = [[11, 12, 60, 80], [15, 16, 72, 90], [24, 25, 48, 70]];
+  const violin: Note[] = [[18, 22, 76, 100]];
+  const pack = {
+    notes: all, beats,
+    tracks: { violin: { label: 'Violins', family: 'strings', notes: violin, share: 0.3, vel: { borrowed: 0, level: 1 } } },
+    loudness: { hop: 0.1 as const, values: Array.from({ length: 400 }, (_, i) => (i % 20) / 20) },
+  } as unknown as Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>;
+
+  it('a pulse every bar is a pulse every 4 beats', () => {
+    const bars = presetPivots(L, { kind: 'pulse', every: 1, unit: 'bars' }, span, pack, undefined);
+    expect(bars).toEqual(P.pulse(span, beats, { every: 4 }));
+    expect(bars).not.toEqual(P.pulse(span, beats, { every: 1 }));
+    expect(presetPivots(L, { kind: 'pulse', every: 2, unit: 'bars' }, span, pack, undefined)).toEqual(P.pulse(span, beats, { every: 8 }));
+    expect(presetPivots(L, { kind: 'pulse', every: 2, unit: 'beats' }, span, pack, undefined)).toEqual(P.pulse(span, beats, { every: 2 }));
+  });
+
+  it("'while it plays' follows the listened part's notes", () => {
+    const v = presetPivots(L, { kind: 'plays' }, span, pack, 'violin');
+    expect(v).toEqual(P.plays(span, violin));
+    expect(v).not.toEqual(P.plays(span, all));
+    expect(presetPivots(L, { kind: 'plays' }, span, pack, undefined)).toEqual(P.plays(span, all));
+    expect(presetPivots(L, { kind: 'plays' }, span, pack, 'horn')).toEqual(P.plays(span, all));   // not in this song
+  });
+
+  it('fades, swell and gate are the presets themselves', () => {
+    expect(presetPivots(L, { kind: 'fadeIn', seconds: 3 }, span, pack, undefined)).toEqual(P.fadeIn(span, 3));
+    expect(presetPivots(L, { kind: 'fadeOut', seconds: 5 }, span, pack, undefined)).toEqual(P.fadeOut(span, 5));
+    expect(presetPivots(L, { kind: 'swell' }, span, pack, undefined)).toEqual(P.swell(span));
+    expect(presetPivots(L, { kind: 'gate', above: 0.4 }, span, pack, undefined)).toEqual(P.gate(span, pack.loudness, { above: 0.4 }));
   });
 });
 

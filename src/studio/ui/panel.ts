@@ -7,7 +7,7 @@ import { TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { sectionAt } from '../show/schedule';
 import type { Layer, ShowSection } from '../show/show';
-import { DEFAULT_FADE, MAX_FADE, listenOf } from '../show/show';
+import { DEFAULT_FADE, MAX_FADE, instanceKey, listenOf } from '../show/show';
 import { studioLayers } from '../../widgets/layers-source';
 import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
@@ -81,7 +81,7 @@ export class Panel {
   private controls: { sync(): void } | null = null;
   /** The widget picker's filter, kept while the picker closes and opens. */
   private readonly pickerState = newPickerState();
-  /** A layer's place before it went back to the whole screen, by section:layer. */
+  /** A layer's place before it went back to the whole screen, by section:instance key (session only). */
   private readonly places = new Map<string, Region>();
 
   constructor(private readonly d: Deps) {
@@ -238,7 +238,9 @@ export class Panel {
         this.edit({ type: 'edit', edit: { kind: 'setLayer', section: i, layer: k, patch }, group: `layer:${i}:${k}:${group}` });
         return this.d.store.state.show !== before;
       },
-      memory: this.places, memoryKey: `${i}:${k}`,
+      // by section and instance key (unique in a section), not by position, so a reorder or a removal never brings
+      // one layer's remembered place back on another
+      memory: this.places, memoryKey: () => { const l = sec()?.layers[k]; return `${i}:${l ? instanceKey(l) : k}`; },
     });
   }
 
