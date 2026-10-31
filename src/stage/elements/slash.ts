@@ -27,7 +27,7 @@ const REST = 0.12;
 export const widget = defineWidget({
   type: 'slash',
   styles: [
-    { name: 'chords', doc: 'only loud, chord-like attacks (three or more pitch classes, or bass and treble at once) while the music itself is loud, at most one cut per 120 ms' },
+    { name: 'chords', doc: 'only loud, chord-like attacks (three or more pitch classes, or bass and treble at once) while the music itself is loud, at most one cut per 120 ms (by default: `rest`)' },
     { name: 'every', doc: 'any onset above a lower threshold' },
   ],
   knobs: [{ name: 'rest', min: 0.03, max: 1, value: REST, doc: 'music seconds at least between two cuts' }],

@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { ELEMENTS, STYLES, WIDGETS, widgetOf } from '../src/stage/elements';
 import { DRIVES } from '../src/stage/kit';
 
+/** The cast the stage had before the kit; new widgets may join, these must stay as they were. */
+const BUILT_IN: string[] = ['melody', 'bass', 'sparks', 'bloom', 'pulse', 'wave', 'fluid', 'slash', 'drip'];
+
 describe('the widget registry', () => {
   it('holds the built-in cast, each type once', () => {
-    const types = WIDGETS.map((w) => w.type);
-    expect(types).toEqual(['melody', 'bass', 'sparks', 'bloom', 'pulse', 'wave', 'fluid', 'slash', 'drip']);
+    const types = WIDGETS.map((w) => w.type as string);
+    for (const t of BUILT_IN) expect(types).toContain(t);
     expect(new Set(types).size).toBe(types.length);
   });
 
   it('derives STYLES and ELEMENTS from the widgets', () => {
-    expect(Object.keys(STYLES)).toEqual(WIDGETS.map((w) => w.type));
+    expect(Object.keys(STYLES).sort()).toEqual(WIDGETS.map((w) => w.type).sort());
     expect(STYLES.melody).toEqual(['ribbon', 'beads', 'ink']);
     expect(STYLES.slash).toEqual(['chords', 'every']);
     for (const w of WIDGETS) expect(ELEMENTS[w.type]).toBe(w.create);
@@ -22,9 +25,10 @@ describe('the widget registry', () => {
   });
 
   it('keeps the draw order and the crisp set the stage had', () => {
-    const order = [...WIDGETS].sort((a, b) => a.layer - b.layer).map((w) => w.type);
+    const builtIn = WIDGETS.filter((w) => BUILT_IN.includes(w.type));
+    const order = [...builtIn].sort((a, b) => a.layer - b.layer).map((w) => w.type);
     expect(order).toEqual(['bloom', 'bass', 'drip', 'pulse', 'wave', 'sparks', 'melody', 'fluid', 'slash']);
-    expect(WIDGETS.filter((w) => w.crisp).map((w) => w.type).sort()).toEqual(['melody', 'pulse', 'wave']);
+    expect(builtIn.filter((w) => w.crisp).map((w) => w.type).sort()).toEqual(['melody', 'pulse', 'wave']);
   });
 
   it('casts like the director did: melody and pulse gated, sparks and bass by level, the rest always', () => {

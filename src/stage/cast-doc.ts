@@ -1,7 +1,7 @@
 /**
  * docs/CAST.md, rendered from the widget registry: the composer's cast table and
- * every widget's knobs. `npm run cast` writes it; a test fails when the file on
- * disk is stale, so the doc can't drift from the code.
+ * every widget's knobs. `npm run cast` writes it, `npm run cast -- --check` tells
+ * whether the file on disk is current.
  */
 import { WIDGETS } from './elements';
 import { DEFAULT_DEPTH, FEATURES, type Knob, type Widget } from './kit';

@@ -95,8 +95,8 @@ bright line flashes on the cut and fades in ~0.9 s; a small jolt). `strength` 0.
 
 ### Adding a widget
 
-A widget (an element type) is one file, `src/stage/elements/<type>.ts`, and one import line in
-`src/stage/elements/index.ts` (add it to `WIDGETS`). The file exports
+A widget (an element type) is one file, `src/stage/elements/<type>.ts`, plus one line in
+`src/stage/elements/all.ts` (`export { widget as halo } from './halo';`, kept sorted). The file exports
 
 ```ts
 export const widget = defineWidget({
@@ -115,9 +115,11 @@ export const widget = defineWidget({
 and the class (`StageElement`: `init`, `draw(fr, member)`, `dispose`). In `draw` it reads its style with
 `widget.style(member)` and a knob, already moved by its drive, with `widget.knob(fr, member, 'spin')`. Move
 only on music time (`fr.musicDt`, `fr.clock.time`): with `musicDt` 0 the picture must hold still. Nothing
-else changes: the validator, the director, the draw order and the types all read the registry. Then run
-`npm run cast` (CAST.md; a test fails while it is stale), add a case to the stage harness
-(`src/stage/harness.ts`) and look at it with `node scripts/stage-shots.mjs --only <case>`.
+else changes: the types, the validator, the director, the draw order and the stage harness read the
+registry (a widget without a case of its own gets `<type>-<style>` cases: look at them with
+`node scripts/stage-shots.mjs --only halo-soft`; a hand-made case in `src/stage/harness.ts` is optional).
+`docs/CAST.md` is regenerated (`npm run cast`) when widget branches are merged, not on each branch;
+`npm run cast -- --check` says whether it is current.
 
 ## 4. Heuristics
 

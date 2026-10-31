@@ -31,7 +31,7 @@ export const widget = defineWidget({
   ],
   knobs: [{ name: 'trail', min: 1, max: 8, value: LIFE, doc: 'music seconds of the phrase left on screen' }],
   follows: 'the predominant melody: pitch, note on/off, duration (precomputed for a scripted song, so it is exact and on time)',
-  use: 'whenever a clear tune is present. Higher notes sit higher (further out under a kaleidoscope mirror); the last ~4 s of the phrase stay visible',
+  use: 'whenever a clear tune is present. Higher notes sit higher (further out under a kaleidoscope mirror); the last ~4 s of the phrase stay visible (by default: `trail`)',
   layer: 70,
   crisp: true,
   stream: (s) => (fin(s.melodyVoiced) > VOICED ? 1 : 0),

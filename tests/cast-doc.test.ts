@@ -1,15 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { castDoc } from '../src/stage/cast-doc';
 import { WIDGETS } from '../src/stage/elements';
 
-describe('docs/CAST.md', () => {
-  it('is up to date with the widget registry (run `npm run cast`)', () => {
-    const disk = readFileSync(join(__dirname, '..', 'docs', 'CAST.md'), 'utf8').replace(/\r\n/g, '\n');
-    expect(disk).toBe(castDoc());
-  });
-
+// Whether docs/CAST.md on disk is current is `npm run cast -- --check`'s job, at integration: a test
+// here would make every widget branch commit the same generated table, and the branches collide.
+describe('the cast doc', () => {
   it('has a row per widget, with its styles and knobs', () => {
     const doc = castDoc();
     for (const w of WIDGETS) {
@@ -17,5 +12,11 @@ describe('docs/CAST.md', () => {
       for (const s of w.styles) expect(doc).toContain(`\`${s.name}\` ${s.doc}`);
       for (const k of w.knobs) expect(doc).toContain(`\`${k.name}\` ${k.min}..${k.max}`);
     }
+  });
+
+  it('escapes table pipes in a widget\'s words', () => {
+    const w = WIDGETS[0];
+    const doc = castDoc([{ ...w, follows: 'a | b' } as never]);
+    expect(doc).toContain(String.raw`a \| b`);
   });
 });
