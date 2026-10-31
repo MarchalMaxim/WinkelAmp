@@ -103,7 +103,13 @@ const SONG = SONGS[SONG_ID];
 // renderSeek(t) and renderStep(dt) and draws frames on demand, through the same step() the live loop uses.
 const RENDER = new URLSearchParams(location.search).has('render');
 const RENDER_HZ = Number(new URLSearchParams(location.search).get('hz')) || 60;   // live frames per song second to imitate
+// A tool that draws after the others (pixelsort queues a microtask) would never run inside the renderer's synchronous
+// steps, so in render mode queueMicrotask collects the callbacks and step() runs them at its end; workers are off, so
+// such a tool reads the screen itself (synchronously, deterministically).
+const RENDER_POST = [];
 if (RENDER) {
+  window.queueMicrotask = (fn) => { RENDER_POST.push(fn); };
+  window.Worker = undefined;
   let seed = 1;
   window.reseed = (n) => { seed = (n >>> 0) || 1; };
   Math.random = () => { seed = (seed + 0x6D2B79F5) >>> 0; let z = seed; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
@@ -430,6 +436,7 @@ function step(t, dt) {
     g.save(); safe(tool, 'frame', ctx); g.restore();
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
   }
+  while (RENDER_POST.length) { try { RENDER_POST.shift()(); } catch (e) { console.warn(e); } }
 }
 // The renderer's controls (?render=1). renderSeek(t): everything back to song time t, as a seek does, with the features
 // and the random seed reset too (a tool keeping state its reset() skips, like the casket's melt phase, still carries it). renderStep(dt): song time moves

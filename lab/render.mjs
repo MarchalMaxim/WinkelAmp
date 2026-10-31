@@ -115,11 +115,11 @@ songs.forEach((s) => inputs.push('-i', AUDIO[s]));
 SEGMENTS.forEach(([sg, start, end, label], i) => {
   const d = end - start, ai = segFiles.length + songs.indexOf(sg);
   parts.push(`[${i}:v]fade=t=in:st=0:d=${FADE},fade=t=out:st=${d - FADE}:d=${FADE},`
-    + `drawtext=fontfile='${FONT}':textfile='${txt(i, label)}':fontsize=30:fontcolor=white@0.92:shadowcolor=black@0.7:shadowx=2:shadowy=2:x=40:y=h-80:enable='lt(t,${LABEL_S})':alpha='if(lt(t,${LABEL_S - 0.5}),1,(${LABEL_S}-t)/0.5)'[v${i}]`);
+    + `drawtext=fontfile='${FONT}':textfile='${txt(i, label)}':fontsize=30:fontcolor=white@0.92:shadowcolor=black@0.7:shadowx=2:shadowy=2:box=1:boxcolor=black@0.4:boxborderw=10:x=40:y=h-80:enable='lt(t,${LABEL_S})':alpha='if(lt(t,${LABEL_S - 0.5}),1,(${LABEL_S}-t)/0.5)'[v${i}]`);
   parts.push(`[${ai}:a]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${FADE / 2},afade=t=out:st=${d - FADE}:d=${FADE}[a${i}]`);
 });
 parts.push(`${SEGMENTS.map((_, i) => `[v${i}][a${i}]`).join('')}concat=n=${SEGMENTS.length}:v=1:a=1[vc][ac]`);
-parts.push(`[vc]drawtext=fontfile='${FONT_B}':textfile='${nameFile}':fontsize=22:fontcolor=white@0.75:shadowcolor=black@0.6:shadowx=1:shadowy=1:x=28:y=24[vo]`);
+parts.push(`[vc]drawtext=fontfile='${FONT_B}':textfile='${nameFile}':fontsize=22:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=1:shadowy=1:box=1:boxcolor=black@0.35:boxborderw=8:x=28:y=24[vo]`);
 const graph = path.join(TMP, 'graph.txt');
 writeFileSync(graph, parts.join(';\n'), 'utf8');
 const tf = Date.now();
