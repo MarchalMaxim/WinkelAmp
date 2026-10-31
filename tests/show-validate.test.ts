@@ -110,6 +110,16 @@ describe('repairShow', () => {
     expect(show.sections.map((s) => [s.start, s.end])).toEqual([[0, 50.4], [50.4, 100]]);
   });
 
+  it('cuts a show longer than the song (a shorter recording under the same id) down to the song', () => {
+    for (const [duration, want] of [[20, [[0, 20]]], [45, [[0, 30], [30, 45]]], [60.5, [[0, 30], [30, 60.5]]]] as const) {
+      const cd = { ...c, duration };
+      const { show, fixed } = repairShow(spans([0, 30], [30, 60], [60, 100]), cd);
+      expect(show.sections.map((s) => [s.start, s.end])).toEqual(want);
+      expect(validateShow(show, cd).errors).toEqual([]);
+      expect(fixed.map((f) => f.message).join('\n')).not.toMatch(/lasted -/);
+    }
+  });
+
   it('drops unknown and doubled widgets, clamps bases, drives and depths, sorts', () => {
     const s = withSection(1, { fade: 12, layers: [{ widget: 'nope' }, { widget: 'kandinsky', knobs: { edges: 4, rings: { base: -1, drive: '+loud', depth: 3 } } }, { widget: 'kandinsky' }] });
     s.sections.reverse();

@@ -151,12 +151,16 @@ export function repairShow(show: Show, c: ShowContext): { show: Show; fixed: Iss
     fix(`sections[${secs.length - 1}].end`, `ended at ${fmt(last.end)} s: now at the song's end, ${fmt(c.duration)} s`);
     last.end = c.duration;
   }
+  // A section that ends up at or past the song's end (a shorter recording under the same id) merges like a short one;
+  // the widened section before it is checked again, so a run of them all fold into the last one that fits.
   for (let i = 0; secs.length > 1 && i < secs.length;) {
     const x = secs[i];
     if (x.end - x.start >= MIN_SECTION) { i++; continue; }
-    if (i > 0) { secs[i - 1].end = x.end; fix(`sections[${i}]`, `lasted ${fmt(x.end - x.start)} s: merged into the section before`); }
-    else { secs[1].start = x.start; fix('sections[0]', `lasted ${fmt(x.end - x.start)} s: merged into the section after`); }
+    const why = x.end > x.start ? `lasted ${fmt(x.end - x.start)} s` : `started at ${fmt(x.start)} s, at or after its end ${fmt(x.end)} s`;
+    if (i > 0) { secs[i - 1].end = x.end; fix(`sections[${i}]`, `${why}: merged into the section before`); }
+    else { secs[1].start = x.start; fix('sections[0]', `${why}: merged into the section after`); }
     secs.splice(i, 1);
+    if (i > 0) i--;
   }
   secs.forEach((x, i) => repairSection(x, `sections[${i}]`, c, fix));
   s.sections = secs;
