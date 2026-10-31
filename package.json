@@ -16,6 +16,7 @@
     "study": "tsx scripts/study.ts",
     "preview-script": "node scripts/preview-script.mjs",
     "ingest": "tsx scripts/ingest.ts",
+    "ears": "tsx scripts/ears/server.ts",
     "fidelity": "node scripts/fidelity.mjs",
     "check-show": "tsx scripts/check-show.ts",
     "describe-song": "tsx scripts/describe-song.ts",

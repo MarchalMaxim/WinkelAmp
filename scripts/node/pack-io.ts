@@ -1,8 +1,9 @@
 // Song folders on disk: where they live, hashing, atomic writes, slugs.
 import { createHash } from 'node:crypto';
 import { createReadStream, renameSync, writeFileSync } from 'node:fs';
-import { basename, dirname, extname, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nameFromFile } from '../../src/studio/ingest/names';
 import { isSlug } from '../../src/studio/pack/pack';
 
 export { isSlug };
@@ -27,13 +28,7 @@ export function writeJsonAtomic(path: string, value: unknown): void {
 }
 
 /** The id and title a file name suggests (the study tool's rule): 'Prelude_in C#.mp3' → 'prelude-in-c', 'Prelude In C#'. */
-export function nameOf(file: string): { id: string; title: string } {
-  const stem = basename(file, extname(file));
-  return {
-    id: stem.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
-    title: stem.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, (c) => c.toUpperCase()),
-  };
-}
+export const nameOf = (file: string): { id: string; title: string } => nameFromFile(file);
 
 /** <repo>/shows, or WINKELAMP_SHOWS (tests use temp dirs). */
 export const showsDir = (): string => resolve(process.env.WINKELAMP_SHOWS || resolve(REPO, 'shows'));
