@@ -150,7 +150,8 @@ Decide what counts before you mark it. Here: the motto stated by the whole orche
 from the rhythm; marking every occurrence would strobe. The fifteen strikes: 0, 17.5, 39.25 (horn call), 78.7 (the
 codetta and the repeat's opening), 98.5, 120.2 (horn call), 158.3 (the codetta and the development's opening), 191.4,
 227.95, 235.15 (the return of the motto), 255.4 (the fermata before the oboe), 282.0 (horn call), 332.4, 396.3 and
-409.8 s to the end. Found as above: three equally spaced attacks of one pitch class (0.1–0.36 s apart) then a held
+409.8 s to the end. Left out, as rhythm inside a part rather than a strike: the loud repeated-note figures at 34.7,
+204.1, 348.8, 364.1 and 388.6 s (364.1 comes closest; add a section there if it should punctuate too). Found as above: three equally spaced attacks of one pitch class (0.1–0.36 s apart) then a held
 note, from the audio's onsets and chroma and from the notes, checked by hand against the loudness.
 
 Each part gets its own picture, and a part that returns gets its picture back: first theme kandinsky (exposition,
@@ -190,7 +191,7 @@ its last 20 s) or a hole (the oboe).
 video kb/s = MB × 8000 / seconds − 128, e.g. 27.5 MB for 425 s → 389 kb/s, at 960×540:
 
 ```sh
-ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:v 389k -pass 1 -an -f mp4 NUL
+ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:v 389k -pass 1 -an -f null -
 ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:v 389k -pass 2 -pix_fmt yuv420p \
   -c:a aac -b:a 128k -movflags +faststart winkelamp-beethoven5.mp4
 ```
