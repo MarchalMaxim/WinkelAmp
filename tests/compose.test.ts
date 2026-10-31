@@ -98,6 +98,13 @@ describe('pickSections', () => {
 
 describe('composeShow', () => {
   const ids = new Set(TASTE.map((t) => t.id));
+  const quietBases = TASTE.filter((t) => t.role === 'base' && (t.fit.quiet ?? 0) >= 0.5).map((t) => t.id);
+
+  it('gives every loved or kept widget a place, and only those', () => {
+    const liked = [...widgets.values()].filter((m) => m.verdict?.v === 'love' || m.verdict?.v === 'keep').map((m) => m.id).sort();
+    expect([...ids].sort()).toEqual(liked);
+    expect(TASTE.length).toBe(ids.size);
+  });
 
   it('is deterministic', () => {
     expect(canonicalShow(composeShow(input(quietLoud())))).toBe(canonicalShow(composeShow(input(quietLoud()))));
@@ -131,7 +138,7 @@ describe('composeShow', () => {
     show.sections.forEach((s, i) => {
       const k = s.layers.findIndex((l) => l.widget === 'casket');
       if (k >= 0) { expect(ch[i].loud).toBeGreaterThanOrEqual(0.75); expect(k).toBe(s.layers.length - 1); }
-      if (s.end <= 60.3) expect(['current', 'strings', 'fields']).toContain(s.layers[0].widget);
+      if (s.end <= 60.3) expect(quietBases).toContain(s.layers[0].widget);
     });
     expect(show.sections.some((s) => s.layers.some((l) => l.widget === 'casket'))).toBe(true);
   });

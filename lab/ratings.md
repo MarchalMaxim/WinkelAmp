@@ -85,3 +85,36 @@ Fourteen new widgets, all **not judged yet** (see `round6/README.md`, `showcase/
 | kusama (dots and infinity nets) | not judged yet | |
 | ikeda (black-and-white data) | not judged yet | |
 | horizon (Sugimoto seascape) | not judged yet | meant to sit under other widgets |
+
+## Rounds 5 and 6 judged (2026-10-31, afternoon; buttons from ratings.json "chrome")
+The user rated the morning round (5) and the pioneers round (6) together. Version judged in brackets.
+- LOVE: murmuration (v3, was needs work), marbling (v2, was needs work), miró, delaunay, lewitt, kusama, ikeda,
+  horizon, graphic score, boogie woogie, halftone (all new), op art (riley v2), glitch blocks (v2), calligraphy
+  (brush v2). Still loved: dread squares (v2), skittish shapes (v3), the current (v3), woven
+  threads (strings v2), rorschach (v2), the casket, kandinsky (v2).
+- KEEP: colour fields (v2), fischinger, mclaren, len lye, klee, ridges, kline, cells, nebula, pixel sort, mandala,
+  harmonic web (fifths) (all new). On pixel sort the user said it already combines with other widgets "in a very cool way".
+- NEEDS WORK: matisse, harmonograph, hilma af klint (all new).
+- DROP: whitney, albers (moved to `tools/dropped/`).
+- Not rated (left unjudged): suprematism, contours, tunnel, scribble, pointillism, agnes martin.
+
+## Where every widget stands (2026-10-31, after rounds 5 and 6)
+| widget | verdict | judged on |
+|---|---|---|
+| casket | LOVE | building into the app |
+| dread squares | LOVE | v2 |
+| rorschach | LOVE | v2 (keep OUR defaults) |
+| kandinsky | LOVE | v2 ("a complete visualization by itself") |
+| skittish shapes (flee) | LOVE | v3 |
+| the current | LOVE | v3 |
+| woven threads (strings) | LOVE | v2 |
+| murmuration | LOVE, favourite | v3 |
+| marbling | LOVE | v2 |
+| miró, delaunay, lewitt, kusama, ikeda, horizon, graphic score, boogie woogie, halftone | LOVE | new |
+| op art (riley), glitch blocks, calligraphy (brush) | LOVE | v2 |
+| colour fields | keep | v2 |
+| fischinger, mclaren, len lye, klee, ridges, kline, cells, nebula, pixel sort, mandala, harmonic web (fifths) | keep | new |
+| matisse, harmonograph, hilma af klint | needs work | new |
+| whitney, albers | DROP | new |
+| ripples, moire, shatter, lightning | DROP | earlier rounds |
+| suprematism, contours, tunnel, scribble, pointillism, agnes martin | not judged yet | |

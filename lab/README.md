@@ -7,7 +7,7 @@ that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing h
   rate them. Serve the repo with `npm run dev` and open http://localhost:5173/lab/index.html (`?song=b5` for Beethoven).
 - `tools/<id>.js`: one widget each (`TOOLS.push({ id, name, blurb, tag, params, reset, onChord, frame })`). The page loads
   the ids listed in `TOOL_IDS` in `index.html` (add yours there); a missing or broken file only shows a note above the cards.
-  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning), kept for reference.
+  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers), kept for reference.
 - `ratings.md`: the user's verdicts and notes, round by round. `ratings.json`: the raw button ratings and knob settings
   per browser, written by `save-server.mjs` (`node lab/save-server.mjs`, port 5174) whenever the page changes.
 - `shot.mjs`: screenshots of chosen widgets at chosen song times (`SONG=b5` for Beethoven).
