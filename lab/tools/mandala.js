@@ -1,35 +1,43 @@
-// Mandala (new, 2026-10-31): a radial bloom around the centre of the screen. Every note adds a shape on a ring whose
+// Mandala v2 (2026-10-31): a radial bloom around the centre of the screen. Every note adds a shape on a ring whose
 // radius is its pitch (low notes near the middle, high notes at the rim) and whose angle is its pitch class (all the C's
 // lie on one spoke, all the G's on another). Each chord is copied round the circle and mirrored: the more notes in the
 // chord, the more copies (a lone note: a few spokes; a big chord: lace all the way round). Low notes make arcs that close
 // into a ring while held, middle notes make petals that grow outward while held, high notes make beads that string out.
-// Every attack flashes thin rings and the new shapes are born white-hot; the whole figure turns slowly (faster when the
-// music is busy) and breathes with loudness. Notes that clash with what is sounding (semitones, tritones) grow torn,
-// spiky edges and a colder colour.
+// v2: every attack lands: the new shapes overshoot as they open, white-hot, and thin rays shoot from the centre out to
+// them along every copy, while the whole figure gives a small kick (bigger for loud and for bass). A sounding note is
+// filled, solid when loud and see-through when soft; once let go its fill drains away and only a fine outline lingers,
+// sinking toward crimson and drifting a little outward, so past chords lie as lace behind the notes sounding now.
+// A small star at the centre has as many points as the last chord had copies.
+// Notes that clash with what is sounding (semitones, tritones) grow torn, spiky edges and a colder colour.
 (() => {
   const TAU = Math.PI * 2;
-  let els = [], flashes = [], rot = 0, breath = 0.75, core = 0;
+  let els = [], flashes = [], rot = 0, breath = 0.86, core = 0, kick = 0, star = 6;
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   // colour by radius: deep red core → vermilion → gold → cream → pale blue at the rim; clashing notes lean violet
   const STOPS = [[0, [128, 16, 30]], [0.28, [200, 56, 36]], [0.52, [228, 148, 54]], [0.76, [240, 214, 156]], [1, [190, 210, 238]]];
-  const COLD = [138, 96, 220];
+  const COLD = [150, 104, 232], HOT = [255, 250, 240], EMBER = [176, 36, 52];
   function tone(f) {
     let i = 1; while (i < STOPS.length - 1 && STOPS[i][0] < f) i++;
     const [fa, a] = STOPS[i - 1], [fb, b] = STOPS[i], k = clamp01((f - fa) / (fb - fa));
     return [0, 1, 2].map((j) => a[j] + (b[j] - a[j]) * k);
   }
   const mix = (a, b, k) => [0, 1, 2].map((j) => a[j] + (b[j] - a[j]) * k);
+  const rgba = (c, a) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a.toFixed(3)})`;
   // how rough an interval (in semitones, mod 12) sounds: semitone/major 7th, tritone, whole tone; consonances ~0
   const ROUGH = [0, 1, 0.3, 0.05, 0.03, 0, 0.6, 0, 0.03, 0.05, 0.3, 1];
   const radiusOf = (m) => 0.1 + 0.88 * clamp01((m - 28) / 72);   // fraction of the full radius
+  // opening with an overshoot: 0 → ~1.2 → 1 over the first 0.22 s, so every attack visibly lands
+  const openOf = (age) => { const t = Math.min(1, age / 0.22) - 1; return 1 + 3.4 * t * t * t + 2.4 * t * t; };
+  // loudness → how solid a shape is: soft notes are outlines only, loud ones are filled jewels
+  const solidOf = (v) => clamp01((v - 38) / 52);
 
   // A shape's outline as polar points [radius, angle offset]; drawn once per copy round the circle.
   function outline(e, s, jagK, R) {
-    const r = e.f * R, held = Math.min(e.age, e.d), pop = 1 - Math.pow(1 - Math.min(1, e.age / 0.14), 3);
+    const r = e.f * R * e.drift, held = Math.min(e.age, e.d), pop = Math.max(0, openOf(e.age));
     const sector = TAU / e.n, amp = jagK * e.diss, pts = [];
     if (e.kind === 'petal') {
-      const L = (0.055 + 0.06 * e.v / 127) * R * pop * (1 + 0.5 * Math.min(held, 3));
-      const W = Math.min(r * sector * 0.3, (4 + e.v * 0.07) * s), rb = Math.max(4, r - 0.25 * L), rt = r + L;
+      const L = (0.05 + 0.075 * e.v / 127) * R * pop * (1 + 0.5 * Math.min(held, 3));
+      const W = Math.min(r * sector * 0.32, (4 + e.v * 0.08) * s * Math.min(1.15, pop)), rb = Math.max(4, r - 0.25 * L), rt = r + L;
       const N = 6;
       for (let side = 0; side < 2; side++) {
         for (let i = 0; i <= N; i++) {
@@ -41,7 +49,7 @@
         }
       }
     } else if (e.kind === 'arc') {
-      const T = (3 + e.v * 0.06) * s * (0.6 + 0.4 * pop), hs = (sector / 2) * (0.22 + 0.66 * clamp01(held / 2.5)) * pop;
+      const T = (3 + e.v * 0.07) * s * (0.5 + 0.5 * pop), hs = (sector / 2) * (0.22 + 0.66 * clamp01(held / 2.5)) * Math.min(1, pop);
       const N = 7;
       for (let i = 0; i <= N; i++) pts.push([r - T / 2, -hs + (2 * hs * i) / N]);
       for (let i = N; i >= 0; i--) pts.push([r + T / 2 + (amp > 0.02 && i % 2 ? amp * T * 1.6 : 0), -hs + (2 * hs * i) / N]);
@@ -50,8 +58,8 @@
   }
   // beads: [radius, size] for the high notes, stringing outward while held
   function beads(e, s, R) {
-    const r = e.f * R, held = Math.min(e.age, e.d), pop = Math.min(1, e.age / 0.1);
-    const b = (1.6 + e.v * 0.025) * s * pop, n = 1 + Math.min(4, Math.floor(held * 2.2)), out = [];
+    const r = e.f * R * e.drift, held = Math.min(e.age, e.d), pop = Math.max(0, openOf(e.age));
+    const b = (1.6 + e.v * 0.03) * s * pop, n = 1 + Math.min(4, Math.floor(held * 2.2)), out = [];
     for (let i = 0; i < n; i++) out.push([r + i * b * 3.2, b * (1 - i * 0.16)]);
     return out;
   }
@@ -81,13 +89,13 @@
   }
 
   TOOLS.push({
-    id: 'mandala', name: 'Mandala', tag: 'new',
-    blurb: 'A radial bloom. Each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle: the fuller the chord, the more copies. Held notes grow, attacks flash rings, it turns with the tempo and breathes with loudness; clashing notes turn spiky.',
+    id: 'mandala', name: 'Mandala', tag: 'v2',
+    blurb: 'A radial bloom: each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle. New in v2: every attack lands with rays from the centre and a kick; sounding notes are filled (solid when loud, see-through when soft), and once let go they linger as fine outline lace behind the live ones.',
     params: [
       { key: 'mirrors', label: 'copies per note', min: 0.5, max: 3, value: 1.5,
         hint: 'How many mirrored copies a chord gets, per note in it. Left: a few spokes. Right: dense lace, a big chord fills the circle.',
         icon: (g, v, w, h) => rosette(g, w, h, Math.round(3 + v * 11), 1, 0, ICON.gold) },
-      { key: 'size', label: 'size (breathes)', min: 0.4, max: 1.3, value: 0.72, drive: '+level',
+      { key: 'size', label: 'size (breathes)', min: 0.4, max: 1.3, value: 0.86, drive: '+level',
         hint: 'How big the mandala is; it follows loudness, so it swells on loud chords. Left: a small jewel. Right: fills the screen.',
         icon: (g, v, w, h) => { rosette(g, w, h, 8, 0.3 + v * 0.75, 0, ICON.gold); ICON.dot(g, w / 2, h / 2, 1 + v * 1.6, ICON.red); } },
       { key: 'spin', label: 'turning speed', min: 0, max: 1, value: 0.2, drive: '+rate',
@@ -116,7 +124,7 @@
           g.closePath(); g.fill();
         } },
     ],
-    reset() { els = []; flashes = []; rot = 0; breath = 0.72; core = 0; },
+    reset() { els = []; flashes = []; rot = 0; breath = 0.86; core = 0; kick = 0; star = 6; },
     onChord(ch, x) {
       const k = ch.notes.length, n = Math.max(3, Math.min(16, Math.round((k + 1) * x.p('mirrors'))));
       // pitch classes heard around this attack (recent notes only, so a long pedal doesn't make everything clash)
@@ -125,12 +133,16 @@
       for (const nt of ch.notes) {
         const pc = nt.m % 12; let d = 0;   // (below: a velocity floor so whisper-quiet transcribed notes, like the b5 oboe, still show)
         for (const o of near) if (o !== pc) d += ROUGH[(pc - o + 12) % 12];
-        els.push({ kind: nt.m < 48 ? 'arc' : nt.m < 76 ? 'petal' : 'bead', a0: (pc * TAU) / 12, f: radiusOf(nt.m), v: Math.max(nt.v, 45),
-          d: Math.max(0.2, Math.min(nt.d, 6)), n, diss: clamp01(d * 0.75), age: 0 });
+        els.push({ kind: nt.m < 48 ? 'arc' : nt.m < 76 ? 'petal' : 'bead', a0: (pc * TAU) / 12, f: radiusOf(nt.m), v: Math.max(nt.v, 40),
+          d: Math.max(0.2, Math.min(nt.d, 6)), n, diss: clamp01(d * 0.75), age: 0, drift: 1, alpha: 1, share: 1 / Math.sqrt(Math.max(1, k / 2)) });
         flashes.push({ f: radiusOf(nt.m), v: nt.v / Math.sqrt(Math.max(1, k / 2)), age: 0 });
       }
+      // the whole figure kicks on each attack: harder for loud and for low (a bass note shakes the whole mandala)
+      const low = clamp01((60 - ch.lo) / 30);
+      kick = Math.max(kick, (ch.vel / 127) * (0.025 + 0.05 * low) * Math.min(1.6, 0.8 + k * 0.15));
       core = Math.max(core, ch.vel / 127);
-      if (els.length > 200) els.splice(0, els.length - 200);
+      star = n;
+      if (els.length > 180) els.splice(0, els.length - 180);
       if (flashes.length > 48) flashes.splice(0, flashes.length - 48);
     },
     frame(x) {
@@ -138,19 +150,30 @@
       rot += dt * x.p('spin') * 0.55;
       breath += (x.p('size') - breath) * (1 - Math.exp(-dt / 0.3));
       core *= Math.exp(-dt / 0.5);
-      const life = x.p('life'), jagK = x.p('jag'), Rb = R * breath, s = breath / 0.72;
+      kick *= Math.exp(-dt / 0.12);
+      const life = x.p('life'), jagK = x.p('jag'), s = breath / 0.86;
+      const edge = (b) => (b > 0.95 ? 0.95 + (b - 0.95) * 0.4 : b);   // a fortissimo swells to the screen's edge, not far past it
+      const Rb = R * edge(breath * (1 + kick)), Rs = R * edge(breath);
+      // only the sounding notes kick: the lingering lace holds still (kicking it too smears it into a radial haze)
+      const radOf = (rel) => (rel <= 0 ? Rb : Rs + (Rb - Rs) * Math.exp(-rel / 0.15));
       g.translate(x.W / 2, x.H / 2);
+      g.lineJoin = 'round';
+      const crowd = Math.min(1, Math.sqrt(60 / Math.max(1, els.length)));   // when a lot is lingering the lace dims, so it never turns to haze
       // the shapes, oldest first so each new chord lies on top
       for (const e of els) {
         e.age += dt;
         const rel = e.age - e.d, a = rel <= 0 ? 1 : Math.pow(Math.max(0, 1 - rel / life), 1.4);
         e.alpha = a; if (a < 0.02) continue;
-        const hot = Math.max(0, 1 - e.age / 0.35);
-        const c = mix(mix(tone(e.f), COLD, e.diss * jagK * 0.55), [255, 250, 240], hot * 0.75);
-        g.fillStyle = `rgba(${c.map(Math.round).join(',')},${(a * (0.72 + 0.28 * hot)).toFixed(3)})`;
+        e.drift = 1 + 0.09 * (1 - a);                              // let-go shapes drift a little outward as they fade
+        const hot = Math.max(0, 1 - e.age / 0.4), solid = solidOf(e.v);
+        // live: its own colour; let go: sinks toward a deep ember; just struck: white-hot
+        let c = mix(tone(e.f), COLD, clamp01(e.diss * jagK * 1.2) * 0.75);   // clashing: clearly violet, not a muddy in-between
+        if (rel > 0) c = mix(c, EMBER, clamp01(rel / life) * 0.4);
+        c = mix(c, HOT, hot * 0.8);
+        const Re = radOf(rel);
         g.beginPath();
         if (e.kind === 'bead') {
-          const bs = beads(e, s, Rb);
+          const bs = beads(e, s, Re);
           for (const [th, sg] of angles(e)) {
             const cs = Math.cos(th), sn = Math.sin(th);
             for (const [rad, b] of bs) {
@@ -162,29 +185,49 @@
             }
           }
         } else {
-          const pts = outline(e, s, jagK, Rb);
+          const pts = outline(e, s, jagK, Re);
           for (const [th, sg] of angles(e)) {
             for (let i = 0; i < pts.length; i++) { const q = th + pts[i][1] * sg, rad = pts[i][0]; i ? g.lineTo(rad * Math.cos(q), rad * Math.sin(q)) : g.moveTo(rad * Math.cos(q), rad * Math.sin(q)); }
             g.closePath();
           }
         }
-        g.fill();
+        // while it sounds it is filled: a solid jewel when loud, see-through when soft. Once let go the fill drains away
+        // in a moment and only its fine outline lingers, so the past lies as lace behind the notes that sound now.
+        // (the shared background only fades 12% a frame, so a fill builds up over frames: a soft one must be very faint to
+        // stay see-through, and paler rather than darker so it reads as glass, not brown)
+        const fillA = (rel <= 0 ? 1 : Math.exp(-rel / 0.16)) * a * Math.max(0.02 + 0.9 * solid * solid, 0.85 * hot);
+        if (fillA > 0.01) { g.fillStyle = rgba(mix(c, HOT, 0.35 * (1 - solid)), fillA); g.fill(); }
+        g.strokeStyle = rgba(mix(c, HOT, 0.25 + 0.3 * solid), a * (rel > 0 ? 0.42 * crowd : 0.5 + 0.4 * hot));
+        g.lineWidth = (0.6 + 1 * solid) * Math.max(0.7, s); g.stroke();
       }
-      els = els.filter((e) => e.alpha === undefined || e.alpha >= 0.02 || e.age < e.d);
-      // the attack: thin rings flash at each struck note's radius and widen a little
+      els = els.filter((e) => e.alpha >= 0.02 || e.age < e.d);
       g.globalCompositeOperation = 'lighter';
+      // the attack, part one: rays from the centre out to each newly struck shape, along every copy, gone in a third of a second
+      for (const e of els) {
+        if (e.age > 0.32) continue;
+        const k = e.age / 0.32, r1 = e.f * Rb, r0 = Math.max(4, r1 * (0.12 + 0.75 * k * k));
+        const c = mix(tone(e.f), HOT, 0.55);
+        g.strokeStyle = rgba(c, Math.pow(1 - k, 1.5) * (0.12 + 0.45 * e.v / 127) * e.share);   // a big chord shares its brightness
+        g.lineWidth = (0.6 + 1.4 * e.v / 127) * Math.max(0.7, s);
+        g.beginPath();
+        for (const [th] of angles(e)) { const cs = Math.cos(th), sn = Math.sin(th); g.moveTo(r0 * cs, r0 * sn); g.lineTo(r1 * cs, r1 * sn); }
+        g.stroke();
+      }
+      // part two: thin rings flash at each struck note's radius and widen a little
       for (const fl of flashes) {
         fl.age += dt; const k = fl.age / 0.5; if (k >= 1) continue;
-        const c = mix(tone(fl.f), [255, 250, 240], 0.6);
-        g.strokeStyle = `rgba(${c.map(Math.round).join(',')},${(Math.pow(1 - k, 2) * (0.25 + 0.55 * fl.v / 127)).toFixed(3)})`;
-        g.lineWidth = (0.8 + 1.6 * fl.v / 127) * (1 - k * 0.5);
+        g.strokeStyle = rgba(mix(tone(fl.f), HOT, 0.6), Math.pow(1 - k, 2) * (0.25 + 0.6 * fl.v / 127));
+        g.lineWidth = (0.8 + 2 * fl.v / 127) * (1 - k * 0.5);
         g.beginPath(); g.arc(0, 0, fl.f * Rb * (1 + 0.07 * k), 0, TAU); g.stroke();
       }
       flashes = flashes.filter((fl) => fl.age < 0.5);
-      // a small ember at the centre, lit by each attack and by the bass
-      const cr = (3 + 7 * x.feat.bass + 6 * core) * s, cc = tone(0.05 + 0.25 * core);
-      g.fillStyle = `rgba(${cc.map(Math.round).join(',')},${(0.35 + 0.6 * core).toFixed(3)})`;
-      g.beginPath(); g.arc(0, 0, cr, 0, TAU); g.fill();
+      g.globalCompositeOperation = 'source-over';
+      // the bindu at the centre: a small star with as many points as the last chord had copies, lit by attacks and the bass
+      const cr = (4 + 8 * x.feat.bass + 7 * core) * s * (1 + 3 * kick), cc = mix(tone(0.05 + 0.3 * core), HOT, core * 0.4), sp = Math.max(3, star);
+      g.fillStyle = rgba(cc, 0.4 + 0.55 * core);
+      g.beginPath();
+      for (let i = 0; i < sp * 2; i++) { const q = rot * 1.5 + (i * Math.PI) / sp, rr = i % 2 ? cr * 0.45 : cr; i ? g.lineTo(rr * Math.cos(q), rr * Math.sin(q)) : g.moveTo(rr * Math.cos(q), rr * Math.sin(q)); }
+      g.closePath(); g.fill();
     },
   });
 })();
