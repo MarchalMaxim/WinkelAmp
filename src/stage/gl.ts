@@ -83,8 +83,8 @@ export const scale = (c: Rgb, k: number): Rgb => [c[0] * k, c[1] * k, c[2] * k];
 // Sprites: instanced quads, each a soft shape (glow, star, ring, bead).
 // ---------------------------------------------------------------------------------
 
-/** Sprite shapes (the fragment shader's `kind`). */
-export const Shape = { Glow: 0, Star: 1, Ring: 2, Bead: 3 } as const;
+/** Sprite shapes (the fragment shader's `kind`). Square: a soft-edged box; param = edge softness / half its side. */
+export const Shape = { Glow: 0, Star: 1, Ring: 2, Bead: 3, Square: 4 } as const;
 export type Shape = (typeof Shape)[keyof typeof Shape];
 
 const SPRITE_VS = /* glsl */ `#version 300 es
@@ -135,6 +135,17 @@ void main() {
     float body = smoothstep(0.62, 0.5, r);
     float lit = 0.55 + 0.45 * smoothstep(0.6, -0.4, dot(vP, vec2(0.6, -0.8)) + r * 0.3);
     k = body * lit + exp(-r * r * 5.0) * 0.45 + exp(-pow(length(vP - vec2(-0.18, 0.2)) * 9.0, 2.0)) * 0.8;
+  } else if (kind == 4) {
+    // Square: a box filling the quad but a margin of 3 · soft, its edges and corners blurred
+    // over ±soft, with a faint halo out into the margin (the sketch's shadow blur).
+    float p = max(vShape.y, 0.002);
+    float a = 1.0 / (1.0 + 3.0 * p);
+    float w = p * a;
+    vec2 q = abs(vP) - vec2(a - w);
+    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - w;
+    float h = max(d, 0.0) / (1.5 * w);
+    float edge = smoothstep(w, -w, d);
+    k = edge + 0.25 * (1.0 - edge) * exp(-h * h) * smoothstep(1.0, 0.9, max(abs(vP.x), abs(vP.y)));
   } else {
     // Glow: gaussian, sharpened by param (0 soft … 1 crisp).
     float s = mix(3.0, 14.0, vShape.y);
