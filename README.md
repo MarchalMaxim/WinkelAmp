@@ -1,32 +1,49 @@
 # WinkelAmp
 
-**See your music. Touch it. Play with it.**
+**A recording becomes a show of abstract pictures, set off by every note it plays.**
 
-WinkelAmp is a synesthesia player: it turns sound and rhythm into movement and color.
-It's the spirit of Winamp + MilkDrop, rebuilt to follow the *music*, not just its loudness:
-a melody thread traces the tune you hear, the mood of the picture follows the mood of the
-music, elements come and go with the parts that play, and big moments get big changes.
-For songs it knows, it performs a show composed ahead of time, like a lighting designer
-who studied the piece.
-
-![A scripted show: the Basalt study, with its fluid, chord bloom and melody thread](docs/media/12-scripted-basalt.png)
-
-| | |
-|---|---|
-| ![Live: the director casts by what it hears](docs/media/09-stage-live.png) | ![The Tweak drawer: scenes, colors, Classic](docs/media/10-tweak-drawer.png) |
-| ![Classic: Bloom, Neon, 8-way mirror, with the Sound → Motion patch bay](docs/media/06-kaleidoscope-patchbay.png) | ![Classic: painting a mandala with sound](docs/media/07-painting-fullscreen.png) |
-
-A 50-second tour (headless capture, so it's choppier than the real thing):
-[`docs/media/tour.mp4`](docs/media/tour.mp4)
+WinkelAmp is a studio for visual music. Drop in a recording of a piece (the great masters first: Rachmaninoff,
+Beethoven…); its notes are transcribed once by a GPU piano model, and a show of hand-made canvas widgets plays
+with it section by section, in sync with every attack. Reshape the show with the mouse (which widgets, where the
+sections change, each widget's knobs), or have Claude compose it from a description in your own words.
 
 ## Try it
 
 ```bash
 npm install
+npm run ingest -- path/to/recording.mp3 --title "Rachmaninoff: Prelude in C♯ minor"   # once per recording
+# (transcribes with the GPU piano model in C:/Users/maxim/.venvs/wa or $WINKELAMP_PY; --notes approx without it)
 npm run dev
 ```
 
-Open the printed URL, then pick one of three ways in:
+Open the printed URL: the studio. Pick a song under **Songs**; a song without a show of its own gets one
+composed from its analysis and the widgets you loved. Then:
+
+- **Play** (Space), seek on the timeline, `←` / `→` five seconds, `Shift` + arrows from section to section.
+- **The timeline** shows the music's activity in each section's colour (the colour of its bottom widget). Click a
+  section to select it; drag a boundary to move it (it snaps just before an attack; hold Alt to drag freely);
+  **Split at playhead** (S) and **Merge with next**.
+- **The side panel** holds the selected section: its name, how the widgets leaving at its start fade out, and its
+  layers, top first. **Add a widget on top** opens the collection with your verdicts from the lab; each layer
+  opens to its knobs, drawn as the lab draws them (a picture at each end, the live one moving with the music, the
+  `i` hint, and what the knob follows: fixed, louder → more, …). Delete removes the selected layer.
+- **Undo** (Ctrl+Z), **redo** (Ctrl+Shift+Z), **Save show** (Ctrl+S) writes `shows/<song>.json`.
+- **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
+  the show from it ([docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md), `npm run check-show`).
+- **F** full screen, **H** hides the controls.
+
+Songs (`songs/<id>/`: the audio and its pack) stay on your machine and out of git; shows are committed. The
+widgets live in [`lab/tools/`](lab/README.md): the [widget lab](lab/index.html) is where they are sketched and
+rated, and the studio runs the same files, so a widget looks the same in both.
+
+The previous app, which listens live to the microphone, MIDI or files and draws with a WebGL stage, is still
+there at **`legacy.html`** (linked from the song library). The rest of this README describes it.
+
+## The old app (legacy.html)
+
+![A scripted show: the Basalt study, with its fluid, chord bloom and melody thread](docs/media/12-scripted-basalt.png)
+
+Open `legacy.html` on the dev server, then pick one of three ways in:
 
 - **Play the demos**: four character studies (Ember, Basalt, Sugar Glass, Mist), each with a composed show,
   then a generative groove. `←` / `→` step through them.
@@ -34,7 +51,7 @@ Open the printed URL, then pick one of three ways in:
   A recording in the corpus is recognised by its sound and gets its show.
 - **Listen to the room**: the microphone. Play music from your phone, sing or clap.
 
-## What you see
+### What you see
 
 - **The stage.** A WebGL2 compositor with a small cast of elements, each following one part of the music:
   the **melody** thread (the tune: higher notes higher, long notes long strokes), **bass** masses, **sparks**
@@ -69,7 +86,7 @@ Open the printed URL, then pick one of three ways in:
 Keyboard: `Space` play/pause · `1`–`4` Classic scenes · `R` surprise · `M` mirror ·
 `H` hide interface · `F` fullscreen · `←`/`→` tracks · `?` help.
 
-## How sound becomes picture
+## How sound becomes picture (the old app)
 
 | Sound | Becomes |
 |---|---|
@@ -85,7 +102,7 @@ The reasoning is in [docs/DESIGN.md](docs/DESIGN.md) (v1) and
 [docs/superpowers/specs/2026-10-30-scripted-visuals-design.md](docs/superpowers/specs/2026-10-30-scripted-visuals-design.md)
 (the stage, scripts and director).
 
-## Compose a show
+## Compose a show for the old app
 
 Shows are composed ahead of time, in a Claude Code session, and live in `corpus/` as JSON. The app can't ask
 anyone at play time; the composer can't listen, so a **study pack** describes the song in words, numbers and
@@ -108,8 +125,13 @@ ragtime.
 ## Project layout
 
 ```
+index.html              the studio; legacy.html the old app; render.html frames on demand (render-show, fidelity)
+lab/                    the widget lab: lab/tools/*.js are the widgets, lab/index.html the harness and verdicts
 src/
-  main.ts               wiring: sources → analysis → script or director → overrides → stage; UI, MIDI, keyboard
+  widgets/              the runtime that runs lab/tools/*.js with the lab's ctx, chords, drives and shared canvas
+  studio/               pack/ (song packs), show/ (shows, transitions, the Conductor, edits, undo), compose/
+                        (the auto-composer), ui/ (the studio page)
+  main.ts               the old app's wiring: sources → analysis → script or director → overrides → stage; UI, MIDI, keyboard
   audio/                engine (Web Audio graph, PCM tap, file decode), FFT, features, descriptors,
                         melody tracker/extractor, structure (sections, drops), fingerprint, offline analysis,
                         the generative groove and the four character studies
@@ -119,7 +141,8 @@ src/
                         one file per element in elements/
   visual/               Classic: the v1 Canvas2D renderer and scenes; living/ (the fluid's WebGL2 canvas); recorder
   control/, ui/         MIDI and the key synth; the Tweak drawer and MIDI panel
-corpus/                 composed shows (<id>.json) and their song data (<id>.data.json)
+shows/                  the studio's shows (<song>.json) and their descriptions; songs/ (packs, audio) is local only
+corpus/                 the old app's composed shows (<id>.json) and their song data (<id>.data.json)
 scripts/                study packs, script checker and preview, screenshots, end-to-end and melody checks
 tests/                  vitest unit tests
 ```
@@ -127,7 +150,11 @@ tests/                  vitest unit tests
 ## Scripts
 
 ```bash
-npm run dev            # dev server
+npm run dev            # dev server: the studio at /, the old app at /legacy.html, the lab at /lab/index.html
+npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<file>]   # a song pack in songs/<id>/
+npm run check-show [-- <file>…] [--fix]     # validate shows/*.json
+npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
+npm run fidelity       # the studio draws the lab's pixels, widget by widget (local: needs the lab's notes files)
 npm test               # unit tests
 npm run build          # type-check + production build into dist/
 npm run study -- <file> [--id <slug>]       # a study pack for composing
