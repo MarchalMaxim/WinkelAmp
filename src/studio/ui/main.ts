@@ -166,7 +166,8 @@ async function boot(): Promise<void> {
   const compose = () => composeShow({ pack, widgets: metas, at: new Date().toISOString() });
   let show: Show, origin: 'file' | 'auto' | 'repaired' = 'file';
   let saved: Show | null = null;
-  try { saved = await api.show(pack.id); } catch (e) {
+  // Only a song with a show of its own asks for it: a 404 for the others would be a red line in every console.
+  try { saved = entry.hasShow ? await api.show(pack.id) : null; } catch (e) {
     store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'error', text: `Could not read the saved show: ${(e as Error).message}. Playing a composed one.` } });
   }
   if (!saved) { show = compose(); origin = 'auto'; }
