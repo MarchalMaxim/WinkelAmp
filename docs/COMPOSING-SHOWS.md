@@ -204,6 +204,42 @@ ffmpeg -i renders/beethoven5.mp4 -vf scale=960:540 -c:v libx264 -preset slow -b:
 
 The Prelude (232 s) keeps 720p at 819 kb/s. Both come out at 28 MB.
 
+## Combinations
+
+Some widgets do more together than side by side: one acts on what another drew. Each pair or trio below was shot
+together and alone on the same passages, and the stills were looked at (round 7). The lab lists them in
+`lab/combos.js`, under a "combines with" pill on each member's card, with a "try together" button. Stack them as one
+section's layers, **in the order given** (bottom → top): that is the order they were judged in. Pixel sort, time slice,
+fold and stella work on the finished picture after every other layer, so they go last. Knobs: the values listed are
+needed or were shot; "worth trying" ones were not shot.
+
+Most of them only show on strong attacks: put them where the music is loud and chordal (a climax, a coda, the casket),
+not over a quiet stretch, where they look like their base widget alone.
+
+| layers (bottom → top) | what you see | knobs | where |
+|---|---|---|---|
+| `kusama`, `pixelsort` | Kusama's colour changes: strips of the old colours dragged across the new picture, a print torn on every loud chord | worth trying: pixelsort `band` 1.6, `len` 1.0 | loud chords (Prelude 2:04–2:13, Beethoven coda) |
+| `score`, `pixelsort` | heavy chords drag the score's stems, beams and dots into rust-and-black melts that drip; the page heals after | score `paper` 1 (the default; needs paper); worth trying: pixelsort `own` 0.3 | slow, heavy chords; nearly invisible elsewhere |
+| `ikeda`, `blocks`, `pixelsort` | Ikeda's barcodes and rows torn into sliding strips that snap back: a data machine failing in time; pixel sort melts the torn codes into white drips | worth trying: blocks `amount` 0.8, pixelsort `own` 0.3 (pixel sort is optional) | loud, percussive passages |
+| `squares`, `strings`, `blocks` | the woven threads and dread squares torn into sliding red and white slabs that settle back in steps | defaults | loud chords |
+| `marbling`, `blocks` | combed marble rings cut into sliding bands that heal back into the curves | keep blocks `form` positive (rows); worth trying: marbling `drop` 1.3 | the casket, the agitato |
+| `marbling`, `pixelsort` | wide strips of the marble torn sideways into stripes of its own reds and bone, past the edge of the drop | worth trying: pixelsort `own` 0.2, `band` 1.5 | the Prelude's loud passages; pixel sort barely fires on Beethoven |
+| `strings`, `brush`, `casket` | ink strokes grow stepped drips, the threads hang down in stepped curtains, big chords shear both | worth trying: casket `drips` 0.25, `melt` 1.5 | medium-density passages; crowded at a dense climax |
+| `murmuration`, `casket` | the flock's chord figure weeps down in stepped columns, slashes cut across it | worth trying: casket `drips` 0.3 | loud chords (Beethoven coda); adds little in quiet ones |
+| `kandinsky`, `casket`, `pixelsort` | every line and shape melts into dripping fringes; pixel sort pulls the melt into blue, gold and red sheets | defaults | loud passages (Prelude 2:06–2:15, Beethoven 0:30) |
+| `riley`, `pixelsort` | Riley's stripes torn into sliding grey and white bars, a clean glitch through the op art | keep riley black and white; worth trying: pixelsort `band` 1.5, `len` 1.0 | loud, wide chords only |
+| `score`, `squares`, `brush` | a night page: chalk notation for every note, a bone brushstroke for the melody, red slabs for the bass, slashes at big chords | **score `paper` 0** (night; on paper the melody stroke vanishes) | everywhere; dense but legible at climaxes |
+| `miro`, `rorschach` | Rorschach on Miró's cream sheet becomes a sepia inkblot of the left hand, Miró's constellation over it | worth trying: rorschach `size` 0.7, miro `life` 11 | everywhere; brownish when loud and crowded |
+| `horizon`, `murmuration`, `pixelsort` | loud chords sort the sea itself: the horizon tears into a long grey band, the flock's red smears into it | **pixelsort `own` 0.1** (at the default its amber muddies the sea) | loud, chordal passages |
+| `fields`, `brush` | a bone calligraphy line with red slashes over Rothko fields that recolour with the harmony | fields `home` -0.6, `chords` 0.5 (keep them cool: red slashes sink into warm floods) | everywhere |
+| `riley`, `fifths` | Riley's stripes as a stencil: the chord shape glows through the black bands only | defaults | loud chordal passages; a Riley solo in quiet bars |
+| `riley`, `timeslice` | Riley rebuilt strip by strip from the last 1.5 s: staircases of cut stripes, each note a sharp band of the present | defaults (`mode` 2, rings, turns the oval into a target) | everywhere Riley moves |
+| `marbling`, `fold` | every drop mirrored across a line that turns with the bass: a symmetrical marble | defaults | everywhere |
+| `kusama`, `fold` | a twin colony; loud chords fold it fourfold for a moment | defaults | everywhere (the gold seam vanishes on the yellow ground) |
+| `score`, `squares`, `stella` | concentric stripes frame the page, one more per attack, dark on paper | defaults | busy passages pile up stripes |
+
+The last four use this round's new widgets (time slice, fold, stella), which the user has not judged yet.
+
 ## The widgets
 
 <!-- widgets:start -->
@@ -480,7 +516,7 @@ After Oskar Fischinger's Optical Poem: on a deep blue ground, coloured discs, ri
 
 #### `mclaren`: McLaren
 
-After Norman McLaren's Synchromy: tall panels of film side by side, and now the film runs. Every note is printed as a block of bars that enters at the top and streams down: deep notes are a few thick rungs, high notes a fine comb, and a loud note lands as a long, wide run of bars that punches far down the panel and flashes it, a soft one as a small shallow print. Each block is widest where the note was struck and narrows as it decays, so sparse music leaves single blocks with space between them and busy music a dense weave; the prints echo across the other panels, the colours follow the harmony, and busy music splits the screen into more panels.
+After Norman McLaren's Synchromy. New: the film runs. Every note is a card of bars that enters at the top and streams down (deep notes a few thick rungs, high notes a fine comb); a loud note punches a long, wide card deep into the panel and lights it up, a soft one leaves a small shallow print, and each new card cuts cleanly over the older ones, so sparse music shows single cards with space between them and busy music a layered weave.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -540,7 +576,7 @@ After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high 
 
 #### `cells`: Cells
 
-A mosaic of coloured cells, one per note: left to right by pitch, coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, every attack swells its cell and flashes a pale kernel inside it that shrinks while the note sounds, and a loud attack sends a ring of light stepping out through the mosaic.
+A mosaic of coloured cells, one per note, left to right by pitch and coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, each attack swells its cell and flashes a pale kernel that shrinks while the note sounds, and loud attacks send a ring of light through the mosaic.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -552,7 +588,7 @@ A mosaic of coloured cells, one per note: left to right by pitch, coloured by th
 
 #### `nebula`: Nebula
 
-Every note is a pull, placed round a circle by its note name, and fine glowing grains stream between the notes. New: each attack now flares where its note sits and breathes out a puff of white-hot grains (loud notes big, soft ones faint, deep notes slow and wide, high ones quick and fine), and a chord forms separate knots joined by threads.
+Every note is a pull, placed round a circle by its note name, and fine glowing grains stream between the notes. New: each attack now flares where its note sits and breathes out a puff of bright, almost white grains (loud notes big, soft ones faint, deep notes slow and wide, high ones quick and fine), and a chord forms separate knots joined by threads.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -560,11 +596,11 @@ Every note is a pull, placed round a circle by its note name, and fine glowing g
 | `swirl` | fall in or circle round | 0..1.6 | 0.5 | fixed | How the grains move around a note. Left: they fall straight in and stream from note to note. Right: they whirl round it in rings. |
 | `amount` | how much dust | 1000..7000 | 4000 | fixed | How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud. |
 | `threads` | grains or threads | 0.5..6 | 1.4 | fixed | How long each grain draws its path. Left: fine points of dust. Right: long silky threads. |
-| `burst` | how each note ignites | 0..2 | 0.9 | louder → more | What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of white-hot grains. |
+| `burst` | how each note ignites | 0..2 | 0.9 | louder → more | What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of bright new grains. |
 
 #### `pixelsort`: Pixel sort (already combines with other widgets in a very cool way)
 
-Now a real pixel sort: each chord sorts the shapes under it by brightness, in place, so whatever the other widgets drew melts in the chord’s direction (bass down, treble up, the melody sideways). Soft chords just shimmer a few lines, loud ones melt a wide sheet whose shapes run into each other, and the loudest tear a band right across the screen; held chords hold their melt.
+Now a real pixel sort: each chord sorts the shapes under it by brightness, in place, so whatever the other widgets drew melts in the chord’s direction (bass down, treble up, the melody sideways). Soft chords shimmer a few thin lines, loud ones melt a wide sheet, the loudest tear a band right across the screen, and held chords hold their melt.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -588,26 +624,26 @@ A radial bloom: each note lands on a ring set by its pitch, at an angle set by i
 
 #### `fields`: Colour fields (a good building block)
 
-Huge, slow, soft fields of colour (Rothko-like), made to sit under other widgets. Each chord change glides the colours to a new place on the palette, and a band of the new colour washes in. Loud passages brighten and sharpen the edges; quiet ones sink and blur. It never darkens what other widgets draw on top.
+Huge, slow, soft fields of colour (Rothko-like), made to sit under other widgets; each field owns a part of the keyboard, bass at the bottom. New in v3: every note now lights its field from inside (low notes to the left, high to the right; loud ones bright and wide, soft ones a faint glow), busy playing makes the edges hum, and a chord change floods its field with the new colour instead of a bright stripe. Quiet passages stay a deep colour instead of going black.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `back` | stay in the background | 0..1 | 0.4 | fixed | How much it steps back for widgets drawn over it. Left: a full, glowing painting. Right: a dim veil of colour behind everything. |
 | `chords` | chords move the colour | 0..1 | 0.7 | fixed | How far a chord change moves the colours. Left: one family of colour all the way through. Right: each new chord glides it somewhere new on the palette. |
 | `home` | home colour | -1..1 | -0.2 | louder → more | The colour it returns to on the home chord. Left: deep blues and plums. Right: oxblood and burnt orange. Follows the loudness at first: loud = warmer. |
-| `dyn` | loudness shows | 0..1 | 0.75 | fixed | How much loud and quiet change it. Left: the same light all through. Right: loud passages blaze and sharpen, quiet ones sink, dim and blur. |
+| `dyn` | the playing shows | 0..1 | 0.75 | fixed | How much the notes and the loudness show. Left: a still painting whose colours only drift. Right: every note lights its field from inside, loud passages blaze and sharpen, quiet ones sink and blur. |
 | `n` | how many fields | 1..4 | 3 | fixed | How many fields are stacked. Left: one enormous field. Right: four, one per register, bass at the bottom. |
 
 #### `fifths`: Harmonic web
 
-The 12 notes sit on a circle of fifths; every attack strings a glowing bowed polygon between the notes sounding, and old chords thin and sink inward into a woven web. The key it hears turns the whole loom so the home note sits on top; colour says tonic (bone), dominant side (blood) or subdominant side (indigo).
+The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `decay` | how long the web remembers | 0.5..30 | 9 | fixed | How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together. |
-| `weight` | line thickness | 0.3..4 | 1.2 | louder → more | How thick the strings are. Left: hairlines. Right: thick glowing cords. |
+| `line` | line thickness | 0.3..3 | 1.2 | fixed | How thick the strings are (loud chords are always thicker than soft ones). Left: hairlines. Right: thick glowing cords. |
 | `bow` | how the strings curve | -1..1 | 0.3 | higher notes → more | How each string between two notes bends. Left: bulging outward like petals. Middle: straight. Right: pulled in toward the centre like string art. |
-| `sink` | old chords sink inward | 0..1 | 0.55 | fixed | Whether old chords shrink toward the centre as they age, so the history nests inside the circle. Left: they stay where they were played. Right: they sink deep. |
+| `shiver` | struck strings shiver | 0..1 | 0.5 | fixed | How much a chord's strings tremble when it is struck: one slow swell for sweet intervals, fine ripples for clashing ones. Left: still lines. Right: a strong shiver. |
 | `fill` | filled shapes | 0..1 | 0.2 | louder → more | How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes. |
 
 ### Needs work (the user rated them; use sparingly)
@@ -638,7 +674,7 @@ Now one unbroken line that melts from figure to figure as the harmony changes, a
 
 #### `hilma`: Hilma af Klint
 
-Spiritual geometry after Hilma af Klint, in soft pastels on a deep ground: the bass swells the split disc, major chords open a ring of petals and minor chords curl them into spirals. New in v2: every note lands on the figure. Each note has its own angle (its place on the circle of fifths): the petals or spirals there spring out, low notes the inner layer and high notes the outer, a seed flies out and settles on an orbit as high as the note, and the whole figure clicks round with the melody, so loud, soft, dense and sparse passages all look different.
+Spiritual geometry after Hilma af Klint, in soft pastels on a deep ground: the bass swells the split disc, major chords open a ring of petals and minor chords curl them into spirals. New in v2: every note lands on the figure. The petals or spirals at that note’s place spring out, a seed flies to an orbit as high as the note, and each attack clicks the figure round with the melody.
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -649,6 +685,42 @@ Spiritual geometry after Hilma af Klint, in soft pastels on a deep ground: the b
 | `turn` | how far each note turns it | 0..1 | 0.4 | faster → more | How far each note clicks the figure round (forward when the melody climbs, back when it falls). Left: still, like a painting. Right: every note swings it. |
 
 ### Not judged yet
+
+#### `timeslice`: Time slice
+
+A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line.
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `far` | how far back | 0.25..3 | 1.5 | fixed | How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons. |
+| `mode` | which way it slices | 0..2 | 0 | fixed | How the picture is cut into moments. Left: columns (the now line follows the melody left to right), then rows (bottom to top). Right: rings from the centre (low notes near the middle). |
+| `cut` | how wide a note’s fresh cut is | 0..1 | 0.35 | fixed | How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present. |
+| `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. |
+| `stretch` | how hard loud chords stretch time | 0..1 | 0.6 | fixed | How much loud chords stretch the delay. Left: they don’t, the delay stays put. Right: soft playing keeps it short and a loud chord throws it to the maximum. |
+
+#### `fold`: Fold
+
+A mirror for the whole picture, made to sit on other widgets: it folds whatever is already on the screen, so kusama becomes a twin colony, marbling a Rorschach marble, strings a woven butterfly, ikeda a mirrored data wall. The fold line turns with the bass round the circle of fifths, chords flip which half is mirrored, loud chords fold it twice for a beat, and quiet passages fade the mirror. Alone it is a stitched seam of light that flashes on every chord.
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `folds` | how many folds | 1..6 | 1 | fixed | How many mirror lines cross the centre. Left: one mirror. Right: up to six, a kaleidoscope. |
+| `turn` | what turns the fold | 0..1 | 1 | fixed | How far the mirror line turns with the harmony (the bass note, round the circle of fifths). Left: it stays upright. Right: it turns with every change of harmony. |
+| `strength` | how strong the mirror image is | 0..1 | 1 | fixed | How strongly the mirrored half covers the other side (quiet passages fade it a little more). Left: a faint ghost. Right: as strong as the original. |
+| `flip` | chords flip the side | 0..1 | 0.5 | fixed | How often a full chord swaps which half is the original and which the mirror. Left: never. Right: every chord swaps the source half. |
+| `seam` | seam | 0..1 | 0.6 | fixed | The line of light along the fold. Left: no line, only the mirror. Right: a bright stitched seam that flashes on every chord. |
+
+#### `stella`: Stella
+
+A rhythm layer made to sit on other widgets: it paints no ground, only thin frames, after Frank Stella’s stripe paintings. Every attack adds one frame a step further in from the edge and older ones fade, so fast playing piles up concentric stripes and slow playing leaves one or two lone frames; loud attacks give square frames, soft ones rounded. The centre stays open, and it inverts whatever is under it (dark on paper, light on black, cyan over red). Try it on score with squares, horizon with murmuration, current with squares, or Miró with Rorschach.
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `life` | how long they stay | 0.15..5 | 1.4 | fixed | How long a frame stays before it fades. Left: one blink. Right: lingering stripes that pile up. |
+| `thick` | how thick | 1..14 | 3.5 | louder → more | How wide each stripe is (loud attacks a little wider). Left: hairlines. Right: heavy bands. |
+| `reach` | how far in | 0..1 | 0.45 | fixed | How deep the stripes pile up before starting again at the edge. Left: they hug the edge. Right: they reach halfway to the centre. |
+| `which` | which notes count | 0..1 | 0.5 | fixed | Which attacks add a frame. Left: only the bass, so it marks the left hand’s pulse. Middle: every attack. Right: only the top line, the melody. |
+| `beat` | on the beat | 0..1 | 0 | fixed | When frames come. Left: on every attack. Right: snapped to the beat it hears, so only the metre shows. |
 
 #### `martin`: Agnes Martin
 

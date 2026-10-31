@@ -58,6 +58,30 @@
   .rate { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
   .rate button { padding: 2px 8px; font-size: 12px; color: var(--dim); }
   .rate button.picked { color: var(--fg); border-color: var(--on); background: #2a1418; }
+  /* Combinations: the "combines with N" pill on a member's card opens (hover, or tap) its partners, each with "try together". */
+  .tool { position: relative; }
+  .cmbw { display: inline-block; margin-left: 6px; vertical-align: 1px; }
+  .cmb { padding: 1px 8px 1px 3px; font-size: 11px; line-height: 16px; border-radius: 9px; color: #d9c7f0; background: #2a2038; border-color: #4a3a60; font-weight: 500; }
+  .cmb i { display: inline-block; width: 15px; height: 15px; line-height: 13px; margin-right: 4px; border: 1px solid #8f78b4; border-radius: 50%; text-align: center; font-family: Georgia, serif; font-size: 10.5px; }
+  .cmbpop { visibility: hidden; opacity: 0; transition: visibility 0s 0.25s, opacity 0.12s 0.13s; position: absolute; z-index: 9; left: 6px; right: 6px; top: 32px; /* top: set under the pill on open */
+    max-height: min(360px, 60vh); overflow-y: auto; cursor: default; font-weight: 400; padding: 4px 10px; background: #1a1422; border: 1px solid #4a3a60;
+    border-radius: 6px; box-shadow: 0 8px 22px #000c; }
+  .cmbw.open .cmbpop { visibility: visible; opacity: 1; transition-delay: 0s; }
+  @media (hover: hover) { .cmbw:hover .cmbpop { visibility: visible; opacity: 1; transition-delay: 0s; } }
+  .cmbrow { padding: 8px 0; border-top: 1px solid #2e2538; font-size: 12.5px; line-height: 1.45; color: #cbbfb4; }
+  .cmbrow:first-child { border-top: 0; }
+  .cmbrow .who { color: var(--fg); font-weight: 600; margin-bottom: 2px; }
+  .cmbrow .who .now { color: #c8f0d2; font-weight: 500; font-size: 11px; margin-left: 6px; }
+  .cmbrow .when, .cmbrow .sets, .cmbrow .tip { color: var(--dim); font-size: 12px; margin-top: 3px; }
+  .cmbrow .sets { color: #d9c7f0; }
+  .cmbrow button { margin-top: 6px; padding: 3px 10px; font-size: 12px; border-color: #6a5390; background: #2a2038; }
+  .cmbrow button:hover { border-color: #a58bd0; }
+  details.combos { margin: 0 0 12px; border: 1px solid #3a2e48; border-radius: 6px; background: #120f17; }
+  details.combos > summary { cursor: pointer; padding: 8px 11px; color: #d9c7f0; font-size: 13px; }
+  details.combos > summary b { font-weight: 600; }
+  details.combos .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 0 18px; padding: 0 11px 6px; }
+  details.combos .cmbrow:first-child { border-top: 1px solid #2e2538; }
+  .onnow button.undo { border-color: #6a5390; background: #2a2038; padding-right: 9px; }
   .tool.hl { box-shadow: 0 0 0 2px #e9e2da55; transition: box-shadow 0.2s; }
   /* The widgets now playing, under the track: click one to jump to its card, × to switch it off. */
   .onnow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--dim); margin: -6px 0 10px; min-height: 24px; }
@@ -112,6 +136,7 @@
   <div class="onnow" id="onnow"></div>
   </div>
   <div class="cards">
+  <details class="combos" id="combos" hidden></details>
   <p class="legend">
     <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
     <b>louder</b> = the keys are struck harder ·
@@ -175,6 +200,7 @@ if (RENDER) {
 if (!RENDER) document.getElementById('a').src = SONG.audio;
 document.write(`<script src="${SONG.notes}"><\/script>`);
 </script>
+<script src="combos.js"></script>
 <script>
 // Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, params?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
 window.TOOLS = [];
@@ -280,9 +306,9 @@ window.ICON = (() => {
   return I;
 })();
 
-// The widgets, in card order: tonight's new ones, then (re)worked ones, then the rest. A missing or broken file only
+// The widgets, in load and draw order (cards sort by it too): tonight's new ones, then (re)worked ones, then the rest. A missing or broken file only
 // leaves a note: Vite answers a missing file with its HTML page, so each file is fetched and checked before it runs.
-const TOOL_IDS = ['fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
+const TOOL_IDS = ['timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
   'matisse', 'kusama', 'ikeda', 'horizon',
   'harmonograph', 'hilma', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
@@ -461,10 +487,11 @@ function render() {
     let params = '';
     try { params = Array.isArray(tool.params) && tool.params.length ? `<div class="params">${tool.params.map((q) => paramHTML(tool, q)).join('')}</div>` : ''; }
     catch (e) { errors[tool.id] ??= `knobs: ${e}`; }
-    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}</b><span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
+    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}${comboPill(tool)}</b><span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
       + params + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
-    // Knobs: touching anything in the knob area never toggles the tool.
+    // Knobs: touching anything in the knob area never toggles the tool. Nor does the combinations pill or its list.
     d.querySelector('.params')?.addEventListener('click', (ev) => ev.stopPropagation());
+    wireCombos(d.querySelector('.cmbw'));
     d.querySelectorAll('.prm').forEach((row) => {
       const q = tool.params.find((x) => String(x.key) === row.dataset.p); if (!q) return;
       const [live, i0, i1] = ['live', '0', '1'].map((k) => row.querySelector(`canvas[data-i="${k}"]`));
@@ -483,12 +510,99 @@ function render() {
     box.append(d);
   }
   renderOnNow();
+  renderCombos();
 }
+
+/* Combinations (lab/combos.js): widgets that do more together. A member's card carries a "combines with N" pill whose
+   list (hover, or tap on a phone) names the partners, what you see, and a "try together" button; the same rows sit in
+   the Combinations list above the cards. Only combinations whose widgets all loaded are shown. */
+const COMBOS = (Array.isArray(window.COMBOS) ? window.COMBOS : []).filter((c) => Array.isArray(c?.ids) && c.ids.length > 1);
+const toolOf = (id) => TOOLS.find((t) => t.id === id);
+const liveCombos = () => COMBOS.map((c, k) => ({ c, k })).filter(({ c }) => c.ids.every(toolOf));
+const comboOn = (c) => c.ids.every((id) => active.has(id));
+/** What "try together" sets, in words: "Graphic score: night or paper → 0 (left end)". */
+function comboSets(c) {
+  const out = [];
+  for (const [id, knobs] of Object.entries(c.knobs || {})) for (const [key, v] of Object.entries(knobs)) {
+    const tool = toolOf(id), q = tool?.params?.find((x) => x.key === key); if (!q) continue;
+    out.push(`${tool.name}: ${q.label ?? key} → ${v}${v <= q.min ? ' (left end)' : v >= q.max ? ' (right end)' : ''}`);
+  }
+  return out;
+}
+function comboRow({ c, k }, from) {
+  const others = c.ids.filter((id) => id !== from).map((id) => esc(toolOf(id).name));
+  const sets = comboSets(c), at = c.at?.[SONG_ID];
+  return `<div class="cmbrow"><div class="who">${from ? 'with ' : ''}${others.join(' + ')}${comboOn(c) ? '<span class="now">on now</span>' : ''}</div>
+    <div>${esc(c.blurb)}</div>${c.when ? `<div class="when">Best: ${esc(c.when)}.</div>` : ''}
+    ${sets.length ? `<div class="sets">Try together sets ${esc(sets.join('; '))}.</div>` : ''}${c.tip ? `<div class="tip">${esc(c.tip)}</div>` : ''}
+    <button data-try="${k}" title="Plays just these widgets${at != null ? `, from ${fmt0(at)}` : ''}; your other widgets switch off (undo is under the track)">▶ try together${at != null ? ` at ${fmt0(at)}` : ''}</button></div>`;
+}
+function comboPill(tool) {
+  const mine = liveCombos().filter(({ c }) => c.ids.includes(tool.id));
+  if (!mine.length) return '';
+  const n = new Set(mine.flatMap(({ c }) => c.ids)).size - 1;
+  return `<span class="cmbw"><button class="cmb" aria-expanded="false" title="Widgets this one does more with"><i>i</i>combines with ${n}</button>`
+    + `<span class="cmbpop" role="dialog" aria-label="${esc(tool.name)}: combinations">${mine.map((x) => comboRow(x, tool.id)).join('')}</span></span>`;
+}
+/** Pill and rows: tap toggles the list (hover opens it too, where there is hover); nothing in it toggles the card. */
+function wireCombos(w) {
+  if (!w) return;
+  // The list opens just under the pill, wherever the card's title wrapped it.
+  const btn = w.querySelector('.cmb'), pop = w.querySelector('.cmbpop');
+  const place = () => { pop.style.top = `${btn.offsetTop + btn.offsetHeight + 4}px`; };
+  w.addEventListener('mouseenter', place);
+  w.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('[data-try]'); if (b) { tryCombo(Number(b.dataset.try)); return; }
+    if (ev.target.closest('.cmb')) { place(); const open = !w.classList.contains('open'); document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); w.classList.toggle('open', open); w.querySelector('.cmb').setAttribute('aria-expanded', String(open)); }
+  });
+}
+document.addEventListener('click', (ev) => { if (!ev.target.closest?.('.cmbw')) document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); });
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); });
+function renderCombos() {
+  const box = document.getElementById('combos'), list = liveCombos();
+  box.hidden = !list.length; if (!list.length) return;
+  box.innerHTML = `<summary><b>Combinations</b>: ${list.length} mixes that do more than their widgets side by side (each card in one has a <i>combines with</i> pill)</summary>`
+    + `<div class="list">${list.map((x) => comboRow(x, null)).join('')}</div>`;
+  box.querySelectorAll('[data-try]').forEach((b) => (b.onclick = () => tryCombo(Number(b.dataset.try))));
+}
+/** Plays just this combination: its widgets on (fresh), the others off, its knob values set, and from its best moment in
+    this song if it has one. What was on and the knobs it changed are kept, for "undo" under the track. */
+let comboUndo = null;
+function tryCombo(k) {
+  const c = COMBOS[k]; if (!c || !c.ids.every(toolOf)) return;
+  const undo = { on: [...active], knobs: [], name: c.ids.map((id) => toolOf(id).name).join(' + ') };
+  for (const [id, knobs] of Object.entries(c.knobs || {})) for (const [key, v] of Object.entries(knobs)) {
+    const tool = toolOf(id), q = tool.params?.find((x) => x.key === key); if (!q) continue;
+    const st = pst(tool, q); undo.knobs.push([tool, q, st.base]);
+    st.base = Math.max(q.min, Math.min(q.max, Number(v)));
+  }
+  comboUndo = undo;
+  if (undo.knobs.length) saveP();
+  active.clear();
+  for (const id of c.ids) { active.add(id); safe(toolOf(id), 'reset', ctx); }
+  document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open'));
+  render();
+  const at = c.at?.[SONG_ID];
+  if (at != null) seek(at); else if (audio.paused) audio.play();
+}
+function undoCombo() {
+  const u = comboUndo; comboUndo = null; if (!u) return;
+  for (const [tool, q, base] of u.knobs) pst(tool, q).base = base;
+  if (u.knobs.length) saveP();
+  active.clear(); for (const id of u.on) { active.add(id); const t = toolOf(id); if (t) safe(t, 'reset', ctx); }
+  render();
+}
+
 /** The chips under the track: what's playing now. A name jumps to its card (lit for a moment), × switches it off. */
 function renderOnNow() {
   const on = TOOLS.filter((t) => active.has(t.id)), el = document.getElementById('onnow');
   el.innerHTML = on.length ? 'On:' + on.map((t) => `<button data-go="${esc(t.id)}" title="Jump to its knobs">${esc(t.name)}<i data-off title="Switch it off">×</i></button>`).join('')
     : 'Nothing on: click a card to switch a widget on.';
+  if (comboUndo) {
+    el.insertAdjacentHTML('beforeend', `<button class="undo" data-undo title="Back to what was on before trying ${esc(comboUndo.name)}${comboUndo.knobs.length ? ', and the knobs it set' : ''}">↺ undo try</button>`);
+    el.querySelector('[data-undo]').onclick = undoCombo;
+  }
   el.querySelectorAll('[data-go]').forEach((b) => (b.onclick = (ev) => {
     const tool = TOOLS.find((t) => t.id === b.dataset.go), card = document.querySelector(`.tool[data-id="${CSS.escape(b.dataset.go)}"]`);
     if (ev.target.dataset.off !== undefined) { active.delete(tool.id); render(); return; }
