@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "rach-prelude-recording",
   "song": "rach-prelude-recording",
   "title": "Rachmaninoff: Prelude in C♯ minor",
@@ -44,7 +44,8 @@
       "fade": 4,
       "layers": [
         {
-          "widget": "squares"
+          "widget": "squares",
+          "listen": "bassline"
         },
         {
           "widget": "flee",
@@ -61,7 +62,8 @@
       "fade": 2,
       "layers": [
         {
-          "widget": "squares"
+          "widget": "squares",
+          "listen": "bassline"
         },
         {
           "widget": "flee",

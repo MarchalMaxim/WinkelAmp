@@ -42,18 +42,24 @@ describe('show v2: committed shows', () => {
   // beethoven5 and rach-prelude-recording were committed with "fade" after "layers" (rach also without a final
   // newline), and last night's canonicalShow already rewrote them so (the only differences). Pinned: the bytes are
   // canonical up to key order, nothing in them changes, and chopin-winter-wind (written by canonicalShow) is
-  // byte-identical.
-  it.each(files)('%s saves as version 1, the same data, canonical up to key order, and validates', (f) => {
+  // byte-identical. Since T20 the hand-composed shows route some layers (listen only, so version 2): with every listen
+  // taken out, each is still last night's version-1 show, line for line.
+  const unrouted = (show: Show): Show => ({
+    ...show, sections: show.sections.map((s) => ({ ...s, layers: s.layers.map(({ listen: _l, ...l }) => l) })),
+  });
+  it.each(files)('%s saves as its version, the same data, canonical up to key order, and validates', (f) => {
     const text = readFileSync(resolve(SHOWS, f), 'utf8').replace(/\r\n/g, '\n');
     const show = JSON.parse(text) as Show;
     const out = canonicalShow(show);
-    expect(show.version).toBe(1);
-    expect(usesV2(show)).toBe(false);
-    expect(out).toContain('\n  "version": 1,');
+    expect(show.version).toBe(usesV2(show) ? 2 : 1);
+    expect(out).toContain(`\n  "version": ${show.version},`);
     expect(JSON.parse(out)).toEqual(show);
     expect(lineSet(out)).toEqual(lineSet(text));
     expect(canonicalShow(JSON.parse(out) as Show)).toBe(out);
     expect(validateShow(show).errors).toEqual([]);
+    const v1 = canonicalShow(unrouted(show));
+    expect(v1).toContain('\n  "version": 1,');
+    expect(lineSet(v1)).toEqual(lineSet(text.replace(/\n *"listen": "[^"]*",?/g, '').replace('\n  "version": 2,', '\n  "version": 1,')));
   });
 
   it('chopin-winter-wind.json is byte-identical', () => {

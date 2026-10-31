@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "beethoven5",
   "song": "beethoven5",
   "title": "Beethoven: Symphony No. 5, I",
@@ -120,6 +120,7 @@
       "layers": [
         {
           "widget": "strings",
+          "listen": "violin",
           "knobs": {
             "heat": 0.85
           }
@@ -263,6 +264,7 @@
       "layers": [
         {
           "widget": "strings",
+          "listen": "violin",
           "knobs": {
             "heat": 0.85
           }
@@ -573,6 +575,7 @@
       "layers": [
         {
           "widget": "strings",
+          "listen": "violin",
           "knobs": {
             "heat": 0.85
           }

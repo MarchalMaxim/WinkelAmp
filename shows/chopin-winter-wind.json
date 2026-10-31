@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "chopin-winter-wind",
   "song": "chopin-winter-wind",
   "title": "Chopin: Etude Op. 25 No. 11 “Winter Wind”",
@@ -46,12 +46,14 @@
       "layers": [
         {
           "widget": "strings",
+          "listen": "melody",
           "knobs": {
             "heat": 0
           }
         },
         {
           "widget": "squares",
+          "listen": "bassline",
           "knobs": {
             "split": 61
           }
@@ -92,6 +94,7 @@
         },
         {
           "widget": "squares",
+          "listen": "bassline",
           "knobs": {
             "split": 61
           }
@@ -247,12 +250,14 @@
       "layers": [
         {
           "widget": "strings",
+          "listen": "melody",
           "knobs": {
             "heat": 0
           }
         },
         {
           "widget": "squares",
+          "listen": "bassline",
           "knobs": {
             "split": 61
           }
