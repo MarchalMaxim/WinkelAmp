@@ -91,7 +91,7 @@ T1 ∥ T2 → T3 → T4 → (T5 ∥ T6) → T7 → T8. T5's server half may star
 | `index.html` (new), `legacy.html` (moved), `vite.config.ts`, `scripts/studio-api.ts`, `scripts/studio-check.mjs` | T4 | pages, dev API plugin, e2e |
 | `scripts/ears/server.ts`, `src/studio/ingest/{ears-client,fallback,analyze.worker}.ts` | T5 | drop a file |
 | `src/visual/recorder.ts` (modify), `src/studio/ui/record.ts`, `scripts/{render-show,record-check}.mjs` | T6 | export |
-| `shows/prelude.json`, `shows/beethoven5.json` | T7 | the user's two shows |
+| `shows/rach-prelude-recording.json` (T7: was `prelude.json`), `shows/beethoven5.json` | T7 | the user's two shows |
 
 ## Binding Interfaces
 
@@ -787,7 +787,11 @@ Create `src/studio/ui/record.ts`, `scripts/render-show.mjs`, `scripts/record-che
 
 Depends on T1–T6 (packs from T1 step 7).
 
-**Files:** Create `shows/prelude.json`, `shows/beethoven5.json`.
+**Files:** Create `shows/rach-prelude-recording.json`, `shows/rach-prelude-recording.description.md`, `shows/beethoven5.json`. Changed in T7: the
+  overnight brief named the Prelude show `rach-prelude-recording`, so the same recording was ingested again under that id
+  (`npm run ingest -- prelude_real.mp3 --id rach-prelude-recording`, same sha1 and notes as `songs/prelude`, which keeps
+  the auto-composed show; the library lists the recording twice). The casts below were the starting point; the shows
+  follow the user's words and the music's form instead (COMPOSING-SHOWS.md, "Composing as a composer").
 
 - [ ] **Step 1: Compose by hand, as COMPOSING-SHOWS.md tells Claude**, sections and labels from the lab's
   `SONGS.moments` (its label, else its mood name), knobs at defaults. Starting casts (bottom → top), to adjust after Step 3:
@@ -801,7 +805,7 @@ Depends on T1–T6 (packs from T1 step 7).
 - [ ] **Step 3: Look.** For each show, `npm run render-show -- <id> --from <b − 3> --to <b + 12>` around three boundaries
   (prelude 83, 124, 176; beethoven5 20, 160, 340) and contact sheets of one frame per 0.5 s; read them. Change a cast
   only where a frame shows a clash or an empty stretch; never more than two rounds.
-- [ ] **Step 4: Full renders.** `npm run render-show -- prelude` and `-- beethoven5` → `renders/prelude.mp4`,
+- [ ] **Step 4: Full renders.** `npm run render-show -- rach-prelude-recording` and `-- beethoven5` → `renders/rach-prelude-recording.mp4`,
   `renders/beethoven5.mp4`: ffprobe 1280×720, 30 fps, durations equal the packs' (±0.1 s), AAC present; no widget
   errors. Contact sheets one frame per 10 s (`renders/<id>-sheet.png`). Record the first 60 s of the Prelude in the
   studio (share preset) and note its size.
@@ -814,7 +818,7 @@ Depends on T1–T6 (packs from T1 step 7).
 - [ ] **Step 2: Review Focus by hand,** each with its outcome written into the report: an 11-minute file (`ffmpeg`
   concat of the two recordings) through `npm run ears` + drop, timed, then opened and played; 5 s silence + 10 s tones +
   5 s silence, and 20 s of pure silence; `.superpowers/sheet/hungarian.mp3` (orchestral: expect the coverage warning);
-  ears with `WINKELAMP_PY=C:/nope/python.exe`; a copy of `shows/prelude.json` with an overlap and a gap (check-show
+  ears with `WINKELAMP_PY=C:/nope/python.exe`; a copy of `shows/rach-prelude-recording.json` with an overlap and a gap (check-show
   exit 1, the studio repairs it); resize and full screen while playing; switch tabs for 10 s while playing and while
   recording.
 - [ ] **Step 3:** Run the `code-review` skill at `high` on the branch diff against `claude/wizardly-franklin-ttaqyo`;
