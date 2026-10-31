@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeSong } from '../src/audio/song-analysis';
+import { buildPack } from '../src/studio/pack/build';
+import { validatePack } from '../src/studio/pack/pack';
 
 /** 2 s silence, 8 s of decaying 220/330/440 Hz tones every 0.5 s, 2 s silence (44.1 kHz). */
 function signal(): Float32Array {
@@ -48,6 +50,21 @@ describe('analyzeSong', () => {
     for (let i = 1; i < a.beats.length; i++) expect(a.beats[i]).toBeGreaterThan(a.beats[i - 1]);
     for (const b of a.beats) expect(b >= 0 && b <= 12).toBe(true);
     expect(finiteDeep(a)).toBe(true);
+  });
+
+  it('makes one silent section of an all-silent recording, with nothing NaN', () => {
+    const s = analyzeSong(new Float32Array(5 * 44100), 44100);
+    expect(finiteDeep(s)).toBe(true);
+    expect(s.sections).toEqual([{ start: 0, end: 5, novelty: 0 }]);
+    expect(s.loudness.values).toEqual(new Array(50).fill(0));
+    expect(s.onsets).toEqual([]);
+    expect(s.melody).toEqual([]);
+    const p = buildPack({
+      id: 'silence', title: 'Silence', audio: 'audio.wav', source: { name: 's.wav', bytes: 1, sha1: '0'.repeat(40) },
+      analysis: s, notes: null, by: 'ingest', at: 'now',
+    });
+    expect(validatePack(p)).toEqual([]);
+    expect(p.quality.warnings.join()).toMatch(/no notes found/);
   });
 
   it('reports progress up to 1, never backwards', () => {

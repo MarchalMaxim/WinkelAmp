@@ -74,10 +74,8 @@ async function main(): Promise<void> {
   if (existsSync(packFile) && !o.force) {
     try {
       const old = JSON.parse(readFileSync(packFile, 'utf8')) as SongPack;
-      const same = old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0;
-      const sameNotes = kind === 'gpu' ? old.notesFrom === 'gpu' || old.notesFrom === 'merged' : old.notesFrom === kind;
-      if (same && sameNotes) {
-        log(`${o.id}: up to date (${packFile}; --force rebuilds it)`);
+      if (old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0) {
+        log(`${o.id}: up to date (${old.notesFrom} notes; --force rebuilds it, e.g. with other notes): ${packFile}`);
         report({ stage: 'done', progress: 1, message: 'up to date', id: o.id, warnings: old.quality.warnings });
         return;
       }
