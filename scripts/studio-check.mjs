@@ -78,6 +78,14 @@ try {
   check('the library lists the song', listed.length === 1 && listed[0].includes('Demo'), listed.join(' | '));
   await page.click('.library-sheet [data-close]');
 
+  // A seek before the first play shows the picture there: the poster steps aside.
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(300);
+  const seen = { poster: await page.evaluate(() => document.querySelector('[data-poster]').hidden), t: await page.evaluate(() => window.__studio.player.time), lit: await litShare(page) };
+  check('a seek before playing shows the picture there, not the poster', seen.poster && Math.abs(seen.t - 5) < 0.1 && seen.lit > 0.005,
+    `poster hidden ${seen.poster}, t ${seen.t.toFixed(2)}, ${(seen.lit * 100).toFixed(1)} % lit`);
+
   // Playing draws.
   await page.evaluate(() => window.__studio.player.play());
   await page.waitForTimeout(2000);

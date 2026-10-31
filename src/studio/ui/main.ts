@@ -237,9 +237,12 @@ async function boot(): Promise<void> {
   const player = new Player(canvas, audio, conductor, runtime);
   store.dispatch({ type: 'loaded', song: pack, show, origin });
   runtime.reset(0);
+  // A seek (the timeline, the keys, a section's start) shows the picture there, also before the first play: the
+  // poster would hide the preview the seek draws, and every edit's refresh after it.
+  const seek = (t: number) => { ui.poster.hidden = true; player.seek(t); };
 
   const timeline = new Timeline({
-    store, song: pack, chords, duration: () => player.duration || pack.duration, seek: (t) => player.seek(t),
+    store, song: pack, chords, duration: () => player.duration || pack.duration, seek,
     refresh: () => player.refresh(), names: (id) => metas.get(id)?.name ?? id,
   });
   ui.timeline.append(timeline.el);
@@ -252,7 +255,7 @@ async function boot(): Promise<void> {
   };
   const panel = new Panel({
     store, api, song: pack, catalogue, order, drives: harness.drives, icon,
-    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek: (t) => player.seek(t),
+    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek,
   });
   ui.panel.append(panel.el);
 
@@ -387,11 +390,11 @@ async function boot(): Promise<void> {
 
   installKeys({
     toggle: () => player.toggle(),
-    nudge: (s) => player.seek(player.time + s),
+    nudge: (s) => seek(player.time + s),
     section: (dir) => {
       const s = store.state.show!, t = player.time, i = sectionAt(s, t);
       const j = dir < 0 ? (t - s.sections[i].start > 1.5 ? i : Math.max(0, i - 1)) : Math.min(s.sections.length - 1, i + 1);
-      player.seek(s.sections[j].start);
+      seek(s.sections[j].start);
       store.dispatch({ type: 'select', section: j, layer: null });
     },
     fullscreen, hideUi: () => hideUi(),
