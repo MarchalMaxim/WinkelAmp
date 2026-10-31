@@ -5,6 +5,10 @@
 // place). Chords lift a few pieces, turn them and lay them somewhere else, like paper being moved around the wall; a loud
 // deep chord now and then changes the ground itself, a new sheet sliding across. Every frame repaints the whole collage
 // (nothing fades): the paper stays put until the music moves it.
+// v2 (the music moves the paper): a piece is cut as loud as its note, full gouache when loud, a pale tint when soft; it is
+// slapped down with a gust that pushes the pieces around it aside (they sway back, heavy low pieces slowly, light high
+// ones quickly), and while its note sounds it stands off the wall on a deep shadow, trembling. A fortissimo chord gusts
+// the whole wall. So a still shows what sounds (the lifted pieces) and a loud bar shakes everything.
 (() => {
   const TAU = Math.PI * 2;
   const R = Math.random;
@@ -32,6 +36,19 @@
     const ok = set.filter((c) => far(c, ground) > 120);
     const from = ok.length ? ok : [...set].sort((a, b) => far(b, ground) - far(a, ground)).slice(0, 1);
     return from[Math.floor(R2() * from.length)];
+  }
+  // a soft note cuts a lighter paper: each gouache has a lighter sister (ultramarine → cobalt → sky, crimson → magenta →
+  // pink…), and a soft note goes one or two steps up the ladder, never so light that it sinks into the ground
+  const LIGHTER = {
+    black: 'ultra', ultra: 'cobalt', cobalt: 'sky', violet: 'magenta', crimson: 'vermilion', magenta: 'pink',
+    deep: 'emerald', emerald: 'turq', vermilion: 'orange', orange: 'lemon',
+  };
+  const KEY = Object.fromEntries(Object.entries(C).map(([k, v]) => [v, k]));
+  function tint(col, soft, ground) {
+    const steps = soft > 0.8 ? 2 : soft > 0.5 ? 1 : 0;
+    let c = col;
+    for (let i = 0; i < steps; i++) { const nx = C[LIGHTER[KEY[c]]]; if (!nx || far(nx, ground) < 120) break; c = nx; }
+    return c;
   }
 
   // ---- the cut shapes: each returns an outline [[x, y], …] around 0,0, about s across (R2 = random 0..1) ----
@@ -122,6 +139,17 @@
 
   let pieces = [], panels = [], ground = GROUNDS[0], wipe = null, moveCool = 0, groundCool = 0, trimCool = 0;
   const live = () => pieces.filter((p) => p.die == null);
+  // the colours of the pieces a piece of size s at (px, py) would touch (two same-coloured pieces would melt into one)
+  const nearCols = (px, py, s, self) => new Set(live().filter((o) => o !== self && Math.hypot(o.x - px, o.y - py) < 0.55 * (o.s * o.grow + s)).map((o) => o.col));
+  // a paper for this register, as soft as the note, that shows on the ground and differs from its neighbours:
+  // [its full colour, the colour cut]; the register's colours first, then any gouache, then whatever the register gives
+  function paper(reg, soft, gr, near) {
+    const fit = (keys) => keys.map((k) => C[k]).filter((c) => far(c, gr) > 120 && !near.has(tint(c, soft, gr)));
+    let opts = fit(reg === 0 ? LOW : reg === 1 ? MID : HIGH);
+    if (!opts.length) opts = fit(Object.keys(C));
+    const b = opts.length ? opts[Math.floor(R() * opts.length)] : colourFor(reg, gr);
+    return [b, tint(b, soft, gr)];
+  }
 
   // a free spot: of a few candidates in the note's band of the wall, the one farthest from the pieces already there
   function spot(x, reg, s) {
@@ -150,9 +178,29 @@
     const m = Math.min(s * 0.32, x.H * 0.4);
     px = Math.max(m, Math.min(x.W - m, px)); py = Math.max(m, Math.min(x.H - m, py));
     const rot = kind === 'algae' ? RR(-0.45, 0.45) : kind === 'patch' || kind === 'square' ? RR(-0.18, 0.18) : RR(0, TAU);
-    const p = { path: toPath(pts), kind, reg, s, x: px, y: py, rot, col: colourFor(reg, wipe ? wipe.col : ground), age: 0, end: x.t + n.d, d: n.d, grow: 1, mv: null, flip: null, die: null, v: n.v };
+    const loud = Math.max(0, Math.min(1, (n.v - 30) / 80)), gr = wipe ? wipe.col : ground;
+    // not the colour of a piece it touches (two same-coloured pieces would melt into one)
+    const [bcol, col] = paper(reg, 1 - loud, gr, nearCols(px, py, s, null));
+    const p = {
+      path: toPath(pts), kind, reg, s, x: px, y: py, rot, base: bcol, soft: 1 - loud, col, loud,
+      age: 0, end: x.t + n.d, d: n.d, grow: 1, mv: null, flip: null, die: null, v: n.v,
+      // the sway around where it was laid: offset, its speed, and how fast it swings back (heavy low paper slowly)
+      ox: 0, oy: 0, or: 0, vx: 0, vy: 0, vr: 0, w: TAU * (reg === 0 ? 1.05 : reg === 1 ? 1.6 : 2.5), lift: 0, ph: R() * TAU,
+    };
     pieces.push(p);
     return p;
+  }
+  // the draft of a sheet slapped down: the pieces near (px, py) are pushed away and turned, then sway back
+  function gust(px, py, rad, amt, except) {
+    if (amt <= 0) return;
+    for (const p of pieces) {
+      if (p === except || p.die != null) continue;
+      const dx = p.x - px, dy = p.y - py, d = Math.hypot(dx, dy) || 1, r = rad + p.s * 0.3;
+      if (d > r) continue;
+      const f = amt * Math.pow(1 - d / r, 0.7), heavy = Math.sqrt(Math.max(0.4, p.s / 110));
+      p.vx += (dx / d) * f * 1100 / heavy; p.vy += (dy / d) * f * 1100 / heavy;
+      p.vr += (R() < 0.5 ? -1 : 1) * f * (3 + R() * 1.5) / heavy;
+    }
   }
   // lift a piece, turn it and lay it down elsewhere (on top of the others, as moved paper is)
   function move(x, p, delay) {
@@ -160,6 +208,9 @@
     const tx = lerp(p.x, nx, 0.55), ty = lerp(p.y, ny, 0.55);
     const turn = (R() < 0.5 ? -1 : 1) * RR(0.35, p.kind === 'algae' ? 0.7 : 1.6);
     p.mv = { u: -delay, x0: p.x, y0: p.y, r0: p.rot, x1: tx, y1: ty, r1: p.kind === 'algae' ? Math.max(-0.7, Math.min(0.7, p.rot + turn)) : p.rot + turn, dur: RR(0.5, 0.75) };
+    // laid onto a piece of its own colour, it is turned over on the way (to a colour that shows on both)
+    const near = nearCols(tx, ty, p.s * p.grow, p);
+    if (near.has(p.col) && !p.flip) { const [b, c] = paper(p.reg, p.soft, wipe ? wipe.col : ground, near); p.base = b; p.flip = { u: -delay - 0.1, col: c }; }
     pieces.splice(pieces.indexOf(p), 1); pieces.push(p);
   }
   // a new ground: a sheet of another colour slides across, with its own large panels (The Snail's frame of patches)
@@ -178,7 +229,13 @@
   // the pieces that vanish into a new ground turn over to a colour that shows
   function turnOver(gcol) {
     let d = 0;
-    for (const p of live()) if (far(p.col, gcol) < 120) { p.flip = { u: -d, col: colourFor(p.reg, gcol) }; d += 0.04; }
+    for (const p of live()) {
+      if (far(p.col, gcol) >= 105) continue;
+      // its new colour also differs from its neighbours, counting the colours they are turning to
+      const near = nearCols(p.x, p.y, p.s * p.grow, p);
+      for (const o of live()) if (o.flip && Math.hypot(o.x - p.x, o.y - p.y) < 0.55 * (o.s * o.grow + p.s * p.grow)) near.add(o.flip.col);
+      const [b, c] = paper(p.reg, p.soft, gcol, near); p.base = b; p.flip = { u: -d, col: c }; d += 0.04;
+    }
   }
 
   // ---- knob pictures ----
@@ -210,8 +267,8 @@
   };
 
   TOOLS.push({
-    id: 'matisse', name: 'Matisse', tag: 'new',
-    blurb: 'Cut paper, after Matisse\'s late cut-outs. Each note lays a flat piece of gouache paper on the wall: low notes big dark algae, lumps and slabs, middle notes coils, ribbons and patches, high notes small bright stars. The wall only holds so many pieces, so new notes swap old ones out; chords lift a few pieces, turn them and lay them down elsewhere, and a loud deep chord can slide a new coloured ground across.',
+    id: 'matisse', name: 'Matisse', tag: 'v2',
+    blurb: 'Cut paper, after Matisse\'s late cut-outs: low notes lay big dark algae and slabs, middle notes coils and ribbons, high notes small bright stars, and chords rearrange the wall. New in v2: the music moves the paper. Every note slaps its piece down with a gust that pushes its neighbours aside, a sounding note lifts its piece off the wall on a deep shadow, soft notes cut pale paper and loud ones full colour, and a fortissimo shakes the whole wall.',
     params: [
       { key: 'size', label: 'size of the pieces', min: 0.4, max: 1.8, value: 1,
         hint: 'How big the cut pieces are. Left: small scraps. Right: huge sheets that crowd the wall.',
@@ -219,8 +276,8 @@
       { key: 'pieces', label: 'how many pieces on the wall', min: 6, max: 40, step: 1, value: 18, drive: '+rate',
         hint: 'How many pieces the wall holds before new notes swap old ones out. Left: a sparse few. Right: a crowded collage.',
         icon: ICONS.pieces },
-      { key: 'move', label: 'how much chords move the paper', min: 0, max: 1, value: 0.45, drive: '+level',
-        hint: 'How many pieces a chord lifts, turns and lays down elsewhere. Left: pieces stay where they were laid. Right: every chord rearranges the wall.',
+      { key: 'move', label: 'how much the notes stir the paper', min: 0, max: 1, value: 0.6, drive: '+level',
+        hint: 'How much the music moves the paper. Left: pieces are laid flat and stay put. Right: every note gusts the paper around it, sounding notes lift their pieces, and chords rearrange the wall.',
         icon: ICONS.move },
       { key: 'curl', label: 'straight or curly cuts', min: 0, max: 1, value: 0.65,
         hint: 'What the scissors cut. Left: straight-cut squares and patches, like The Snail. Right: curling algae, coils and stars, like Oceania and Jazz.',
@@ -252,6 +309,13 @@
         }
         fresh.push(cut(x, n, at));
       }
+      // each new piece is slapped down: a gust as strong as its note pushes its neighbours aside (busy music gusts less
+      // per note, or the wall would never settle); a fortissimo chord gusts the whole wall from where it landed
+      const stir = x.p('move'), calm = lerp(1, 0.5, Math.min(1, (x.feat?.rate ?? 0) * 1.4));
+      let cx = 0, cy = 0;
+      // (the reach has a floor: new pieces are laid in free spots, so a gust only as wide as the piece would touch nothing)
+      for (const p of fresh) { gust(p.x, p.y, Math.max(x.W * 0.13, p.s * (0.9 + 1.4 * p.loud)), stir * calm * (0.25 + 0.75 * p.loud), p); cx += p.x / fresh.length; cy += p.y / fresh.length; }
+      if (ch.vel >= 92) gust(cx, cy, Math.hypot(x.W, x.H), stir * Math.min(1, (ch.vel - 86) / 24), null);
       // a chord moves paper: a few of the older pieces are lifted, turned and laid down again
       if (moveCool <= 0 && (ns.length >= 3 || (ns.length >= 2 && ch.vel >= 88))) {
         const mv = x.p('move'), k = Math.round(mv * (1 + ns.length * 0.7) * (0.45 + ch.vel / 127));
@@ -261,7 +325,7 @@
       }
     },
     frame(x) {
-      const g = x.g, dt = x.dt, W = x.W, H = x.H;
+      const g = x.g, dt = x.dt, W = x.W, H = x.H, stir = x.p('move');
       moveCool -= dt; groundCool -= dt; trimCool -= dt;
       // fewer pieces allowed now (the knob moved, or the music slowed): the oldest peel off, one at a time
       const lv = live(), cap = Math.round(x.p('pieces'));
@@ -309,16 +373,34 @@
         }
         // a long-held note keeps cutting: its piece grows while it sounds (and keeps that size)
         p.grow = 1 + 0.45 * Math.min(1, Math.min(p.age, p.d) / 2.5);
-        // laid down on the attack: a touch too big and lifted, settling flat within a tenth of a second
-        const land = Math.max(0, 1 - p.age / 0.12), k = 1 + 0.14 * land * land;
-        // a piece whose note still sounds stands a little off the wall
-        const held = p.end > x.t ? 0.25 : 0;
-        lift = Math.max(lift, land, held);
-        // its shadow on the wall (always down and to the right), then the paper
-        const off = 2.5 + lift * 10, scx = k * p.grow * Math.max(0.02, sx), scy = k * p.grow * sy;
-        g.save(); g.translate(p.x + off * 0.8, p.y + off); g.rotate(p.rot); g.scale(scx, scy);
-        g.fillStyle = `rgba(20,12,4,${0.14 + 0.08 * lift})`; g.fill(p.path); g.restore();
-        g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.scale(scx, scy);
+        // the sway: pushed by gusts, pulled back to where it was laid (a damped spring; dt = 0 leaves it still)
+        const w = p.w, z = 2 * 0.32 * w;
+        p.vx += (-w * w * p.ox - z * p.vx) * dt; p.vy += (-w * w * p.oy - z * p.vy) * dt; p.vr += (-w * w * p.or - z * p.vr) * dt;
+        p.ox += p.vx * dt; p.oy += p.vy * dt; p.or += p.vr * dt;
+        // it can only be blown so far (and stops there, rather than pressing on the limit)
+        const lim = p.s * 0.35;
+        if (Math.abs(p.ox) > lim) { p.ox = Math.sign(p.ox) * lim; p.vx = 0; }
+        if (Math.abs(p.oy) > lim) { p.oy = Math.sign(p.oy) * lim; p.vy = 0; }
+        if (Math.abs(p.or) > 0.6) { p.or = Math.sign(p.or) * 0.6; p.vr = 0; }
+        // slapped down on the attack: lifted high and too big, settling flat (loud notes from higher, low ones slower)
+        const ldur = p.reg === 0 ? 0.24 : p.reg === 1 ? 0.18 : 0.13, land = Math.max(0, 1 - p.age / ldur);
+        const k = 1 + (0.1 + 0.32 * p.loud) * (0.4 + 0.6 * stir) * land * land;
+        // while its note sounds the piece stands off the wall, as far as the note is loud, and trembles; it settles on release
+        const sounding = p.end > x.t && p.die == null ? (0.35 + 0.65 * p.loud) * (0.35 + 0.65 * stir) : 0;
+        p.lift += (sounding - p.lift) * (1 - Math.exp(-dt / (sounding > p.lift ? 0.05 : 0.22)));
+        p.ph += dt * (3 + 2.5 * p.reg);
+        lift = Math.max(lift, land, p.lift);
+        const tremble = Math.sin(p.ph) * 0.03 * p.lift;
+        // its shadow on the wall (always down and to the right): a soft wide one once lifted, a crisp one under it; then the paper
+        const px = p.x + p.ox, py = p.y + p.oy, rot = p.rot + p.or + tremble;
+        const lk = 1 + 0.05 * p.lift, off = 2.5 + lift * 17, scx = k * lk * p.grow * Math.max(0.02, sx), scy = k * lk * p.grow * sy;
+        if (lift > 0.04) {
+          g.save(); g.translate(px + off * 1.15, py + off * 1.4); g.rotate(rot); g.scale(scx * 1.03, scy * 1.03);
+          g.fillStyle = `rgba(20,12,4,${0.09 * lift})`; g.fill(p.path); g.restore();
+        }
+        g.save(); g.translate(px + off * 0.8, py + off); g.rotate(rot); g.scale(scx, scy);
+        g.fillStyle = `rgba(20,12,4,${0.13 + 0.15 * lift})`; g.fill(p.path); g.restore();
+        g.save(); g.translate(px, py); g.rotate(rot); g.scale(scx, scy);
         g.fillStyle = p.col; g.fill(p.path);
         g.restore();
       }
