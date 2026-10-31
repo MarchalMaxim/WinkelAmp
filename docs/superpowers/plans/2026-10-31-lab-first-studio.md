@@ -391,7 +391,7 @@ export function connectStore(): Promise<ShowStore>;   // GET /api/health answers
 ```
 Undo covers show edits only; the selection is clamped after undo/redo. One show per song: `shows/<song>.json`.
 Keys: Space play/pause · ←/→ ∓5 s · Shift+←/→ previous/next section start · F full screen · H hide UI · S split at
-the playhead · Delete remove the selected layer · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save (keys are
+the playhead · Delete (or Backspace) remove the selected layer · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save (keys are
 ignored while typing). Switching songs navigates to `/?song=<id>` (a fresh page, see §2).
 
 ### §8 Dev API — `scripts/studio-api.ts`, a Vite plugin (T4)

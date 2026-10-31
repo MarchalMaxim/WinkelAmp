@@ -1,7 +1,7 @@
 /**
  * The studio's keys (plan §7): Space play/pause · ←/→ ∓5 s · Shift+←/→ previous/next section start · F full screen ·
- * H hide the controls · S split at the playhead · Delete remove the selected layer · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y
- * redo · Ctrl+S save. Ignored while typing; arrows are left to a focused slider or list.
+ * H hide the controls · S split at the playhead · Delete (or Backspace) remove the selected layer · Ctrl+Z undo ·
+ * Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save. Ignored while typing; arrows are left to a focused slider or list.
  */
 export interface KeyActions {
   toggle(): void; nudge(s: number): void; section(dir: -1 | 1): void; fullscreen(): void; hideUi(): void;
@@ -32,7 +32,7 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
   if (k === 'f') return { action: 'fullscreen' };
   if (k === 'h') return { action: 'hideUi' };
   if (k === 's') return { action: 'split' };
-  if (k === 'Delete') return { action: 'removeLayer' };
+  if (k === 'Delete' || k === 'Backspace') return { action: 'removeLayer' };   // a Mac's delete key sends Backspace
   return null;
 }
 

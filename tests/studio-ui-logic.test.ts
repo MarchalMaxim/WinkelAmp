@@ -20,6 +20,7 @@ describe('keys', () => {
     expect(keyAction(key('h'), free)).toEqual({ action: 'hideUi' });
     expect(keyAction(key('s'), free)).toEqual({ action: 'split' });
     expect(keyAction(key('Delete'), free)).toEqual({ action: 'removeLayer' });
+    expect(keyAction(key('Backspace'), free)).toEqual({ action: 'removeLayer' });   // a Mac's delete key
     expect(keyAction(key('z', { ctrlKey: true }), free)).toEqual({ action: 'undo' });
     expect(keyAction(key('Z', { ctrlKey: true, shiftKey: true }), free)).toEqual({ action: 'redo' });
     expect(keyAction(key('y', { ctrlKey: true }), free)).toEqual({ action: 'redo' });
@@ -28,7 +29,7 @@ describe('keys', () => {
 
   it('leaves typing alone (but Ctrl+S still saves), and arrows to a focused slider', () => {
     const typing = { typing: true, control: false };
-    for (const k of [' ', 'h', 's', 'Delete', 'ArrowLeft']) expect(keyAction(key(k), typing)).toBeNull();
+    for (const k of [' ', 'h', 's', 'Delete', 'Backspace', 'ArrowLeft']) expect(keyAction(key(k), typing)).toBeNull();
     expect(keyAction(key('z', { ctrlKey: true }), typing)).toBeNull();
     expect(keyAction(key('s', { ctrlKey: true }), typing)).toEqual({ action: 'save' });
     expect(keyAction(key('ArrowLeft'), { typing: false, control: true })).toBeNull();

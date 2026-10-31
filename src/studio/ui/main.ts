@@ -57,7 +57,7 @@ function shell(): Record<string, HTMLElement> {
       <div class="stage" data-stage>
         <canvas id="c" width="1280" height="720" aria-label="The show"></canvas>
         <div class="poster" data-poster hidden></div>
-        <button type="button" class="unhide" data-unhide hidden>Show the controls (H)</button>
+        <button type="button" class="unhide" data-unhide hidden>Show the controls<span class="key-hint"> (H)</span></button>
       </div>
       <div class="transport">
         <button type="button" class="play" data-play aria-label="Play (Space)" disabled>${ICONS.play}</button>

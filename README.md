@@ -26,7 +26,7 @@ composed from its analysis and the widgets you loved. Then:
 - **The side panel** holds the selected section: its name, how the widgets leaving at its start fade out, and its
   layers, top first. **Add a widget on top** opens the collection with your verdicts from the lab; each layer
   opens to its knobs, drawn as the lab draws them (a picture at each end, the live one moving with the music, the
-  `i` hint, and what the knob follows: fixed, louder → more, …). Delete removes the selected layer.
+  `i` hint, and what the knob follows: fixed, louder → more, …). Delete (or Backspace) removes the selected layer.
 - **Undo** (Ctrl+Z), **redo** (Ctrl+Shift+Z), **Save show** (Ctrl+S) writes `shows/<song>.json`.
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
   the show from it ([docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md), `npm run check-show`).
