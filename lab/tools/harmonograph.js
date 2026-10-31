@@ -14,7 +14,15 @@
   const SLOTS = 3; // pendulums per axis
   // The figure lives on its own canvas (it fades by the "lines stay" knob, not the lab's quick shared fade) and is laid on
   // the shared canvas with 'lighten', so other widgets still show wherever they are brighter.
-  const off = document.createElement('canvas'); off.width = 1280; off.height = 720; const og = off.getContext('2d');
+  // At the shared canvas's real size (×S in a supersampled render, og then drawing in 1280×720 units through scale(S)).
+  let off = document.createElement('canvas'); off.width = 1280; off.height = 720; let og = off.getContext('2d');
+  function sizeOff(x) {
+    const c = x.canvas;
+    if (off.width === c.width && off.height === c.height) return;
+    off = document.createElement('canvas'); off.width = c.width; off.height = c.height; og = off.getContext('2d');
+    og.fillStyle = '#000'; og.fillRect(0, 0, off.width, off.height);
+    const S = c.width / x.W; og.setTransform(S, 0, 0, S, 0, 0);
+  }
   let pen = null, lastTop = null, lastAttack = -9, lastDim = -9, press = 0, rush = 0, knots = [];
 
   // A chord → pendulum targets: { fx: [[f, amp]...], fy: [[f, amp]...], dis (0..1), pcs (key), reg (0 low..1 high) }.
@@ -100,9 +108,10 @@
         hint: 'How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other.',
         icon: (g, v, w, h) => { if (v > 0.05) liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, alpha: v * 0.9 }); liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, frac: 0.18, col: ICON.ink, lw: 1.6, nib: true }); } },
     ],
-    reset() {
+    reset(x) {
+      if (x && x.canvas) sizeOff(x);
       pen = null; lastTop = null; lastAttack = lastDim = -9; press = rush = 0; knots = [];
-      og.globalCompositeOperation = 'source-over'; og.globalAlpha = 1; og.fillStyle = '#000'; og.fillRect(0, 0, off.width, off.height);
+      og.globalCompositeOperation = 'source-over'; og.globalAlpha = 1; og.fillStyle = '#000'; og.fillRect(0, 0, off.width, off.height);   // (under scale(S) this covers more than the canvas: fine)
     },
     onChord(ch, x) {
       const distinct = new Set(ch.notes.map((n) => n.m)).size;
@@ -132,6 +141,7 @@
     },
     frame(x) {
       const W = x.W, H = x.H, dt = x.dt;
+      sizeOff(x);
       // Fade the figure's own canvas by "how long the lines stay" (half-life in seconds); the colour-burn takes the last
       // few 8-bit levels to black so no grey ghosts stick. Not when paused (dt 0): the burn alone would eat the picture.
       const stay = x.p('stay');
@@ -221,7 +231,7 @@
       rush *= Math.pow(0.5, dt / 0.6);
 
       const g = x.g;
-      g.globalCompositeOperation = 'lighten'; g.drawImage(off, 0, 0);
+      g.globalCompositeOperation = 'lighten'; g.drawImage(off, 0, 0, x.W, x.H);
       if (head) { // the pen: the last stretch of line, white-hot
         const [r, gg, b] = head.col, T = head.tail, pr = Math.min(1, press);
         g.globalCompositeOperation = 'lighter'; g.shadowColor = `rgb(${r},${gg},${b})`; g.shadowBlur = 10 + 14 * pr;
