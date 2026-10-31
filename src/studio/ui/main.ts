@@ -110,7 +110,7 @@ function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, problem?: s
       <p>${problem ? esc(problem) : api.writable
         ? 'There are no songs yet. Add one from the project folder with <code>npm run ingest -- &lt;audio file&gt;</code>: its notes are transcribed once, and it appears here with a show composed for it.'
         : 'This copy of the studio has no songs. Run it from the project with <code>npm run dev</code>, and add recordings with <code>npm run ingest</code>.'}</p>
-      <p class="links"><a href="lab/index.html">Open the widget lab</a> <a href="legacy.html">Old app: microphone, MIDI</a></p>
+      <p class="links">${api.writable ? '<a href="lab/index.html">Open the widget lab</a> ' : ''}<a href="legacy.html">Old app: microphone, MIDI</a></p>
     </div>`;
   ui.piece.textContent = 'Studio';
 }

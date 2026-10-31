@@ -36,7 +36,7 @@ export class Library {
         <ul class="songs"></ul>
         <div class="library-how"></div>
         <footer>
-          <a href="lab/index.html">Widget lab</a><span class="dim">where widgets are sketched and rated</span>
+          ${writable ? '<a href="lab/index.html">Widget lab</a><span class="dim">where widgets are sketched and rated</span>' : ''}
           <a href="legacy.html">Old app: microphone, MIDI</a><span class="dim">the live-listening WinkelAmp</span>
         </footer>
       </nav>`;

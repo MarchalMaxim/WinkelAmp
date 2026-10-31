@@ -254,3 +254,4 @@ button.poster-inner:hover .poster-play { border-color: var(--fg); }
 }
 .short { display: none; }
 @media (max-width: 520px) { .long { display: none; } .short { display: inline; } }
+.no-song .save { visibility: hidden; }
