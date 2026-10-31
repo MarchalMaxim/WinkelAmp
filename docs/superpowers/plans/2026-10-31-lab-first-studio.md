@@ -331,15 +331,20 @@ export const TASTE: { id: string; role: 'base' | 'accent' | 'top'; fit: Partial<
 //   base: kandinsky {dense 1, fast .5}, rorschach {low .8, quiet .5}, current {quiet 1, fast .3}, strings {quiet .8, dense .4},
 //   fields {quiet .6}; accent: squares {low 1, loud .5}, flee {fast 1, loud .3}; top: casket {loud 1, dense .5}
 export interface ComposeInput { pack: Pick<SongPack, 'id' | 'title' | 'duration' | 'notes' | 'sections'>;
-  widgets: ReadonlyMap<string, WidgetMeta>; minSection?: number /* 15 */; maxSections?: number /* max(1, round(duration / 30)) */ }
+  widgets: ReadonlyMap<string, WidgetMeta>; minSection?: number /* 15 */; maxSections?: number /* max(1, round(duration / 30)) */;
+  at?: string /* composer.at; added in T3: the studio passes now, the default (the epoch) keeps composeShow deterministic */ }
 export function pickSections(i: ComposeInput): Span[];
 //   drop the lowest-novelty boundary touching a span < minSection until none; then the lowest overall until ≤ maxSections;
-//   move each boundary to (strongest attack by vel·notes within ±1 s).t − 0.05 when there is one (spacing ≥ 1 s kept)
+//   move each boundary to (strongest attack by vel·notes within ±1 s; ties the nearest).t − 0.05 when there is one and both
+//   neighbouring spans keep ≥ minSection (their old length if shorter) and ≥ 1 s (T3: so the spans ≥ 15 s test holds after moves);
+//   drop ties: the boundary whose merged span is shorter, then the earliest
 export function composeShow(i: ComposeInput): Show;
 //   eligible = TASTE ids with verdict love or keep; score = Σ fit·character; base = best base (ties: TASTE order), the
 //   previous span's base kept when within 0.1 of the best; accent = best accent when ≥ 0.5; casket on top when
 //   loud ≥ 0.75 and dense ≥ 0.5; knobs none ("keep OUR defaults"); label = character words ≥ 0.6, highest two,
-//   ' · '-joined, else 'calm'; fade DEFAULT_FADE; composer { by: 'auto' }; id = song = pack.id. Deterministic.
+//   ' · '-joined, else 'calm'; fade DEFAULT_FADE (on every section after the first); composer { by: 'auto' }; id = song = pack.id.
+//   Deterministic. No attacks at all → one section [0, duration] (T3). sectionCharacters takes the chords as an optional
+//   third argument (one groupChords per compose); percentile rank = (#below + (#equal − 1)/2)/(n − 1), silent spans in the pool.
 ```
 
 ### §7 Studio state, undo, storage (T4)
