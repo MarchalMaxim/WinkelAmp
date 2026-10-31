@@ -6,9 +6,9 @@
 // Local only: needs lab/notes.js and lab/notes-b5.js (the user's transcriptions, not in git), system Chrome. Starts its
 // own Vite server. A control page (a second lab load) measures how far the lab differs from itself; a case passes when
 // the frame hashes are equal, or when the studio is no further from the lab than the control is (share of pixels off
-// by more than 2 within the control's + 0.1 %, largest difference within the control's + 8), or when at most FLOOR pixels
-// differ by more than 2 (GPU rasterisation of a handful of edge pixels is not repeatable run to run: prelude murmuration
-// at 0 +1 s was off by 12 on a few pixels in two runs of three, invisible).
+// by more than 2 within the control's + 0.1 %, largest difference within the control's + 8), or when at most FLOOR
+// pixels differ by more than 2 and none by more than FLOOR_MAX (GPU rasterisation of a handful of edge pixels is not
+// repeatable: prelude murmuration at 0 +1 s was off by up to 12 on a few pixels, the lab against itself too; invisible).
 // Most cases check 1, 2.5 and 4 s after start; the long cases run past a section change in the lab's SONGS.moments
 // more than 4 s after the seek (lewitt starts a new wall when ctx.moment changes, but not within 4 s of a reset).
 // --only keeps the cases whose widget set includes one of the ids; --quick keeps one case per widget set;
@@ -26,7 +26,7 @@ const opt = (name) => { const i = argv.indexOf(`--${name}`); return i < 0 ? null
 const ONLY = opt('only')?.split(',').filter(Boolean) ?? null;
 const QUICK = argv.includes('--quick');
 const STILLS = opt('stills');
-const HZ = 60, FPS = 30, PREROLL = 3, CHECKS = [1, 2.5, 4], FLOOR = 40;
+const HZ = 60, FPS = 30, PREROLL = 3, CHECKS = [1, 2.5, 4], FLOOR = 40, FLOOR_MAX = 32;
 
 for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
   if (!existsSync(path.join(ROOT, f))) { console.log(`fidelity: skipped (no ${f}: the lab's transcriptions are local only)`); process.exit(0); }
@@ -146,7 +146,7 @@ for (const { song, ids, checks, starts } of groups.values()) {
           [side, Buffer.from(await page.evaluate(pixels), 'base64')])));
         row.studio = diff(px.lab, px.studio); row.control = diff(px.lab, px.control);
       }
-      row.pass = row.same || row.studio.off <= FLOOR
+      row.pass = row.same || (row.studio.off <= FLOOR && row.studio.max <= FLOOR_MAX)
         || (row.studio.share <= row.control.share + 0.001 && row.studio.max <= row.control.max + 8);
       if (STILLS) {
         mkdirSync(STILLS, { recursive: true });

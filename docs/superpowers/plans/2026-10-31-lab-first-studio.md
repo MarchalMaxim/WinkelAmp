@@ -563,7 +563,7 @@ and moments from it, never a copy).
   Control: the lab against a second
   lab load. One page per side per widget set, its cases in the same order on every page (widgets keep closure state
   across `renderSeek`, like the lab's). Pass per case: hashes equal, or share of pixels off by > 2 ≤ the control's
-  + 0.1 % and max diff ≤ the control's + 8, or at most 40 pixels off by > 2 (GPU rasterisation of a few edge pixels is
+  + 0.1 % and max diff ≤ the control's + 8, or at most 40 pixels off by > 2 and none by > 32 (GPU rasterisation of a few edge pixels is
   not repeatable: prelude murmuration 0 + 1 s was off by up to 12 on a handful of pixels in two runs of three). The lab has no `renderFrameHash`/`renderPixels` (and `lab/` is not edited), so the
   script computes both in-page with one identical function on every page, at the same frames. `pixelsort` is included: with
   the render-mode `queueMicrotask` route above it is deterministic in both pages. Options: `--only <ids>`, `--quick` (one
