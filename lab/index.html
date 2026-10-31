@@ -99,7 +99,16 @@ const SONGS = {
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
-document.getElementById('a').src = SONG.audio;
+// ?render=1 (lab/render.mjs): no audio, no rAF loop, our default knobs, seeded randomness; the page exposes
+// renderSeek(t) and renderStep(dt) and draws frames on demand, through the same step() the live loop uses.
+const RENDER = new URLSearchParams(location.search).has('render');
+const RENDER_HZ = Number(new URLSearchParams(location.search).get('hz')) || 60;   // live frames per song second to imitate
+if (RENDER) {
+  let seed = 1;
+  window.reseed = (n) => { seed = (n >>> 0) || 1; };
+  Math.random = () => { seed = (seed + 0x6D2B79F5) >>> 0; let z = seed; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+}
+if (!RENDER) document.getElementById('a').src = SONG.audio;
 document.write(`<script src="${SONG.notes}"><\/script>`);
 </script>
 <script>
@@ -266,7 +275,7 @@ const only = new URLSearchParams(location.search).get('only');
 const active = new Set(only ? only.split(',') : []);
 const errors = {};
 const RATES = ['love it', 'keep', 'needs work', 'drop'];
-let ratings = {}; try { ratings = JSON.parse(localStorage.getItem('wa-ratings') || '{}'); } catch {}
+let ratings = {}; try { if (!RENDER) ratings = JSON.parse(localStorage.getItem('wa-ratings') || '{}'); } catch {}
 // The user's verdicts so far (lab/ratings.md), with the version they judged. A tool whose tag has moved on since is "revised".
 const VERDICTS = {
   casket: { v: 'love', on: 'building into the app', note: 'built into the app' },
@@ -290,14 +299,14 @@ const sortKey = (tool) => (!VERDICTS[tool.id] || isRevised(tool) ? 0 : 1000) + (
 const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
   ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
   ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less']];
-let PST = {}; try { PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
+let PST = {}; try { if (!RENDER) PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
 const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
 // Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
 const BROWSER = /Edg\//.test(navigator.userAgent) ? 'edge' : /Electron|Claude/.test(navigator.userAgent) ? 'claude-pane' : 'chrome';
 let syncT = 0;
 // Headless browsers (shot.mjs, test scripts) never sync: they'd overwrite the user's saved entry with defaults.
-const sync = () => { if (/HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
-const saveP = () => { try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
+const sync = () => { if (RENDER || /HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST }) }).catch(() => {}), 300); };
+const saveP = () => { if (RENDER) return; try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
 ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
 ctx.p = (key) => {
   const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
@@ -389,10 +398,18 @@ function frame() {
   document.getElementById('time').textContent = `${fmt(t)} / ${fmt(DUR)}`;
   document.getElementById('head').style.left = `${(t / DUR) * 100}%`;
   if (Math.abs(t - lastT) > 0.5) reset(t);
-  ctx.t = t; ctx.now = performance.now() / 1000;
-  ctx.dt = audio.paused ? 0 : Math.min(0.05, Math.max(0, t - lastT));
-  lastT = t;
-  if (ctx.dt === 0) return; // silence/pause freezes the picture
+  ctx.now = performance.now() / 1000;
+  const dt = audio.paused ? 0 : Math.min(0.05, Math.max(0, t - lastT));
+  ctx.t = t; ctx.dt = dt; lastT = t;
+  if (dt === 0) return; // silence/pause freezes the picture
+  step(t, dt);
+  // Live knob pictures follow the music ~8 times a second, for knobs that follow something.
+  if (ctx.now - liveT > 0.12) { liveT = ctx.now; for (const it of LIVE) if (pst(it.tool, it.q).drive) drawLive(it); }
+}
+/** One picture: song time is now t, dt song seconds after the last one. Fires the chords crossed, updates the features,
+    fades the background and draws every active tool. The live loop and the renderer both draw through this. */
+function step(t, dt) {
+  ctx.t = t; ctx.dt = dt;
   let m = MOMENTS[0][1]; for (const [s, n] of MOMENTS) if (t >= s) m = n; ctx.moment = m;
   ctx.level *= Math.pow(0.5, ctx.dt / 0.8); ctx.rate *= Math.pow(0.5, ctx.dt / 1.0);
   const fired = [];
@@ -413,8 +430,23 @@ function frame() {
     g.save(); safe(tool, 'frame', ctx); g.restore();
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
   }
-  // Live knob pictures follow the music ~8 times a second, for knobs that follow something.
-  if (ctx.now - liveT > 0.12) { liveT = ctx.now; for (const it of LIVE) if (pst(it.tool, it.q).drive) drawLive(it); }
+}
+// The renderer's controls (?render=1). renderSeek(t): everything back to song time t, as a seek does, with the features
+// and the random seed reset too, so a render never depends on what was drawn before it. renderStep(dt): song time moves
+// on by exactly dt, drawn as the live lab would on a RENDER_HZ screen (in steps of at most 1/RENDER_HZ s); every chord
+// whose time was crossed fires. Returns the song time reached.
+if (RENDER) {
+  window.renderSeek = (t, seed = 1) => {
+    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 });
+    ctx.now = 0; reset(t); return t;
+  };
+  window.renderStep = (dt) => {
+    const n = Math.max(1, Math.ceil(dt * RENDER_HZ - 1e-6)), t0 = lastT;
+    for (let i = 1; i <= n; i++) { const t = t0 + (dt * i) / n; const d = t - lastT; lastT = t; ctx.now += d; step(t, d); }
+    return lastT;
+  };
+  /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
+  window.renderTo = (t) => window.renderStep(t - lastT);
 }
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 document.getElementById('play').onclick = () => (audio.paused ? audio.play() : audio.pause());
@@ -429,7 +461,9 @@ loadTools().then(() => {
   if (LOAD_NOTES.missing.length) notes.push(`Not written yet: ${LOAD_NOTES.missing.join(', ')}.`);
   if (LOAD_NOTES.broken.length) notes.push(`Could not load: ${LOAD_NOTES.broken.join('; ')}.`);
   document.getElementById('missing').textContent = notes.join(' ');
-  render(); reset(audio.currentTime); frame(); sync(); // sends what this browser already has as soon as the page opens
+  render();
+  if (RENDER) { window.renderErrors = errors; window.renderTools = TOOLS.filter((t) => active.has(t.id)).map((t) => ({ id: t.id, name: t.name })); window.renderReady = true; return; }
+  reset(audio.currentTime); frame(); sync(); // sends what this browser already has as soon as the page opens
 });
 </script>
 </body>

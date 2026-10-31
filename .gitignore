@@ -11,3 +11,7 @@ lab/*.mp3
 lab/*.wav
 lab/*.ogg
 lab/notes*.js
+
+# Showcase videos (lab/render.mjs) carry the recordings: local only.
+lab/showcase/*.mp4
+lab/showcase/*.png
