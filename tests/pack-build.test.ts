@@ -103,7 +103,7 @@ describe('validatePack', () => {
   };
 
   it('rejects what a pack must never hold, naming the field', () => {
-    bad((p) => ((p as unknown as { version: number }).version = 2), /version/);
+    bad((p) => ((p as unknown as { version: number }).version = 3), /version/);
     bad((p) => p.notes.reverse(), /notes/);
     bad((p) => (p.notes[0] = [5, 4, 60, 80]), /notes\[0\]/);
     bad((p) => (p.sections = [{ start: 0, end: 5, novelty: 0 }, { start: 6, end: 20, novelty: 0.5 }]), /sections/);

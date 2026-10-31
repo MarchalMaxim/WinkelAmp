@@ -44,6 +44,9 @@ const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4)
 const NOTES_WORDS: Record<SongPack['notesFrom'], string> = {
   gpu: 'transcribed by the piano model', file: 'from a notes file', approx: 'approximate, from the analysis',
   merged: 'transcribed, with approximate notes where the model heard little',
+  hybrid: 'transcribed by the piano model, with YourMT3+ filling its gaps',
+  ymt3: 'transcribed by YourMT3+, velocities estimated',
+  'bp-hybrid': 'transcribed by the piano model, with basic-pitch filling its gaps',
 };
 
 export class Panel {

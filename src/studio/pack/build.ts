@@ -3,6 +3,7 @@ import type { SongAnalysis } from '../../audio/song-analysis';
 import type { Note } from '../../widgets/types';
 import { approximateNotes, mergeNotes, onsetCoverage, stableByStart } from './notes';
 import { PACK_VERSION, type NotesSource, type SongPack } from './pack';
+import { buildTracks, cleanIndexes, estimateVelocities, hybridNotes, pianoShare, type Ymt3Row } from './tracks';
 
 export interface BuildInput {
   id: string;
@@ -10,35 +11,110 @@ export interface BuildInput {
   audio: string;
   source: SongPack['source'];
   analysis: SongAnalysis;
-  /** null = approximate notes from the analysis. */
+  /**
+   * The piano model's notes; null = none (approximate notes, or YourMT3's / basic-pitch's alone).
+   * 'gpu' is any list that stands for the piano model's notes (ingest's `--piano-notes <file>` passes it so, with
+   * transcriber null): an ensemble fills its gaps. 'file' (`--notes <file>`) is kept exactly unless notesMode asks.
+   */
   notes: { from: 'gpu' | 'file'; list: Note[]; transcriber: SongPack['transcriber'] } | null;
   by: 'ingest' | 'studio';
   at: string;
+  /** YourMT3's rows as ymt3.py wrote them, and each row's onsetLevels (aligned with `rows`). null/absent: it did not run. */
+  ymt3?: { rows: Ymt3Row[]; levels: number[]; model: string; seconds: number } | null;
+  /** Basic-pitch's notes and their onsetLevels (aligned): the gap fill when YourMT3 is missing. */
+  bp?: { notes: Note[]; levels: number[]; model: string; seconds: number } | null;
+  /** Forced by --kind; else spec Decisions 1. */
+  kind?: 'piano' | 'ensemble';
+  /** auto: by kind; hybrid: gap-fill whatever the kind; ymt3: YourMT3's notes alone. */
+  notesMode?: 'auto' | 'hybrid' | 'ymt3';
 }
 
 /** Below this share of the attacks heard, a transcription is filled in with approximate notes (a non-piano recording). */
 export const MIN_COVERAGE = 0.35;
+/** YourMT3's piano share at or above which a song is solo piano (spec Decisions 1). */
+export const PIANO_SHARE = 0.6;
+/** Without YourMT3: the piano model's onset coverage at or above which a song is solo piano. */
+export const PIANO_COVERAGE = 0.6;
+
+export const WARN_NO_YMT3 = 'no instrument tracks: YourMT3 is not set up (npm run setup-ymt3)';
+export const WARN_PIANO_ONLY = 'only the piano model heard this ensemble recording: about half the attacks may be missing';
+export const WARN_NO_PIANO = 'piano transcriber unavailable: the notes come from another model, with velocities estimated from loudness';
+
+const r4 = (x: number) => Math.round(x * 1e4) / 1e4;
 
 export function buildPack(i: BuildInput): SongPack {
   const a = i.analysis;
   const warnings: string[] = [];
+  const mode = i.notesMode ?? 'auto';
+  const piano = i.notes ? stableByStart(i.notes.list) : null;
+  const pianoCoverage = piano ? onsetCoverage(piano, a.onsets) : null;
+
+  // YourMT3: cleaned rows (levels follow them), their velocities, the notes they make.
+  const y = i.ymt3 ?? null;
+  const keep = y ? cleanIndexes(y.rows) : [];
+  const rows = y ? keep.map((k) => y.rows[k]) : [];
+  const share = y ? pianoShare(rows) : null;
+  const est = y ? estimateVelocities(rows, keep.map((k) => y.levels[k]), piano ?? []) : null;
+  const ymt3Notes: Note[] = est ? rows.map((r, k): Note => [r[0], r[1], r[2], est.vel[k]]) : [];
+  const hasY = ymt3Notes.length > 0;
+
+  // Spec Decisions 1: YourMT3's labels decide; without them, the piano model's coverage; without either, undecided.
+  const kind: SongPack['kind'] = i.kind
+    ?? (hasY && share !== null ? (share >= PIANO_SHARE ? 'piano' : 'ensemble')
+      : pianoCoverage !== null ? (pianoCoverage >= PIANO_COVERAGE ? 'piano' : 'ensemble') : undefined);
+
+  const bpNotes = (): Note[] => {
+    const b = i.bp!;
+    const v = estimateVelocities(b.notes.map((n): Ymt3Row => [n[0], n[1], n[2], n[3], '']), b.levels, piano ?? []).vel;
+    return b.notes.map((n, k): Note => [n[0], n[1], n[2], v[k]]);
+  };
+  const hasBp = !!i.bp && i.bp.notes.length > 0;
+
   let notes: Note[], from: NotesSource, coverage: number;
-  if (!i.notes) {
+  if (mode === 'ymt3' && hasY) {
+    notes = ymt3Notes;
+    from = 'ymt3';
+    coverage = pianoCoverage ?? onsetCoverage(notes, a.onsets);
+  } else if (piano && i.notes) {
+    coverage = pianoCoverage!;
+    if (mode === 'ymt3') warnings.push('YourMT3 notes were asked for, but YourMT3 gave none: the piano model\'s notes instead');
+    const fill = mode === 'hybrid' || mode === 'ymt3' || (mode === 'auto' && kind === 'ensemble' && i.notes.from !== 'file');
+    if (fill && hasY) {
+      notes = hybridNotes(piano, ymt3Notes);
+      from = 'hybrid';
+    } else if (fill && hasBp) {
+      notes = hybridNotes(piano, bpNotes());
+      from = 'bp-hybrid';
+    } else {
+      notes = piano;
+      from = i.notes.from;
+      if (fill && kind === 'ensemble') warnings.push(WARN_PIANO_ONLY);
+      if (from === 'gpu' && coverage < MIN_COVERAGE) {
+        notes = mergeNotes(notes, approximateNotes(a));
+        from = 'merged';
+        warnings.push(`the transcriber heard little of this recording (coverage ${Math.round(coverage * 100)}%): approximate notes fill the rest`);
+      }
+    }
+  } else if (hasY || hasBp) {
+    notes = hasY ? ymt3Notes : stableByStart(bpNotes());
+    from = hasY ? 'ymt3' : 'bp-hybrid';
+    coverage = onsetCoverage(notes, a.onsets);
+    warnings.push(WARN_NO_PIANO);
+  } else {
     notes = approximateNotes(a);
     from = 'approx';
     coverage = onsetCoverage(notes, a.onsets);
     warnings.push('approximate notes: no transcriber');
-  } else {
-    notes = stableByStart(i.notes.list);
-    from = i.notes.from;
-    coverage = onsetCoverage(notes, a.onsets);
-    if (from === 'gpu' && coverage < MIN_COVERAGE) {
-      notes = mergeNotes(notes, approximateNotes(a));
-      from = 'merged';
-      warnings.push(`the transcriber heard little of this recording (coverage ${Math.round(coverage * 100)}%): approximate notes fill the rest`);
-    }
   }
+  if (kind === 'ensemble' && !y) warnings.push(WARN_NO_YMT3);
+  else if (kind === 'ensemble' && !hasY) warnings.push('no instrument tracks: YourMT3 heard no notes in this recording');
   if (!notes.length) warnings.push('no notes found: is the recording silent?');
+
+  const transcribers: NonNullable<SongPack['transcribers']> = [];
+  if (i.notes?.transcriber) transcribers.push({ name: 'piano', model: i.notes.transcriber.model, seconds: i.notes.transcriber.seconds, notes: i.notes.list.length });
+  if (y) transcribers.push({ name: 'ymt3', model: y.model, seconds: y.seconds, notes: rows.length });
+  if (i.bp) transcribers.push({ name: 'bp', model: i.bp.model, seconds: i.bp.seconds, notes: i.bp.notes.length });
+
   return {
     version: PACK_VERSION,
     id: i.id,
@@ -59,5 +135,9 @@ export function buildPack(i: BuildInput): SongPack {
     loudness: { hop: 0.1, values: [...a.loudness.values] },
     harmony: a.harmony.map(({ t, root, minor }) => ({ t, root, minor })),
     made: { by: i.by, at: i.at },
+    ...(kind ? { kind } : {}),
+    pianoShare: share === null ? null : r4(share),
+    ...(kind === 'ensemble' && hasY && est ? { tracks: buildTracks(rows, est.vel, est.borrowed) } : {}),
+    transcribers,
   };
 }

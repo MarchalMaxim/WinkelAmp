@@ -15,6 +15,9 @@ const NOTES_BADGE: Record<LibraryEntry['notesFrom'], [string, string]> = {
   file: ['notes file', 'Notes from a notes file'],
   merged: ['partly approximate', 'The piano model heard little of this recording: approximate notes fill the rest'],
   approx: ['approximate', 'Approximate notes from the analysis: no transcriber ran'],
+  hybrid: ['instruments', 'Notes from the piano model, with YourMT3+ filling its gaps; instrument tracks'],
+  ymt3: ['YourMT3+', 'Notes transcribed by YourMT3+, velocities estimated from loudness'],
+  'bp-hybrid': ['gap-filled', 'Notes from the piano model, with basic-pitch filling its gaps; no instrument tracks'],
 };
 
 /** "Rachmaninoff: Prelude in C♯ minor" → ["Rachmaninoff", "Prelude in C♯ minor"]. */

@@ -3,15 +3,29 @@
  * `npm run ingest` (or the studio's in-browser fallback) into songs/<id>/pack.json.
  */
 import { loudnessLength } from '../../audio/song-analysis';
-import type { Note } from '../../widgets/types';
+import type { Family, Note, TrackId } from '../../widgets/types';
+import { TRACKS, isTrackId } from './instruments';
 
-export const PACK_VERSION = 1;
-export type NotesSource = 'gpu' | 'file' | 'approx' | 'merged';
+/** What ingest writes now; validatePack still reads 1 (no kind, tracks or transcribers). */
+export const PACK_VERSION = 2;
+export type NotesSource = 'gpu' | 'file' | 'approx' | 'merged' | 'hybrid' | 'ymt3' | 'bp-hybrid';
+/** One instrument's notes, from YourMT3+ (spec Decisions 2). */
+export interface Track {
+  /** Plain English for the UI ("Violins", "French horns"). */
+  label: string;
+  family: Family;
+  /** Every YourMT3 note of the track, with estimated velocities, sorted by start. */
+  notes: Note[];
+  /** Of the song's YourMT3 notes (drums and empty rows dropped), 0..1. */
+  share: number;
+  /** How many velocities were borrowed from a piano-model note / estimated from loudness. */
+  vel: { borrowed: number; level: number };
+}
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const isSlug = (s: unknown): s is string => typeof s === 'string' && SLUG.test(s);
 
 export interface SongPack {
-  version: 1;
+  version: 1 | 2;
   /** Slug = the folder songs/<id>/. */
   id: string;
   title: string;
@@ -23,7 +37,10 @@ export interface SongPack {
   source: { name: string; bytes: number; sha1: string };
   /** The lab's NOTES, stable-sorted by start (ties keep source order): straight into window.NOTES. */
   notes: Note[];
-  /** gpu | file (--notes <file>, kept exactly) | approx (analysis only) | merged (gpu + approx). */
+  /**
+   * gpu | file (--notes <file>, kept exactly) | approx (analysis only) | merged (gpu + approx) | hybrid (piano model +
+   * YourMT3 in its gaps) | ymt3 (YourMT3 alone) | bp-hybrid (piano model + basic-pitch in its gaps).
+   */
   notesFrom: NotesSource;
   transcriber: { model: string; device: 'cuda' | 'cpu'; seconds: number } | null;
   /** onsetCoverage: of the transcribed (or file) notes before any merge. */
@@ -37,9 +54,20 @@ export interface SongPack {
   /** Chord changes (study's chords() minus chroma); not the lab's attack CHORDS. */
   harmony: { t: number; root: number; minor: boolean }[];
   made: { by: 'ingest' | 'studio'; at: string };
+  // v2 (all optional, so a v1 pack is a v2 pack without them).
+  /** Solo piano keeps the piano model's notes; an ensemble gets the hybrid and tracks. Absent: not decided (no notes model). */
+  kind?: 'piano' | 'ensemble';
+  /** YourMT3's piano share (spec Decisions 1); null without YourMT3. */
+  pianoShare?: number | null;
+  /** Only an ensemble with YourMT3 has tracks; only tracks with enough notes are written. */
+  tracks?: Partial<Record<TrackId, Track>>;
+  /** Every model that ran for this pack. */
+  transcribers?: { name: 'piano' | 'ymt3' | 'bp'; model: string; seconds: number; notes: number }[];
 }
 
-const SOURCES: readonly NotesSource[] = ['gpu', 'file', 'approx', 'merged'];
+const SOURCES: readonly NotesSource[] = ['gpu', 'file', 'approx', 'merged', 'hybrid', 'ymt3', 'bp-hybrid'];
+const KINDS = ['piano', 'ensemble'] as const;
+const TRANSCRIBERS = ['piano', 'ymt3', 'bp'] as const;
 /** Section edges may differ from each other or from 0 / duration by rounding (ms). */
 const EPS = 2e-3;
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -50,7 +78,7 @@ export function validatePack(x: unknown): string[] {
   const e: string[] = [];
   if (!isObj(x)) return ['pack: not an object'];
   const p = x as Partial<SongPack>;
-  if (p.version !== PACK_VERSION) e.push(`version: ${String(p.version)}, expected ${PACK_VERSION}`);
+  if (p.version !== 1 && p.version !== 2) e.push(`version: ${String(p.version)}, expected 1 or ${PACK_VERSION}`);
   if (!isSlug(p.id)) e.push(`id: ${JSON.stringify(p.id)} is not a slug (lowercase letters, digits, single dashes)`);
   if (typeof p.title !== 'string') e.push('title: not a string');
   if (typeof p.audio !== 'string' || !/^audio(\.[A-Za-z0-9]+)?$/.test(p.audio)) e.push(`audio: ${JSON.stringify(p.audio)} is not 'audio.<ext>'`);
@@ -64,21 +92,7 @@ export function validatePack(x: unknown): string[] {
     if (typeof p.source.sha1 !== 'string' || !/^[0-9a-f]{40}$/.test(p.source.sha1)) e.push('source.sha1: not 40 hex digits');
   }
 
-  if (!Array.isArray(p.notes)) e.push('notes: not an array');
-  else {
-    // Five complaints are enough to fix a 9000-note list.
-    const noteErrors: string[] = [];
-    let prev = -Infinity;
-    for (let i = 0; i < p.notes.length && noteErrors.length < 5; i++) {
-      const n = p.notes[i] as unknown;
-      if (!Array.isArray(n) || n.length !== 4 || !n.every(isNum)) noteErrors.push(`notes[${i}]: not [start, end, midi, vel]`);
-      else if (n[1] < n[0]) noteErrors.push(`notes[${i}]: end ${n[1]} before start ${n[0]}`);
-      else if (n[2] < 0 || n[2] > 127 || n[3] < 0 || n[3] > 127) noteErrors.push(`notes[${i}]: midi or vel outside 0..127`);
-      else if (n[0] < prev) noteErrors.push(`notes[${i}]: starts at ${n[0]}, before the note above it (${prev}): notes must be sorted by start`);
-      if (Array.isArray(n) && isNum(n[0])) prev = Math.max(prev, n[0]);
-    }
-    e.push(...noteErrors);
-  }
+  e.push(...noteListErrors(p.notes, 'notes', false));
   if (!SOURCES.includes(p.notesFrom as NotesSource)) e.push(`notesFrom: ${JSON.stringify(p.notesFrom)} is not one of ${SOURCES.join(', ')}`);
   if (p.transcriber !== null) {
     const t = p.transcriber;
@@ -124,5 +138,63 @@ export function validatePack(x: unknown): string[] {
     });
   }
   if (!isObj(p.made) || (p.made.by !== 'ingest' && p.made.by !== 'studio') || typeof p.made.at !== 'string') e.push("made: not { by: 'ingest' | 'studio', at }");
+  if (p.version === 1) {
+    for (const k of ['kind', 'pianoShare', 'tracks', 'transcribers'] as const) if (k in p) e.push(`${k}: a version 1 pack has none (version 2 has)`);
+  } else if (p.version === 2) e.push(...v2Errors(p));
+  return e;
+}
+
+/** A note list: [start, end, midi, vel] sorted by start; `strict`: end > start (tracks), else end ≥ start (all notes). */
+function noteListErrors(list: unknown, field: string, strict: boolean): string[] {
+  if (!Array.isArray(list)) return [`${field}: not an array`];
+  // Five complaints are enough to fix a 9000-note list.
+  const errs: string[] = [];
+  let prev = -Infinity;
+  for (let i = 0; i < list.length && errs.length < 5; i++) {
+    const n = list[i] as unknown;
+    if (!Array.isArray(n) || n.length !== 4 || !n.every(isNum)) errs.push(`${field}[${i}]: not [start, end, midi, vel]`);
+    else if (n[1] < n[0] || (strict && n[1] === n[0])) errs.push(`${field}[${i}]: end ${n[1]} ${strict ? 'not after' : 'before'} start ${n[0]}`);
+    else if (n[2] < 0 || n[2] > 127 || n[3] < 0 || n[3] > 127) errs.push(`${field}[${i}]: midi or vel outside 0..127`);
+    else if (n[0] < prev) errs.push(`${field}[${i}]: starts at ${n[0]}, before the note above it (${prev}): notes must be sorted by start`);
+    if (Array.isArray(n) && isNum(n[0])) prev = Math.max(prev, n[0]);
+  }
+  return errs;
+}
+
+function v2Errors(p: Partial<SongPack>): string[] {
+  const e: string[] = [];
+  if (p.kind !== undefined && !KINDS.includes(p.kind)) e.push(`kind: ${JSON.stringify(p.kind)} is not one of ${KINDS.join(', ')}`);
+  if (p.pianoShare !== undefined && p.pianoShare !== null && !(isNum(p.pianoShare) && p.pianoShare >= 0 && p.pianoShare <= 1)) {
+    e.push('pianoShare: neither null nor in 0..1');
+  }
+  if (p.tracks !== undefined) {
+    if (!isObj(p.tracks)) e.push('tracks: not an object');
+    else {
+      for (const [id, t] of Object.entries(p.tracks as Record<string, unknown>)) {
+        const f = `tracks.${id}`;
+        if (!isTrackId(id)) { e.push(`${f}: not a track id (one of ${Object.keys(TRACKS).join(', ')})`); continue; }
+        if (!isObj(t)) { e.push(`${f}: not an object`); continue; }
+        if (typeof t.label !== 'string' || !t.label) e.push(`${f}.label: not a name`);
+        if (t.family !== TRACKS[id].family) e.push(`${f}.family: ${JSON.stringify(t.family)}, but ${id} is ${TRACKS[id].family}`);
+        e.push(...noteListErrors(t.notes, `${f}.notes`, true));
+        if (!isNum(t.share) || t.share < 0 || t.share > 1) e.push(`${f}.share: not in 0..1`);
+        const v = t.vel;
+        if (!isObj(v) || !Number.isInteger(v.borrowed) || !Number.isInteger(v.level) || (v.borrowed as number) < 0 || (v.level as number) < 0) {
+          e.push(`${f}.vel: not { borrowed, level } counts`);
+        }
+      }
+    }
+  }
+  if (p.transcribers !== undefined) {
+    if (!Array.isArray(p.transcribers)) e.push('transcribers: not a list');
+    else {
+      p.transcribers.forEach((t: unknown, i) => {
+        if (!isObj(t) || !TRANSCRIBERS.includes(t.name as never) || typeof t.model !== 'string' || !isNum(t.seconds) || t.seconds < 0
+          || !Number.isInteger(t.notes) || (t.notes as number) < 0) {
+          e.push(`transcribers[${i}]: not { name: ${TRANSCRIBERS.join(' | ')}, model, seconds, notes }`);
+        }
+      });
+    }
+  }
   return e;
 }

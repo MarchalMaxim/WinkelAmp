@@ -29,7 +29,9 @@ const chords = groupChords(pack.notes);
 const out: string[] = [];
 out.push(`# ${pack.title}`, '');
 out.push(`- id \`${pack.id}\`, ${clock(pack.duration)} (${pack.duration.toFixed(2)} s)`);
-const from = { gpu: 'the GPU piano transcriber', file: 'a notes file, kept exactly', approx: 'approximated from the analysis (no transcriber)', merged: 'the transcriber, with approximate notes where it heard little' }[pack.notesFrom];
+const from = { gpu: 'the GPU piano transcriber', file: 'a notes file, kept exactly', approx: 'approximated from the analysis (no transcriber)', merged: 'the transcriber, with approximate notes where it heard little',
+  hybrid: 'the piano transcriber, with YourMT3+ notes in its gaps', ymt3: 'YourMT3+ alone (velocities estimated)',
+  'bp-hybrid': 'the piano transcriber, with basic-pitch notes in its gaps' }[pack.notesFrom];
 out.push(`- ${pack.notes.length} notes, ${chords.length} attacks (${pack.quality.notesPerMinute.toFixed(0)} notes/min), from ${from}; onset coverage ${(pack.quality.onsetCoverage * 100).toFixed(0)} %`);
 for (const w of pack.quality.warnings) out.push(`- warning: ${w}`);
 const desc = join(showsDir(), `${id}.description.md`), show = join(showsDir(), `${id}.json`);
