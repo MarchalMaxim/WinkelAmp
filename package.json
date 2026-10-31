@@ -19,7 +19,8 @@
     "fidelity": "node scripts/fidelity.mjs",
     "check-show": "tsx scripts/check-show.ts",
     "describe-song": "tsx scripts/describe-song.ts",
-    "widget-docs": "tsx scripts/widget-docs.ts"
+    "widget-docs": "tsx scripts/widget-docs.ts",
+    "studio-check": "node scripts/studio-check.mjs"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.31.1",
