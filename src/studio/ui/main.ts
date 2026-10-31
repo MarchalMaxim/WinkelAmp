@@ -16,7 +16,8 @@ import { instantiate } from '../../widgets/instantiate';
 import { makeIcon } from '../../widgets/lab-harness';
 import { studioLayers } from '../../widgets/layers-source';
 import { WidgetRuntime } from '../../widgets/runtime';
-import { labHarness, labWidgetSources } from '../../widgets/sources';
+import { labHarness, labTags, labTagWords, labWidgetSources } from '../../widgets/sources';
+import { tagsOf } from '../../widgets/tags';
 import type { WidgetMeta } from '../../widgets/types';
 import { SongAdder, takeFlash } from './add-song';
 import { ApiError, connectStore, type LibraryEntry, type ShowStore } from './api';
@@ -173,22 +174,24 @@ async function boot(): Promise<void> {
   for (const id of order) {
     try {
       const tool = instantiate(id, sources[id], { icon, chords });
-      const meta = toMeta(tool, harness.verdicts[id] ?? null);
+      const meta = toMeta(tool, harness.verdicts[id] ?? null, tagsOf(labTags(), id));
       catalogue.set(id, { meta, tool }); metas.set(id, meta);
     } catch (e) { failed.push(`${id} (${(e as Error).message})`); }
   }
   if (failed.length) store.dispatch({ type: 'notice', notice: { id: 'widgets', level: 'warn', text: `Some widgets did not load: ${failed.join('; ')}.` } });
 
-  // The show: the saved one, repaired if it must be, or one composed for the song now.
+  // The show: the saved one, repaired if it must be, or one composed for the song now, from the widgets' tags, the
+  // instruments the song has and the feel words of its description (if one was written).
   const ctxShow = { duration: pack.duration, widgets: metas };
-  const compose = () => composeShow({ pack, widgets: metas, at: new Date().toISOString() });
+  const compose = async () => composeShow({ pack, widgets: metas, at: new Date().toISOString(),
+    description: await api.description(pack.id).catch(() => ''), layers: studioLayers(), words: labTagWords() });
   let show: Show, origin: 'file' | 'auto' | 'repaired' = 'file';
   let saved: Show | null = null;
   // Only a song with a show of its own asks for it: a 404 for the others would be a red line in every console.
   try { saved = entry.hasShow ? await api.show(pack.id) : null; } catch (e) {
     store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'error', text: `Could not read the saved show: ${(e as Error).message}. Playing a composed one.` } });
   }
-  if (!saved) { show = compose(); origin = 'auto'; }
+  if (!saved) { show = await compose(); origin = 'auto'; }
   else {
     const { errors } = validateShow(saved, ctxShow);
     if (!errors.length) show = saved;
@@ -200,7 +203,7 @@ async function boot(): Promise<void> {
         store.dispatch({ type: 'notice', notice: { id: 'repaired', level: 'warn',
           text: `The saved show had ${errors.length} problem${errors.length > 1 ? 's' : ''} (${errors[0].path}: ${errors[0].message}). It was repaired here; save to keep the repair.` } });
       } catch (e) {
-        show = compose(); origin = 'auto';
+        show = await compose(); origin = 'auto';
         store.dispatch({ type: 'notice', notice: { id: 'repaired', level: 'error', text: `The saved show could not be repaired (${(e as Error).message}): playing a composed one instead.` } });
       }
     }

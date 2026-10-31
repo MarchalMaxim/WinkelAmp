@@ -53,3 +53,16 @@ export const TASTE: readonly { id: string; role: TasteRole; fit: Partial<Charact
   // on top
   { id: 'casket', role: 'top', fit: { loud: 1, dense: 0.5 } },                          // melt, drips and chord cuts
 ];
+
+/** On a song without instrument tracks, an accent whose instruments name a low one follows the bass line, and one whose
+    instruments name a high one the melody (plan 2026-10-31 §9; the first list that matches wins). */
+export const LINE_BY_INSTRUMENT: readonly (readonly [line: 'bassline' | 'melody', instruments: readonly string[]])[] = [
+  ['bassline', ['contrabass', 'cello', 'bassoon', 'timpani', 'trombone']],
+  ['melody', ['violin', 'flute', 'oboe', 'clarinet', 'trumpet']],
+];
+/** Score added per feel word of the user's description a widget is tagged with, and its cap. */
+export const FEEL_BONUS = 0.25, FEEL_BONUS_MAX = 0.5;
+/** Score added to an accent or top widget when one of its instruments is playing in the section. */
+export const INSTRUMENT_BONUS = 0.2;
+/** A track is present in a section when it sounds in this share of its 0.5 s bins. */
+export const PRESENT = 0.3;
