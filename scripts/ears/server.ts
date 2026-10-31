@@ -20,6 +20,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
+import { finished } from 'node:stream/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHECKING_TRANSCRIBER, type IngestProgress, type Job, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
@@ -177,23 +178,30 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
   const newJob = (id: string, message: string): Job =>
     ({ job: randomBytes(6).toString('hex'), id, state: 'queued', stage: 'upload', progress: 0, message, warnings: [] });
 
-  /** The body to a temp file under its own name, hashed on the way; 413 past maxBytes, 400 when empty. */
+  /** The body to a temp file under its own name, hashed on the way; 413 past maxBytes, 400 when empty, 500 when the
+      file cannot be written (disk full, temp folder gone): that request fails, the server carries on. */
   const receive = async (req: IncomingMessage, file: string): Promise<{ sha1: string; bytes: number }> => {
     const declared = Number(req.headers['content-length']);
-    if (declared > maxBytes) throw new HttpError(413, `too big: more than ${maxBytes} bytes`);
+    if (declared > maxBytes) {
+      req.resume();   // drain it, so the client reads the 413 rather than a reset connection
+      throw new HttpError(413, `too big: more than ${maxBytes} bytes`);
+    }
     const hash = createHash('sha1'), out = createWriteStream(file);
-    let bytes = 0, over = false;
+    let bytes = 0, over = false, failed: Error | null = null;
+    out.on('error', (e) => { failed ??= e; });
     try {
       for await (const chunk of req as AsyncIterable<Buffer>) {
-        if (over) continue;   // drain the rest, so the client reads the answer
+        if (over || failed) continue;   // drain the rest, so the client reads the answer
         bytes += chunk.length;
         if (bytes > maxBytes) { over = true; continue; }
         hash.update(chunk);
-        if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+        if (!out.write(chunk)) await new Promise((r) => { out.once('drain', r); out.once('error', r); });
       }
     } finally {
-      await new Promise<void>((r) => out.end(r));
+      out.end();
+      await finished(out).catch(() => {});
     }
+    if (failed) throw new HttpError(500, `could not keep the upload: ${(failed as Error).message}`);
     if (over) throw new HttpError(413, `too big: more than ${maxBytes} bytes`);
     if (!bytes) throw new HttpError(400, 'empty body: send the recording');
     return { sha1: hash.digest('hex'), bytes };

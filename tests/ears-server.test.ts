@@ -8,7 +8,8 @@ import { startEars } from '../scripts/ears/server';
 import type { Job, TranscriberStatus } from '../src/studio/ingest/ears-types';
 
 // A stand-in for `node --import tsx scripts/ingest.ts …`: prints --progress json lines slowly (so the polls see each
-// state), then writes a pack whose source.sha1 is the input's; FAKE_MODE=boom fails on stderr instead.
+// state), then writes a pack whose source.sha1 is the input's; FAKE_MODE=boom fails on stderr instead, and
+// FAKE_MODE=gpu3 fails like the transcriber does (exit 3) when asked for --notes gpu.
 const FAKE = String.raw`
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const args = process.argv.slice(1), input = args[0], flag = (k) => args[args.indexOf(k) + 1];
@@ -16,6 +17,11 @@ const id = flag('--id'), out = (o) => process.stdout.write(JSON.stringify(o) + '
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   if (process.env.FAKE_MODE === 'boom') { await sleep(60); process.stderr.write('ingest: boom\n'); process.exit(1); }
+  if (process.env.FAKE_MODE === 'gpu3' && flag('--notes') === 'gpu') {
+    out({ stage: 'decode', progress: 1, message: 'decode', id }); await sleep(60);
+    process.stderr.write('CUDA out of memory\ningest: the transcriber failed\npass --notes approx to use approximate notes from the analysis\n');
+    process.exit(3);
+  }
   for (const [stage, progress] of [['decode', 0], ['decode', 1], ['transcribe', 0.5], ['analyze', 0.2], ['analyze', 0.9], ['write', 1]]) {
     out({ stage, progress, message: stage, id }); await sleep(70);
   }
@@ -162,6 +168,21 @@ describe('the ears server', () => {
       const end = (await follow(j)).pop()!;
       expect(end.state).toBe('failed');
       expect(end.error).toMatch(/boom/);
+    } finally { mode = 'ok'; }
+  });
+
+  it('runs a job whose transcription fails (exit 3) again with approximate notes, and says why', async () => {
+    mode = 'gpu3';
+    try {
+      const before = calls.length;
+      const { job: j } = (await (await post('name=oom.wav', 'too much for the GPU')).json()) as { job: string };
+      const seen = await follow(j);
+      const end = seen[seen.length - 1];
+      expect(end.state).toBe('done');
+      for (let i = 1; i < seen.length; i++) expect(seen[i].progress).toBeGreaterThanOrEqual(seen[i - 1].progress);
+      const tried = calls.slice(before);
+      expect(tried.map((c) => c.args[c.args.indexOf('--notes') + 1])).toEqual(['gpu', 'approx']);
+      expect(end.warnings.join(' ')).toMatch(/the transcriber failed \(CUDA out of memory\)/);
     } finally { mode = 'ok'; }
   });
 
