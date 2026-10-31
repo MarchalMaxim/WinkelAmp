@@ -17,7 +17,10 @@ createServer((req, res) => {
       const j = JSON.parse(body);
       // One entry per browser, so ratings from Chrome and from Claude's pane don't overwrite each other.
       const all = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
-      all[j.browser || 'unknown'] = { at: new Date().toISOString(), ratings: j.ratings, params: j.params };
+      const key = j.browser || 'unknown', old = all[key];
+      // A fresh or test browser posts empty ratings: never let that wipe real ones.
+      const empty = !j.ratings || !Object.values(j.ratings).some(Boolean);
+      all[key] = { at: new Date().toISOString(), ratings: empty && old?.ratings ? old.ratings : j.ratings, params: j.params };
       writeFileSync(FILE, JSON.stringify(all, null, 1));
       res.end('ok');
     } catch (e) { res.statusCode = 400; res.end(String(e)); }
