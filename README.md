@@ -11,13 +11,19 @@ sections change, each widget's knobs), or have Claude compose it from a descript
 
 ```bash
 npm install
-npm run ingest -- path/to/recording.mp3 --title "Rachmaninoff: Prelude in C♯ minor"   # once per recording
-# (transcribes with the GPU piano model in C:/Users/maxim/.venvs/wa or $WINKELAMP_PY; --notes approx without it)
+npm run ears    # in its own terminal: transcribes dropped recordings with the GPU piano model
 npm run dev
 ```
 
-Open the printed URL: the studio. Pick a song under **Songs**; a song without a show of its own gets one
-composed from its analysis and the widgets you loved. Then:
+Open the printed URL: the studio. **Drop a recording** anywhere on the page (or **Songs → Add a recording…**): the
+ears server transcribes its notes once (the piano model in `C:/Users/maxim/.venvs/wa`, or `$WINKELAMP_PY`; a minute
+of music takes ten-odd seconds on the GPU) and the song opens. Without `npm run ears` the browser analyses the
+recording itself and makes **approximate** notes (the song and the library say so; **Re-ingest with the transcriber**
+fixes it once ears runs). From a terminal, `npm run ingest -- path/to/recording.mp3 --title "Rachmaninoff: Prelude in
+C♯ minor"` does the same as a drop.
+
+Pick a song under **Songs**; a song without a show of its own gets one composed from its analysis and the widgets
+you loved. Then:
 
 - **Play** (Space), seek on the timeline, `←` / `→` five seconds, `Shift` + arrows from section to section.
 - **The timeline** shows the music's activity in each section's colour (the colour of its bottom widget). Click a
@@ -151,6 +157,7 @@ tests/                  vitest unit tests
 
 ```bash
 npm run dev            # dev server: the studio at /, the old app at /legacy.html, the lab at /lab/index.html
+npm run ears [-- --port 5175]               # the local server the studio sends dropped recordings to (GPU notes)
 npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<file>]   # a song pack in songs/<id>/
 npm run check-show [-- <file>…] [--fix]     # validate shows/*.json
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
