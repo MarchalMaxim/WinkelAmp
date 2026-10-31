@@ -1,11 +1,13 @@
 /**
  * The timeline: the song's loudness as a silhouette, tinted section by section by the widget at the bottom of each
  * stack, with the attacks as ticks beneath (click or drag there to move the playhead); below it the sections, to
- * select, with boundaries to drag (snapping just before an attack within 0.25 s; Alt drags freely).
+ * select, with boundaries to drag (snapping just before an attack within 0.25 s; Alt drags freely); under them the
+ * intensity lanes of the selected section's layers (lanes.ts).
  */
 import type { SongPack } from '../pack/pack';
 import type { Show } from '../show/show';
 import type { Chord } from '../../widgets/types';
+import { mountLanes, type Lanes } from './lanes';
 import type { Store, StudioState } from './store';
 
 /** The loved widgets' hues echo their own pictures (red squares, Kandinsky's blue circles, the casket's crimson,
@@ -71,7 +73,10 @@ export class Timeline {
   private readonly head: HTMLElement;
   private readonly ghost: HTMLElement;
   private readonly tip: HTMLElement;
-  private drawnFor: Show | null = null;
+  private readonly lanes: Lanes;
+  /** What the silhouette was drawn for: the sections' spans and bottom widgets (not the show's identity, which every
+      edit changes: a pivot drag would redraw it on every move). */
+  private drawnFor = '';
   private drawnWidth = 0;
   private act: number[] | null = null;
   private bandKey = '';
@@ -81,15 +86,17 @@ export class Timeline {
   constructor(private readonly d: Deps) {
     this.el = document.createElement('div');
     this.el.className = 'timeline';
-    this.el.innerHTML = `<div class="scrub" title="Click or drag to move the playhead"><canvas class="wave"></canvas><div class="ghost"></div></div>
-      <div class="band" role="listbox" aria-label="Sections"></div><div class="playhead"></div><div class="tip" hidden></div>`;
+    // The playhead spans the song-wide strips only: the lanes keep their own (a section's lane is zoomed to it).
+    this.el.innerHTML = `<div class="tl-top"><div class="scrub" title="Click or drag to move the playhead"><canvas class="wave"></canvas><div class="ghost"></div></div>
+      <div class="band" role="listbox" aria-label="Sections"></div><div class="playhead"></div><div class="tip" hidden></div></div><div class="lanes-host"></div>`;
     this.wave = this.el.querySelector('.wave')!;
     this.band = this.el.querySelector('.band')!;
     this.head = this.el.querySelector('.playhead')!;
     this.ghost = this.el.querySelector('.ghost')!;
     this.tip = this.el.querySelector('.tip')!;
     this.wireScrub();
-    new ResizeObserver(() => { this.drawnFor = null; this.update(this.d.store.state); }).observe(this.el);
+    this.lanes = mountLanes(this.el.querySelector<HTMLElement>('.lanes-host')!, { store: d.store, song: d.song, duration: d.duration, names: d.names, hue: widgetHue });
+    new ResizeObserver(() => { this.drawnFor = ''; this.update(this.d.store.state); }).observe(this.el.querySelector('.tl-top')!);
   }
 
   private tAt(clientX: number): number {
@@ -128,15 +135,17 @@ export class Timeline {
   setTime(t: number): void {
     const d = this.d.duration();
     this.head.style.left = `${d ? (t / d) * 100 : 0}%`;
+    this.lanes.setTime(t);
   }
 
   update(s: StudioState): void {
     const show = s.show;
     if (!show) return;
-    const w = this.wave.clientWidth;
-    if (show !== this.drawnFor || w !== this.drawnWidth) { this.drawWave(show); this.drawnFor = show; this.drawnWidth = w; }
+    const w = this.wave.clientWidth, drawn = JSON.stringify(show.sections.map((x) => [x.start, x.end, x.layers[0]?.widget ?? null]));
+    if (drawn !== this.drawnFor || w !== this.drawnWidth) { this.drawWave(show); this.drawnFor = drawn; this.drawnWidth = w; }
     const key = JSON.stringify([s.selected.section, show.sections.map((x) => [x.start, x.end, x.label, x.layers.map((l) => l.widget)])]);
     if (key !== this.bandKey && !this.dragging) { this.bandKey = key; this.buildBand(s); }
+    this.lanes.update(s);
   }
 
   private buildBand(s: StudioState): void {
