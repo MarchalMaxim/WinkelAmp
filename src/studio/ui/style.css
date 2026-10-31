@@ -243,7 +243,7 @@ button.poster-inner:hover .poster-play { border-color: var(--fg); }
   .transport, .notices, .timeline-host { padding: 0 12px; }
   .panel-host { border-left: none; border-top: 1px solid var(--line); overflow: visible; }
   .panel { padding: 0 12px 28px; }
-  .tabs { top: 52px; }
+  .tabs { top: var(--top-h, 60px); }
   .handle:not(.near) { display: none; }
   .sec-cast { display: none; }
   .now { font-size: 15px; }

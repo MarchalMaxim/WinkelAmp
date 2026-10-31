@@ -224,7 +224,7 @@ async function boot(): Promise<void> {
   ui.poster.hidden = false;
   ui.poster.innerHTML = `<button type="button" class="poster-inner" data-start>
       ${composer ? `<span class="composer">${esc(composer)}</span>` : ''}<span class="poster-title">${esc(piece)}</span>
-      <span class="poster-play">${ICONS.play}<span>Play</span></span><span class="dim small">${clock(pack.duration)} · ${show.sections.length} sections</span></button>`;
+      <span class="poster-play">${ICONS.play}<span>Play</span></span><span class="dim small">${clock(pack.duration)}, ${show.sections.length} sections</span></button>`;
   ui.poster.querySelector('[data-start]')!.addEventListener('click', () => player.toggle());
 
   // Repaint a paused picture after edits, at most every 150 ms.
@@ -238,8 +238,8 @@ async function boot(): Promise<void> {
   let shown: Show | null = null, lastSecond = -1, lastNow = -1;
   const drawHeader = () => {
     const s = store.state, dirty = isDirty(s);
-    ui.saveState.textContent = !api.writable ? (dirty ? 'Unsaved changes · Save downloads the show' : 'Save downloads the show')
-      : dirty ? 'Unsaved changes' : s.origin === 'auto' ? 'Composed for this song · not saved yet' : 'Saved';
+    ui.saveState.textContent = !api.writable ? (dirty ? 'Unsaved changes; Save downloads the show' : 'Save downloads the show')
+      : dirty ? 'Unsaved changes' : s.origin === 'auto' ? 'Composed for this song, not saved yet' : 'Saved';
     ui.saveState.classList.toggle('dirty', dirty);
     (ui.undo as HTMLButtonElement).disabled = !store.history.canUndo || s.ui.recording;
     (ui.redo as HTMLButtonElement).disabled = !store.history.canRedo || s.ui.recording;
@@ -321,7 +321,13 @@ async function boot(): Promise<void> {
   window.addEventListener('pointermove', flashUnhide);
   window.addEventListener('pointerdown', flashUnhide);
   document.addEventListener('fullscreenchange', flashUnhide);
-  stage.addEventListener('click', (e) => { if (e.target === canvas && (store.state.ui.hidden || document.fullscreenElement)) player.toggle(); });
+  // With the controls away, a mouse click on the picture plays or pauses; a tap (phones) only brings the button back.
+  stage.addEventListener('click', (e) => {
+    if (e.target === canvas && (e as PointerEvent).pointerType === 'mouse' && (store.state.ui.hidden || document.fullscreenElement)) player.toggle();
+  });
+  // The phone layout's sticky tabs sit under the header, whatever its height.
+  const top = ui.app.querySelector<HTMLElement>('.top')!;
+  new ResizeObserver(() => document.documentElement.style.setProperty('--top-h', `${top.offsetHeight}px`)).observe(top);
 
   installKeys({
     toggle: () => player.toggle(),
@@ -356,7 +362,12 @@ async function boot(): Promise<void> {
     store.dispatch({ type: 'notice', notice: { id: 'disk-loaded', level: 'info', text: 'The show changed on disk: this is the new version.' } });
     setTimeout(() => store.dispatch({ type: 'dismiss', id: 'disk-loaded' }), 4000);
   };
-  import.meta.hot?.on('studio:show-changed', (d: { id: string }) => { if (d.id === pack.id) void reloadFromDisk(false); });
+  // The file watcher can miss a second write that follows the first within a second or so: look again a little later.
+  import.meta.hot?.on('studio:show-changed', (d: { id: string }) => {
+    if (d.id !== pack.id) return;
+    void reloadFromDisk(false);
+    setTimeout(() => void reloadFromDisk(false), 1500);
+  });
 
   (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue };
 }

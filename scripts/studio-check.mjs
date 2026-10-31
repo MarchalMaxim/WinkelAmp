@@ -4,12 +4,15 @@
 // broken show opening repaired, a fading slot drawing between "without" and "with", a paused picture holding still,
 // a jump resetting the picture, and legacy.html loading without page errors.
 //
+// Then, on a second server with HMR on: Space after a clicked Play, and a show changed on disk (clean: followed; dirty:
+// offered).
+//
 //   npm run studio-check [-- --headed] [--keep]
 //
 // Local only: needs ffmpeg and system Chrome (and lab/notes.js + lab/prelude.mp3 for the lab-card comparison, which is
 // skipped without them).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -210,6 +213,42 @@ try {
   check('the repaired show plays', lit2 > 0.01, `${(lit2 * 100).toFixed(1)} % lit`);
   await page.evaluate(() => window.__studio.player.pause());
   page.on('dialog', (d) => d.accept());
+
+  // A show changed on disk (Claude edits shows/<id>.json): a clean studio follows it without a reload, a dirty one
+  // asks. Its own server with HMR on (the main one has it off, so edits elsewhere cannot reload the pages above).
+  // Space after a mouse click on Play pauses once (the focused button must not take the key too).
+  const hot = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5197, strictPort: false } });
+  await hot.listen();
+  try {
+    const HOT = hot.resolvedUrls.local[0].replace(/\/$/, '');
+    const writeShow = (label) => { const f = path.join(shows, 'demo.json'); const g = structuredClone(GOOD); g.sections[0].label = label;
+      writeFileSync(`${f}.tmp`, JSON.stringify(g)); renameSync(`${f}.tmp`, f); };
+    writeShow('One');
+    const hp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    hp.on('pageerror', (e) => errors.push(`hot: ${e}`));
+    hp.on('dialog', (d) => d.accept());
+    await hp.goto(`${HOT}/?song=demo`);
+    await hp.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
+    await hp.click('[data-play]');
+    await hp.waitForTimeout(500);
+    const playing = await hp.evaluate(() => !window.__studio.player.audio.paused);
+    await hp.keyboard.press('Space');
+    await hp.waitForTimeout(400);
+    const paused = await hp.evaluate(() => window.__studio.player.audio.paused);
+    check('Space after clicking Play pauses (once)', playing && paused, `playing ${playing}, then paused ${paused}`);
+    await hp.evaluate(() => { window.__samePage = true; });
+    writeShow('Changed on disk');
+    await hp.waitForFunction(() => window.__studio.store.state.show.sections[0].label === 'Changed on disk', null, { timeout: 8000 }).catch(() => {});
+    const followed = await hp.evaluate(() => ({ label: window.__studio.store.state.show.sections[0].label, same: window.__samePage === true }));
+    check('a clean studio follows a show changed on disk, without reloading', followed.label === 'Changed on disk' && followed.same, JSON.stringify(followed));
+    await hp.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setSection', section: 1, patch: { label: 'Mine' } } }));
+    writeShow('Again on disk');
+    await hp.waitForSelector('.notice:has-text("Load the version on disk")', { timeout: 8000 }).catch(() => {});
+    const asked = await hp.evaluate(() => ({ label: window.__studio.store.state.show.sections[0].label, notices: [...document.querySelectorAll('.notice')].map((n) => n.textContent) }));
+    check('a dirty studio keeps its edits and offers the version on disk', asked.label === 'Changed on disk' && asked.notices.some((n) => /Load the version on disk/.test(n)), JSON.stringify(asked));
+    await hp.close();
+  } finally { await hot.close(); }
+
   check('no page errors in the studio', errors.length === 0, errors.join(' | '));
 
   // The old app still starts.

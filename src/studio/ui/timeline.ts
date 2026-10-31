@@ -99,13 +99,18 @@ export class Timeline {
 
   private wireScrub(): void {
     const scrub = this.el.querySelector<HTMLElement>('.scrub')!;
-    let down = false;
+    let down = false, pending: number | null = null;
+    // While paused every seek redraws a second of picture: at most one per frame.
+    const seekSoon = (t: number) => {
+      if (pending === null) requestAnimationFrame(() => { const x = pending; pending = null; if (x !== null) this.d.seek(x); });
+      pending = t;
+    };
     scrub.addEventListener('pointerdown', (e) => { down = true; scrub.setPointerCapture(e.pointerId); this.d.seek(this.tAt(e.clientX)); });
     scrub.addEventListener('pointermove', (e) => {
       const t = this.tAt(e.clientX);
       this.ghost.style.left = `${(t / this.d.duration()) * 100}%`;
       this.showTip(e.clientX, clock(t));
-      if (down) this.d.seek(t);
+      if (down) seekSoon(t);
     });
     const up = () => { down = false; this.tip.hidden = true; };
     scrub.addEventListener('pointerup', up);
@@ -146,7 +151,7 @@ export class Timeline {
       b.style.left = `${(sec.start / D) * 100}%`; b.style.width = `${((sec.end - sec.start) / D) * 100}%`;
       if (hue !== null) b.style.setProperty('--hue', String(hue));
       const cast = sec.layers.map((l) => this.d.names(l.widget)).reverse().join(', ');
-      b.title = `${sec.label ?? 'Section'} · ${clock(sec.start)}–${clock(sec.end)}${cast ? ` · ${cast}` : ' · no widgets'}`;
+      b.title = `${sec.label ?? 'Section'}, ${clock(sec.start)}–${clock(sec.end)}: ${cast || 'no widgets'}`;
       b.innerHTML = `<span class="sec-name"></span><span class="sec-cast"></span>`;
       b.querySelector('.sec-name')!.textContent = sec.label ?? `Section ${i + 1}`;
       b.querySelector('.sec-cast')!.textContent = cast || 'empty';
@@ -178,7 +183,7 @@ export class Timeline {
         const now = this.d.store.state.show!.sections[index].start;
         h.style.left = `${(now / this.d.duration()) * 100}%`;
         this.place(index);
-        this.showTip(ev.clientX, clock(now) + (ev.altKey ? '' : ' · snapped'));
+        this.showTip(ev.clientX, clock(now) + (ev.altKey ? '' : ', at an attack'));
       };
       const end = () => {
         h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', end); h.removeEventListener('pointercancel', end);

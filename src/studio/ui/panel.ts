@@ -205,7 +205,7 @@ export class Panel {
     const label = this.body.querySelector<HTMLInputElement>('.sec-label');
     if (label && document.activeElement !== label) label.value = sec.label ?? '';
     const time = this.body.querySelector('.sec-time');
-    if (time) time.textContent = `${clock(sec.start)} – ${clock(sec.end)} · ${Math.round(sec.end - sec.start)} s`;
+    if (time) time.textContent = `${clock(sec.start)} – ${clock(sec.end)} (${Math.round(sec.end - sec.start)} s)`;
     const fade = this.body.querySelector<HTMLInputElement>('.fade input'), out = this.body.querySelector('.fade output');
     const f = sec.fade ?? DEFAULT_FADE;
     if (fade && document.activeElement !== fade) fade.value = String(f);
@@ -249,7 +249,7 @@ export class Panel {
     const by = { auto: 'composed automatically from the song', claude: 'composed by Claude', user: 'shaped by you' }[show.composer?.by ?? 'user'];
     const facts = this.body.querySelector('.facts');
     if (facts) facts.innerHTML = `
-      <dt>Song</dt><dd>${esc(p.title)} · ${clock(p.duration)}</dd>
+      <dt>Song</dt><dd>${esc(p.title)}, ${clock(p.duration)}</dd>
       <dt>Show</dt><dd>${show.sections.length} section${show.sections.length > 1 ? 's' : ''}, ${by}${s.origin === 'auto' ? ' (not saved yet)' : ''}</dd>
       <dt>Notes</dt><dd>${p.notes.length} notes, ${NOTES_WORDS[p.notesFrom]}</dd>
       ${p.quality.warnings.length ? `<dt>Warnings</dt><dd>${p.quality.warnings.map(esc).join('<br>')}</dd>` : ''}`;
