@@ -8,8 +8,8 @@
  * transcribe.py JSON), or approximated from the analysis. Sections, beats, loudness and chord changes come
  * from the study analysis. Exit codes: 2 usage, 3 the transcriber failed, 4 the audio cannot be decoded.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
+import { basename, extname, join, resolve } from 'node:path';
 import { analyzeSong } from '../src/audio/song-analysis';
 import { STAGE_WEIGHTS, type IngestProgress } from '../src/studio/ingest/ears-types';
 import { buildPack, type BuildInput } from '../src/studio/pack/build';
@@ -29,6 +29,9 @@ class Exit extends Error {
     super(message);
   }
 }
+
+/** Undoes what a failed run left behind (the folder a fresh ingest made); cleared once pack.json is written. */
+let onFail: (() => void) | null = null;
 
 interface GpuCache { version: 1; sha1: string; size: number; mtimeMs: number; model: string; device: 'cuda' | 'cpu'; seconds: number; notes: { start: number; end: number; midi: number; vel: number }[] }
 
@@ -71,28 +74,36 @@ async function main(): Promise<void> {
   const sha1 = await sha1File(o.file);
   const st = statSync(o.file);
   const kind = o.notes === 'gpu' ? 'gpu' : o.notes === 'approx' ? 'approx' : 'file';
-  if (existsSync(packFile) && !o.force) {
+  const audioName = 'audio' + extname(o.file).toLowerCase();
+  const audio = join(dir, audioName);
+  // Re-running on the pack's own audio (e.g. the ears server's redo): nothing to copy, and the original name stays.
+  const inPlace = resolve(audio) === o.file;
+  let old: SongPack | null = null;
+  if (existsSync(packFile)) {
     try {
-      const old = JSON.parse(readFileSync(packFile, 'utf8')) as SongPack;
-      if (old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0) {
-        log(`${o.id}: up to date (${old.notesFrom} notes; --force rebuilds it, e.g. with other notes): ${packFile}`);
-        report({ stage: 'done', progress: 1, message: 'up to date', id: o.id, warnings: old.quality.warnings });
-        return;
-      }
-      if (old.source?.sha1 !== sha1) log(`${o.id}: replacing the pack of a different recording (${old.source?.name})`);
+      old = JSON.parse(readFileSync(packFile, 'utf8')) as SongPack;
     } catch {
       log(`${o.id}: the old pack.json is unreadable; rebuilding it`);
     }
   }
+  if (old && !o.force) {
+    if (old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0 &&
+      existsSync(join(dir, old.audio))) {
+      log(`${o.id}: up to date (${old.notesFrom} notes; --force rebuilds it, e.g. with other notes): ${packFile}`);
+      report({ stage: 'done', progress: 1, message: 'up to date', id: o.id, warnings: old.quality.warnings });
+      return;
+    }
+    if (old.source?.sha1 !== sha1) log(`${o.id}: replacing the pack of a different recording (${old.source?.name})`);
+  }
+  const sourceName = inPlace && old?.source?.name ? old.source.name : basename(o.file);
 
   log(`ingest ${o.id}: ${o.file}`);
+  // The old pack and its audio stay as they are until the new pack is ready: decode and transcribe read the input where
+  // it is, and the audio is swapped in just before pack.json is written (only the notes.gpu.json cache, keyed by sha1,
+  // may be replaced earlier, so a failure after a long transcription keeps it). A fresh ingest that fails takes its
+  // folder with it.
+  if (!existsSync(dir)) onFail = () => rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const audioName = 'audio' + extname(o.file).toLowerCase();
-  const audio = join(dir, audioName);
-  if (resolve(audio) !== o.file) {
-    for (const f of readdirSync(dir)) if (/^audio\./.test(f) && f !== audioName) rmSync(join(dir, f));
-    copyFileSync(o.file, audio);
-  }
 
   const weights = { ...STAGE_WEIGHTS, transcribe: kind === 'gpu' ? STAGE_WEIGHTS.transcribe : 0 };
   const total = weights.decode + weights.transcribe + weights.analyze + weights.write;
@@ -120,7 +131,7 @@ async function main(): Promise<void> {
   stage('decode', 0, 'decoding');
   let pcm: Float32Array;
   try {
-    pcm = decodeMono(audio, SR);
+    pcm = decodeMono(o.file, SR);
   } catch (e) {
     throw new Exit(4, `cannot decode ${o.file}: ${(e as Error).message}`);
   }
@@ -155,7 +166,7 @@ async function main(): Promise<void> {
       stage('transcribe', 0, 'loading the transcriber');
       const tmp = `${cacheFile}.${process.pid}.raw.json`;
       try {
-        await transcribe(audio, tmp, (f) => stage('transcribe', f, 'transcribing'));
+        await transcribe(o.file, tmp, (f) => stage('transcribe', f, 'transcribing'));
         const raw = JSON.parse(readFileSync(tmp, 'utf8')) as Omit<GpuCache, 'sha1' | 'size' | 'mtimeMs'>;
         cache = { version: 1, sha1, size: st.size, mtimeMs: st.mtimeMs, model: raw.model, device: raw.device, seconds: raw.seconds, notes: raw.notes };
         writeJsonAtomic(cacheFile, cache);
@@ -175,12 +186,24 @@ async function main(): Promise<void> {
 
   stage('write', 0, 'writing');
   const pack = buildPack({
-    id: o.id, title: o.title, audio: audioName, source: { name: o.file.split(/[\\/]/).pop()!, bytes: st.size, sha1 },
+    id: o.id, title: o.title, audio: audioName, source: { name: sourceName, bytes: st.size, sha1 },
     analysis, notes, by: 'ingest', at: new Date().toISOString(),
   });
   const errors = validatePack(pack);
   if (errors.length) throw new Exit(1, `internal error: the pack does not validate:\n  ${errors.join('\n  ')}`);
+  if (!inPlace) {
+    // Copy beside it, then rename: a failed copy never leaves half a recording under the pack's audio name.
+    const tmpAudio = `${audio}.${process.pid}.tmp`;
+    try {
+      copyFileSync(o.file, tmpAudio);
+      renameSync(tmpAudio, audio);
+    } finally {
+      rmSync(tmpAudio, { force: true });
+    }
+  }
   writeJsonAtomic(packFile, pack);
+  onFail = null;
+  for (const f of readdirSync(dir)) if (/^audio\./.test(f) && f !== audioName) rmSync(join(dir, f), { force: true });
   stage('write', 1, 'written');
   lap('write');
 
@@ -192,6 +215,11 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
+  try {
+    onFail?.();
+  } catch {
+    /* the error below matters more */
+  }
   const code = e instanceof Exit ? e.code : 1;
   process.stderr.write(`ingest: ${e instanceof Error ? (e instanceof Exit ? e.message : e.stack ?? e.message) : String(e)}\n`);
   process.exit(code);

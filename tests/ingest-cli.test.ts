@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,8 +55,52 @@ describe.skipIf(!hasFfmpeg)('npm run ingest', () => {
     const r = ingest([wav, '--id', 'no-python'], { WINKELAMP_PY: join(tmp, 'missing.exe') });
     expect(r.code).toBe(3);
     expect(r.err).toMatch(/--notes approx/);
-    expect(existsSync(join(tmp, 'songs', 'no-python', 'pack.json'))).toBe(false);
+    expect(existsSync(join(tmp, 'songs', 'no-python'))).toBe(false);
   }, 60_000);
+
+  describe('a failed ingest leaves the old pack as it was', () => {
+    const dir = join(tmp, 'songs', 'keep');
+    const snapshot = () => Object.fromEntries(readdirSync(dir).sort().map((f) => [f, readFileSync(join(dir, f)).toString('base64')]));
+    const garbage = (name: string) => {
+      const f = join(tmp, name);
+      writeFileSync(f, 'this is not audio at all, just text pretending to be a recording. '.repeat(50));
+      return f;
+    };
+
+    it('exit 4 on garbage under the same id, whatever its extension; pack.json and the audio are untouched', () => {
+      expect(ingest([wav, '--notes', 'approx', '--id', 'keep']).code).toBe(0);
+      const before = snapshot();
+      expect(Object.keys(before)).toEqual(['audio.wav', 'pack.json']);
+      for (const name of ['garbage.mp3', 'garbage.wav']) {
+        const r = ingest([garbage(name), '--notes', 'approx', '--id', 'keep']);
+        expect(r.code).toBe(4);
+        expect(snapshot()).toEqual(before);
+      }
+      const pack = JSON.parse(readFileSync(join(dir, 'pack.json'), 'utf8')) as SongPack;
+      expect(validatePack(pack)).toEqual([]);
+    }, 120_000);
+
+    it('a failed fresh ingest leaves no folder behind', () => {
+      expect(ingest([garbage('fresh.mp3'), '--notes', 'approx', '--id', 'fresh-fail']).code).toBe(4);
+      expect(existsSync(join(tmp, 'songs', 'fresh-fail'))).toBe(false);
+    }, 60_000);
+
+    it("is not up to date when the pack's audio is missing: it rebuilds it", () => {
+      rmSync(join(dir, 'audio.wav'));
+      const r = ingest([wav, '--notes', 'approx', '--id', 'keep']);
+      expect(r.code).toBe(0);
+      expect(r.out).not.toMatch(/up to date/);
+      expect(existsSync(join(dir, 'audio.wav'))).toBe(true);
+    }, 60_000);
+
+    it("re-running on the pack's own audio keeps the original source name", () => {
+      const r = ingest([join(dir, 'audio.wav'), '--notes', 'approx', '--id', 'keep', '--force']);
+      expect(r.code).toBe(0);
+      const pack = JSON.parse(readFileSync(join(dir, 'pack.json'), 'utf8')) as SongPack;
+      expect(pack.source.name).toBe('Sine Test.wav');
+      expect(readdirSync(dir).sort()).toEqual(['audio.wav', 'pack.json']);
+    }, 60_000);
+  });
 
   it('rejects a bad id and a missing file (exit 2)', () => {
     expect(ingest([wav, '--id', 'Bad Id']).code).toBe(2);
