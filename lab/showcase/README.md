@@ -11,8 +11,8 @@ each from its busiest stretch of "the casket" (chosen by measuring how much is o
 ## The videos (76 s each, 1280x720, 30 fps)
 
 Passages in every video: Rachmaninoff dread (0:00), agitato (0:14), the casket (0:28); Beethoven 5 fate knocks (0:48),
-coda (1:02). Around 0:54 to 1:00 every widget goes almost black: that is the pause after the opening knocks, where the
-recording has no notes. It is not a fault.
+coda (1:02). From about 0:52 to 1:01 every widget goes almost black: after the opening knocks the orchestra holds the
+note and lets it die away, and nothing new is played until 0:13 of the recording. It is not a fault.
 
 | # | widget | your verdict so far | what to watch for |
 |---|---|---|---|
