@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { makeIcon, readLabHarness } from '../src/widgets/lab-harness';
+import { LAB_FIRST_MOMENT, makeIcon, momentAt, readLabHarness, readLabSongs } from '../src/widgets/lab-harness';
 import { labRandom } from '../src/widgets/random';
 
 const ROOT = new URL('../', import.meta.url);
@@ -40,6 +40,45 @@ describe('readLabHarness (the real lab/index.html)', () => {
 
   it('names a missing block', () => {
     expect(() => readLabHarness('<html></html>')).toThrow(/TOOL_IDS/);
+  });
+});
+
+describe('readLabSongs (the real lab/index.html)', () => {
+  const songs = readLabSongs(HTML);
+
+  it('reads both songs with their notes file, length and moments', () => {
+    expect(songs.prelude.notes).toBe('notes.js');
+    expect(songs.prelude.dur).toBeCloseTo(232.1);
+    expect(songs.prelude.moments).toContainEqual([124, 'casket', 'The casket']);
+    expect(songs.prelude.moments).toContainEqual([208, 'agitato']);
+    expect(songs.b5.notes).toBe('notes-b5.js');
+    expect(songs.b5.moments[0]).toEqual([0, 'casket', 'Fate knocks']);
+  });
+
+  it('names a missing block', () => {
+    expect(() => readLabSongs('<html></html>')).toThrow(/SONGS/);
+  });
+
+  it('the first moment the lab holds before any step', () => {
+    expect(LAB_FIRST_MOMENT).toBe('dread');
+    expect(HTML).toMatch(/moment: 'dread',/);
+  });
+});
+
+describe('momentAt', () => {
+  const m: [number, string, string?][] = [[0, 'dread', 'Dread'], [83, 'agitato', 'Agitato'], [124, 'casket'], [208, 'agitato']];
+
+  it('the mood name of the last moment started by t', () => {
+    expect(momentAt(m, 0)).toBe('dread');
+    expect(momentAt(m, 82.99)).toBe('dread');
+    expect(momentAt(m, 83)).toBe('agitato');
+    expect(momentAt(m, 124)).toBe('casket');
+    expect(momentAt(m, 500)).toBe('agitato');
+  });
+
+  it('the first mood before the first moment (a preroll seeks before 0)', () => {
+    expect(momentAt(m, -3)).toBe('dread');
+    expect(momentAt([[10, 'casket']], 2)).toBe('casket');
   });
 });
 

@@ -3,7 +3,7 @@
 import { groupChords, soundingAt } from './chords';
 import { advanceFeatures, knobValue, newFeatures, pitch01, resolveKnobs } from './features';
 import { instantiate } from './instantiate';
-import { makeIcon } from './lab-harness';
+import { LAB_FIRST_MOMENT, makeIcon } from './lab-harness';
 import type { Chord, IconLib, KnobMap, LabHarness, Note, SoundingNote, ToolDef, WidgetCtx } from './types';
 
 /** A widget drawn this step: weight 1 = exactly as the lab draws it; receiving = it gets this step's attacks. */
@@ -42,7 +42,7 @@ export class WidgetRuntime implements RuntimeLike {
     const ctx: WidgetCtx = {
       g, W, H, canvas,
       t: 0, dt: 0, now: 0,
-      moment: '',
+      moment: LAB_FIRST_MOMENT,   // as the lab before its first step; reset() keeps the last stepped moment, as the lab's
       level: 0, rate: 0,
       feat: newFeatures(),
       tool: undefined,

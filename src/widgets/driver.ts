@@ -1,7 +1,9 @@
 // Clocks for the runtime: the lab's live rAF loop (audio clock, freeze on pause, reset on a jump) and its render API
 // (?render=1: song time moved on demand in substeps of 1/hz, so a video frame shows what a live screen would).
 import { liveClock, newFeatures } from './features';
+import { momentAt } from './lab-harness';
 import type { Slot, WidgetRuntime } from './runtime';
+import type { LabMoment } from './types';
 
 /** What a clock drives: the runtime directly (labCompat) or a show (the Conductor). */
 export interface Stepper { reset(t: number): void; step(t: number, dt: number): void }
@@ -70,12 +72,14 @@ export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: nu
   window.renderPixels = () => base64(pixels());
 }
 
-/** The lab itself: every loaded widget gets resets, the `only` ones draw, in load (lab) order, at weight 1. */
-export function labCompat(rt: WidgetRuntime, only: readonly string[]): Stepper {
+/** The lab itself: every loaded widget gets resets, the `only` ones draw, in load (lab) order, at weight 1. Every step
+    first sets ctx.moment from the song's moments, as the top of the lab's step() does; a reset leaves it alone. */
+export function labCompat(rt: WidgetRuntime, only: readonly string[], moments: readonly LabMoment[]): Stepper {
   const on = new Set(only);
   return {
     reset: (t) => rt.reset(t),
     step: (t, dt) => {
+      rt.setMoment(momentAt(moments, t));
       const slots: Slot[] = rt.loaded().filter((id) => on.has(id)).map((id) => ({ id, receiving: true, weight: 1 }));
       rt.step(t, dt, slots);
     },

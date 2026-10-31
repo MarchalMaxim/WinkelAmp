@@ -178,7 +178,8 @@ export type KnobMap = Record<string, KnobState>;
 export interface WidgetCtx {               // ONE object shared by every widget call, as in the lab
   g: CanvasRenderingContext2D; W: 1280; H: 720; canvas: HTMLCanvasElement;   // getContext('2d') with no options
   t: number; dt: number; now: number;      // song s; song s since the last step (frame() never sees 0); wall s (render: += each substep)
-  moment: string;                          // the section label (no widget reads it)
+  moment: string;                          // the section's mood name; lewitt starts a new wall when it changes (labCompat: the
+                                           // lab's SONGS.moments mood; starts 'dread' as the lab's ctx; reset() leaves it)
   level: number; rate: number;             // raw pulse (§2 arithmetic)
   feat: Features;
   tool: ToolDef | undefined;               // set before every call; ctx.p reads its knobs
@@ -191,6 +192,8 @@ export interface WidgetCtx {               // ONE object shared by every widget 
 export type IconLib = Record<string, any> & { ink: string; gauge(g: CanvasRenderingContext2D, v: number, w: number, h: number): void };
 export interface Verdict { v: 'love' | 'keep' | 'needs work' | 'drop'; on: string; note?: string }
 export interface LabHarness { toolIds: string[]; verdicts: Record<string, Verdict>; drives: [Drive, string][]; iconSource: string }
+export type LabMoment = [start: number, mood: string, label?: string];   // the lab's SONGS.moments entry
+export interface LabSong { title: string; audio?: string; notes: string; dur: number; moments: LabMoment[] }   // notes relative to lab/
 export interface WidgetMeta { id: string; name: string; blurb: string; tag: string; verdict: Verdict | null; params: Omit<Param, 'icon'>[] }
 ```
 
@@ -223,7 +226,9 @@ export function liveClock(lastT: number, t: number, paused: boolean): { reset: b
 
 `src/widgets/lab-harness.ts`: `readLabHarness(html: string): LabHarness` (evaluates the literals of `const TOOL_IDS =`,
 `const VERDICTS =`, `const DRIVES =` and takes the `window.ICON = (() => {…})();` block; throws naming a missing
-block) and `makeIcon(iconSource): IconLib`. `src/widgets/random.ts`: `labRandom(seed): () => number` (the lab's
+block) and `makeIcon(iconSource): IconLib`. Added in the T2 review: `readLabSongs(html): Record<string, LabSong>` (the
+literal of `const SONGS =`; throws naming a missing block), `momentAt(moments, t): string` (the lab's step(): the mood of the
+last moment with start ≤ t, else the first one's) and `LAB_FIRST_MOMENT = 'dread'` (the lab's ctx before any step). `src/widgets/random.ts`: `labRandom(seed): () => number` (the lab's
 render-mode generator) and `installSeededRandom(seed = 1): (seed: number) => void` (replaces `Math.random`, returns reseed).
 
 ### §3 WidgetRuntime — `src/widgets/runtime.ts`, `driver.ts` (T2)
@@ -258,7 +263,9 @@ export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: nu
 // · renderStep(dt): n = max(1, ceil(dt·hz − 1e-6))
 // equal substeps, each ctx.now += d, s.step · renderTo(t) = renderStep(t − lastT) · renderErrors · renderReady ·
 // renderFrameHash(): FNV-1a of getImageData · renderPixels(): base64 RGBA
-export function labCompat(rt: WidgetRuntime, only: readonly string[]): Stepper;   // all loaded, `only` active, lab order, weight 1
+export function labCompat(rt: WidgetRuntime, only: readonly string[], moments: readonly LabMoment[]): Stepper;
+// all loaded, `only` active, lab order, weight 1; each step first rt.setMoment(momentAt(moments, t)), as the lab's step()
+// (changed in the T2 review: the moments argument; without it lewitt drew other walls than the lab after a section change)
 ```
 
 ### §4 Show — `src/studio/show/show.ts` (T3)
@@ -304,7 +311,8 @@ export class Conductor implements Stepper {
                                                                                           // meta gives the params resolveKnobs needs
   setShow(show: Show): void;   // live edit: loads new widgets, updates knobs in place, never resets the picture
   reset(t: number): void;      // seek: rt.reset(t); only the section at t plays (nothing decays after a seek)
-  step(t: number, dt: number): void;   // resetWidget for entriesBetween(last t, t); setKnobs/setMoment on section change;
+  step(t: number, dt: number): void;   // resetWidget for entriesBetween(last t, t); setKnobs/setMoment on section change
+                                       // (lewitt opens a new wall when the moment changes, so each section gives its own);
                                        // rt.step with scheduleAt(t), decaying slots kept only if drawn in the last step
   preview(t: number): void;    // a paused seek: reset(t − 1), then 60 steps of 1/60 s, so the picture at t shows
 }
@@ -514,7 +522,9 @@ Modify `package.json` (`fidelity`).
 
 **Interfaces:** Produces §2, §3. `sources.ts` (browser only): `labWidgetSources(): Record<string, string>` from
 `import.meta.glob('/lab/tools/*.js', { query: '?raw', import: 'default', eager: true })` keyed by file name (bundled, so
-`dist` works; `lab/tools/dropped/` is not matched) and `labHarness(): LabHarness` from a static `import '/lab/index.html?raw'` (so `labHarness()` stays synchronous).
+`dist` works; `lab/tools/dropped/` is not matched) and `labHarness(): LabHarness` from a static `import '/lab/index.html?raw'` (so `labHarness()` stays synchronous);
+`labSongs(): Record<string, LabSong>` from the same import (render.html's `labSong` mode takes notes file, title, length
+and moments from it, never a copy).
 `instantiate(id: string, source: string, env: { icon: IconLib; chords: Chord[] }): ToolDef`.
 `catalogue.ts`: `toMeta(tool: ToolDef, verdict: Verdict | null): WidgetMeta`.
 
@@ -524,7 +534,9 @@ Modify `package.json` (`fidelity`).
     `drives.length === 11`, `drives[0]` is `['', 'fixed']`, contains `['+density', 'fuller chords → more']`;
     `makeIcon(iconSource)` has functions `dot ring square rect line arrow lines dots wave blur alpha palette pie fade shake keys trail glyph shape gauge rng lerp`
     and `of.size`; `readLabHarness('<html></html>')` throws `/TOOL_IDS/`; `labRandom(1)` and `labRandom(42)` equal, for
-    100 values, the lab's `Math.random` body cut out of `lab/index.html` and evaluated with the same seed.
+    100 values, the lab's `Math.random` body cut out of `lab/index.html` and evaluated with the same seed;
+    `readLabSongs` gives prelude `notes.js` with moment `[124, 'casket', 'The casket']` and b5 `notes-b5.js`, throws `/SONGS/`
+    on `<html></html>`; `momentAt` at −3, 0, 82.99, 83, 124, 500 → dread dread dread agitato casket agitato.
   - `widgets-chords`: `[[1,2,60,80],[1.03,2,64,90],[1.039,1.5,67,70],[1.045,2,72,60],[1.07,2,48,50]]` → two chords:
     `{t:1, vel:90, lo:60, hi:67}` with 3 notes and `notes[1].d ≈ 0.97`, then `{t:1.045, lo:48, hi:72}` with 2 notes;
     notes at 0 and 0.04 → two chords; `soundingAt([[0,20,40,90]], 10)` → `[]` (the lab's 8 s look-back);

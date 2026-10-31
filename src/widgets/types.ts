@@ -27,7 +27,7 @@ export interface WidgetCtx {
   g: CanvasRenderingContext2D; W: 1280; H: 720; canvas: HTMLCanvasElement;
   /** song s; song s since the last step; wall s (render mode: += each substep) */
   t: number; dt: number; now: number;
-  /** the section label (no widget reads it) */
+  /** the section's mood name ('dread', 'agitato', 'casket', 'return'): lewitt starts a new wall when it changes */
   moment: string;
   /** raw pulse (§2 arithmetic) */
   level: number; rate: number;
@@ -43,5 +43,8 @@ export interface WidgetCtx {
 
 export type IconLib = Record<string, any> & { ink: string; gauge(g: CanvasRenderingContext2D, v: number, w: number, h: number): void };
 export interface Verdict { v: 'love' | 'keep' | 'needs work' | 'drop'; on: string; note?: string }
+/** A section start in the lab's SONGS: song s, mood name (what ctx.moment holds), button label. */
+export type LabMoment = [start: number, mood: string, label?: string];
+export interface LabSong { title: string; audio?: string; notes: string; dur: number; moments: LabMoment[] }
 export interface LabHarness { toolIds: string[]; verdicts: Record<string, Verdict>; drives: [Drive, string][]; iconSource: string }
 export interface WidgetMeta { id: string; name: string; blurb: string; tag: string; verdict: Verdict | null; params: Omit<Param, 'icon'>[] }

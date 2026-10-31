@@ -6,7 +6,7 @@
 import { exposeRenderApi, labCompat, type Stepper } from '../widgets/driver';
 import { installSeededRandom } from '../widgets/random';
 import { WidgetRuntime } from '../widgets/runtime';
-import { labHarness, labWidgetSources } from '../widgets/sources';
+import { labHarness, labSongs, labWidgetSources } from '../widgets/sources';
 import type { Note } from '../widgets/types';
 
 const reseed = installSeededRandom(1);
@@ -18,12 +18,6 @@ window.queueMicrotask = (fn: () => void) => { post.push(fn); };
 const params = new URLSearchParams(location.search);
 const HZ = Number(params.get('hz')) || 60;
 const canvas = document.getElementById('c') as HTMLCanvasElement;
-
-/** The lab's two recordings (lab/index.html SONGS: notes file, title, duration). */
-const LAB_SONGS: Record<string, { notes: string; title: string; dur: number }> = {
-  prelude: { notes: '/lab/notes.js', title: 'Rachmaninoff: Prelude in C♯ minor', dur: 232.1 },
-  b5: { notes: '/lab/notes-b5.js', title: 'Beethoven: Symphony No. 5, I', dur: 424.8 },
-};
 
 function loadScript(src: string): Promise<void> {
   return new Promise((res, rej) => {
@@ -43,16 +37,16 @@ function run(rt: WidgetRuntime, stepper: Stepper, info: { duration: number; titl
 }
 
 async function labSongMode(id: string): Promise<void> {
-  const song = LAB_SONGS[id];
-  if (!song) throw new Error(`unknown labSong ${id} (prelude or b5)`);
-  await loadScript(song.notes);
+  const songs = labSongs(), song = songs[id];   // the lab's own SONGS: notes file, title, length, moments
+  if (!song) throw new Error(`unknown labSong ${id} (${Object.keys(songs).join(' or ')})`);
+  await loadScript(`/lab/${song.notes}`);
   const notes = (window as { NOTES?: Note[] }).NOTES;
-  if (!Array.isArray(notes)) throw new Error(`${song.notes} did not set window.NOTES`);
+  if (!Array.isArray(notes)) throw new Error(`/lab/${song.notes} did not set window.NOTES`);
   const harness = labHarness();
   const rt = new WidgetRuntime(canvas, { notes }, { sources: labWidgetSources(), harness });
   rt.load(harness.toolIds);   // ALL of them, in lab order: load-time randomness (rorschach's paper) is part of the pixels
   const only = (params.get('only') ?? '').split(',').filter(Boolean);
-  run(rt, labCompat(rt, only), { duration: song.dur, title: song.title }, only);
+  run(rt, labCompat(rt, only, song.moments), { duration: song.dur, title: song.title }, only);
 }
 
 const labSong = params.get('labSong');

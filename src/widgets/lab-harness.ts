@@ -1,6 +1,7 @@
 // Reads the lab's own lists out of lab/index.html at run time, so the studio never keeps a copy that drifts:
-// TOOL_IDS (load and draw order), VERDICTS (the user's ratings), DRIVES (the drive words) and the ICON library's source.
-import type { Drive, IconLib, LabHarness, Verdict } from './types';
+// TOOL_IDS (load and draw order), VERDICTS (the user's ratings), DRIVES (the drive words), the ICON library's source
+// and SONGS (the two recordings with their moments: step() sets ctx.moment from them).
+import type { Drive, IconLib, LabHarness, LabMoment, LabSong, Verdict } from './types';
 
 /** The end (exclusive) of the JS expression starting at `from`: the first `;` (or unmatched closer) at bracket depth 0,
     skipping strings, template literals (with nested `${}`), comments and regex literals. */
@@ -69,6 +70,26 @@ export function readLabHarness(html: string): LabHarness {
   if (!verdicts || typeof verdicts !== 'object') throw new Error('lab/index.html: VERDICTS is not an object');
   if (!Array.isArray(drives)) throw new Error('lab/index.html: DRIVES is not a list');
   return { toolIds, verdicts: verdicts as Record<string, Verdict>, drives: drives as [Drive, string][], iconSource };
+}
+
+/** The lab's songs (`const SONGS =`): id → title, notes file (relative to lab/), length and moments. */
+export function readLabSongs(html: string): Record<string, LabSong> {
+  const songs = evaluate(expressionAfter(html, 'const SONGS ='));
+  if (!songs || typeof songs !== 'object') throw new Error('lab/index.html: SONGS is not an object');
+  for (const [id, s] of Object.entries(songs as Record<string, LabSong>)) {
+    if (typeof s?.notes !== 'string' || !Array.isArray(s.moments) || !s.moments.length) throw new Error(`lab/index.html: SONGS.${id} has no notes or moments`);
+  }
+  return songs as Record<string, LabSong>;
+}
+
+/** ctx.moment before the first step: the lab starts every song at 'dread' (its ctx literal), whatever the song's moments. */
+export const LAB_FIRST_MOMENT = 'dread';
+
+/** The lab's step(): the mood name of the last moment starting at or before t, else the first one's. */
+export function momentAt(moments: readonly LabMoment[], t: number): string {
+  let m = moments[0][1];
+  for (const [s, n] of moments) if (t >= s) m = n;
+  return m;
 }
 
 /** A fresh ICON library from the lab's `window.ICON = (() => {…})()` source. */

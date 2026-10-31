@@ -2,8 +2,8 @@
 // The lab's widget files and harness, bundled by Vite (so `dist` works without the lab being served).
 // Browser only. lab/tools/dropped/ is not matched.
 import labHtml from '/lab/index.html?raw';
-import { readLabHarness } from './lab-harness';
-import type { LabHarness } from './types';
+import { readLabHarness, readLabSongs } from './lab-harness';
+import type { LabHarness, LabSong } from './types';
 
 const FILES = import.meta.glob('/lab/tools/*.js', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -17,4 +17,10 @@ export function labWidgetSources(): Record<string, string> {
 let harness: LabHarness | null = null;
 export function labHarness(): LabHarness {
   return (harness ??= readLabHarness(labHtml));
+}
+
+let songs: Record<string, LabSong> | null = null;
+/** The lab's SONGS (notes files relative to /lab/). */
+export function labSongs(): Record<string, LabSong> {
+  return (songs ??= readLabSongs(labHtml));
 }
