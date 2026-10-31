@@ -3,6 +3,7 @@
  * continues (its knobs switch at the boundary) unless restart; entering, it is reset at the boundary; leaving, it keeps
  * drawing beneath the new stack for the next section's fade seconds, without attacks, at weight (1 − u)². Because the
  * canvas is shared and fades on its own, an incoming casket slices what the outgoing widgets left.
+ * Each fade belongs to its boundary: a fade-0 boundary cuts only the widgets leaving there, not earlier decays.
  */
 import { DEFAULT_FADE, type KnobSetting, type Show } from './show';
 

@@ -69,7 +69,9 @@ All widgets share one canvas, which fades a little every frame (as in the lab). 
 
 So the picture never cuts to black: an incoming casket slices what the outgoing widgets left on the canvas, and a quiet
 section after a loud one inherits its last strokes, fading. Use `fade: 0` for a deliberate hard change, a long fade
-(5–8 s) where the music dissolves. Seeking in the studio starts clean at the section under the playhead.
+(5–8 s) where the music dissolves. `fade: 0` cuts only the widgets leaving at that boundary: a widget still fading out
+from an earlier boundary finishes its own fade under the new stack, so for a clean hard change keep the section
+before it longer than its own fade (or give it a short one). Seeking in the studio starts clean at the section under the playhead.
 
 ## The user's taste
 
