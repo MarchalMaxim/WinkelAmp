@@ -92,6 +92,7 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
       else if (s.fade < 0 || s.fade > MAX_FADE) warn(`${at}.fade`, `fade ${fmt(s.fade)} s: expected 0 (cut) to ${MAX_FADE} s`);
     }
     if (!Array.isArray(s.layers)) { err(`${at}.layers`, 'not a list of layers [{ widget }]'); return; }
+    if (!s.layers.length) warn(`${at}.layers`, 'no layers: the picture fades to black here');
     if (s.layers.length > MAX_LAYERS) warn(`${at}.layers`, `${s.layers.length} layers: more than ${MAX_LAYERS} gets muddy and slow`);
     const seen = new Set<string>();
     s.layers.forEach((l: unknown, j) => validateLayer(l, `${at}.layers[${j}]`, seen, c, err, warn, typos));

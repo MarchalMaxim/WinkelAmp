@@ -291,7 +291,7 @@ shared canvas, so an incoming casket slices what the outgoing widgets left.
 Errors: version ≠ 1; id/song not slugs; sections empty, unsorted, `start ≥ end`, overlapping or leaving a gap
 (> 0.05 s; the message names both sections and the times), first start ≠ 0 (±0.05), last end ≠ duration (±0.5);
 unknown widget; a widget twice in one section; drive not a `Drive`; depth outside 0..1. Warnings: section < 1 s,
-> 6 layers, unknown knob key, base outside min..max, fade outside 0..10, unknown properties (typos).
+no layers, > 6 layers, unknown knob key, base outside min..max, fade outside 0..10, unknown properties (typos).
 Repair: an overlap ends the earlier section where the later starts; a gap extends the earlier; ends snap to 0 and
 duration; sections < 1 s merge into the previous; unknown widgets and duplicates dropped; bases clamped.
 

@@ -83,6 +83,8 @@ describe('validateShow', () => {
     expect(at(warns(withSection(0, { layers: [{ widget: 'squares', knob: { size: 1 } }] })), 'sections[0].layers[0].knob')).toHaveLength(1);
     expect(at(warns({ ...good(), sectoins: [] }), 'sectoins')).toHaveLength(1);
     expect(at(warns(spans([0, 50], [50, 50.5], [50.5, 100])), 'sections[1]')).toHaveLength(1);
+    expect(at(warns(withSection(1, { layers: [] })), 'sections[1].layers')[0].message).toMatch(/no layers/);
+    expect(errs(withSection(1, { layers: [] }))).toEqual([]);
     for (const s of [withSection(1, { fade: 12 }), withSection(0, { layers: seven })]) expect(errs(s)).toEqual([]);
   });
 });
