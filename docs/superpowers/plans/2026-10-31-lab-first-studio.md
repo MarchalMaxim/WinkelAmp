@@ -557,10 +557,14 @@ and moments from it, never a copy).
   and `render.html?labSong=<s>&only=<ids>&hz=60`; on both `renderSeek(start − 3, 1)`, `renderTo` at 30 fps, compare
   at start + 1, + 2.5, + 4 s: `renderFrameHash()` first, `renderPixels()` diffed in Node only when hashes differ. Cases:
   every `toolIds` widget alone at prelude 126 s and b5 0 s; the ten `VERDICTS` widgets alone at prelude 0, 86, 126,
-  176 and b5 0, 345; `squares,casket` at prelude 126; `kandinsky,rorschach` at b5 0. Control: the lab against a second
+  176 and b5 0, 345; `squares,casket` at prelude 126; `kandinsky,rorschach` at b5 0. Long cases (own page each), checked at
+  start + 4.5, 6, 8, 11 s, across a section change more than 4 s after the seek: every widget whose file reads `.moment`
+  (lewitt) and `squares,casket` at prelude 119 (change at 124), the same and `kandinsky,rorschach` at b5 15 (change at 20).
+  Control: the lab against a second
   lab load. One page per side per widget set, its cases in the same order on every page (widgets keep closure state
   across `renderSeek`, like the lab's). Pass per case: hashes equal, or share of pixels off by > 2 ≤ the control's
-  + 0.1 % and max diff ≤ the control's + 8. The lab has no `renderFrameHash`/`renderPixels` (and `lab/` is not edited), so the
+  + 0.1 % and max diff ≤ the control's + 8, or at most 40 pixels off by > 2 (GPU rasterisation of a few edge pixels is
+  not repeatable: prelude murmuration 0 + 1 s was off by up to 12 on a handful of pixels in two runs of three). The lab has no `renderFrameHash`/`renderPixels` (and `lab/` is not edited), so the
   script computes both in-page with one identical function on every page, at the same frames. `pixelsort` is included: with
   the render-mode `queueMicrotask` route above it is deterministic in both pages. Options: `--only <ids>`, `--quick` (one
   start per widget set), `--stills <dir>` (lab | studio | difference PNGs). Run → all PASS; print the table.
@@ -671,7 +675,10 @@ audioStream(): MediaStream /* routes the element through Web Audio on first call
   `runtime.resets` unchanged; `H` hides the UI and shows it again; dragging a boundary makes the show dirty, Ctrl+Z
   makes it clean; adding `casket` shows 5 knob rows with 3 canvases each; the `squares` icon canvases at v = 0 and 1 equal
   the lab card's (`toDataURL`, deviceScaleFactor 1); Ctrl+S writes a show that `validateShow` accepts; an overlapping
-  show fixture opens with a `repaired` notice and plays; no page errors; `legacy.html` loads without page errors. Run → PASS.
+  show fixture opens with a `repaired` notice and plays; no page errors; `legacy.html` loads without page errors. From the
+  T2 review (nothing ran these in a browser): a slot at weight < 1 draws between the canvas without it and with it at
+  weight 1; pausing the audio (and hiding the tab) keeps the canvas hash unchanged over 1 s, and a jump > 0.5 s resets
+  (`runtime.resets` + 1). Run → PASS.
 - [ ] **Step 6: A transition by eye.** Render `render.html?show=<fixture>` frames every 0.25 s from 1 s before to 4 s
   after a kandinsky → kandinsky + casket boundary into a contact sheet (ffmpeg `tile`); read it: the cut slices the
   painting, nothing pops. Fix what doesn't hold.

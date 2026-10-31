@@ -6,7 +6,11 @@
 // Local only: needs lab/notes.js and lab/notes-b5.js (the user's transcriptions, not in git), system Chrome. Starts its
 // own Vite server. A control page (a second lab load) measures how far the lab differs from itself; a case passes when
 // the frame hashes are equal, or when the studio is no further from the lab than the control is (share of pixels off
-// by more than 2 within the control's + 0.1 %, largest difference within the control's + 8).
+// by more than 2 within the control's + 0.1 %, largest difference within the control's + 8), or when at most FLOOR pixels
+// differ by more than 2 (GPU rasterisation of a handful of edge pixels is not repeatable run to run: prelude murmuration
+// at 0 +1 s was off by 12 on a few pixels in two runs of three, invisible).
+// Most cases check 1, 2.5 and 4 s after start; the long cases run past a section change in the lab's SONGS.moments
+// more than 4 s after the seek (lewitt starts a new wall when ctx.moment changes, but not within 4 s of a reset).
 // --only keeps the cases whose widget set includes one of the ids; --quick keeps one case per widget set;
 // --stills writes lab | studio | difference PNGs of the frames compared, for looking at.
 import { spawnSync } from 'node:child_process';
@@ -22,7 +26,7 @@ const opt = (name) => { const i = argv.indexOf(`--${name}`); return i < 0 ? null
 const ONLY = opt('only')?.split(',').filter(Boolean) ?? null;
 const QUICK = argv.includes('--quick');
 const STILLS = opt('stills');
-const HZ = 60, FPS = 30, PREROLL = 3, CHECKS = [1, 2.5, 4];
+const HZ = 60, FPS = 30, PREROLL = 3, CHECKS = [1, 2.5, 4], FLOOR = 40;
 
 for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
   if (!existsSync(path.join(ROOT, f))) { console.log(`fidelity: skipped (no ${f}: the lab's transcriptions are local only)`); process.exit(0); }
@@ -36,7 +40,7 @@ const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts
 const { readFileSync } = await import('node:fs');
 const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), 'utf8'));
 
-// The cases: [song, ids, start].
+// The cases: [song, ids, start, checks?].
 const cases = [];
 for (const id of harness.toolIds) { cases.push(['prelude', id, 126], ['b5', id, 0]); }
 for (const id of Object.keys(harness.verdicts)) {
@@ -44,12 +48,17 @@ for (const id of Object.keys(harness.verdicts)) {
   cases.push(['b5', id, 345]);
 }
 cases.push(['prelude', 'squares,casket', 126], ['b5', 'kandinsky,rorschach', 0]);
-// One page per side per (song, widget set), its cases in ascending start on every page.
+// Long cases, one per song, across a section change (prelude 124 'casket', b5 20 'agitato') 8 s after the seek
+// (seek = start - PREROLL): every widget that reads ctx.moment, and the two-widget sets.
+const momentReaders = harness.toolIds.filter((id) => /\.moment\b/.test(readFileSync(path.join(ROOT, 'lab/tools', `${id}.js`), 'utf8')));
+for (const ids of [...momentReaders, 'squares,casket']) cases.push(['prelude', ids, 119, [4.5, 6, 8, 11]]);
+for (const ids of [...momentReaders, 'kandinsky,rorschach']) cases.push(['b5', ids, 15, [4.5, 6, 8, 11]]);
+// One page per side per (song, widget set, checks), its cases in ascending start on every page.
 const groups = new Map();
-for (const [song, ids, start] of cases) {
+for (const [song, ids, start, checks = CHECKS] of cases) {
   if (ONLY && !ids.split(',').some((i) => ONLY.includes(i))) continue;
-  const k = `${song}|${ids}`;
-  if (!groups.has(k)) groups.set(k, { song, ids, starts: [] });
+  const k = `${song}|${ids}|${checks.join(',')}`;
+  if (!groups.has(k)) groups.set(k, { song, ids, checks, starts: [] });
   const g = groups.get(k);
   if (!g.starts.includes(start)) g.starts.push(start);
 }
@@ -101,13 +110,13 @@ function diff(a, b) {
     const m = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]), Math.abs(a[i + 3] - b[i + 3]));
     if (m > 2) off++; if (m > max) max = m;
   }
-  return { share: off / (a.length / 4), max };
+  return { off, share: off / (a.length / 4), max };
 }
 
 const rows = [];
 const t0 = Date.now();
 let gi = 0;
-for (const { song, ids, starts } of groups.values()) {
+for (const { song, ids, checks, starts } of groups.values()) {
   gi++;
   await Promise.all(Object.entries(sides).map(async ([side, page]) => {
     page.errors = [];
@@ -118,12 +127,12 @@ for (const { song, ids, starts } of groups.values()) {
   }));
   for (const start of starts) {
     let k0 = null;
-    for (const at of CHECKS) {
+    for (const at of checks) {
       const k1 = Math.round(at * FPS);
       const h = Object.fromEntries(await Promise.all(Object.entries(sides).map(async ([side, page]) =>
         [side, await page.evaluate(advance, { start, k0, k1, fps: FPS, preroll: PREROLL })])));
       k0 = k1;
-      if (at === CHECKS[0]) {
+      if (at === checks[0]) {
         // The studio's own render API hashes as this test does (render-show relies on it). Every page reads back the
         // same number of times: Chrome moves a canvas read often off the GPU, which changes later pixels.
         const [own] = await Promise.all([sides.studio.evaluate(() => window.renderFrameHash()),
@@ -137,7 +146,8 @@ for (const { song, ids, starts } of groups.values()) {
           [side, Buffer.from(await page.evaluate(pixels), 'base64')])));
         row.studio = diff(px.lab, px.studio); row.control = diff(px.lab, px.control);
       }
-      row.pass = row.same || (row.studio.share <= row.control.share + 0.001 && row.studio.max <= row.control.max + 8);
+      row.pass = row.same || row.studio.off <= FLOOR
+        || (row.studio.share <= row.control.share + 0.001 && row.studio.max <= row.control.max + 8);
       if (STILLS) {
         mkdirSync(STILLS, { recursive: true });
         const name = `${song}-${ids.replace(/,/g, '+')}-${start}+${at}`;
@@ -155,7 +165,7 @@ for (const { song, ids, starts } of groups.values()) {
   const errs = Object.entries(sides).flatMap(([side, p]) => p.errors.map((e) => `${side}: ${e}`));
   const labErr = await sides.lab.evaluate(() => JSON.stringify(window.renderErrors ?? {}));
   const stErr = await sides.studio.evaluate(() => JSON.stringify(window.renderErrors ?? {}));
-  const last = rows.slice(-starts.length * CHECKS.length);
+  const last = rows.slice(-starts.length * checks.length);
   console.log(`[${gi}/${groups.size}] ${song} ${ids}: ${last.every((r) => r.pass) ? 'PASS' : 'FAIL'}`
     + ` (${last.filter((r) => r.same).length}/${last.length} identical)${errs.length ? ` page errors: ${errs.join(' | ')}` : ''}`
     + (labErr !== stErr ? ` widget errors differ: lab ${labErr} studio ${stErr}` : labErr !== '{}' ? ` widget errors (both): ${labErr}` : ''));
@@ -167,7 +177,7 @@ const pct = (x) => `${(x * 100).toFixed(3)}%`;
 console.log('\nsong     widgets                         start  at    result');
 for (const r of rows) {
   const res = r.same ? (r.controlSame ? 'identical' : `identical (control off ${pct(r.control.share)}, max ${r.control.max})`)
-    : `studio off ${pct(r.studio.share)} max ${r.studio.max} | control off ${pct(r.control.share)} max ${r.control.max}`;
+    : `studio off ${pct(r.studio.share)} (${r.studio.off} px) max ${r.studio.max} | control off ${pct(r.control.share)} max ${r.control.max}`;
   console.log(`${r.song.padEnd(8)} ${r.ids.padEnd(31)} ${String(r.start).padStart(5)}  +${String(r.at).padEnd(4)} ${r.pass ? 'PASS' : 'FAIL'} ${res}${r.blank ? ' (blank)' : ''}`);
 }
 const failed = rows.filter((r) => !r.pass);
