@@ -752,16 +752,11 @@ const labHost = {
   make: makeCanvas,
   error: (inst, e) => { const id = INST.get(inst.key)?.tool.id ?? inst.widget; if (!errors[id]) { errors[id] = String(e); render(); console.error(inst.key, e); } },
 };
-/** One layered slot of an active widget: today's statements for an entry that changes nothing, else drawLayered. */
+/** One layered slot of an active widget: today's statements (through its instance) for an entry that changes nothing
+    beside another entry of the widget, else drawLayered. */
 function drawSlot(s, fired, t, dt, drawn) {
   const it = s.it;
-  if (!it) {   // the widget itself, plain (beside another entry of it)
-    const tool = TOOLS.find((x) => x.id === s.key); if (!tool) return;
-    for (const ch of fired) safe(tool, 'onChord', ch, ctx);
-    g.save(); safe(tool, 'frame', ctx); g.restore();
-    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
-    return;
-  }
+  if (!it) return;   // every entry of a loaded widget has its instance (applyLayers)
   drawn.add(it.key);
   if (!s.layer && !it.inst.own) {
     for (const ch of fired) callInst(it, 'onChord', ctx, ch);
