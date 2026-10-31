@@ -25,15 +25,21 @@
   };
 
   // the history: copies in song-time order (oldest first), each { c, cg, t }; spare canvases are reused
-  // Copies and the clean picture follow the shared canvas's real size (×RS in a supersampled render: a copy is then
-  // QW·RS × QH·RS, and source rectangles in it are ×RS); a change of size drops the history.
-  let hist = [], lastK = null, RS = 1;
-  let spare = [];
-  const slot = () => spare.pop() || (() => { const c = document.createElement('canvas'); c.width = QW * RS; c.height = QH * RS; const cg = c.getContext('2d'); return { c, cg, t: 0 }; })();
+  // The copies stay QW × QH at any picture size. In a supersampled render (the shared canvas RS times 1280×720) the
+  // picture is first box-reduced to 1280×720 in `mid`, then halved as at 1×: the delayed strips are then exactly as soft
+  // as at 1× and lie where they do at 1× (copies at RS × the size re-time thin lines sharper, a different picture), and
+  // the ring stays ~44 MB at any scale. The clean picture follows the real size; a change of size drops the history.
+  let hist = [], lastK = null, RS = 1, mid = null, mg = null;
+  const spare = [];
+  const slot = () => spare.pop() || (() => { const c = document.createElement('canvas'); c.width = QW; c.height = QH; const cg = c.getContext('2d'); return { c, cg, t: 0 }; })();
   function sizeTo(x) {
     const rs = x.canvas.width / x.W;
     if (rs === RS) return;
-    RS = rs; hist = []; spare = []; lastK = null; clean = null;
+    RS = rs; for (const s of hist) spare.push(s); hist = []; lastK = null; clean = null; mid = null;
+    if (RS !== 1) {
+      mid = document.createElement('canvas'); mid.width = W; mid.height = H; mg = mid.getContext('2d');
+      mg.globalCompositeOperation = 'copy'; mg.imageSmoothingEnabled = true; mg.imageSmoothingQuality = 'high';   // a 3:1 reduction needs it
+    }
   }
   let IV = 0.03;
   function capture(x) {
@@ -42,7 +48,8 @@
     lastK = k;
     const s = hist.length >= N ? hist.shift() : slot();
     s.cg.globalCompositeOperation = 'copy'; s.cg.imageSmoothingEnabled = true;
-    s.cg.drawImage(x.canvas, 0, 0, W * RS, H * RS, 0, 0, QW * RS, QH * RS);
+    if (mid) { mg.drawImage(x.canvas, 0, 0, W * RS, H * RS, 0, 0, W, H); s.cg.drawImage(mid, 0, 0, W, H, 0, 0, QW, QH); }
+    else s.cg.drawImage(x.canvas, 0, 0, W, H, 0, 0, QW, QH);
     s.t = x.t; hist.push(s);
   }
   // the copy nearest song time tw (the oldest one if the history does not reach that far back)
@@ -152,12 +159,12 @@
         const flush = (i1) => {
           if (!run) return;
           const a = r0 * SW, b = i1 * SW;
-          if (mode === 0) g.drawImage(run.c, a / Q * RS, 0, (b - a) / Q * RS, QH * RS, a, 0, b - a, H);
-          else if (mode === 1) g.drawImage(run.c, 0, a / Q * RS, QW * RS, (b - a) / Q * RS, 0, a, W, b - a);
+          if (mode === 0) g.drawImage(run.c, a / Q, 0, (b - a) / Q, QH, a, 0, b - a, H);
+          else if (mode === 1) g.drawImage(run.c, 0, a / Q, QW, (b - a) / Q, 0, a, W, b - a);
           else {
             const x0 = Math.max(0, CX - b), y0 = Math.max(0, CY - b), x1 = Math.min(W, CX + b), y1 = Math.min(H, CY + b);
             g.save(); g.beginPath(); g.arc(CX, CY, b, 0, Math.PI * 2); if (a > 0) g.arc(CX, CY, a, 0, Math.PI * 2, true); g.clip();
-            g.drawImage(run.c, x0 / Q * RS, y0 / Q * RS, (x1 - x0) / Q * RS, (y1 - y0) / Q * RS, x0, y0, x1 - x0, y1 - y0); g.restore();
+            g.drawImage(run.c, x0 / Q, y0 / Q, (x1 - x0) / Q, (y1 - y0) / Q, x0, y0, x1 - x0, y1 - y0); g.restore();
           }
           run = null;
         };
