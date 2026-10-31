@@ -110,7 +110,10 @@ Node 22 + tsx. Python venvs:
    - full-frame offscreen buffers (soft, but correct);
    - `shadowBlur` and `filter` lengths.
 
-   Pinned: T7 `hd-context`, T10 `hd-check`.
+   Pinned: T7 `hd-context`, T10 `hd-check`. T24 ruling: harmonograph has a recorded allowance in `hd-check`
+   (`QM_ALLOW`, moved ≤ 0.35): its trails fade through 8-bit colour-burn floors, its own and the runtime's shared
+   one, so faint old lines linger a little longer at 2× (0.169 at prelude 126, 0.334 at b5 20). The figure is the same
+   and sharper; the allowance is printed with every run.
 6. **Instances.**
    - Two instances of one widget in a section (`strings@melody` over `strings@bassline`) draw independently.
    - A routed instance's knob drives follow its part.
@@ -1146,7 +1149,7 @@ Optional, per loved or kept widget flagged SOFT, and only when its crop looks so
 - [ ] **Step 1: Golden hashes.** `npm run fidelity -- --only <the flagged ids> --record <scratch>/golden-T10.json`.
 - [ ] **Step 2:** Edit one widget at a time. After each one:
   - `npm run fidelity -- --only <id> --against <scratch>/golden-T10.json` → 0 failed;
-  - `npm run hd-check -- --only <id>` → no QUARTER.
+  - `npm run hd-check -- --only <id>` → no QUARTER (harmonograph: within its recorded allowance, see Review Focus 5).
 - [ ] **Step 3: Look.** Read `renders/look/hd/casket.png` at prelude 126 (the melt and the cuts), plus blocks, tunnel
   and pixelsort at b5 0. They should be the same composition as at 1×, sharp.
 - [ ] **Step 4:** `npm run fidelity` (full) → 0 failed.
