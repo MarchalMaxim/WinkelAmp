@@ -778,7 +778,7 @@ Feel: flowing, liquid, stabbing, panic · Suits: violin, flute, strings · Role:
 
 A mirror for the whole picture, made to sit on other widgets: it folds whatever is already on the screen, so kusama becomes a twin colony, marbling a Rorschach marble, strings a woven butterfly, ikeda a mirrored data wall. The fold line turns with the bass round the circle of fifths, chords flip which half is mirrored, loud chords fold it twice for a beat, and quiet passages fade the mirror. Alone it is a stitched seam of light that flashes on every chord.
 
-Feel: whirling, glowing, stabbing, serene · Suits: contrabass, cello, piano · Role: top
+Feel: whirling, glowing, stabbing, swelling · Suits: contrabass, cello, piano · Role: top
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
