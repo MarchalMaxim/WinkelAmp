@@ -20,7 +20,8 @@ export type Notice = StudioState['notices'][number];
 
 export type Action = { type: 'edit'; edit: ShowEdit; group?: string } | { type: 'undo' } | { type: 'redo' }
   | { type: 'select'; section: number; layer?: number | null } | { type: 'saved' }
-  | { type: 'loaded'; song: SongPack; show: Show; origin: StudioState['origin'] }
+  /** keepUndo: the show before the load stays one undo away (a show reloaded from disk over unsaved edits). */
+  | { type: 'loaded'; song: SongPack; show: Show; origin: StudioState['origin']; keepUndo?: boolean }
   | { type: 'notice'; notice: Notice } | { type: 'dismiss'; id: string }
   | { type: 'ui'; patch: Partial<StudioState['ui']> };
 
@@ -39,8 +40,10 @@ export class Store {
     switch (a.type) {
       case 'edit': {
         if (!s.show || s.ui.recording) return;
-        const next = applyEdit(s.show, a.edit);
+        let next = applyEdit(s.show, a.edit);
         if (next === s.show) return;
+        // Reshaped by hand, a composed show is yours now (when it was composed stays); undo gives the composed one back.
+        if (next.composer && next.composer.by !== 'user') next = { ...next, composer: { ...next.composer, by: 'user' } };
         this.history.record(s.show, a.group);
         s.show = next;
         break;
@@ -55,9 +58,10 @@ export class Store {
       case 'select': s.selected = { section: a.section, layer: a.layer === undefined ? (a.section === s.selected.section ? s.selected.layer : null) : a.layer }; break;
       case 'saved': if (s.show) s.saved = canonicalShow(s.show); if (s.origin !== 'file') s.origin = 'file'; break;
       case 'loaded':
+        if (a.keepUndo && s.show && s.show !== a.show) this.history.record(s.show);
+        else this.history.clear();
         s.song = a.song; s.show = a.show; s.origin = a.origin;
         s.saved = a.origin === 'repaired' ? null : canonicalShow(a.show);   // a repaired show is unsaved until saved
-        this.history.clear();
         break;
       case 'notice': s.notices = [...s.notices.filter((n) => n.id !== a.notice.id), a.notice]; break;
       case 'dismiss': s.notices = s.notices.filter((n) => n.id !== a.id); break;

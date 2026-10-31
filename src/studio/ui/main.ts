@@ -358,9 +358,11 @@ async function boot(): Promise<void> {
     }
     const { errors } = validateShow(s, ctxShow);
     if (errors.length) { store.dispatch({ type: 'notice', notice: { id: 'disk', level: 'error', text: `The show on disk has errors (${errors[0].path}: ${errors[0].message}): not loaded.` } }); return; }
-    store.dispatch({ type: 'loaded', song: pack, show: s, origin: 'file' });
-    store.dispatch({ type: 'notice', notice: { id: 'disk-loaded', level: 'info', text: 'The show changed on disk: this is the new version.' } });
-    setTimeout(() => store.dispatch({ type: 'dismiss', id: 'disk-loaded' }), 4000);
+    const hadEdits = isDirty(store.state);
+    store.dispatch({ type: 'loaded', song: pack, show: s, origin: 'file', keepUndo: true });   // what was here stays one undo away
+    store.dispatch({ type: 'notice', notice: { id: 'disk-loaded', level: 'info', text: hadEdits
+      ? 'This is the version on disk: undo (Ctrl+Z) brings your edits back.' : 'The show changed on disk: this is the new version.' } });
+    setTimeout(() => store.dispatch({ type: 'dismiss', id: 'disk-loaded' }), hadEdits ? 10000 : 4000);
   };
   // The file watcher can miss a second write that follows the first within a second or so: look again a little later.
   import.meta.hot?.on('studio:show-changed', (d: { id: string }) => {

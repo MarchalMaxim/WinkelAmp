@@ -370,7 +370,8 @@ export interface StudioState { library: LibraryEntry[]; song: SongPack | null; s
   notices: { id: string; level: 'info' | 'warn' | 'error'; text: string }[] }
 export type Action = { type: 'edit'; edit: ShowEdit; group?: string } | { type: 'undo' } | { type: 'redo' }
   | { type: 'select'; section: number; layer?: number | null } | { type: 'saved' }
-  | { type: 'loaded'; song: SongPack; show: Show; origin: StudioState['origin'] }
+  | { type: 'loaded'; song: SongPack; show: Show; origin: StudioState['origin'];
+      keepUndo?: boolean /* added in T4 review: a show reloaded from disk keeps the one before it undoable */ }
   | { type: 'notice'; notice: StudioState['notices'][number] } | { type: 'dismiss'; id: string }
   | { type: 'ui'; patch: Partial<StudioState['ui']> };
 export class Store { readonly state: StudioState; dispatch(a: Action): void; subscribe(fn: (s: StudioState) => void): () => void }

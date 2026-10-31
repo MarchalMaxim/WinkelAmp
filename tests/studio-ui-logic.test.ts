@@ -119,6 +119,46 @@ describe('Store', () => {
     expect(st.state.selected.section).toBe(0);
   });
 
+  it('a show reloaded from disk over edits keeps them one undo away', () => {
+    const st = new Store();
+    st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
+    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    const edited = st.state.show!;
+    const disk: Show = { ...show, sections: [{ ...show.sections[0], label: 'From disk' }, show.sections[1]] };
+    st.dispatch({ type: 'loaded', song: pack, show: disk, origin: 'file', keepUndo: true });
+    expect(st.state.show).toBe(disk);
+    expect(isDirty(st.state)).toBe(false);
+    st.dispatch({ type: 'undo' });
+    expect(st.state.show).toBe(edited);
+    expect(isDirty(st.state)).toBe(true);
+    st.dispatch({ type: 'undo' });
+    expect(st.state.show).toBe(show);
+  });
+
+  it('a plain load starts a fresh history', () => {
+    const st = new Store();
+    st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
+    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
+    expect(st.history.canUndo).toBe(false);
+  });
+
+  it('the first edit of a composed show makes it yours, keeping when it was composed; undo gives it back', () => {
+    for (const by of ['auto', 'claude'] as const) {
+      const composed: Show = { ...show, composer: { by, at: '2026-10-31T01:00:00Z' } };
+      const st = new Store();
+      st.dispatch({ type: 'loaded', song: pack, show: composed, origin: by === 'auto' ? 'auto' : 'file' });
+      st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+      expect(st.state.show!.composer).toEqual({ by: 'user', at: '2026-10-31T01:00:00Z' });
+      st.dispatch({ type: 'undo' });
+      expect(st.state.show!.composer!.by).toBe(by);
+    }
+    const st = new Store();
+    st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
+    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    expect(st.state.show!.composer).toBeUndefined();
+  });
+
   it('edits are locked while recording', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
