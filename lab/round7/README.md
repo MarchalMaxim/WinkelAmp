@@ -1,7 +1,8 @@
 # Round 7: v2s, combinations, three new songs (2026-10-31)
 
 Open the lab (`npm run dev`, then http://localhost:5173/lab/index.html). Reworked and new widgets sort to the top; a
-reworked one says "reworked · was '…'" on its card. Your round 5 and 6 verdicts are in (`lab/ratings.md`); whitney and
+reworked one says "reworked · was '…'" on its card. Six older widgets you have not rated yet (martin, suprematism,
+contours, tunnel, scribble, pointillism) sit up there too, marked "not judged yet". Your round 5 and 6 verdicts are in (`lab/ratings.md`); whitney and
 albers are dropped (`lab/tools/dropped/`).
 
 `sheet.png`: one still of each widget below on the Prelude at about 2:06 (the casket), widget alone, except the four
@@ -64,6 +65,9 @@ The studio also has a show for Winter Wind (`shows/chopin-winter-wind.json`).
 
 ## Checked
 - Every widget on at once, on all five songs, played at four points each: no page or widget errors.
-- `npm run fidelity -- --quick`: the studio draws the lab's pixels for every widget, the reworked and new ones too
-  (292/292 pass). Combinations (several widgets stacked) are only checked for squares + casket and kandinsky + rorschach.
+- The studio draws the lab's pixels for the 15 reworked and 3 new widgets: `npm run fidelity -- --only <those 18>`,
+  288/288 comparisons pass (279 of them with a picture), on the Prelude and Beethoven only. Alone on the Prelude, pixel
+  sort is blank (it needs something under it), so there it is proven on Beethoven. The quick run over every widget
+  passes too (292/292). Stacks are only checked for squares + casket and kandinsky + rorschach, so the studio is not yet
+  proven to draw time slice, fold, stella or pixel sort over a partner exactly as the lab does.
 - Type check, 605 tests, build, the three shows and the widget docs.
