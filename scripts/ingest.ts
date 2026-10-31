@@ -100,8 +100,8 @@ async function main(): Promise<void> {
   log(`ingest ${o.id}: ${o.file}`);
   // The old pack and its audio stay as they are until the new pack is ready: decode and transcribe read the input where
   // it is, and the audio is swapped in just before pack.json is written (only the notes.gpu.json cache, keyed by sha1,
-  // may be replaced earlier, so a failure after a long transcription keeps it). A fresh ingest that fails takes its
-  // folder with it.
+  // may be replaced earlier, so a re-ingest that fails after a long transcription keeps it). A fresh ingest that fails
+  // takes its folder with it, cache included: the library never sees a folder without a pack.
   if (!existsSync(dir)) onFail = () => rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
 
