@@ -156,6 +156,18 @@ export const LIBRARY: LibraryScene[] = [
     ],
   },
   {
+    // Dread: low notes land as heavy dark-red squares that sink and fade; the tune a thin line
+    // of bone-pale ink above them, a little red dust. Near-black otherwise, like the sketch it comes from.
+    name: 'Dread',
+    affinity: { abyss: 0.7, lament: 0.5, storm: 0.3 },
+    look: { trails: 0.6, warp: 0.1, glow: 0.45 },
+    elements: [
+      el('squares'),
+      el('melody', { style: 'ink', intensity: 0.5, color: '#d9cbbd' }),
+      el('sparks', { style: 'dust', intensity: 0.3, size: 0.3, color: '#9a2a24' }),
+    ],
+  },
+  {
     // Fire turning to glory: warm fields over the fluid, embers, flashes on the beat.
     name: 'Sunrise',
     affinity: { gold: 0.7, fire: 0.7 },

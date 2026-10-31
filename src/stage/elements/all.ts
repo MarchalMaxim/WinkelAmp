@@ -10,4 +10,5 @@ export { widget as melody } from './melody';
 export { widget as pulse } from './pulse';
 export { widget as slash } from './slash';
 export { widget as sparks } from './sparks';
+export { widget as squares } from './squares';
 export { widget as wave } from './wave';
