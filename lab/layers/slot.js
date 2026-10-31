@@ -4,9 +4,11 @@
 // of its own never comes here: the hosts run today's statements for it.
 //
 // Regions (T15): a spot runs the widget on the shared canvas as today and pastes the picture from before it back
-// through the region's mask (destination-out at the weight), so it is seen only inside. A window gives the instance its
-// own canvas the size of the shared one (with the same fade and burn), lets it draw there as if alone, and stamps it
-// scaled into the region, masked, at the weight. A region glides from the last section's over the fade (region.js).
+// through the region's mask (destination-out at the weight), so it is seen only inside; what it queues to draw "after
+// the others" runs at the end of the step as without a region, each pass pasted back through the mask the same way.
+// A window gives the instance its own canvas the size of the shared one (with the same fade and burn), lets it draw
+// there as if alone, and stamps it scaled into the region, masked, at the weight. A region glides from the last
+// section's over the fade (region.js).
 //
 // What a host provides for windows, besides LayerHost: h.call passes h.ctx (read at each call) to the widget, because a
 // windowed call runs with h.ctx set to the instance's window view (an object on the shared ctx whose g and canvas are
@@ -98,9 +100,9 @@
   function clampW(w) { return w > 0 ? (w < 1 ? w : 1) : 0; }
 
   /** Runs fn with queueMicrotask collected, then what was queued (and what that queues) before returning. A widget that
-      draws "after the others" (pixelsort, fold, timeslice, stella) thus does it at its own place in the stack, and on
-      its own canvas when it is in a window, so its pass stays inside its region. g: the real context drawn on; at S > 1
-      its base transform is set before the queued code, as the runtime does at the end of a step. An error in queued
+      draws "after the others" (pixelsort, fold, timeslice, stella) in a window thus does it at its own place in the
+      stack, on its own canvas, so its pass stays inside its region. g: the real context drawn on; at S > 1 its base
+      transform is set before the queued code, as the runtime does at the end of a step. An error in queued
       code goes to h.error(inst, err) (the runtime keeps it with the instance's other errors), or, without one, is
       thrown again from a real microtask, where an unregioned post-pass's error would surface; the queue is drained
       either way, and the step goes on. */
@@ -130,16 +132,11 @@
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
   }
 
-  /** spot: the picture before the widget is kept, the widget draws on the shared canvas as today (at weight 1), then the
-      kept picture goes back through the mask: destination-out at w on the copy, so inside the region the widget shows
-      (all of it where the mask and w are 1), outside it what was there. The mask's profile is the instance's class, so a
-      soft edge looks soft on a ground widget too. Readers read the real stack below. */
-  function spot(h, s, r, w, delivered) {
-    var inst = s.inst, g = h.g, sc = h.scratch(), sg = sc.getContext('2d');
-    sg.globalCompositeOperation = 'copy'; sg.drawImage(h.canvas, 0, 0); sg.globalCompositeOperation = 'source-over';
-    withPosts(h, inst, function () { calls(h, inst, s.receiving, delivered, g); }, g, h.S);
-    var b = WA.regionBox(r, h.canvas.width, h.canvas.height), m = maskOf(h, inst, r, inst.persist);
-    var bw = Math.abs(b.w), bh = Math.abs(b.h);
+  /** The stage's picture through a spot's mask: the kept copy sc (the picture before) loses the mask at w
+      (destination-out, the box rotated), then goes back over the stage, so inside the region what was drawn since shows
+      (all of it where the mask and w are 1), outside it the copy. The stage's state is kept. */
+  function pasteThrough(h, sc, m, b, w) {
+    var sg = sc.getContext('2d'), g = h.g, bw = Math.abs(b.w), bh = Math.abs(b.h);
     sg.save();
     sg.setTransform(1, 0, 0, 1, b.cx, b.cy); if (b.rot) sg.rotate(b.rot);
     sg.globalCompositeOperation = 'destination-out'; sg.globalAlpha = clampW(w);
@@ -149,6 +146,50 @@
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.drawImage(sc, 0, 0);
     g.restore();
+  }
+
+  /** Copies the stage into the host's scratch ('copy', so it is the stage exactly) and returns the scratch. */
+  function keepStage(h) {
+    var sc = h.scratch(), sg = sc.getContext('2d');
+    sg.save();
+    sg.setTransform(1, 0, 0, 1, 0, 0); sg.globalAlpha = 1; sg.globalCompositeOperation = 'copy';
+    sg.drawImage(h.canvas, 0, 0);
+    sg.restore();
+    return sc;
+  }
+
+  /** spot: the picture before the widget is kept, the widget draws on the shared canvas as today (at weight 1), then the
+      kept picture goes back through the mask (pasteThrough), so inside the region the widget shows, outside it what was
+      there. The mask's profile is the instance's class, so a soft edge looks soft on a ground widget too. Readers read
+      the real stack below.
+      What the widget queues (queueMicrotask: its pass "after the others") is not run here but handed on to the host's
+      queue, so it runs at the end of the step as it does without a region, over the layers above too; each queued pass
+      (and what it queues in turn) runs between a copy of the stage and pasteThrough with this step's mask, box and
+      weight, so it changes the stage only inside the region. A widget that puts its pass back at the top of the next
+      step (stella hooks ctx.sounding()) thus keeps and restores the whole stack as it does without a region, and never
+      wipes what the layers above it drew. */
+  function spot(h, s, r, w, delivered) {
+    var inst = s.inst, g = h.g, S = h.S, G = globalThis, prev = G.queueMicrotask;
+    var sc = keepStage(h);
+    var b = WA.regionBox(r, h.canvas.width, h.canvas.height), m = maskOf(h, inst, r, inst.persist);
+    function masked(f) {
+      return function () {
+        var keep = keepStage(h), q0 = G.queueMicrotask;
+        G.queueMicrotask = wrapQ;
+        try {
+          if (S > 1) g.setTransform(S, 0, 0, S, 0, 0);   // queued widget code draws in widget units
+          f();
+        } catch (err) {
+          if (typeof h.error === 'function') h.error(inst, err); else if (typeof console !== 'undefined') console.warn(err);
+        } finally { G.queueMicrotask = q0; }
+        pasteThrough(h, keep, m, b, w);
+      };
+    }
+    function wrapQ(f) { prev.call(G, masked(f)); }
+    G.queueMicrotask = typeof prev === 'function' ? wrapQ : prev;
+    try { calls(h, inst, s.receiving, delivered, g); }
+    finally { G.queueMicrotask = prev; }
+    pasteThrough(h, sc, m, b, w);
   }
 
   /** The instance's window view: an object on the shared ctx (t, level, p, sounding… read through to it) whose g and

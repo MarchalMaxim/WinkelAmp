@@ -554,11 +554,16 @@ export class WidgetRuntime {
   - **spot**: snapshot the canvas, run step 4's calls at weight 1, then
     `snapshot.globalCompositeOperation = 'destination-out'`, draw the mask at `globalAlpha = w`, and draw the snapshot
     back with `drawImage`.
+    What the widget queues (its pass "after the others") runs at the end of the step as without a region, each pass
+    between a snapshot and the same masked paste-back, so a put-back at the next step's top (stella) restores the whole
+    stack.
   - **window**:
     - fade and burn `windowOf(inst)` (the shared fade's three statements, at its size);
     - set `ctx.g`/`ctx.canvas` to it (through `hdContext` when S > 1), run the calls, restore them;
     - scale `fitRect` of it into a region-box temp canvas, apply `destination-in` with the mask;
     - stamp it at the box (rotated) with `globalAlpha = w`, blend `source-over` or `lighten`.
+    - its weight and its mask take the `'redraw'` class whatever the widget's (`vis(a, 'redraw')`, not step 3's
+      `vis(a, inst.persist)`): the stamp is a whole picture, redrawn every step.
   - **glide**: `glideRegion(from, region, u)`, with the mask rebuilt per step while gliding, from a cache keyed by
     rounded geometry.
   - **Resets.** `reset(t)` and `resetWidget(key)` clear the instance's window to black.

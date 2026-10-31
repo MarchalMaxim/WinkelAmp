@@ -90,6 +90,31 @@ describe('spot', () => {
     WA.drawLayered(h, slot(i, { layer: { region: { ...r, w: 0.5 } } }));
     expect(made()).toBe(2);
   });
+  it('hands what the widget queues to the host\'s queue: each pass, nested ones too, runs later between a copy of the stage and the paste through the mask', async () => {
+    const log: string[] = [], { h } = host(log), i = inst(), errs: string[] = [];
+    const real = globalThis.queueMicrotask;
+    h.call = (_inst, fn) => {
+      if (fn === 'frame') queueMicrotask(() => { log.push('hop 1'); queueMicrotask(() => { log.push('hop 2'); throw new Error('boom'); }); });
+    };
+    (h as LayerHost & { error(i: InstanceState, e: unknown): void }).error = (j, e) => errs.push(`${j.key}: ${String(e)}`);
+    WA.drawLayered(h, slot(i, { layer: { region: { ...full('spot'), x: 0.25, w: 0.5 } } }));
+    expect(globalThis.queueMicrotask).toBe(real);
+    expect(log).not.toContain('hop 1');   // not at the slot
+    const atSlot = log.length;
+    await new Promise<void>((res) => setTimeout(res, 0));
+    const later = log.slice(atSlot);
+    const k1 = later.indexOf('hop 1'), k2 = later.indexOf('hop 2');
+    expect(k1).toBeGreaterThan(0);
+    expect(k2).toBeGreaterThan(k1);
+    expect(later.slice(0, k1)).toContain('sg.drawImage(g,0,0)');   // the stage kept before the pass
+    for (const [from, to] of [[k1, k2], [k2, later.length]]) {
+      const seg = later.slice(from, to);
+      expect(seg).toContain('sg.globalCompositeOperation=destination-out');
+      expect(seg).toContain('g.drawImage(sg,0,0)');   // pasted back through the mask after the pass
+    }
+    expect(errs).toEqual(['rorschach: Error: boom']);   // the error kept, the paste still done
+    expect(later[later.length - 1]).toBe('g.restore()');
+  });
 });
 
 describe('window', () => {

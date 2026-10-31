@@ -14,7 +14,9 @@
 //      alone draws exactly what the widget draws without a region;
 //   8. a spot of the same box with feather 0 draws exactly what the widget draws without a region;
 //   9. stella (which hooks ctx.sounding for its put-back) on the stage, then in a window: its window picture never goes
-//      over the stage, which outside the box is what a run windowed from the start draws.
+//      over the stage, which outside the box is what a run windowed from the start draws; and stella in a spot, with a
+//      layer above it: the stage outside the box is what the same stack draws without stella (its put-back never wipes
+//      what the layers above drew).
 //
 //   npm run runtime-check [-- --look | --look-only] [-- --look-set=T12|T15] [-- --regions | --only-9]
 //     --look also writes the contact sheets to renders/look/T12/ and renders/look/T15/; --look-only writes them without
@@ -176,11 +178,18 @@ if (!LOOK_ONLY) {
   const ids = ['strings', 'squares', 'kandinsky', 'rorschach', 'casket', 'blocks', 'pixelsort', 'stella', 'fold', 'timeslice'];
   const at = { seek: 122, marks: [123, 124.5, 126] };
   const gpu = page;
-  const softBrowser = await chromium.launch({ channel: 'chrome', args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
-  const soft = await softBrowser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
-  await soft.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
-  await soft.route(/localhost:517\d/, (r) => r.abort());
-  soft.on('pageerror', (e) => pageErrors.push(e.message));
+  // A fresh software-canvas browser for each scale and every few widgets: one page through the thirty-odd scale-2 runs
+  // has crashed ('Target crashed') with memory to spare, while each run alone holds.
+  let softBrowser = null, soft = null;
+  const freshSoft = async () => {
+    if (softBrowser) await softBrowser.close();
+    softBrowser = await chromium.launch({ channel: 'chrome', args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
+    soft = await softBrowser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
+    await soft.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+    await soft.route(/localhost:517\d/, (r) => r.abort());
+    soft.on('pageerror', (e) => pageErrors.push(e.message));
+    page = soft;
+  };
   /** The pixels at the last mark, the only read-back of the run. */
   const pixelsAt = async (params) => {
     await open(params);
@@ -189,9 +198,9 @@ if (!LOOK_ONLY) {
   };
   const diff = (x, y) => { let mx = 0, n = 0; for (let i = 0; i < x.length; i++) { const d = Math.abs(x[i] - y[i]); if (d) n++; if (d > mx) mx = d; } return { mx, share: n / x.length }; };
   for (const scale of ONLY9 ? [] : ['1', '2']) {
-    page = soft;
     const wDiff = [], sDiff = [], errs = [];
-    for (const id of ids) {
+    for (const [k, id] of ids.entries()) {
+      if (k % 3 === 0) await freshSoft();
       const ref = await run({ only: id, scale }, at);
       const w = await run({ layers: [{ widget: id, region: win }], scale }, at);
       const sp = await run({ layers: [{ widget: id, region: spot }], scale }, at);
@@ -221,7 +230,7 @@ if (!LOOK_ONLY) {
   // window picture over the stage: during the window phases no 'copy' drawImage reaches the stage, and the stage
   // outside the box (2 px margin) is byte-equal to a run windowed from the start. Hand-built slots on the software
   // canvas; with halftone above it (it calls ctx.sounding() in its frame, mid-step) and without.
-  page = soft;
+  await freshSoft();
   {
     const box = { mode: 'window', shape: 'rect', x: 0.25, y: 0.25, w: 0.3, h: 0.3, feather: 0, rot: 0, blend: 'over', fit: 'cover' };
     const cases = { 'window from 118': [[122, 'win']], 'stage 118–120, then window': [[120, 'stage'], [122, 'win']],
@@ -273,6 +282,60 @@ if (!LOOK_ONLY) {
     }
     check(!bad.length && pageErrors.length === 0, '9. stella on the stage, then in a window: no stage-wide put-back, the stage outside the box as if windowed from the start (software canvas; with and without halftone reading ctx.sounding mid-step)',
       bad.join('; ') || 'kandinsky+stella, kandinsky+stella+halftone: 0 copies, outside equal');
+  }
+  // 9, spot. Stella in a spot puts its pass back at the top of the next step, as without a region (its 'copy' on the
+  // stage is right there), so it must keep and restore the whole stack: with strings or halftone above it, the stage
+  // outside the box (2 px margin) is byte-equal to the same stack without stella, at every mark. A put-back kept at
+  // stella's place in the stack would wipe what the layers above drew. A hard spot, and a soft one (ellipse, feather,
+  // rotation) at a weight.
+  await freshSoft();
+  {
+    // over the top-left corner, where stella's stripes run along the edges
+    const spots = { hard: { mode: 'spot', shape: 'rect', x: 0.2, y: 0.2, w: 0.4, h: 0.4, feather: 0, rot: 0 },
+      'ellipse, feather .3, 20°, weight .6': { mode: 'spot', shape: 'ellipse', x: 0.2, y: 0.2, w: 0.5, h: 0.5, feather: 0.3, rot: 20, weight: 0.6 } };
+    const bad = [], seen = [];
+    const go = (stack, region) => page.evaluate(({ stack, region }) => {
+      const rt = window.renderRuntime.rt, ctx = rt.ctx, stage = document.getElementById('c');
+      const out = [];
+      window.renderSeek(118, 1);
+      for (const end of [119, 120.5, 122]) {
+        while (rt.lastT < end - 1e-9) {
+          const t = Math.min(end, rt.lastT + 1 / 60), d = t - rt.lastT;
+          rt.lastT = t; ctx.now += d;
+          rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === 'stella' && region ? { weight: region.weight ?? 1, layer: { region } } : {}) })));
+        }
+        out.push(window.renderPixels());
+      }
+      return { px: out, errors: { ...window.renderErrors }, w: stage.width, h: stage.height };
+    }, { stack, region });
+    for (const above of ['strings', 'halftone']) {
+      await open({ only: ['kandinsky', 'stella', above].join(',') });
+      const ref = await go(['kandinsky', above], null);
+      for (const [name, region] of Object.entries(spots)) {
+        await open({ only: ['kandinsky', 'stella', above].join(',') });
+        const r = await go(['kandinsky', 'stella', above], region);
+        if (Object.keys(r.errors).length) bad.push(`${above} ${name}: errors ${JSON.stringify(r.errors)}`);
+        // the box's bounding rectangle, rotated, plus the margin
+        const rad = (region.rot * Math.PI) / 180, bw = region.w * r.w, bh = region.h * r.h;
+        const hw = (Math.abs(Math.cos(rad)) * bw + Math.abs(Math.sin(rad)) * bh) / 2 + 2, hh = (Math.abs(Math.sin(rad)) * bw + Math.abs(Math.cos(rad)) * bh) / 2 + 2;
+        const cx = region.x * r.w, cy = region.y * r.h;
+        let inside = 0;
+        r.px.forEach((b64, k) => {
+          const px = Buffer.from(b64, 'base64'), rf = Buffer.from(ref.px[k], 'base64');
+          let n = 0;
+          for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+            const i = (y * r.w + x) * 4, d = px[i] !== rf[i] || px[i + 1] !== rf[i + 1] || px[i + 2] !== rf[i + 2];
+            if (Math.abs(x + 0.5 - cx) < hw && Math.abs(y + 0.5 - cy) < hh) { if (d) inside++; continue; }
+            if (d) n++;
+          }
+          if (n) bad.push(`${above} ${name}, mark ${k}: ${n} pixels outside the box differ from the stack without stella`);
+        });
+        seen.push(`${above} ${name}: ${inside} differ inside`);
+        if (!inside) bad.push(`${above} ${name}: stella drew nothing inside the box`);
+      }
+    }
+    check(!bad.length && pageErrors.length === 0, '9. stella in a spot under strings or halftone: the stage outside the box is what the stack without stella draws (software canvas, three marks, a hard and a soft spot)',
+      bad.join('; ') || `outside equal; ${seen.join('; ')}`);
     page = gpu;
   }
   await softBrowser.close();
