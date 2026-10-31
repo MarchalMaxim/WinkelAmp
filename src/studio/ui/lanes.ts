@@ -45,17 +45,16 @@ export function snapTime(t: number, o: { beats: readonly number[]; snap: boolean
   return clamp(ms(clamp(x, o.span.start, o.span.end)), o.span.start, o.span.end);
 }
 
-/** The bend of a linear segment from v0 to v1 whose midpoint (u = 0.5) was dragged by dyFraction of the lane's
-    height (negative: up) from the straight line's midpoint: dragging up bows the segment up, whichever way it runs.
-    Flat segments do not bend (0). −1..1, to 3 decimals. */
+/** How much a drag of dyFraction of the lane's height (negative: up) bends a linear segment from v0 to v1: dragging up
+    bows it up, whichever way it runs (a positive bend reaches the next value early, so a rising segment bows up and a
+    falling one down). The same feel on any segment: half the lane's height is a full bend. Flat segments do not bend
+    (0). −1..1, to 3 decimals; the lane adds it to the bend the segment had when the drag began. */
 export function bendFromDrag(v0: number, v1: number, dyFraction: number): number {
   const d = v1 - v0;
-  if (Math.abs(d) < 1e-6 || !Number.isFinite(dyFraction) || dyFraction === 0) return 0;
-  const target = clamp(0.5 - dyFraction / d, 1e-4, 1 - 1e-4);   // u' at u = 0.5, and u' = u ** 2 ** (−3·bend)
-  const e = Math.log(target) / Math.log(0.5);
-  const b = clamp(-Math.log2(e) / 3, -1, 1);
-  return Math.round(b * 1000) / 1000 || 0;
+  if (Math.abs(d) < 1e-6 || !Number.isFinite(dyFraction)) return 0;
+  return Math.round(clamp(-Math.sign(d) * dyFraction * BEND_PER_LANE, -1, 1) * 1000) / 1000 || 0;
 }
+const BEND_PER_LANE = 2;
 
 export type Hit = { kind: 'pivot'; index: number } | { kind: 'segment'; index: number } | { kind: 'empty' };
 
@@ -111,7 +110,7 @@ interface LaneView { key: string; layer: number; widget: string; listen?: string
 interface Geo { a: number; b: number; W: number; H: number; pad: number; x(t: number): number; y(v: number): number; t(x: number): number; v(y: number): number }
 type Target = { piece: Piece; hit: Hit } | null;
 interface Drag {
-  kind: 'pivot' | 'bend' | 'level'; piece: Piece; index: number; group: string; moved: boolean;
+  kind: 'pivot' | 'bend' | 'level'; piece: Piece; index: number; group: string; moved: boolean; bend0: number;
   px: number; py: number; fine: boolean; t0: number; v0: number; t: number; v: number;
 }
 
@@ -440,7 +439,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       if (!target) return;
       e.preventDefault(); cv.focus({ preventScroll: true });
       const pc = target.piece, group = `intensity:${pc.section}:${pc.layer}:${++gesture}`;
-      const base = { piece: pc, group, moved: false, px: e.clientX, py: e.clientY, fine: e.shiftKey };
+      const base = { piece: pc, group, moved: false, px: e.clientX, py: e.clientY, fine: e.shiftKey, bend0: 0 };
       if (target.hit.kind === 'pivot') {
         const p = pc.pivots[target.hit.index];
         drag = { ...base, kind: 'pivot', index: target.hit.index, t0: p.t, v0: p.v, t: p.t, v: p.v };
@@ -448,10 +447,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       } else if (target.hit.kind === 'segment') {
         const i = target.hit.index, p = pc.pivots[i], q = pc.pivots[i + 1];
         if (p.shape === 'hold' || Math.abs(p.v - q.v) < 1e-3) drag = { ...base, kind: 'level', index: i, t0: p.t, v0: p.v, t: p.t, v: p.v };
-        else {
-          const mid = L.automationAt(pc.pivots, (p.t + q.t) / 2);
-          drag = { ...base, kind: 'bend', index: i, t0: 0, v0: mid, t: 0, v: mid };
-        }
+        else drag = { ...base, kind: 'bend', index: i, t0: 0, v0: 0, t: 0, v: 0, bend0: p.shape ? 0 : p.bend ?? 0 };   // v: how far up it went
       } else {
         // A new pivot where the pointer is, on the curve's line of pivots; the button still down drags it.
         const t = snapTime(G.t(px), snapOpts(pc, e)), val = Math.round(clamp(G.v(py), 0, 1) * 1000) / 1000;
@@ -511,7 +507,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       } else {
         const p = piv[D.index], q = piv[D.index + 1];
         if (!p || !q) return;
-        const b = bendFromDrag(p.v, q.v, -(clamp(D.v, 0, 1) - (p.v + q.v) / 2));
+        const b = Math.round(clamp(D.bend0 + bendFromDrag(p.v, q.v, -D.v), -1, 1) * 1000) / 1000 || 0;
         delete p.shape;
         if (b) p.bend = b; else delete p.bend;
         showTip(v, px, b ? `curve ${b > 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}${fine ? ' · fine' : ''}` : 'straight');
@@ -557,6 +553,8 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     });
 
     cv.addEventListener('keydown', (e) => {
+      // Delete in a focused lane is about pivots: it never falls through to the studio's "remove the layer".
+      if (e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
       const s = selected;
       if (!s) return;
       const pc = piecesOf(v.layer).find((p) => p.section === s.section && p.layer === s.layer);

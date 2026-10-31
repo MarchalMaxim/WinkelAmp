@@ -41,12 +41,16 @@ describe('bendFromDrag', () => {
       expect(x).toBeGreaterThanOrEqual(-1); expect(x).toBeLessThanOrEqual(1);
     }
   });
-  it("puts the segment's midpoint where the pointer took it (the shared curve agrees)", () => {
+  it('feels the same on a gentle segment as on a steep one: half the lane is a full bend', () => {
+    expect(bendFromDrag(0, 1, -0.25)).toBe(0.5);
+    expect(bendFromDrag(0.4, 0.45, -0.25)).toBe(0.5);
+    expect(bendFromDrag(0, 1, -0.5)).toBe(1);
+  });
+  it('bows the way it was dragged on the shared curve, rising or falling', () => {
     const L = loadLayers();
-    const b = bendFromDrag(0, 1, -0.2);   // the midpoint dragged from 0.5 up to 0.7
-    expect(L.automationAt([{ t: 0, v: 0, bend: b }, { t: 2, v: 1 }], 1)).toBeCloseTo(0.7, 2);
-    const c = bendFromDrag(0.9, 0.1, 0.1);   // falling 0.9 → 0.1, its midpoint (0.5) dragged down to 0.4
-    expect(L.automationAt([{ t: 0, v: 0.9, bend: c }, { t: 2, v: 0.1 }], 1)).toBeCloseTo(0.4, 2);
+    expect(L.automationAt([{ t: 0, v: 0, bend: bendFromDrag(0, 1, -0.2) }, { t: 2, v: 1 }], 1)).toBeGreaterThan(0.5);
+    expect(L.automationAt([{ t: 0, v: 0.9, bend: bendFromDrag(0.9, 0.1, -0.2) }, { t: 2, v: 0.1 }], 1)).toBeGreaterThan(0.5);
+    expect(L.automationAt([{ t: 0, v: 0.9, bend: bendFromDrag(0.9, 0.1, 0.2) }, { t: 2, v: 0.1 }], 1)).toBeLessThan(0.5);
   });
 });
 

@@ -29,7 +29,10 @@
 .lane.open canvas.dragging { cursor: grabbing !important; }
 .lane-name { position: absolute; left: 5px; top: 2px; padding: 0 4px; border-radius: 3px; background: #0d0a0dd0; font-size: 10.5px; line-height: 14px;
   color: var(--dim); pointer-events: none; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
-.lane.open .lane-name { top: 3px; background: #120c10d0; color: hsl(var(--hue, 0) 40% 78%); font-size: 11px; }
+.lane.open .lane-name { top: 3px; background: #120c10d0; color: hsl(var(--hue, 0) 40% 78%); font-size: 11px; z-index: 0; transition: opacity 0.15s; }
+/* In the open lane the curve and its pivots draw over the name, which fades while the pointer is in the lane. */
+.lane.open canvas { position: relative; z-index: 1; }
+.lane.open:hover .lane-name { opacity: 0.35; }
 .lanes-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fffc; pointer-events: none; z-index: 2; box-shadow: 0 0 5px #fff5; }
 .lanes-tip { position: absolute; transform: translate(-50%, calc(-100% - 4px)); padding: 2px 7px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
   background: #241b20; border: 1px solid #3a2c31; border-radius: 4px; pointer-events: none; z-index: 4; color: var(--fg); }
