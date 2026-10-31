@@ -274,7 +274,8 @@ try {
   const tones = path.join(tmp, 'Drop Test.wav');
   spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i',
     "aevalsrc='0.6*sin(2*PI*(196+98*mod(floor(t*2),5))*t)*exp(-5*mod(t,0.5))':s=44100:d=30", tones]);
-  const openAdded = async (q, file, id, expectUrl) => {
+  // drop: the file arrives by a drag and drop on the page (synthetic DragEvents carrying a real File), else the picker.
+  const openAdded = async (q, file, id, expectUrl, drop = false) => {
     const p = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     p.on('pageerror', (e) => errors.push(`add: ${e}`));
     // Never the user's own ears server: the page finds one only where this check says.
@@ -282,16 +283,31 @@ try {
     await p.goto(`${BASE}/?song=demo${q}`);
     await p.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
     const t0 = Date.now();
-    await p.setInputFiles('.library [data-file]', file);
+    let dropped = null;
+    if (drop) {
+      await p.evaluate(() => { const i = Object.assign(document.createElement('input'), { type: 'file', id: 'dropsrc', hidden: true }); document.body.append(i); });
+      await p.setInputFiles('#dropsrc', file);
+      dropped = await p.evaluate(() => {
+        const dt = new DataTransfer(); dt.items.add(document.getElementById('dropsrc').files[0]);
+        const fire = (t) => { const e = new DragEvent(t, { bubbles: true, cancelable: true, dataTransfer: dt }); document.querySelector('canvas').dispatchEvent(e); return e.defaultPrevented; };
+        const overlay = () => !document.querySelector('.drop-overlay').hidden;
+        fire('dragenter'); const shown = overlay();
+        fire('dragleave'); const left = !overlay();
+        fire('dragenter'); const over = fire('dragover'), dropOk = fire('drop');
+        return { shown, left, over, drop: dropOk, hiddenAfter: !overlay() };
+      });
+    } else await p.setInputFiles('.library [data-file]', file);
     await p.waitForURL(expectUrl, { timeout: 180_000 }).catch(() => {});
     await p.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 }).catch(() => {});
-    return { p, seconds: (Date.now() - t0) / 1000 };
+    return { p, seconds: (Date.now() - t0) / 1000, dropped };
   };
   const packOf = (id) => { try { return JSON.parse(readFileSync(path.join(songs, id, 'pack.json'), 'utf8')); } catch { return null; } };
 
-  // Ears down: the browser analyses it, the song opens with approximate notes, says so, and plays.
+  // Ears down, dropped on the page: the browser analyses it, the song opens with approximate notes, says so, and plays.
   {
-    const { p, seconds } = await openAdded('', tones, 'drop-test', /song=drop-test/);
+    const { p, seconds, dropped } = await openAdded('', tones, 'drop-test', /song=drop-test/, true);
+    check('a file dragged over the page shows the drop overlay; dropped, it is taken (not opened by the browser)',
+      dropped && Object.values(dropped).every((v) => v === true), JSON.stringify(dropped));
     const pk = packOf('drop-test');
     check('ears down: the dropped recording is analysed in the browser and saved as a song',
       pk && validatePack(pk).length === 0 && pk.notesFrom === 'approx' && pk.made.by === 'studio' && pk.notes.length > 20 && existsSync(path.join(songs, 'drop-test', 'audio.wav')),
