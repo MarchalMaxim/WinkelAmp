@@ -22,7 +22,11 @@ export function splitTitle(title: string): [string, string] {
   return i > 0 && i < 40 ? [title.slice(0, i), title.slice(i + 2)] : ['', title];
 }
 
-export function songHref(id: string): string { return `?song=${encodeURIComponent(id)}`; }
+/** The song's page; a page told where the ears server is (?ears=, checks) keeps telling. */
+export function songHref(id: string, search = typeof location === 'undefined' ? '' : location.search): string {
+  const ears = new URLSearchParams(search).get('ears');
+  return `?song=${encodeURIComponent(id)}${ears ? `&ears=${encodeURIComponent(ears)}` : ''}`;
+}
 
 /** What the drawer shows while a recording is being added. */
 export interface Adding { name: string; message: string; progress: number; approximate: boolean }

@@ -93,7 +93,8 @@ export class SongAdder {
         const id = await ingestViaEars(file, (j) => {
           last = j;
           const words = j.state === 'queued' && j.stage !== 'upload' ? j.message || 'Waiting for the recording before it'
-            : j.stage === 'transcribe' ? `${STAGE_WORDS.transcribe} on the ${ears.transcriber.device === 'cpu' ? 'CPU' : 'GPU'}` : STAGE_WORDS[j.stage];
+            : j.stage === 'transcribe' ? (/loading/.test(j.message) ? 'Loading the piano model'
+              : `${STAGE_WORDS.transcribe} on the ${ears.transcriber.device === 'cpu' ? 'CPU' : 'GPU'}`) : STAGE_WORDS[j.stage];
           library.progress({ name: file.name, message: `${words} · ${pct(j.progress)} · ${took()}`, progress: j.progress, approximate });
         });
         const warnings = (last as Job | null)?.warnings ?? [];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { keyAction } from '../src/studio/ui/keys';
 import { knobState, settingOf } from '../src/studio/ui/knobs';
-import { splitTitle } from '../src/studio/ui/library';
+import { songHref, splitTitle } from '../src/studio/ui/library';
 import { isDirty, Store } from '../src/studio/ui/store';
 import { activity, snapToAttack, widgetHue } from '../src/studio/ui/timeline';
 import type { SongPack } from '../src/studio/pack/pack';
@@ -80,6 +80,11 @@ describe('library', () => {
   it('splits a title into composer and piece', () => {
     expect(splitTitle('Rachmaninoff: Prelude in C♯ minor')).toEqual(['Rachmaninoff', 'Prelude in C♯ minor']);
     expect(splitTitle('take 1')).toEqual(['', 'take 1']);
+  });
+  it("links a song, keeping the page's ?ears= (checks point the studio at their own ears server)", () => {
+    expect(songHref('prelude', '')).toBe('?song=prelude');
+    expect(songHref('a-2', '?song=x&ears=5276')).toBe('?song=a-2&ears=5276');
+    expect(songHref('a', '?ears=off')).toBe('?song=a&ears=off');
   });
 });
 
