@@ -1,17 +1,26 @@
 // The lab's harness (lab/index.html) as a class: the same ctx, chord firing, feature arithmetic, shared fading canvas
 // and per-widget save/restore, so a widget draws the lab's pixels. Plan §3; the step order below is pinned.
+//
+// Instances (plan 2026-10-31 §6, spec Decisions 4 and 7): the runtime runs instances, keyed `widget` or
+// `widget@listen`. A slot with no layer whose instance keeps no pulse of its own takes today's statements, verbatim;
+// any other goes through the shared drawLayered (lab/layers/slot.js). A routed instance hears its part: it is evaluated
+// with the part's NOTES and CHORDS, gets the part's chords, and its own pulse, features and sounding notes are swapped
+// into ctx around each of its calls.
 import { groupChords, soundingAt } from './chords';
 import { advanceFeatures, knobValue, newFeatures, pitch01, resolveKnobs } from './features';
 import { hdContext } from './hd-context';
 import { instantiate } from './instantiate';
 import { LAB_FIRST_MOMENT, makeIcon } from './lab-harness';
-import type { Chord, IconLib, KnobMap, LabHarness, Note, SoundingNote, ToolDef, WidgetCtx } from './types';
+import type { InstanceState, LayerHost, WaLayers } from './layers';
+import type { Chord, IconLib, InstanceSpec, KnobMap, LabHarness, Note, SlotLayer, SongNotes, SoundingNote, ToolDef, WidgetCtx } from './types';
 
-/** A widget drawn this step: weight 1 = exactly as the lab draws it; receiving = it gets this step's attacks. */
-export interface Slot { id: string; receiving: boolean; weight: number }
+/** A widget drawn this step: weight 1 = exactly as the lab draws it; receiving = it gets this step's attacks; layer =
+    its curve (and, with T15, its region). id is the instance key. */
+export interface Slot { id: string; receiving: boolean; weight: number; layer?: SlotLayer }
 export interface RuntimeLike {
-  load(ids: readonly string[]): void; setKnobs(id: string, knobs: KnobMap): void; setMoment(label: string): void;
-  reset(t: number): void; resetWidget(id: string): void; step(t: number, dt: number, slots: readonly Slot[]): void;
+  /** widget ids (today's call) or instance specs, in load order */
+  load(specs: readonly (string | InstanceSpec)[]): void; setKnobs(key: string, knobs: KnobMap): void; setMoment(label: string): void;
+  reset(t: number): void; resetWidget(key: string): void; step(t: number, dt: number, slots: readonly Slot[]): void;
 }
 /** scale S (plan §7): the canvas is 1280·S × 720·S; widgets draw in 1280×720 units through hdContext. */
 export interface RuntimeOptions { scale?: 1 | 2 | 3 }
@@ -29,15 +38,28 @@ export class WidgetRuntime implements RuntimeLike {
   lastT = 0;
   /** canvas.width / 1280. At 1 every statement is the lab's; above, ctx.g is a proxy and the background is real-size. */
   readonly S: number;
+  /** A debug hook (checks): when an array, every attack a layered instance is given is pushed as [key, chord time]. */
+  deliveredLog: [string, number][] | null = null;
   private readonly g: CanvasRenderingContext2D;
   private readonly icon: IconLib;
+  private readonly song: SongNotes;
+  private readonly layers: WaLayers | undefined;
   private readonly tools = new Map<string, ToolDef>();
+  private readonly insts = new Map<string, InstanceState>();
   private readonly order: string[] = [];
   private readonly knobs: Record<string, KnobMap> = {};
+  /** The instance being called (ctx.p reads its knobs) and the notes behind ctx.sounding() and ctx.top(). */
+  private readonly cur: { key: string; notes: Note[] };
+  private readonly host: LayerHost;
   private scratch: HTMLCanvasElement | null = null;
   private ci = 0;
+  /** The time of the last step (or reset): rt.lastT is already the new time when a clock calls step(). */
+  private stepT = 0;
+  /** The instances drawn in the last step: an own instance missing from it comes back cold. */
+  private drawnPrev = new Set<string>();
 
-  constructor(canvas: HTMLCanvasElement, song: { notes: Note[] }, private readonly lib: { sources: Record<string, string>; harness: LabHarness },
+  constructor(canvas: HTMLCanvasElement, song: SongNotes,
+    private readonly lib: { sources: Record<string, string>; harness: LabHarness; layers?: WaLayers },
     opts: RuntimeOptions = {}) {
     const S = opts.scale ?? 1;
     if (S !== 1 && S !== 2 && S !== 3) throw new Error(`scale ${String(S)}: 1, 2 or 3`);
@@ -48,9 +70,11 @@ export class WidgetRuntime implements RuntimeLike {
     const g = canvas.getContext('2d');   // no options, as the lab: willReadFrequently would change the pixels
     if (!g) throw new Error('no 2D canvas');
     this.g = g;
+    this.song = song;
+    this.layers = lib.layers;
     this.chords = groupChords(song.notes);
     this.icon = makeIcon(lib.harness.iconSource);
-    const notes = song.notes, knobs = this.knobs;
+    const knobs = this.knobs, cur = (this.cur = { key: '', notes: song.notes });
     const ctx: WidgetCtx = {
       g: hdContext(g, S, () => ctx.tool?.id ?? 'a widget'), W, H, canvas,
       t: 0, dt: 0, now: 0,
@@ -59,51 +83,101 @@ export class WidgetRuntime implements RuntimeLike {
       feat: newFeatures(),
       tool: undefined,
       rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
-      sounding: () => soundingAt(notes, ctx.t),
+      sounding: () => soundingAt(cur.notes, ctx.t),
       top() { let b: SoundingNote | null = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
       pitch01,
       p(key) {
         const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key);
         if (!tool || !q) return undefined;
-        const m = (knobs[tool.id] ??= {});
+        const m = (knobs[cur.key] ??= {});   // the instance's knobs: its key is the widget's id unless it listens to a part
         return knobValue(q, (m[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 }), ctx.feat);
       },
     };
     this.ctx = ctx;
+    const make = (w: number, h: number) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+    this.host = {
+      ctx, g, canvas, S,
+      call: (inst, fn, ch) => {
+        if (fn === 'onChord') { this.deliveredLog?.push([inst.key, ch!.t]); this.safe(inst.key, 'onChord', ch, ctx); }
+        else this.safe(inst.key, fn, ctx);
+      },
+      scratch: () => (this.scratch ??= make(W * S, H * S)),
+      windowOf: (inst) => {
+        if (!inst.win) {   // T15 draws windows; opaque black when created
+          const win = make(W * S, H * S), wg = win.getContext('2d')!;
+          wg.fillStyle = '#000'; wg.fillRect(0, 0, W * S, H * S);
+          inst.win = win;
+        }
+        return inst.win;
+      },
+      make,
+    };
   }
 
-  /** Evaluates each not-yet-loaded widget once, in this order (load order is draw order and, through load-time
-      randomness, part of the pixels). A failure is kept in errors[id]. */
-  load(ids: readonly string[]): void {
-    for (const id of ids) {
-      if (this.tools.has(id) || this.errors[id]) continue;
-      const src = this.lib.sources[id];
-      if (src == null) { this.errors[id] = `no widget file lab/tools/${id}.js`; continue; }
+  /** Evaluates each not-yet-loaded instance once, in this order (load order is draw order and, through load-time
+      randomness, part of the pixels). A widget id loads its plain instance (today's call); a spec with a listen that the
+      song has is routed: evaluated with its part's NOTES and CHORDS. A key already loaded only takes the spec's `own`
+      (a curve added in an edit), in place: re-evaluating would wipe its state. A failure is kept in errors[key]. */
+  load(specs: readonly (string | InstanceSpec)[]): void {
+    const L = this.layers;
+    for (const x of specs) {
+      const spec: InstanceSpec = typeof x === 'string' ? { key: x, widget: x } : x;
+      const key = spec.key, have = this.insts.get(key);
+      if (have) { this.setOwn(have, !!L && (!!spec.own || have.routed)); continue; }
+      if (this.tools.has(key) || this.errors[key]) continue;
+      const src = this.lib.sources[spec.widget];
+      if (src == null) { this.errors[key] = `no widget file lab/tools/${spec.widget}.js`; continue; }
+      let notes = this.song.notes, routed = false;
+      if (spec.listen !== undefined && spec.listen !== 'all') {
+        if (!L) { this.errors[key] = `listens to ${spec.listen}, but this runtime has no layer code`; continue; }
+        const heard = L.listenNotes(this.song, spec.listen);
+        if (heard.heard !== 'all') { notes = heard.notes; routed = true; }   // a part the song lacks: all notes, unrouted
+      }
+      const chords = routed ? groupChords(notes) : this.chords;
       try {
-        const tool = instantiate(id, src, { icon: this.icon, chords: this.chords });
-        this.tools.set(id, tool); this.order.push(id);
-        this.knobs[id] = resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
-      } catch (e) { this.errors[id] = `load: ${e instanceof Error ? e.message : String(e)}`; }
+        const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes } : { icon: this.icon, chords: this.chords });
+        this.tools.set(key, tool); this.order.push(key);
+        this.knobs[key] = resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
+        const inst: InstanceState = {
+          key, widget: spec.widget, salt: L ? L.fnv32(key) : 0, notes, chords, ci: 0,
+          pulse: { level: 0, rate: 0 }, feat: newFeatures(),
+          own: !!L && (!!spec.own || routed), routed, persist: L?.PERSIST[spec.widget] ?? 'redraw', win: null,
+        };
+        this.insts.set(key, inst);
+        L?.coldInstance(inst, this.stepT);
+      } catch (e) { this.errors[key] = `load: ${e instanceof Error ? e.message : String(e)}`; }
     }
   }
+  /** Instance keys in load order. */
   loaded(): readonly string[] { return this.order; }
-  tool(id: string): ToolDef | undefined { return this.tools.get(id); }
-  setKnobs(id: string, knobs: KnobMap): void { this.knobs[id] = knobs; }
+  /** By instance key, else the first loaded instance of that widget (meta and names ask by widget id). */
+  tool(id: string): ToolDef | undefined {
+    const t = this.tools.get(id);
+    if (t) return t;
+    for (const k of this.order) if (this.insts.get(k)?.widget === id) return this.tools.get(k);
+    return undefined;
+  }
+  /** An instance's state: its part, pulse and features (checks read feat.pitch). */
+  instance(key: string): InstanceState | undefined { return this.insts.get(key); }
+  setKnobs(key: string, knobs: KnobMap): void { this.knobs[key] = knobs; }
   setMoment(label: string): void { this.ctx.moment = label; }
 
-  /** The lab's reset(t): pulse to 0, the next chord after t, opaque black, reset() on every loaded widget. */
+  /** The lab's reset(t): pulse to 0, the next chord after t, opaque black, reset() on every loaded widget. Every
+      instance starts cold at t too. */
   reset(t: number): void {
     const { ctx, g } = this;
     this.lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
     this.ci = this.chords.findIndex((ch) => ch.t > t); if (this.ci < 0) this.ci = this.chords.length;
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000';
     if (this.S > 1) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillRect(0, 0, W * this.S, H * this.S); } else g.fillRect(0, 0, W, H);
+    this.stepT = t; this.drawnPrev = new Set();
+    if (this.layers) for (const inst of this.insts.values()) this.layers.coldInstance(inst, t);
     for (const id of this.order) this.safe(id, 'reset', ctx);
     this.resets++;
   }
-  resetWidget(id: string): void { if (this.tools.has(id)) this.safe(id, 'reset', this.ctx); }
+  resetWidget(key: string): void { if (this.tools.has(key)) this.safe(key, 'reset', this.ctx); }
 
-  /** One picture at song time t, dt after the last: the lab's step(), with the widgets given by slots. */
+  /** One picture at song time t, dt after the last: the lab's step(), with the instances given by slots. */
   step(t: number, dt: number, slots: readonly Slot[]): void {
     const { ctx, g, chords, S } = this;
     const RW = W * S, RH = H * S;   // the real size: at S = 1 the lab's 1280×720
@@ -117,8 +191,17 @@ export class WidgetRuntime implements RuntimeLike {
     g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, RW, RH);
     g.globalCompositeOperation = 'color-burn'; g.fillStyle = 'rgb(252,252,252)'; g.fillRect(0, 0, RW, RH);
     g.globalCompositeOperation = 'source-over';
+    const L = this.layers, drawn = new Set<string>();
     for (const slot of slots) {
       if (!this.tools.has(slot.id)) continue;
+      const inst = this.insts.get(slot.id)!;
+      drawn.add(slot.id);
+      if (L && (slot.layer || inst.own)) {
+        if (inst.own && !this.drawnPrev.has(slot.id)) L.coldInstance(inst, this.stepT);   // back after an absence
+        L.drawLayered(this.host, { inst, receiving: slot.receiving, weight: slot.weight, layer: slot.layer ?? {}, fired, lastT: this.stepT, t, dt });
+        continue;
+      }
+      // Today's statements (no layer, no own pulse): the paste-back at 1 − weight.
       const fading = slot.weight < 1;
       let sc: HTMLCanvasElement | null = null;
       if (fading) {
@@ -134,16 +217,32 @@ export class WidgetRuntime implements RuntimeLike {
         g.globalAlpha = 1 - Math.max(0, slot.weight); g.drawImage(sc, 0, 0); g.globalAlpha = 1;
       }
     }
+    this.drawnPrev = drawn; this.stepT = t;
     if (S > 1 && this.post.length) g.setTransform(S, 0, 0, S, 0, 0);   // queued widget code draws in widget units too
     while (this.post.length) { try { this.post.shift()!(); } catch (e) { console.warn(e); } }
   }
 
-  /** The lab's safe(): ctx.tool set, the first error per widget kept, the step never stops. */
-  private safe(id: string, fn: 'reset' | 'onChord' | 'frame', ...a: unknown[]): void {
-    const tool = this.tools.get(id)!;
-    this.ctx.tool = tool;
+  /** An instance that starts keeping its own pulse (a curve added in an edit) takes the global one as it is now: an
+      unrouted one would have had the same. */
+  private setOwn(inst: InstanceState, own: boolean): void {
+    if (own && !inst.own) {
+      const { ctx } = this;
+      inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; Object.assign(inst.feat, ctx.feat);
+    }
+    inst.own = own;
+  }
+
+  /** The lab's safe(): ctx.tool set, the first error per instance kept, the step never stops. An own instance's pulse,
+      features and notes are in ctx for the call, and the global ones back after it. */
+  private safe(key: string, fn: 'reset' | 'onChord' | 'frame', ...a: unknown[]): void {
+    const { ctx, cur } = this, tool = this.tools.get(key)!, inst = this.insts.get(key);
+    ctx.tool = tool; cur.key = key;
     if (this.S > 1) this.g.setTransform(this.S, 0, 0, this.S, 0, 0);   // the base transform: 1280×720 units
+    const swap = inst !== undefined && inst.own;
+    const level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = cur.notes;
+    if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes; }
     try { const f = tool[fn] as ((...x: unknown[]) => void) | undefined; if (f != null) f.apply(tool, a); }   // tool[fn]?.(…a): `this` is the tool
-    catch (e) { if (!this.errors[id]) { this.errors[id] = String(e); console.error(id, e); } }
+    catch (e) { if (!this.errors[key]) { this.errors[key] = String(e); console.error(key, e); } }
+    if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; cur.notes = notes; }
   }
 }

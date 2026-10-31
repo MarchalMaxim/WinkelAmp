@@ -1,9 +1,11 @@
 // Clocks for the runtime: the lab's live rAF loop (audio clock, freeze on pause, reset on a jump) and its render API
 // (?render=1: song time moved on demand in substeps of 1/hz, so a video frame shows what a live screen would).
+// renderSeek resets the instances too: the stepper's reset reaches WidgetRuntime.reset, which starts every instance
+// cold at t (its next chord, pulse and features).
 import { liveClock, newFeatures } from './features';
 import { momentAt } from './lab-harness';
 import type { Slot, WidgetRuntime } from './runtime';
-import type { LabMoment } from './types';
+import type { InstanceSpec, LabMoment, Listen, Pivot, Region, SlotLayer } from './types';
 
 /** What a clock drives: the runtime directly (labCompat) or a show (the Conductor). */
 export interface Stepper { reset(t: number): void; step(t: number, dt: number): void }
@@ -91,3 +93,56 @@ export function labCompat(rt: WidgetRuntime, only: readonly string[], moments: r
   };
 }
 
+
+/** A lab layer setting (plan §11, render mode's `layers=`): what one instance of a widget listens to, where it sits
+    and its intensity curve, in the show's field shapes. */
+export interface LabLayer { widget: string; listen?: Listen; region?: Region; intensity?: Pivot[] }
+
+/** widget, or widget@listen when it listens to a part (show.ts instanceKey). */
+export const labLayerKey = (l: LabLayer): string => (l.listen === undefined || l.listen === 'all' ? l.widget : `${l.widget}@${l.listen}`);
+
+/** What runtime.load gets for the lab's layer entries, after every base tool: each instance that listens to a part or
+    has a curve (own), in TOOL_IDS order, then entry order. A plain entry with a curve updates its base tool in place. */
+export function labLayerSpecs(toolIds: readonly string[], layers: readonly LabLayer[]): InstanceSpec[] {
+  const out: InstanceSpec[] = [];
+  for (const id of toolIds) for (const l of layers) {
+    if (l.widget !== id) continue;
+    const key = labLayerKey(l), listen = key === l.widget ? undefined : l.listen;
+    const own = listen !== undefined || !!l.intensity?.length;
+    if (key === l.widget && !own) continue;
+    out.push({ key, widget: l.widget, ...(listen !== undefined ? { listen } : {}), own });
+  }
+  return out;
+}
+
+/** The lab with layers (render.html?labSong&layers=): every loaded widget gets resets; the active ones (only, and every
+    widget with an entry) draw in load (lab) order, a widget with entries as those instances in its place, with their
+    curves and regions. probe sets one widget's slot weight (persist-probe). Without layers or probe it is labCompat. */
+export function labLayers(rt: WidgetRuntime, only: readonly string[], layers: readonly LabLayer[], moments: readonly LabMoment[],
+  probe?: { id: string; weight: number }): Stepper {
+  const on = new Set([...only, ...layers.map((l) => l.widget), ...(probe ? [probe.id] : [])]);
+  const byWidget = new Map<string, LabLayer[]>();
+  for (const l of layers) byWidget.set(l.widget, [...(byWidget.get(l.widget) ?? []), l]);
+  return {
+    reset: (t) => rt.reset(t),
+    step: (t, dt) => {
+      rt.setMoment(momentAt(moments, t));
+      const slots: Slot[] = [];
+      for (const id of rt.loaded()) {
+        if (!on.has(id)) continue;
+        const weight = probe && probe.id === id ? probe.weight : 1;
+        const mine = byWidget.get(id);
+        if (!mine) { slots.push({ id, receiving: true, weight }); continue; }
+        for (const l of mine) {
+          const slot: Slot = { id: labLayerKey(l), receiving: true, weight };
+          const layer: SlotLayer = {};
+          if (l.intensity?.length) layer.pivots = l.intensity;
+          if (l.region) layer.region = l.region;
+          if (layer.pivots || layer.region) slot.layer = layer;
+          slots.push(slot);
+        }
+      }
+      rt.step(t, dt, slots);
+    },
+  };
+}

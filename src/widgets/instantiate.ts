@@ -1,11 +1,30 @@
 // Runs one unchanged lab/tools/<id>.js. The lab evaluates the files at global scope; every tool is an IIFE that only
 // pushes into TOOLS and reads ICON, CHORDS and window.NOTES, so passing the harness names as parameters is the same.
-import type { Chord, IconLib, ToolDef } from './types';
+// A routed instance (it listens to a part, spec Decisions 7) also gets a `window` whose NOTES is the part's notes, so
+// the widgets that read window.NOTES (at load or later) see the part; CHORDS is then the part's chords.
+import type { Chord, IconLib, Note, ToolDef } from './types';
 
-export function instantiate(id: string, source: string, env: { icon: IconLib; chords: Chord[] }): ToolDef {
+/** window, except NOTES: the part's notes. Functions are bound to the real window (native ones need it as `this`). */
+function windowWithNotes(notes: Note[]): Window {
+  const w = window as unknown as Record<PropertyKey, unknown>;
+  return new Proxy(window, {
+    get(_, p) {
+      if (p === 'NOTES') return notes;
+      const v = w[p];
+      return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(window) : v;
+    },
+  });
+}
+
+export function instantiate(id: string, source: string, env: { icon: IconLib; chords: Chord[]; notes?: Note[] }): ToolDef {
   const tools: ToolDef[] = [];
-  const run = new Function('TOOLS', 'ICON', 'CHORDS', `${source}\n//# sourceURL=lab/tools/${id}.js`);
-  run(tools, env.icon, env.chords);
+  if (env.notes) {
+    const run = new Function('TOOLS', 'ICON', 'CHORDS', 'window', `${source}\n//# sourceURL=lab/tools/${id}.js`);
+    run(tools, env.icon, env.chords, windowWithNotes(env.notes));
+  } else {
+    const run = new Function('TOOLS', 'ICON', 'CHORDS', `${source}\n//# sourceURL=lab/tools/${id}.js`);
+    run(tools, env.icon, env.chords);
+  }
   const mine = tools.filter((t) => t && t.id === id);
   if (tools.length !== 1 || mine.length !== 1)
     throw new Error(`lab/tools/${id}.js must push exactly one tool with id '${id}' (pushed: ${tools.map((t) => t?.id).join(', ') || 'none'})`);

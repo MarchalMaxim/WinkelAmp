@@ -14,6 +14,7 @@ import { toMeta } from '../../widgets/catalogue';
 import { groupChords } from '../../widgets/chords';
 import { instantiate } from '../../widgets/instantiate';
 import { makeIcon } from '../../widgets/lab-harness';
+import { studioLayers } from '../../widgets/layers-source';
 import { WidgetRuntime } from '../../widgets/runtime';
 import { labHarness, labWidgetSources } from '../../widgets/sources';
 import type { WidgetMeta } from '../../widgets/types';
@@ -122,7 +123,7 @@ function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () 
 
 async function boot(): Promise<void> {
   const ui = shell();
-  const store = new Store();
+  const store = new Store({ curve: (p, t) => studioLayers().automationAt(p, t) });   // edge pivots keep a curve on a boundary drag
   const api = await connectStore();
   const params = new URLSearchParams(location.search);
 
@@ -229,7 +230,7 @@ async function boot(): Promise<void> {
 
   // The picture and the clock.
   const canvas = document.getElementById('c') as HTMLCanvasElement;
-  const runtime = new WidgetRuntime(canvas, { notes: pack.notes }, { sources, harness });
+  const runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks }, { sources, harness, layers: studioLayers() });
   const conductor = new Conductor(runtime, show, (id) => metas.get(id) ?? (runtime.tool(id) ? toMeta(runtime.tool(id)!, null) : undefined));
   const audio = new Audio();
   audio.preload = 'auto';
