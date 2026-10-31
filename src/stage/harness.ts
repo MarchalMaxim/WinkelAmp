@@ -124,6 +124,14 @@ export const CASES: Record<string, Case> = {
     cast: [el('bloom', 'fields', { intensity: 0.4 }), el('bass', 'orbs'), el('pulse', 'rings'), el('wave', 'line', { region: 'top' }),
       el('sparks', 'stars'), el('melody', 'ribbon'), el('fluid', '', { intensity: 0.5 })],
   },
+  // Dread squares: a square (and its octave) on each struck bass, every second; the melody's
+  // onsets and the hats, high, make none. `dread` is the live director's scene.
+  squares: { archetype: 'abyss', look: { trails: 0.6, warp: 0.1, glow: 0.45 }, cast: [el('squares', 'blood')] },
+  'squares-shadow': { archetype: 'storm', cast: [el('squares', 'shadow', { knobs: { life: 3, blur: 2 } })] },
+  dread: {
+    archetype: 'abyss', look: { trails: 0.6, warp: 0.1, glow: 0.45 },
+    cast: [el('squares', 'blood'), el('melody', 'ink', { intensity: 0.5, color: '#d9cbbd' }), el('sparks', 'dust', { intensity: 0.3, size: 0.3, color: '#9a2a24' })],
+  },
   // Knob drives on stage: the trail shortens as the notes come faster, the bursts fly harder as it gets
   // louder, the rings die faster when it is loud. Silence must still hold everything.
   drives: {
@@ -271,13 +279,14 @@ export class Song {
       d.register = n ? (n.midi - 24) / 84 : 0.4;
       d.majorness = minor ? -0.6 : 0.6;
       d.keyClarity = 0.8;
-      // Waveform: bass sine on the chord root + the melody with two harmonics.
+      // Waveform: bass sine on the chord root + the melody with two harmonics. The bass swells
+      // sample by sample (struck on the second, decaying), so its attack lies in the newest samples.
       const bf = midiHz(36 + root);
       const mf = n ? midiHz(n.midi) : 0;
-      const ba = 0.35 * f.bass;
       const ma = n ? 0.3 * Math.min(1, (lt - n.start) * 40) : 0;
       for (let i = 0; i < 2048; i++) {
         const tau = t - (2048 - i) / 44100;
+        const ba = 0.35 * (0.2 + 0.8 * Math.exp(-(((tau % 1) + 1) % 1) * 3));
         let v = ba * Math.sin(2 * Math.PI * bf * tau);
         if (mf) v += ma * (Math.sin(2 * Math.PI * mf * tau) + 0.4 * Math.sin(4 * Math.PI * mf * tau) + 0.15 * Math.sin(6 * Math.PI * mf * tau));
         this.wave[i] = v;
