@@ -76,7 +76,7 @@ T1 ∥ T2 → T3 → T4 → (T5 ∥ T6) → T7 → T8. T5's server half may star
 | `src/audio/song-analysis.ts` | T1 | `analyzeSong` + `trackBeats`/`chordChanges` moved out of `scripts/study.ts` (Node and Worker) |
 | `src/studio/pack/{pack,notes,build}.ts` | T1 | SongPack schema + validation; note import/approximation/merge; `buildPack` (pure) |
 | `src/studio/ingest/ears-types.ts` | T1 | types shared by the CLI, the ears server and the studio (§9) |
-| `scripts/ingest.ts`, `scripts/node/{python,pack-io}.ts` | T1 | CLI; Python discovery + transcription; hashing, atomic writes, slug paths |
+| `scripts/ingest.ts`, `scripts/node/{python,pack-io,decode}.ts` | T1 | CLI; Python discovery + transcription; hashing, atomic writes, slug paths; ffmpeg decode |
 | `scripts/ears/transcribe.py`, `scripts/ears/requirements.txt` | T1 | GPU transcriber (brief step 1; reference: the spike's `trans.py`) |
 | `tsconfig.scripts.json` | T1 | typechecks the new Node scripts (`types: ["node", "vite/client"]`) |
 | `src/widgets/{types,lab-harness,random,chords,features}.ts` | T2 | the ctx contract; reading the lab harness; the lab's seeded random, chords, drive arithmetic |
@@ -252,7 +252,8 @@ export class WidgetRuntime implements RuntimeLike {
 export interface Stepper { reset(t: number): void; step(t: number, dt: number): void }
 export function startLive(s: Stepper, rt: WidgetRuntime, audio: HTMLMediaElement, onFrame?: (t: number) => void): () => void;  // rAF = the lab's frame()
 export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: number) => void, hz: number): void;
-// window.renderSeek(t, seed = 1): reseed, feat = newFeatures(), ctx.now = 0, s.reset(t) · renderStep(dt): n = max(1, ceil(dt·hz − 1e-6))
+// window.renderSeek(t, seed = 1): reseed, Object.assign(ctx.feat, newFeatures()) (in place, as the lab), ctx.now = 0, s.reset(t)
+// · renderStep(dt): n = max(1, ceil(dt·hz − 1e-6))
 // equal substeps, each ctx.now += d, s.step · renderTo(t) = renderStep(t − lastT) · renderErrors · renderReady ·
 // renderFrameHash(): FNV-1a of getImageData · renderPixels(): base64 RGBA
 export function labCompat(rt: WidgetRuntime, only: readonly string[]): Stepper;   // all loaded, `only` active, lab order, weight 1
@@ -315,7 +316,7 @@ export interface Span { start: number; end: number }
 export function sectionCharacters(notes: readonly Note[], spans: readonly Span[]): Character[];
 //   per span over groupChords(notes): vel = mean of the loudest third of attack vels, rate = attacks/s, poly = notes per
 //   attack, lowShare = share of notes with midi < 50. loud/fast/dense = percentile rank of vel/rate/poly among spans
-//   (one span → 0.5; a span without attacks → 0); low = lowShare; quiet = (1 − loud)·(1 − fast)
+//   (one span → 0.5, but a span without attacks → 0 takes precedence); low = lowShare (no notes → 0); quiet = (1 − loud)·(1 − fast)
 export const TASTE: { id: string; role: 'base' | 'accent' | 'top'; fit: Partial<Character> }[];
 //   base: kandinsky {dense 1, fast .5}, rorschach {low .8, quiet .5}, current {quiet 1, fast .3}, strings {quiet .8, dense .4},
 //   fields {quiet .6}; accent: squares {low 1, loud .5}, flee {fast 1, loud .3}; top: casket {loud 1, dense .5}
@@ -453,13 +454,15 @@ batches of 15 → `ffmpeg image2pipe` → libx264 `-crf 18 -preset medium -pix_f
 ### Task 1: Song packs and the GPU ingest CLI
 
 **Files:** Create `src/audio/song-analysis.ts`, `src/studio/pack/{pack,notes,build}.ts`, `src/studio/ingest/ears-types.ts`, `scripts/ingest.ts`,
-`scripts/node/{python,pack-io}.ts`, `scripts/ears/transcribe.py`, `scripts/ears/requirements.txt`, `tsconfig.scripts.json`;
+`scripts/node/{python,pack-io,decode}.ts`, `scripts/ears/transcribe.py`, `scripts/ears/requirements.txt`, `tsconfig.scripts.json`;
 tests `tests/{song-analysis,pack-notes,pack-build,ingest-cli}.test.ts`. Modify `scripts/study.ts` (imports the moved
 functions), `package.json` (`ingest`; `typecheck` and `build` also run `tsc --noEmit -p tsconfig.scripts.json`), `.gitignore` (`songs/`).
 
 **Interfaces:** Produces §1, the ingest CLI, `transcribe.py` and `ears-types.ts` of §9, and in `scripts/node/`: `findPython(): string | null`,
 `probeTranscriber(): Promise<TranscriberStatus>` (runs `--probe`, 90 s timeout), `transcribe(audio, out): Promise<void>`,
-`sha1File(path): Promise<string>`, `writeJsonAtomic(path, value): void`, `songsDir(): string`, `isSlug(s): boolean`.
+`sha1File(path): Promise<string>`, `writeJsonAtomic(path, value): void`, `songsDir(): string`, `isSlug(s): boolean`,
+`decodeMono(file, rate = 44100): Float32Array` (the same `spawnSync` ffmpeg call as `scripts/analyze-file.ts`). New
+scripts import nothing from the old scripts, so `tsconfig.scripts.json` never pulls unchecked legacy files into the build gate.
 `tsconfig.scripts.json` includes `scripts/{ingest,check-show,describe-song,widget-docs,studio-api}.ts`, `scripts/ears/**/*.ts`, `scripts/node/**/*.ts`.
 
 - [ ] **Step 1: Move without changing study.** Before: `ffmpeg -t 30 -i lab/prelude.mp3 <scratch>/s30.wav`,
@@ -470,7 +473,7 @@ functions), `package.json` (`ingest`; `typecheck` and `build` also run `tsc --no
   - `song-analysis`: PCM 44.1 kHz = 2 s silence + 8 s of decaying 220/330/440 Hz tones every 0.5 s + 2 s silence →
     `duration ≈ 12 ±0.01`; `sections[0].start === 0`, last `end === duration`, contiguous; `loudness.values.length === 120`,
     all in 0..1, mean of the first 1.5 s < 0.05; `onsets.length ≥ 10`, none before 1.8 s; beats sorted within [0, 12];
-    no NaN anywhere. A 600 s sine-burst PCM → `loudness.values.length === 6000` (marked slow, ≤ 60 s).
+    no NaN anywhere. (Keep real analysis to this 12 s signal: CI runs `npm test` on every deploy.)
   - `pack-notes`: `parseNotesFile('window.NOTES=[[5.198,7.0057,57,103],[5.2005,6.9941,45,110]];')` → the two tuples in
     order; transcribe.py JSON `{notes:[{start:1,end:2,midi:60,vel:80}]}` → `[[1,2,60,80]]`; garbage throws `/notes/`.
     `approximateNotes({ onsets: [{t:1,s:0.8}], melody: [{start:0.98,end:1.6,midi:72.2,strength:0.5,confidence:0.8}],
@@ -480,7 +483,8 @@ functions), `package.json` (`ingest`; `typecheck` and `build` also run `tsc --no
     `mergeNotes` keeps every gpu note and adds only approx notes > 0.06 s from all gpu starts.
   - `pack-build`: gpu notes with coverage ≥ 0.35 → `notesFrom 'gpu'`; coverage 0.2 → `'merged'` + warning containing
     `heard little`; `from: 'file'` with coverage 0 → `'file'`, notes identical to the input (same order); `notes: null` →
-    `'approx'` + warning `approximate`; zero notes → warning `no notes found`; every result passes `validatePack`;
+    `'approx'` + warning `approximate`; zero notes → warning `no notes found`; a synthetic 600 s `SongAnalysis`
+    (loudness length 6000, 80 contiguous sections, 9000 notes) → a valid pack in < 1 s; every result passes `validatePack`;
     `validatePack` rejects version 2, unsorted notes, `end < start`, a section gap, a bad id.
 - [ ] **Step 3:** Run `npx vitest run tests/song-analysis.test.ts tests/pack-notes.test.ts tests/pack-build.test.ts` → FAIL (missing modules).
 - [ ] **Step 4:** Implement `analyzeSong`, `notes.ts`, `pack.ts`, `buildPack` (§1). Run the three tests → PASS.
