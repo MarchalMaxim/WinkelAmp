@@ -23,25 +23,37 @@ export const momentOf = (show: Show, i: number): string => `${i}:${show.sections
 
 const EMPTY: Record<string, KnobSetting> = {};
 
-/** The steps preview(t) takes: reset at t0 = t − 1 (not before 0), then 60 equal steps up to t (none at t = 0). */
-function previewSteps(t: number): { t0: number; times: number[] } {
-  const t0 = Math.max(0, t - 1), n = 60;
+/** How a paused preview builds its picture: `seconds` of the song before t, in steps of 1/hz s. */
+export interface Warmup { seconds: number; hz: number }
+/** A paused seek, at once (also while scrubbing): one second at the display's pace. */
+export const QUICK: Warmup = { seconds: 1, hz: 60 };
+/** Once the playhead rests: widgets that build their picture over time (Kandinsky, the current) get four seconds, in
+    steps of 1/20 s, the longest step live playing takes, so it costs little more than QUICK. */
+export const SETTLED: Warmup = { seconds: 4, hz: 20 };
+
+/** The steps preview(t, w) takes: reset at t0 = t − w.seconds (not before 0), then steps of about 1/w.hz up to t. */
+function previewSteps(t: number, w: Warmup): { t0: number; times: number[] } {
+  const t0 = Math.max(0, t - w.seconds);
   if (!(t > t0)) return { t0, times: [] };
+  const n = Math.max(1, Math.round((t - t0) * w.hz));
   return { t0, times: Array.from({ length: n }, (_, i) => t0 + ((t - t0) * (i + 1)) / n) };
 }
 
 /** What the widgets are given at x: who plays, attacking or not, how strongly, with which knobs. */
 const scheduleKey = (show: Show, x: number) => JSON.stringify(scheduleAt(show, x).map((w) => [w.id, w.receiving, w.weight, w.knobs]));
 
-/** Would preview(t) draw the same picture for show b as for show a? It compares what the Conductor would hand the
+/** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would hand the
     runtime at the reset and at every preview step (and who it resets on the way), so an edit to a section the preview
     does not reach, a split at t or a new name leaves a paused picture as it is. Moments are left out: a new name or a
     split only renumbers them. */
 export function samePreview(a: Show, b: Show, t: number): boolean {
   if (a === b) return true;
-  const { t0, times } = previewSteps(t);
-  for (const x of [t0, ...times]) if (scheduleKey(a, x) !== scheduleKey(b, x)) return false;
-  return JSON.stringify(entriesBetween(a, t0, t)) === JSON.stringify(entriesBetween(b, t0, t));
+  for (const w of [QUICK, SETTLED]) {
+    const { t0, times } = previewSteps(t, w);
+    for (const x of [t0, ...times]) if (scheduleKey(a, x) !== scheduleKey(b, x)) return false;
+    if (JSON.stringify(entriesBetween(a, t0, t)) !== JSON.stringify(entriesBetween(b, t0, t))) return false;
+  }
+  return true;
 }
 
 export class Conductor implements Stepper {
@@ -101,9 +113,10 @@ export class Conductor implements Stepper {
     this.lastT = t;
   }
 
-  /** A paused seek: reset(t − 1), then 60 steps of 1/60 s, so the picture at t shows. */
-  preview(t: number): void {
-    const { t0, times } = previewSteps(t);
+  /** A paused seek: reset(t − w.seconds), then steps of 1/w.hz s up to t, so the picture at t shows. QUICK (one second,
+      60 steps) by default. */
+  preview(t: number, w: Warmup = QUICK): void {
+    const { t0, times } = previewSteps(t, w);
     this.reset(t0);
     let last = t0;
     for (const x of times) { this.step(x, x - last); last = x; }

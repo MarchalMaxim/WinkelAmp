@@ -314,11 +314,16 @@ export class Conductor implements Stepper {
   step(t: number, dt: number): void;   // resetWidget for entriesBetween(last t, t); setKnobs/setMoment on section change
                                        // (lewitt opens a new wall when the moment changes, so each section gives its own);
                                        // rt.step with scheduleAt(t), decaying slots kept only if drawn in the last step
-  preview(t: number): void;    // a paused seek: reset(t − 1), then 60 steps of 1/60 s, so the picture at t shows
+  preview(t: number, w?: Warmup): void;   // a paused seek: reset(t − w.seconds), then steps of 1/w.hz s up to t, so the
+                                         // picture at t shows; w = QUICK (1 s at 60 Hz) by default
 }
+export interface Warmup { seconds: number; hz: number }
+export const QUICK: Warmup;     // { seconds: 1, hz: 60 }: at once, also while scrubbing
+export const SETTLED: Warmup;   // { seconds: 4, hz: 20 }: once the playhead rests (the Player, 350 ms after a quick preview
+                                // that took ≤ 150 ms), so Kandinsky or the current show what playing builds; 1/20 s is live's longest step
 export function samePreview(a: Show, b: Show, t: number): boolean;
-//   would preview(t) draw the same for b as for a: scheduleAt (ids, attacks, weights, knobs) at the reset and every
-//   preview step, and entriesBetween over the preview second, equal (moments left out: a name or a split renumbers them)
+//   would preview(t) (QUICK or SETTLED) draw the same for b as for a: scheduleAt (ids, attacks, weights, knobs) at the reset and every
+//   preview step, and entriesBetween over the preview window, equal (moments left out: a name or a split renumbers them)
 ```
 
 ### §6 Auto-composer — `src/studio/compose/` (T3)
@@ -643,7 +648,7 @@ Move `index.html` → `legacy.html` (`git mv`, content untouched). Modify `vite.
 
 **Interfaces:** Consumes §2–§6. Produces §5 (Conductor), §7, §8, and
 `class Player { constructor(canvas, audio, conductor, runtime); play(): Promise<void>; pause(): void; toggle(): void;
-seek(t: number): void /* paused → conductor.preview(t) */; refresh(): void /* paused, after an edit: preview(time)
+seek(t: number): void /* paused → conductor.preview(t), then preview(t, SETTLED) once at rest */; refresh(): void /* paused, after an edit: preview(time)
 only when !samePreview(show the picture was drawn for, current show, time) */; readonly time: number; readonly duration: number;
 audioStream(): MediaStream /* routes the element through Web Audio on first call */; onTick?: (t: number) => void }`.
 

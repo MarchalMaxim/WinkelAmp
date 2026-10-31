@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Conductor, samePreview } from '../src/studio/show/conductor';
+import { Conductor, SETTLED, samePreview } from '../src/studio/show/conductor';
 import { applyEdit, type ShowEdit } from '../src/studio/show/edit';
 import type { Show } from '../src/studio/show/show';
 import type { RuntimeLike, Slot } from '../src/widgets/runtime';
@@ -115,6 +115,21 @@ describe('Conductor', () => {
     expect(c.preview(0.5)).toBeUndefined();
     expect(rt.calls.filter((x) => x[0] === 'reset').at(-1)).toEqual(['reset', 0]);
   });
+
+  it('preview(t, SETTLED) gives widgets that build a picture 4 s, in steps of 1/20 s (live never steps longer)', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, SHOW, meta);
+    rt.calls = [];
+    c.preview(15, SETTLED);
+    expect(rt.calls.find((x) => x[0] === 'reset')).toEqual(['reset', 11]);
+    const steps = rt.steps();
+    expect(steps).toHaveLength(80);
+    expect(steps[79][1]).toBeCloseTo(15, 9);
+    for (const st of steps) expect(st[2]).toBeCloseTo(1 / 20, 9);
+    rt.calls = [];
+    c.preview(12, SETTLED);
+    expect(rt.calls.find((x) => x[0] === 'reset')).toEqual(['reset', 8]);
+    expect(rt.calls.filter((x) => x[0] === 'resetWidget')).toEqual([['resetWidget', 'casket']]);   // it enters at 10
+  });
 });
 
 describe('samePreview: would preview(t) draw the same picture for the edited show?', () => {
@@ -133,6 +148,11 @@ describe('samePreview: would preview(t) draw the same picture for the edited sho
     expect(samePreview(SHOW, ed({ kind: 'addLayer', section: 0, widget: 'casket' }), 5)).toBe(false);
     expect(samePreview(SHOW, ed({ kind: 'removeLayer', section: 2, layer: 0 }), 25)).toBe(false);
     expect(samePreview(SHOW, ed({ kind: 'moveLayer', section: 0, from: 0, to: 1 }), 5)).toBe(false);
+  });
+
+  it('the settled preview reaches 4 s back: an edit there changes it too', () => {
+    expect(samePreview(SHOW, ed({ kind: 'setKnob', section: 0, layer: 0, key: 'size', value: 1.8 }), 12.5)).toBe(false);
+    expect(samePreview(SHOW, ed({ kind: 'setKnob', section: 0, layer: 0, key: 'size', value: 1.8 }), 14.5)).toBe(false);
   });
 
   it('so does the fade the playhead is in, and the knobs of what is fading out', () => {
