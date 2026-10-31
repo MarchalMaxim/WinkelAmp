@@ -14,6 +14,9 @@
  *   blood   the sketch's dark red, whatever the palette
  *   shadow  the palette's shadow and mid instead
  *
+ * No `stream` for the live director: the squares gate themselves (they only come on low
+ * attacks), and a bass-level gate would dim them through the quiet low notes they are for.
+ *
  * Sizes and speeds are the sketch's pixels at 720p, in screen heights. Drawn crisp: the
  * squares carry their own fade, so scene trails don't stretch it (melt and cuts pass them by).
  */
@@ -40,7 +43,6 @@ export const widget = defineWidget({
   use: 'dread, weight, a tolling bass: funeral bells, low octaves, hammered left hands. Few and heavy; keep it apart from other big shapes. `intensity` → how bright, `size` → how big',
   layer: 15,
   crisp: true,
-  stream: (s) => clamp01(fin(s.bass)),
   create: (): StageElement => new Squares(),
 });
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { widget } from '../src/stage/elements/squares';
 import { bassAttack, lowSquares, shakeDecay, shakeKick, squareEnvelope, squareSize, untone, held } from '../src/stage/elements/squares';
 import { LIBRARY } from '../src/stage/library';
 import { validateScript } from '../src/stage/script';
@@ -131,6 +132,10 @@ describe('dread squares', () => {
     for (const y of [0, 0.01, 0.05, 0.12, 0.3, 0.6]) expect(aces(0.9 * untone(y))).toBeCloseTo(y, 4);
     expect(untone(0.12)).toBeLessThan(0.12);
     expect(untone(NaN)).toBe(0);
+  });
+
+  it("isn't gated by the bass level in the live director (that would dim the quiet low notes)", () => {
+    expect(widget.stream).toBeUndefined();
   });
 
   it('scripts can set its knobs', () => {
