@@ -3,7 +3,7 @@
  * applyEdit and are recorded for undo; the selection is clamped after every change.
  */
 import type { SongPack } from '../pack/pack';
-import { applyEdit, type ShowEdit } from '../show/edit';
+import { applyEdit, editGroup, type EditEnv, type ShowEdit } from '../show/edit';
 import { History } from '../show/history';
 import { canonicalShow, type Show } from '../show/show';
 import type { LibraryEntry } from './api';
@@ -35,16 +35,19 @@ export class Store {
   readonly history = new History();
   private readonly subs = new Set<(s: StudioState) => void>();
 
+  /** env: the intensity curve for edge pivots (WaLayers.automationAt), passed to applyEdit. */
+  constructor(private readonly env?: EditEnv) {}
+
   dispatch(a: Action): void {
     const s = this.state;
     switch (a.type) {
       case 'edit': {
         if (!s.show || s.ui.recording) return;
-        let next = applyEdit(s.show, a.edit);
+        let next = applyEdit(s.show, a.edit, this.env);
         if (next === s.show) return;
         // Reshaped by hand, a composed show is yours now (when it was composed stays); undo gives the composed one back.
         if (next.composer && next.composer.by !== 'user') next = { ...next, composer: { ...next.composer, by: 'user' } };
-        this.history.record(s.show, a.group);
+        this.history.record(s.show, a.group ?? editGroup(a.edit));
         s.show = next;
         break;
       }

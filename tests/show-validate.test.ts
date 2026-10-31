@@ -66,7 +66,7 @@ describe('validateShow', () => {
   it('rejects bad drives, depths, versions and ids', () => {
     expect(at(errs(withSection(1, { layers: [{ widget: 'kandinsky', knobs: { edges: { drive: '+loud' } } }] })), 'sections[1].layers[0].knobs.edges.drive')).toHaveLength(1);
     expect(at(errs(withSection(1, { layers: [{ widget: 'kandinsky', knobs: { edges: { depth: 2 } } }] })), 'sections[1].layers[0].knobs.edges.depth')).toHaveLength(1);
-    expect(at(errs({ ...good(), version: 2 }), 'version')).toHaveLength(1);
+    expect(at(errs({ ...good(), version: 3 }), 'version')).toHaveLength(1);
     expect(at(errs({ ...good(), id: 'Not A Slug' }), 'id')).toHaveLength(1);
     expect(at(errs({ ...good(), song: '../x' }), 'song')).toHaveLength(1);
     expect(at(errs(withSection(1, { layers: [{ widget: 'kandinsky', knobs: { edges: 'high' } }] })), 'sections[1].layers[0].knobs.edges')).toHaveLength(1);
