@@ -3,15 +3,21 @@
  * first, as they are seen): add from the collection with the user's verdicts, remove, reorder, and each layer's knobs
  * as the lab draws them. Show: the "Describe the show" box Claude Code composes from, and what the show is made of.
  */
+import { TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { sectionAt } from '../show/schedule';
-import type { ShowSection } from '../show/show';
-import { DEFAULT_FADE, MAX_FADE } from '../show/show';
-import type { Drive, Features, IconLib, Param, ToolDef, WidgetMeta } from '../../widgets/types';
+import type { Layer, ShowSection } from '../show/show';
+import { DEFAULT_FADE, MAX_FADE, listenOf } from '../show/show';
+import { studioLayers } from '../../widgets/layers-source';
+import { labTagWords, labTags } from '../../widgets/sources';
+import { tagsOf } from '../../widgets/tags';
+import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
 import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
+import { describePlace, listenLabel, mountLayerControls } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
+import { mountWidgetPicker, newPickerState } from './widget-picker';
 
 export interface CatalogueEntry { meta: WidgetMeta; tool: ToolDef }
 
@@ -41,6 +47,16 @@ const RANK: Record<string, number> = { love: 0, keep: 1, 'needs work': 2 };
 const GROUPS = ['You love these', 'You keep these', 'These need work', 'Not judged yet', 'You dropped these'];
 const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4) : 3);
 
+/** What a layer hears, where it is seen and whether it follows a curve, in a few words ('' when none is set). */
+function layerParts(l: Layer): string {
+  const p = listenOf(l), parts: string[] = [];
+  if (p) parts.push(`hears ${listenLabel(p).toLowerCase()}`);
+  const place = describePlace(l.region);
+  if (place) parts.push(place);
+  if (l.intensity?.length) parts.push('follows a curve');
+  return parts.join(' · ');
+}
+
 const NOTES_WORDS: Record<SongPack['notesFrom'], string> = {
   gpu: 'transcribed by the piano model', file: 'from a notes file', approx: 'approximate, from the analysis',
   merged: 'transcribed, with approximate notes where the model heard little',
@@ -61,6 +77,12 @@ export class Panel {
   private liveAt = 0;
   /** The description as typed and as saved, kept across tab switches (the tab is drawn again each time). */
   private desc: { text: string; saved: string } | null = null;
+  /** The open layer's listen/where/intensity controls (layer-controls.ts). */
+  private controls: { sync(): void } | null = null;
+  /** The widget picker's filter, kept while the picker closes and opens. */
+  private readonly pickerState = newPickerState();
+  /** A layer's place before it went back to the whole screen, by section:layer. */
+  private readonly places = new Map<string, Region>();
 
   constructor(private readonly d: Deps) {
     this.el = document.createElement('aside');
@@ -106,7 +128,7 @@ export class Panel {
     const show = s.show!, i = s.selected.section, sec = show.sections[i], n = show.sections.length;
     const locked = s.ui.recording;
     const body = this.body;
-    this.rows = [];
+    this.rows = []; this.controls = null;
     body.innerHTML = `
       <header class="sec-head">
         <div class="sec-nav">
@@ -157,8 +179,9 @@ export class Panel {
       li.className = `layer${open ? ' open' : ''}`;
       li.style.setProperty('--hue', String(widgetHue(l.widget)));
       const changed = Object.keys(l.knobs ?? {}).length;
+      li.dataset.k = String(k);
       li.innerHTML = `<div class="layer-head">
-          <button type="button" class="layer-name" aria-expanded="${open}"><span class="swatch"></span><b>${esc(m?.name ?? l.widget)}</b>${m ? verdictTag(m) : '<span class="tag v-drop">missing</span>'}</button>
+          <button type="button" class="layer-name" aria-expanded="${open}"><span class="swatch"></span><b>${esc(m?.name ?? l.widget)}</b>${m ? verdictTag(m) : '<span class="tag v-drop">missing</span>'}<span class="layer-parts dim small"></span></button>
           <span class="layer-tools">
             <button type="button" class="icon" data-mv="1" aria-label="Move up" title="Move up (draws later, on top)" ${k === sec.layers.length - 1 ? 'disabled' : ''}>↑</button>
             <button type="button" class="icon" data-mv="-1" aria-label="Move down" title="Move down (draws earlier, beneath)" ${k === 0 ? 'disabled' : ''}>↓</button>
@@ -166,7 +189,8 @@ export class Panel {
           </span></div>
         ${open ? `<p class="blurb">${m?.blurb ?? ''}</p>${err ? `<p class="err">${esc(err)}</p>` : ''}
           <div class="params"></div>
-          <button type="button" class="link" data-defaults ${changed ? '' : 'hidden'}>Back to the widget's own settings</button>`
+          <button type="button" class="link" data-defaults ${changed ? '' : 'hidden'}>Back to the widget's own settings</button>
+          <div class="layer-controls"></div>`
         : (changed ? `<p class="dim small">${changed} knob${changed > 1 ? 's' : ''} changed</p>` : '')}`;
       li.querySelector('.layer-name')!.addEventListener('click', () => this.edit({ type: 'select', section: i, layer: open ? null : k }));
       li.querySelectorAll<HTMLButtonElement>('[data-mv]').forEach((b) => b.addEventListener('click', () => {
@@ -180,6 +204,7 @@ export class Panel {
         for (const key of Object.keys(this.d.store.state.show!.sections[i].layers[k]?.knobs ?? {})) this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key, value: null }, group });
       });
       if (open && entry) this.buildKnobs(li.querySelector('.params')!, entry.tool, i, k, l.knobs);
+      if (open) this.buildControls(li.querySelector('.layer-controls')!, l.widget, i, k);
       list.append(li);
     }
   }
@@ -200,21 +225,39 @@ export class Panel {
     }
   }
 
+  /** Listens to, Where and Intensity for the open layer: setLayer edits, each its own undo step. */
+  private buildControls(box: HTMLElement, widget: string, i: number, k: number): void {
+    const pack = this.d.store.state.song ?? this.d.song;
+    const sec = () => this.d.store.state.show!.sections[i];
+    this.controls = mountLayerControls(box, {
+      layers: studioLayers(), pack, widget, hue: widgetHue(widget),
+      span: () => ({ start: sec().start, end: sec().end }),
+      layer: () => sec()?.layers[k],
+      edit: (patch, group) => {
+        const before = this.d.store.state.show;
+        this.edit({ type: 'edit', edit: { kind: 'setLayer', section: i, layer: k, patch }, group: `layer:${i}:${k}:${group}` });
+        return this.d.store.state.show !== before;
+      },
+      memory: this.places, memoryKey: `${i}:${k}`,
+    });
+  }
+
   private buildPicker(sec: ShowSection, i: number): void {
     const box = this.body.querySelector<HTMLElement>('.picker')!;
-    const here = new Set(sec.layers.map((l) => l.widget));
-    const metas = this.d.order.map((id) => this.d.catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m);
-    const groups = GROUPS.map((title, gi) => ({ title, items: metas.filter((m) => groupOf(m) === gi) })).filter((g) => g.items.length);
-    box.innerHTML = groups.map((g) => `<section><h4>${g.title}</h4><ul>${g.items.map((m) => `
-      <li><button type="button" class="pick" data-id="${esc(m.id)}" ${here.has(m.id) ? 'disabled' : ''} style="--hue:${widgetHue(m.id)}">
-        <span class="pick-name"><span class="swatch"></span><b>${esc(m.name)}</b>${verdictTag(m)}${here.has(m.id) ? '<span class="dim small">in this section</span>' : ''}</span>
-        <span class="blurb">${m.blurb}</span></button></li>`).join('')}</ul></section>`).join('');
-    box.querySelectorAll<HTMLButtonElement>('.pick').forEach((b) => b.addEventListener('click', () => {
-      const n = this.d.store.state.show!.sections[i].layers.length;
-      this.picking = false;
-      this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: b.dataset.id! } });
-      this.edit({ type: 'select', section: i, layer: n });
-    }));
+    const tags = labTags(), pack = this.d.store.state.song ?? this.d.song;
+    const metas = this.d.order.map((id) => this.d.catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m)
+      .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
+    mountWidgetPicker(box, {
+      metas, words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
+      here: new Set(sec.layers.map((l) => l.widget)), state: this.pickerState,
+      groups: GROUPS, groupOf, verdict: verdictTag, hue: widgetHue,
+      pick: (id) => {
+        const n = this.d.store.state.show!.sections[i].layers.length;
+        this.picking = false;
+        this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id } });
+        this.edit({ type: 'select', section: i, layer: n });
+      },
+    });
   }
 
   private syncSection(s: StudioState): void {
@@ -230,6 +273,11 @@ export class Panel {
     for (const { row, layer } of this.rows) row.sync(knobState(row.q, sec.layers[layer]?.knobs?.[row.q.key]));
     const defaults = this.body.querySelector<HTMLButtonElement>('.layer.open [data-defaults]'), open = s.selected.layer;
     if (defaults) defaults.hidden = open === null || !Object.keys(sec.layers[open]?.knobs ?? {}).length;
+    this.body.querySelectorAll<HTMLElement>('.layer[data-k]').forEach((li) => {
+      const l = sec.layers[Number(li.dataset.k)], parts = li.querySelector('.layer-parts');
+      if (l && parts) parts.textContent = layerParts(l);
+    });
+    this.controls?.sync();
     this.where();
   }
 
