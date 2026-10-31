@@ -58,3 +58,10 @@ Next: the user wants to try them on Beethoven's 5th too.
 
 The user (verbatim): "This is the way to go and it is the direction I want this project to go."
 Next round (morning 2026-10-31): fewer knobs per widget, and a small infographic per knob showing what it does.
+
+## Direction (the user, 2026-10-31, night)
+"Apparently we have some requirement that the music alone drives the visualization. That is not necessary at all! In the
+tests, I liked the visualizations more than the current state of the project with the listening to the microphone and the
+MIDI and stuff. So: the goal is to move towards the visualizations as they are in the demo page. Please don't get yourself
+restricted because of some prototype we made earlier!"
+→ The overnight WebGL port of the loved widgets was stopped (squares had landed in src/stage before the stop).
