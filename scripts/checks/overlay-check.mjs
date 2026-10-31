@@ -7,7 +7,8 @@
 // (it never draws into the canvas); then the mapping and the hash again at 900×600.
 //
 // Pictures (git-ignored): renders/look/T17/overlay.png (the stage with the handles over the corner window, the
-// reader's hint in the bar), after-drag.png (the canvas after a drag: the window moved), narrow.png (900×600).
+// reader's hint in the bar), after-drag.png (the canvas after a drag: the window moved), rotated.png and
+// rotated-canvas.png (a soft spot turned 30°, with and without its handles), narrow.png (900×600).
 //
 //   npm run overlay-check [-- --headed] [--keep]
 //
@@ -39,7 +40,8 @@ const pic = () => page.evaluate(() => {
   const c = document.getElementById('c'), r = c.getBoundingClientRect(), k = Math.min(r.width / c.width, r.height / c.height);
   return { x: r.left + (r.width - c.width * k) / 2, y: r.top + (r.height - c.height * k) / 2, w: c.width * k, h: c.height * k };
 });
-const region = () => page.evaluate(() => { const s = window.__studio.store.state; return s.show.sections[0].layers[1].region ?? null; });
+const regionOf = (k) => page.evaluate((i) => window.__studio.store.state.show.sections[0].layers[i].region ?? null, k);
+const region = () => regionOf(1);
 const shown = () => page.evaluate(() => {
   const svg = document.querySelector('.wa-rg'), bar = document.querySelector('.wa-rg-bar');
   return !!svg && svg.style.display !== 'none' && !!bar && !bar.hidden;
@@ -163,6 +165,24 @@ try {
     && w1.mode === 'window' && w1.shape === n1.shape, fmt(w1));
   await page.evaluate(() => window.__studio.store.dispatch({ type: 'undo' }));
   check('the drawn box is one undo step', fmt(await region()) === fmt(n1));
+
+  // A rotated, soft spot on kandinsky (layer 0): the right edge's handle pulled 40 px along the turned axis grows w
+  // only, and the left edge stays; then a body drag, and the look (the outline over the picture's soft edge).
+  await page.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setLayer', section: 0, layer: 0,
+    patch: { region: { mode: 'spot', shape: 'ellipse', x: 0.42, y: 0.56, w: 0.42, h: 0.5, rot: 30, feather: 0.4 } } } }));
+  await select(0);
+  const o0 = await regionOf(0), c30 = Math.cos(Math.PI / 6), s30 = Math.sin(Math.PI / 6);
+  await drag(at(p, o0, 1, 0), 40 * c30, 40 * s30);
+  const o1 = await regionOf(0);
+  check('rotated 30°, the right edge pulled 40 px along its axis grows w by 40 px and keeps h and the left edge',
+    near(o1.w - o0.w, 40 / p.w, 0.002) && o1.h === o0.h && near(o1.x - o0.x, (20 * c30) / p.w, 0.002) && near(o1.y - o0.y, (20 * s30) / p.h, 0.002) && o1.rot === 30,
+    `${fmt(o0)} → ${fmt(o1)}`);
+  await drag(at(p, o1, 0, 0), 60, -30);
+  await previewAt(6.5);
+  await page.screenshot({ path: path.join(LOOK, 'rotated.png'), clip: { x: p.x - 4, y: p.y - 4, width: p.w + 8, height: p.h + 8 } });
+  const rpng = await page.evaluate(() => window.__studio.runtime.ctx.canvas.toDataURL('image/png'));
+  writeFileSync(path.join(LOOK, 'rotated-canvas.png'), Buffer.from(rpng.split(',')[1], 'base64'));
+  await select(1);
 
   // The canvas is the same with the overlay shown and hidden (a paused picture holds still, so any change would be the
   // overlay's); Esc hides it; reopening the layer shows it again. (Two previews of one moment are not compared: the

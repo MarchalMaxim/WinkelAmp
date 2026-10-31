@@ -45,6 +45,7 @@
     '.wa-rg .wa-rg-under{fill:none;stroke:#000;stroke-opacity:.6;stroke-width:3.5}',
     '.wa-rg .wa-rg-line{fill:none;stroke:#fff;stroke-width:1.5}',
     '.wa-rg:focus .wa-rg-line{stroke:#ffd9b0}',
+    '.wa-rg .wa-rg-box{fill:none;stroke:#fff;stroke-opacity:.35;stroke-width:1;stroke-dasharray:1 3}',
     '.wa-rg .wa-rg-soft{fill:none;stroke:#fff;stroke-opacity:.75;stroke-width:1;stroke-dasharray:5 4}',
     '.wa-rg .wa-rg-stem{stroke:#fff;stroke-width:1.2}',
     '.wa-rg .wa-rg-h{fill:#fff;stroke:#000;stroke-opacity:.7;stroke-width:1.2;pointer-events:all;touch-action:none}',
@@ -131,6 +132,7 @@
     var svg = el('svg', { class: 'wa-rg', tabindex: '0', role: 'group', 'aria-label': 'Where this layer is seen: drag to move, handles to resize, arrows to nudge, Esc to close' });
     svg.style.display = 'none';
     var frame = el('g', {}, svg);
+    var box = el('rect', { class: 'wa-rg-box' }, frame);   // an ellipse's box, so its corner handles have something to hold
     var shapes = {};
     ['under', 'line', 'soft', 'hit'].forEach(function (cls) {
       shapes[cls] = { rect: el('rect', { class: 'wa-rg-' + cls }, frame), ellipse: el('ellipse', { class: 'wa-rg-' + cls }, frame) };
@@ -173,6 +175,8 @@
         set(s.ellipse, { cx: 0, cy: 0, rx: w / 2, ry: h / 2 });
         s.rect.style.display = ell ? 'none' : ''; s.ellipse.style.display = ell ? '' : 'none';
       });
+      set(box, { x: -w / 2, y: -h / 2, width: w, height: h });
+      box.style.display = ell ? '' : 'none';
       var soft = shapes.soft, band = f * Math.min(w, h) / 2;
       set(soft.rect, { x: -w / 2 + band, y: -h / 2 + band, width: Math.max(0, w - 2 * band), height: Math.max(0, h - 2 * band) });
       set(soft.ellipse, { cx: 0, cy: 0, rx: (1 - f) * w / 2, ry: (1 - f) * h / 2 });
