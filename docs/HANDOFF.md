@@ -79,6 +79,27 @@ the user's call.**
     after 100–150 frames: it now posts the bytes;
   - T1's contract files had never been committed (the later tasks' commits depended on them); they are now.
 
+### Fixed after the final review (2026-11-01), and checked again
+
+- A time slice moved from the whole screen or a mask into a small copy (window) pasted its window's picture over the
+  whole stage at every step (its put-back hook stayed on the shared canvas): the put-back now acts only on the canvas
+  it was kept from. Runtime-check 9 covers stage → window and spot → window for it (0 copies on the stage, the stage
+  outside the box byte-equal to a run windowed from the start); red before the fix, green after.
+- `check-show`, `render-show`, the studio's save route and the studio pass the song's tracks to the validator, so a
+  listen naming a track the song lacks gets its warning (`this song has no horn: it plays on all notes`) there too.
+- Arrow-key nudges of a pivot are one undo step per press, no longer merged across pivots (lanes-check).
+- Cancelling an HD render asks render-show (over an IPC channel) to close Chrome, ffmpeg and its server and remove its
+  temp folder; after 20 s, or without the channel, the whole process tree is killed and the job removes the folder.
+  Checked for real through the API: cancelled at frame 60 of 3600, the folder gone, no ffmpeg left.
+- `labLayerSpecs` and `labLayers` have unit tests (`tests/driver-layers.test.ts`); runtime-check's scale-2 software
+  pass takes a fresh browser per widget and retries a crashed run once; layers-check takes its picker words from
+  `lab/tags.json` (the user's retagging had dropped rorschach's "liquid").
+- The docs say Small copy (window, the default for every widget) and Mask (spot).
+- Checked: `npm test` (75 files, 960 tests), typecheck, build, `widget-docs --check`, `check-show` (four shows ok),
+  `runtime-check` 14/14, `studio-check` 33/33, `layers-check` 20/20, `overlay-check` 27/27, `lanes-check` 16/16,
+  `record-check` 11/11, `hd-check` no QUARTER and no ERROR at 2× (scribble SOFT as before; timeslice at 3× moved
+  0.087 and 0.095 against 0.1), `fidelity` 724/724 (721 identical; fewer cases than before since Hilma was dropped).
+
 ### What was measured
 
 - **YourMT3+** (MoE, on the GPU): Beethoven 7:05 in 80 s (piano share 0.049, ensemble, 8024 notes in ten tracks),
