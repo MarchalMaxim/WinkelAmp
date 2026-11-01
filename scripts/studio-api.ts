@@ -242,8 +242,8 @@ function renderJobs(dirs: { songs: string; shows: string }, spawnRender: RenderS
     const read = (raw: string) => {
       const line = raw.replace(/\r$/, '').trim();
       if (!line) return;
-      job.view.message = line;
       const r = renderLine(line), now = Date.now();
+      if (!r.work) job.view.message = line;   // the temp folder is the job's business, not the user's
       if (r.frames) job.view.progress = r.frames.n ? Math.min(1, r.frames.done / r.frames.n) : 0;
       if (r.left !== undefined && !job.fromEta) job.endsAt = now + r.left * 1000;
       if (r.total !== undefined) { job.endsAt = job.started + r.total * 1000; job.fromEta = true; }
