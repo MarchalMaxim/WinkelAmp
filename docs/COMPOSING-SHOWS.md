@@ -746,20 +746,6 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 | `push` | how hard notes push the pen | 0..1.5 | 0.8 | fixed | What each note does to the pen. Left: nothing, the line just winds down. Right: every note flings the pen back out and leaves a thick bright knot in the line. |
 | `stay` | how long the lines stay | 0.3..8 | 4.5 | fixed | How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other. |
 
-#### `hilma`: Hilma af Klint
-
-Spiritual geometry after Hilma af Klint, in soft pastels on a deep ground: the bass swells the split disc, major chords open a ring of petals and minor chords curl them into spirals. New in v2: every note lands on the figure. The petals or spirals at that note’s place spring out, a seed flies to an orbit as high as the note, and each attack clicks the figure round with the melody.
-
-Feel: serene, swelling, pale, glowing · Suits: voice, plucked · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `disc` | disc size from the bass | 0..1.6 | 1 | fixed | How strongly the low notes grow the disc in the middle. Left: a small, steady disc. Right: heavy bass fills the centre. |
-| `life` | how long the seeds and rings stay | 1..10 | 4.5 | faster → less | How long each note’s seed and each chord’s ring stay on their orbits. Left: they flash and go. Right: they pile up into a field of stars. |
-| `petals` | how many petals | 4..12 | 8 | fixed | How many petals open on major chords (minor chords curl half as many spirals). Left: a simple four-leaf cross. Right: a dense twelve-petal flower. |
-| `twins` | twin forms on the melody | 0..1 | 0.6 | fixed | How many and how big the mirrored pairs are that melody notes leave on both sides. Left: none, just the centre figure. Right: large pairs in the wings. |
-| `turn` | how far each note turns it | 0..1 | 0.4 | faster → more | How far each note clicks the figure round (forward when the melody climbs, back when it falls). Left: still, like a painting. Right: every note swings it. |
-
 ### Not judged yet
 
 #### `timeslice`: Time slice

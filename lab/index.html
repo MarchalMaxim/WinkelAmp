@@ -379,7 +379,7 @@ window.ICON = (() => {
 // leaves a note: Vite answers a missing file with its HTML page, so each file is fetched and checked before it runs.
 const TOOL_IDS = ['timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
   'matisse', 'kusama', 'ikeda', 'horizon',
-  'harmonograph', 'hilma', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
+  'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
   'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
 const LOAD_NOTES = { missing: [], broken: [] };
@@ -510,7 +510,6 @@ const VERDICTS = {
   fifths: { v: 'keep', on: 'new' },
   matisse: { v: 'needs work', on: 'new' },
   harmonograph: { v: 'needs work', on: 'new' },
-  hilma: { v: 'needs work', on: 'new' },
 };
 const VCLASS = { love: 'v-love', keep: 'v-keep', 'needs work': 'v-work' };
 const isRevised = (tool) => VERDICTS[tool.id] && (tool.tag ?? '') !== VERDICTS[tool.id].on;

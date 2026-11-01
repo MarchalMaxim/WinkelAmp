@@ -14,7 +14,6 @@
   "fold": {"feel":["whirling","glowing","stabbing","swelling"],"instruments":["contrabass","cello","piano"],"role":"top"},
   "halftone": {"feel":["grainy","swelling","warm","flickering"],"instruments":["strings","piano"],"role":"base"},
   "harmonograph": {"feel":["whirling","silky","glowing","serene"],"instruments":["strings","clarinet"],"role":"base"},
-  "hilma": {"feel":["serene","swelling","pale","glowing"],"instruments":["voice","plucked"],"role":"ground"},
   "horizon": {"feel":["still","serene","cool","longing"],"instruments":["strings","clarinet"],"role":"ground"},
   "ikeda": {"feel":["icy","flickering","brittle","marching"],"instruments":["harpsichord","piano"],"role":"ground"},
   "kandinsky": {"feel":["vivid","playful","triumphant","heavy"],"instruments":["tutti","trumpet","cello"],"role":"base"},
