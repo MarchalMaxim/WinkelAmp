@@ -290,7 +290,7 @@
         const s = shapes[i];
         s.age += dt; s.flash *= Math.pow(0.5, dt / 0.08);
         if (s.tb < 0 && s.age > 0.06 + s.hes) s.tb = 0;
-        if (s.tb >= 0) s.tb += dt;
+        if (s.tb >= 0) s.tb += dt * slow; // how present: the bolt's clock slows too, or a slowed shape just lives long enough to reach full speed
         // Desired direction: away from threats, plus the panicked school.
         let fx = 0, fy = 0;
         for (const t of threats) {

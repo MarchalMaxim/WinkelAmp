@@ -27,12 +27,12 @@ Slider "how present" (new, far right by default, slide it left), unless the line
 - **Kline**: "how heavy" (no new slider; it now reaches further left); below its old left end the strokes fade to faint lines on only the hardest chords.
 - **Graphic score**: "how present"; a faint page, only the hardest attacks are written.
 - **Boogie woogie**: "how present"; a dark, nearly still city.
-- **Cells**: "how present"; a faint, still mosaic.
-- **Nebula**: "how present"; a faint, calm haze.
+- **Cells**: "how present"; nearly dark and still, a faint cell on the hardest notes.
+- **Nebula**: "how present"; nearly dark, a few faint wisps gathering at the notes.
 - **Mandala**: "how present"; a faint figure, nearly still.
 - **Agnes Martin**: "how present"; a faint ghost of the page.
 - **Murmuration**: "how present"; a few faint birds.
-- **Marbling**: "drop size" (no new slider; it now reaches further left); below its old left end the drops thin to wisps and the combing calms.
+- **Marbling**: "drop size" (no new slider; it now reaches further left); below its old left end the drops shrink to a few small beads and shreds and the combing calms.
 - **Kandinsky**: "how present"; faint, calm shapes that barely scatter.
 - **Skittish shapes**: "how present"; a few faint shapes that hardly move.
 - **The current**: "how present"; faint threads in slow, barely tinted water.

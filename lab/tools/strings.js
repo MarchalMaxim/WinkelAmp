@@ -29,9 +29,9 @@
     let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
     if (a / vels.length >= cut) return true;
     a = 0; b = N.length; while (a < b) { const k = (a + b) >> 1; if (N[k][0] < x.t - 3) a = k + 1; else b = k; }
-    let less = 0, near = 0;
-    for (let i = a; i < N.length && N[i][0] <= x.t + 3; i++) { near++; if (N[i][3] < v) less++; }
-    return less / Math.max(1, near - 1) >= cut;
+    let peers = 0, near = 0;                             // notes this one is at least as hard as, itself included: a shared peak still counts
+    for (let i = a; i < N.length && N[i][0] <= x.t + 3; i++) { near++; if (N[i][3] <= v) peers++; }
+    return near < 2 || (peers - 1) / (near - 1) >= cut;  // a lone note is its own peak
   };
   const calmOf = (x) => 1 - 0.82 * (1 - x.p('presence'));  // how much of the motion is left: exactly 1 at full presence
   const inkOf = (x) => 1 - 0.84 * (1 - x.p('presence'));   // how much of the light is left: exactly 1 at full presence
@@ -115,7 +115,7 @@
       // the band stays centred on whatever register is sounding
       const ring = bend > 0.97;
       let pm = 0, pw = 0; for (const s of list) if (x.t < s.end) { pm += s.p; pw++; }
-      if (pw) centre += (pm / pw - centre) * (1 - Math.exp(-dt / 0.6));
+      if (pw) centre += (pm / pw - centre) * (1 - Math.exp(-dt * calm / 0.6));
       const homeOf = (p) => Math.max(-H * 0.42, Math.min(H * 0.42, (p - centre) * spread * H * 1.7));
       // consonance pulls partners together, dissonance builds knots
       const snd = list.filter((s) => x.t < s.end);
@@ -126,7 +126,7 @@
           const ic = Math.abs(o.m - s.m) % 12, d = DISS[Math.min(ic, 12 - ic)];
           const c = 1 - d; num += c * (homeOf(o.p) - homeOf(s.p)); den += c; rough += d; cnt++;
         }
-        const tgt = den ? pull * 0.6 * num / (1 + den) : 0;
+        const tgt = den ? pull * 0.6 * num / (1 + den) * calm : 0;
         s.shift += (tgt - s.shift) * (1 - Math.exp(-dt / 0.35));
         const harsh = cnt ? Math.max(0, Math.min(1, (rough / cnt - 0.12) / 0.3)) : 0; // average roughness, so big consonant chords stay smooth
         s.tangle += (harsh * tangle * calm - s.tangle) * (1 - Math.exp(-dt / (harsh ? 0.25 : 0.8)));
@@ -146,7 +146,7 @@
         const dim = Math.max(0.4, Math.exp(-Math.max(0, s.held - 2.5) / 3)); // a long-held note glows, then slowly sinks back like a piano tone
         s.glowLast = glow;
         const fade = fade0 * dim * ink;
-        const home = homeOf(s.p) * (1 + rel * 0.5), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8) * calm;
+        const home = homeOf(s.p) * (1 + rel * 0.5 * calm), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8) * calm;
         const kw = 0.03, bw = b ? 0.06 + b.age * 0.08 : 0, bfade = b ? Math.exp(-b.age / 0.7) * Math.min(1, b.age / 0.06) * calm : 0;
         const bR = b ? (10 + 4 * Math.min(6, b.n)) * calm : 0, bHome = b ? homeOf(b.cp) : 0;
         const gapH = sn ? 0.035 * (sn.age < 0.06 ? sn.age / 0.06 : Math.exp(-(sn.age - 0.06) / 0.6)) : 0;

@@ -7,7 +7,7 @@
 // notes are wide, slow and heavy, high notes small, quick and glinting. The pull now fades with distance, so a chord
 // becomes several separate knots joined by threads instead of one lump.
 // A sixth knob, how present (the user: sliders should dim, not only boost): turned down, the grains and the cores fade, the
-// drift, the puffs and the shoves calm, and only this piece's hardest notes ignite. At 1 everything is exactly as it was.
+// drift, the pull, the puffs and the shoves calm, and only this piece's hardest notes ignite. At 1 everything is exactly as it was.
 (() => {
   const MAXN = 7000, PCS = 12;
   const px = new Float32Array(MAXN), py = new Float32Array(MAXN), vx = new Float32Array(MAXN), vy = new Float32Array(MAXN);
@@ -82,7 +82,7 @@
           for (let j = 0; j < n; j++) { const a = r() * 6.28, d = 3 + r() * (3 + v * 7);
             ICON.dot(g, w / 2 + Math.cos(a) * d * 1.5, h / 2 + Math.sin(a) * d, 0.8, j % 2 ? ICON.gold : ICON.red); } } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, calm haze, and only the hardest notes of the piece flare. Right: every note ignites at full strength (as before).',
+        hint: 'How much it takes over. Left: nearly dark, a few faint wisps gathering at the notes, and only the hardest notes of the piece glow. Right: every note ignites at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.dots(g, 6 + v * 24, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }); ICON.dot(g, w / 2, h / 2, 1.2 + 3 * v, ICON.gold); }) },
     ],
     reset(x) {
@@ -150,7 +150,7 @@
         }
       }
       // 2. Move the grains. The pull goes like 1/d close in and falls away fast beyond RANGE, so every note keeps its own knot.
-      const n = Math.round(x.p('amount')), G = 52000 * x.p('pull') / Math.pow(Math.max(1, total), 0.3), sw = x.p('swirl');
+      const n = Math.round(x.p('amount')), G = 52000 * x.p('pull') / Math.pow(Math.max(1, total), 0.3) * (0.5 + 0.5 * pres), sw = x.p('swirl');   // turned down, the dust gathers into looser knots, so they don't glare
       const drag = Math.exp(-dt * 0.95), hotDrag = Math.exp(-dt * 3.2), vmax = 560, calm = Math.max(0, 1 - total), kc = 1 - Math.exp(-dt / 0.5), cool = Math.exp(-dt / 0.55);
       const quiet = na ? 0.35 : 1, drift = (22 + 30 * calm) * quiet * pres, jit = (3 + 40 * calm) * quiet * Math.sqrt(dt) * pres;   // any note at all calms the drift
       const L = x.p('threads') * dt, rx = R0 * 1.8, ry = R0 * 1.3;

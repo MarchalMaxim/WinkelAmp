@@ -6,7 +6,7 @@
 // spark on the crest of its peak that rides its line back into the stack, the lines fade out at their ends instead of
 // stopping in a hard-edged block, and they run warm on the bass side, cool on the treble side.
 // A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, the lines are fainter,
-// thinner, lower and roll slower, and only the hardest attacks of the piece flare and leave a spark. At 1 it changes nothing.
+// thinner, lower and roll slower, and only the hardest attacks of the piece leap up and leave a spark. At 1 it changes nothing.
 (() => {
   const BONE = '236,228,212', WARM = '246,214,182', COOL = '198,216,238', EMBER = [255, 132, 72];
   const B = 200;                       // points along one line
@@ -93,7 +93,7 @@
         hint: 'How far the stack recedes. Left: flat, every line the same width. Right: lines shrink and crowd toward the top, rolling into the distance.',
         icon: (g, v, w, h) => mini(g, w, h, { n: 7, amp: 0.12, persp: v, lw: 1 }) },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, low lines rolling slowly, and only the hardest attacks flare and spark. Right: every attack at full strength (as before).',
+        hint: 'How much it takes over. Left: faint, low lines rolling slowly, and only the hardest attacks leap up and spark. Right: every attack at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => mini(g, w, h, { n: 4, amp: 0.2 + 0.7 * v })) },
     ],
     reset() { vels = null; rows = []; pend = null; pendNoise = null; pendGap = 0.7; pendLvl = 0; pendGl = []; live = new Float32Array(B); since = 0; hits = []; flash = 0; },

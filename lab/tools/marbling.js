@@ -123,7 +123,7 @@
     blurb: 'Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.',
     params: [
       { key: 'drop', label: 'drop size', min: 0.1, max: 1.8, value: 1,
-        hint: 'How big the drops are overall; louder notes always make bigger ones. Left: thin wisps of ink on black. Right: floods.',
+        hint: 'How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods.',
         icon: (g, v, w, h) => { const r = 2.5 + v * 9.5; ICON.dot(g, w / 2, h / 2, r, '#801016'); ICON.dot(g, w / 2, h / 2, r * 0.72, '#000'); ICON.dot(g, w / 2, h / 2, r * 0.55, '#c43424'); ICON.dot(g, w / 2, h / 2, r * 0.28, '#f0e2cc'); } },
       { key: 'combing', label: 'combing', min: 0, max: 1.5, value: 0.6, drive: '+rate',
         hint: 'How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers.',

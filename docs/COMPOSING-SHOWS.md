@@ -503,7 +503,7 @@ Feel: liquid, flowing, swelling, warm · Suits: piano, strings · Role: standalo
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `drop` | drop size | 0.1..1.8 | 1 | fixed | How big the drops are overall; louder notes always make bigger ones. Left: thin wisps of ink on black. Right: floods. |
+| `drop` | drop size | 0.1..1.8 | 1 | fixed | How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods. |
 | `combing` | combing | 0..1.5 | 0.6 | faster → more | How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers. |
 | `twist` | swirl | 0..1 | 0.1 | more bass → more | How much the bass twists the ink around the newest drops. Left: still water. Right: a whirlpool. |
 | `palette` | colours | 0..3 | 0 | fixed | The inks, low notes to high. Left: blood and bone; then indigo and gold, verdigris and ash. Right: a rainbow by note. |
@@ -745,7 +745,7 @@ Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
 | `lines` | how many lines | 16..80 | 46 | fixed | How many lines are stacked. Left: a few, far apart. Right: many, packed tight. |
 | `sharp` | soft hills or sharp needles | 0..1 | 0.4 | fixed | The shape of a peak. Left: smooth, rounded hills. Right: thin, jagged needles. |
 | `depth` | flat or deep | 0..1 | 0.3 | fixed | How far the stack recedes. Left: flat, every line the same width. Right: lines shrink and crowd toward the top, rolling into the distance. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint, low lines rolling slowly, and only the hardest attacks flare and spark. Right: every attack at full strength (as before). |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint, low lines rolling slowly, and only the hardest attacks leap up and spark. Right: every attack at full strength (as before). |
 
 #### `kline`: Kline
 
@@ -775,7 +775,7 @@ Feel: warm, pale, flowing, playful · Suits: strings, clarinet · Role: base
 | `pebble` | mosaic or pebbles | 0..1 | 0.25 | fixed | The shape of the cells. Left: a tight mosaic of sharp-cornered tiles. Right: separate rounded pebbles with dark gaps between them. |
 | `drift` | drift | 0..2 | 0.6 | faster → more | How much the whole mosaic sways and flows. Left: cells stay where the notes put them. Right: everything floats on a slow current. |
 | `fill` | solid or outlined | 0..1 | 0.85 | fixed | How the cells are painted. Left: only their outlines, like a line drawing. Right: solid blocks of colour. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint, still mosaic where only the hardest notes (in a quiet stretch, one now and then) open a cell. Right: every note opens one at full colour (as before). |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark and still; only the hardest notes (in a quiet stretch, one now and then) open a faint cell. Right: every note opens one at full colour (as before). |
 
 #### `nebula`: Nebula
 
@@ -790,7 +790,7 @@ Feel: glowing, grainy, whirling, burning · Suits: strings, voice · Role: base
 | `amount` | how much dust | 1000..7000 | 4000 | fixed | How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud. |
 | `threads` | grains or threads | 0.5..6 | 1.4 | fixed | How long each grain draws its path. Left: fine points of dust. Right: long silky threads. |
 | `burst` | how each note ignites | 0..2 | 0.9 | louder → more | What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of bright new grains. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint, calm haze, and only the hardest notes of the piece flare. Right: every note ignites at full strength (as before). |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark, a few faint wisps gathering at the notes, and only the hardest notes of the piece glow. Right: every note ignites at full strength (as before). |
 
 #### `pixelsort`: Pixel sort (already combines with other widgets in a very cool way)
 

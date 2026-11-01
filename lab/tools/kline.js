@@ -30,7 +30,7 @@
   const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const inkOf = (x) => clamp(Math.round(x.p('colour')), 0, INKS.length - 1);
   // how firm the hand is: 1 at any weight from 0.35 up, 0 at the left end of the knob (0.1)
-  const firmOf = (x) => clamp((x.p('weight') - 0.1) / 0.25, 0, 1);
+  const firmOf = (x) => { const w = x.p('weight'); return w >= 0.35 ? 1 : clamp((w - 0.1) / 0.25, 0, 1); };
 
   // How big a chord is compared with the rest of this piece: the share of the song's chords that are softer (0..1).
   function buildPct() {

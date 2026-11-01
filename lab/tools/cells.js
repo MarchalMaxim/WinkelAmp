@@ -181,7 +181,7 @@
           g.strokeStyle = ICON.lerp('#b9a0e0', '#6545a0', v); g.lineWidth = 1.8; g.stroke();
         } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, still mosaic where only the hardest notes (in a quiet stretch, one now and then) open a cell. Right: every note opens one at full colour (as before).',
+        hint: 'How much it takes over. Left: nearly dark and still; only the hardest notes (in a quiet stretch, one now and then) open a faint cell. Right: every note opens one at full colour (as before).',
         icon: (g, v, w, h) => {
           const P = [[[21, 1], [39, 1], [39, 13], [16, 15]], [[1, 1], [21, 1], [16, 15], [1, 19]], [[1, 19], [16, 15], [39, 13], [39, 25], [1, 25]]];
           ICON.alpha(g, 0.15 + 0.85 * v, () => ['#ddaa45', '#2f5a9e', '#c8432b'].forEach((c, i) => {
@@ -230,7 +230,7 @@
       for (let i = 0; i < open.length - MAXN; i++) open[i].close = true;
     },
     frame(x) {
-      const pres = x.p('presence'); if (pres >= 1) layOn = false;
+      const pres = x.p('presence'); if (pres >= 1) layOn = false; else if (x.dt <= 0) return;
       const g = pres < 1 ? sheet(x) : x.g, dt = x.dt; if (!seeds.length) seeds = ground(x);
       const drift = x.p('drift') * pres, stay = x.p('stay') * (1 - 0.6 * (1 - pres)), pebble = x.p('pebble'), fill = x.p('fill'), edge = x.p('edge');
       T += dt * (0.4 + drift);
