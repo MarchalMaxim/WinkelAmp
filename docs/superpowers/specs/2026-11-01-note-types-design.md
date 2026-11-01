@@ -56,7 +56,7 @@ Two facts shape every rule:
 | Tremolo | No | Looks the same as a held note the transcriber chopped up. |
 | Grace notes, ornaments | No | See above. |
 
-Attacks each shipped type finds (`noteTypeCounts`; the port of the rules into `lab/layers/lines.js` was checked note for
+Attacks each shipped type finds (`noteTypeAttacks`; the port of the rules into `lab/layers/lines.js` was checked note for
 note against the measured rules on all six songs, with no mismatch; all five types together take under 10 ms a song):
 
 | Song | Length | Big chords | Fast runs | Trills | Long | Repeated |
@@ -107,8 +107,10 @@ and is imported by `show.ts`. `tests/note-types.test.ts` pins it to the copy in 
 one: the note picker made the same call for a missing set of picks. This differs on purpose from a track the song lacks,
 which falls back to all notes. The saying follows that track's style:
 
-- **In a file:** `validateShow` warns `this song has no trills: this layer stays still`, at the layer's `listen`, when
-  `ShowContext.noteTypes` (attacks per type) is given. `check-show` and `render-show` give it.
+- **In a file:** `validateShow` warns at the layer's `listen`, when `ShowContext.noteTypes` (attack times per type) is given:
+  `this song has no trills: this layer stays still`, or for a song that has some but not in this section,
+  `this section has no trills: this layer stays still here`. `check-show` and `render-show` give it, so a Claude session composing
+  by hand is told too.
 - **In the panel:** under the list, `This song has no trills: the layer stays still.`, styled as a warning. A song that has
   some but not in this section: the existing `Silent in this section: the layer stays still here.`, now styled as a warning
   for a note type.
@@ -194,7 +196,7 @@ none has been judged by eye. "Try by hand" names a pairing worth a look that was
 | boogie | none | Every attack makes the traffic hop. |
 | cells | none | A mosaic of one cell per note. |
 | nebula | none | Every note is a pull on the grains. |
-| **pixelsort** | **chords** | Sorts on each chord, and has no picture of its own to starve. In dense music it never rests; on big chords each melt reads. |
+| **pixelsort** | **chords** | Sorts on each chord, and has no picture of its own to starve. In dense music it never rests; on big chords each melt reads. (Its melt reads how busy all the music is, as it runs after the others draw: that stays the music's density, as on any routed pixelsort today.) |
 | mandala | none | Each note lands on its ring, and let-go notes linger as lace. |
 | **martin** | **long** | "A held note tints its own thin stripe" is the long note exactly, and it is made to look nearly still. |
 | murmuration | none | A lead whose ribbon traces the melody; it re-forms on loud chords by itself. |

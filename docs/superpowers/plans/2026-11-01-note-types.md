@@ -50,8 +50,8 @@ ran in a real studio. T2's commit deletes the folder.
 
 ## Review Focus
 
-1. **The rules match what was measured.** The spec's table of attacks is `noteTypeCounts` on the six songs. To check, in Node
-   with `loadLayers()`: Nocturne 218, 46, 24, 150, 392; Winter Wind 18, 496, 0, 26, 94; Beethoven 249, 135, 0, 49, 808 (chords, runs,
+1. **The rules match what was measured.** The spec's table of attacks is the lengths of `noteTypeAttacks` on the six songs. To
+   check, in Node with `loadLayers()`: Nocturne 218, 46, 24, 150, 392; Winter Wind 18, 496, 0, 26, 94; Beethoven 249, 135, 0, 49, 808 (chords, runs,
    trills, long, repeats). `songs/` is local, so this is by hand, not a test.
 2. **Never all notes.** Follow a song with no trills from `listenNotes` to `runtime.load`: `heard` is `'trills'`, so it is routed
    with empty notes and chords, and no widget indexes `NOTES[0]` or `CHORDS[0]` unguarded (`grep -n "NOTES\[0\]\|CHORDS\[0\]" lab/tools/*.js`).
@@ -60,7 +60,10 @@ ran in a real studio. T2's commit deletes the folder.
 4. **40 ms.** `groupChords` in `lab/layers/lines.js` and `src/widgets/chords.ts` are untouched, and `tests/note-types.test.ts` pins that
    a run note 20 ms after an unrelated chord is its own attack on the layer and part of the chord for everyone else.
 5. **The defaults are reasoned, not seen.** The spec says so and asks the user to look. If you have a browser on a free port, look
-   at stella on Beethoven, martin on the Nocturne, pixelsort over any base on the Prelude, flee on Winter Wind.
+   at stella on Beethoven, martin on the Nocturne, pixelsort over any base on the Prelude, flee on Winter Wind. Queued passes run
+   outside the instance's swap for a routed listen (`0193aa2` fixes that for picks only, on purpose: "a routed listen such as @melody
+   keeps what the lab draws"). Checked for the two defaults that queue: stella's `post` reads only what `frame` and `onChord` captured;
+   pixelsort's `chord` reads `x.feat.rate`, so its melt follows all the music's density, which is what it was tuned on. Both left as they are.
 6. **Merges.** The patches merge with no conflict with `claude/note-picker` at `6ae36df` and `claude/widgets-round9` at `34357cc`.
    Re-run `git merge-tree --write-tree HEAD <branch>` after each task. Both are moving; a small hand may be needed, not a redesign.
 7. **One wart on purpose.** `validateLayer`'s message for an unknown listen does not list the note types until the picker has landed.
@@ -86,13 +89,13 @@ export const NOTE_TYPES: readonly NoteType[];                // that order
 export const NOTE_TYPE_LABELS: Record<NoteType, string>;     // Big chords, Fast runs, Trills, Long ringing notes, Repeated notes
 // src/widgets/layers.ts, WaLayers
 NOTE_TYPES: readonly NoteType[];
-noteTypeCounts(song: SongNotes): Record<NoteType, number>;   // attacks per type
+noteTypeAttacks(song: SongNotes): Record<NoteType, number[]>;   // attack times per type
 // src/studio/show/show.ts
-export interface ShowContext { /* … */ noteTypes?: Partial<Record<NoteType, number>> }   // undefined: no such warnings
+export interface ShowContext { /* … */ noteTypes?: Partial<Record<NoteType, readonly number[]>> }   // undefined: no such warnings
 ```
 
 `lab/layers/lines.js` gains, before `WA.lineNotes`: `bigChordIds`, `runIds`, `pitchIndex`, `trillIds`, `longIds`, `repeatIds`,
-`NOTE_RULES`, `ruleNotes(notes, type)`, `noteTypeOfSong(song, type)` and `WA.noteTypeCounts`; after `LINES`, `WA.NOTE_TYPES`; and after
+`NOTE_RULES`, `ruleNotes(notes, type)`, `noteTypeOfSong(song, type)` and `WA.noteTypeAttacks`; after `LINES`, `WA.NOTE_TYPES`; and after
 the `LINES.indexOf` line in `listenNotes`:
 
 ```js
@@ -100,7 +103,9 @@ if (WA.NOTE_TYPES.indexOf(listen) >= 0) return { notes: noteTypeOfSong(song, lis
 ```
 
 `isListen` gains a new first statement. `missingPart` gains a first branch that returns
-`this song has no ${label in lower case}: this layer stays still` when `c.noteTypes?.[t] === 0`, and otherwise `null` for a note type.
+`this song has no ${label in lower case}: this layer stays still` when `c.noteTypes?.[t]?.length === 0`, and otherwise `null` for a
+note type. `validateLayer` gains a statement before the region check that warns `this section has no ${label in lower case}: this layer
+stays still here` when the song has attacks of the type and none in `[start, end)`.
 
 **Tests,** in `tests/note-types.test.ts`, on synthetic notes:
 
@@ -117,16 +122,18 @@ if (WA.NOTE_TYPES.indexOf(listen) >= 0) return { notes: noteTypeOfSong(song, lis
   also with no notes at all; on an ensemble a violin trill lost in all the notes is found by track, and a flute's run; with one track
   of 40 notes or more the rule reads all notes; `repeats` always reads all notes; a run note 20 ms after a chord is one attack of 3
   notes in `groupChords(notes)`, its own attack `{ t: 1, lo: 60, hi: 60 }` in `groupChords` of the part, and the first is unchanged after.
-- `noteTypeCounts`: `{ chords: 1, runs: 0, trills: 0, long: 0, repeats: 4 }` on a chord and 4 strikes; all zeros with no notes.
+- `noteTypeAttacks`: `{ chords: [0], runs: [], trills: [], long: [], repeats: [5, 5.25, 5.5, 5.75] }` on a chord and 4 strikes; all empty
+  with no notes.
 - `in a show`: `isListen` is true for each type, false for `grace`, `graces`, `tremolo`, `ornaments`; `listen: 'runs'` validates with no
-  errors, its key is `flee@runs`, repair fixes nothing, the canonical form is version 2 and keeps it; the warning is exactly as above at
-  `sections[0].layers[0].listen` with `noteTypes.runs === 0`, and absent when the count is above 0, when `noteTypes` is missing, with
-  `{ tracks: [] }`, and for a layer with no listen; `addLayer` and `setLayer` take a type and `listen: null` clears it.
+  errors, its key is `flee@runs`, repair fixes nothing, the canonical form is version 2 and keeps it; with `noteTypes` the song warning is
+  exactly as above at `sections[0].layers[0].listen` for an empty list, once, and the section warning for times all outside the section
+  (an attack at the section's end is outside); no warning for one inside, when `noteTypes` is missing, with `{ tracks: [] }`, for a
+  layer with no listen, or on a line; `addLayer` and `setLayer` take a type and `listen: null` clears it.
 
 **Steps:**
 
 - [ ] Apply: `git apply docs/superpowers/plans/2026-11-01-note-types/t1.patch` (add `--3way` if the branch has moved).
-- [ ] With the Edit tool, which keeps the file's CRLF, in `scripts/render-show.mjs`: add `, noteTypes: loadLayers().noteTypeCounts(pack)` after
+- [ ] With the Edit tool, which keeps the file's CRLF, in `scripts/render-show.mjs`: add `, noteTypes: loadLayers().noteTypeAttacks(pack)` after
   `tracks: Object.keys(pack.tracks ?? {})` in the `validateShow` call. `loadLayers` is already in scope there.
 - [ ] `npx vitest run tests/note-types.test.ts tests/layers-lines.test.ts tests/check-show.test.ts` → all pass.
 - [ ] `npm run typecheck` → clean. `npm run check-show` → all six shows ok.
