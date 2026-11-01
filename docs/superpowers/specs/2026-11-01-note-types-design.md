@@ -1,6 +1,6 @@
 # Note types: widgets that answer one kind of note, chosen for you when placed
 
-Date: 2026-11-01. Status: design, being built on `claude/note-types`. Plan:
+Date: 2026-11-01. Status: built on `claude/note-types`, not merged; the four defaults not yet judged by eye. Plan:
 `docs/superpowers/plans/2026-11-01-note-types.md`.
 
 Each decision is marked:
@@ -144,10 +144,15 @@ its gap starts at 40 ms, because under that a close pitch is nearly always a spr
   is an error). A separate file would need new loaders for no gain.
 - **Applied at one moment:** when the user picks the widget from the collection in the studio. `panel.ts` passes `listen` to
   the `addLayer` edit that already takes one, so placing is one undo step, and `edit.ts` does not change.
-- **Only if the section has enough:** at least 3 attacks of that type, and one per 10 s on average (`neededAttacks`). Otherwise
-  the widget is placed on all notes and the panel says `This widget usually hears fast runs, but this section has only 2: it
-  plays on all notes.`, with `Use them`. A section with none has no button. The rate matters: a 65 s section with one
-  short trill should not put a widget in the dark for 64 s.
+- **Only if the section has enough:** at least 3 attacks of that type, one per 10 s on average (`neededAttacks`), and at least
+  half the section within 5 s of one of them (`nearShare`). Otherwise the widget is placed on all notes and the panel says
+  `This widget usually hears fast runs, but this section has only 2: it plays on all notes.`, or for a burst `..., but most of
+  this section is far from any: it plays on all notes.`, with `Use them`. A section with none has no button, whatever the layer
+  is on. The spread matters: a 65 s section with one short trill should not put a widget in the dark for 64 s, and these types
+  come in clusters, so a count alone passes one burst (flee on runs passed Vivaldi Winter's 497 to 519 s with 11 attacks against
+  3 needed, with about 95 % of it more than 5 s from any). A layer put on its type in such a section is told too:
+  `Hears fast runs, as this widget usually does, but most of this section is far from any: it stays still there.` This only
+  decides what placing chooses; `Use them` still takes flee's emptying between runs, as an accent may.
 - **Shown on the layer:** the head already says `hears repeated notes`. A `♪` button beside the arrows goes back to all notes in
   one click, shown when the layer is on its usual type. Open, under "Listens to": `Hears repeated notes, as this widget usually
   does.` with `All notes instead`, or `This widget usually hears repeated notes.` with `Use them`. The list above it changes it to
@@ -161,11 +166,12 @@ How often the threshold lets a type through, on the committed shows' own section
 
 | Song (sections) | Big chords | Fast runs | Trills | Long | Repeated |
 |---|---|---|---|---|---|
-| Nocturne (11) | 3 | 2 | 3 | 10 | 3 |
-| Winter Wind (23) | 1 | 16 | 0 | 3 | 9 |
+| Nocturne (11) | 3 | 1 (2 by count alone) | 1 (3) | 10 | 3 |
+| Winter Wind (23) | 1 | 15 (16) | 0 | 3 | 9 |
 | Rach Prelude (9) | 4 | 2 | 0 | 3 | 4 |
-| Vivaldi Winter (8) | 6 | 5 | 3 | 2 | 8 |
-| Beethoven 5 (33) | 20 | 10 | 0 | 5 | 29 |
+| Vivaldi Winter (8) | 5 (6) | 2 (5) | 0 (3) | 2 | 6 (8) |
+| Vivaldi Summer (15) | 8 (9) | 4 (8) | 1 (5) | 7 | 14 (15) |
+| Beethoven 5 (33) | 20 | 7 (10) | 0 | 5 | 29 |
 
 **The table.** Every widget in `TOOL_IDS`, in that order. The test: is the type the widget's own promise? Routing shrinks both
 the chords a widget hears and `x.sounding()`, so a widget that builds its picture from running stats over every attack changes
@@ -204,7 +210,7 @@ none has been judged by eye. "Try by hand" names a pairing worth a look that was
 | kandinsky | none | Its vocabulary of bars, circles and triangles comes from all registers. |
 | rorschach | none | Picks low notes and the fullest chords itself. |
 | squares | none | Its promise is low notes: the `low` line fits, not a note type. |
-| **flee** | **runs** | Fast passages make its shapes dense and frantic, and its own pulse reads that as panic. An accent, so it may empty between runs while the base carries the picture. |
+| **flee** | **runs** | Fast passages make its shapes dense and frantic, and its own pulse reads that as panic. An accent, so it may empty between runs while the base carries the picture. Not weighed when this was chosen: only notes from A3 up spawn its shapes (`REG`), so only 26 of the 49 run attacks on the Rach Prelude and 38 of 46 on the Nocturne can; and its loud-chord bursts never fire on single-note runs. Look at this when judging flee. |
 | current | none | Threads for the melody, the inner voices and the bass. |
 | strings | none | Each note is a thread. Trills are too rare to be anyone's usual. Try by hand: trills, on a violin track. |
 | fields | none | An under layer carrying the harmony; busy playing makes its edges hum. Try by hand: long. |
@@ -244,7 +250,7 @@ over; it needs the gaps), `comfort`, `duet`, `gust` (already keeps its full blas
 **[builder]** The plan's patches were merged in a dry run with `git merge-tree`:
 
 - `claude/note-picker` at `f3ce23f`: no conflict, and the merged tree typechecks and passes its tests, but for the known
-  `vivaldi-summer.json` failure. To keep it so, `isListen` gains its note-type check as a new first statement
+  `vivaldi-summer.json` failure. Once built, against `4601a55`: still no conflict by `git merge-tree`; that tree was not run. To keep it so, `isListen` gains its note-type check as a new first statement
   instead of editing the line the picker edits; `listenNotes` gains its branch after the `LINES` line, as the picker inserts
   before it; `WaLayers` gains its members away from the `listenNotes` line; the `missingPart` warning is in a function the picker
   leaves alone; `COMPOSING-SHOWS.md` gains its bullet before the lines bullet, as the picker's goes after; `layer-controls.ts`
@@ -273,8 +279,12 @@ rewrites that line. Add them when the picker has landed.
 4. Only four widgets get a default: stella repeats, pixelsort chords, martin long, flee runs. Trills are nobody's default. These
    come from reading the code, not from looking: **please look at these four first**, and at the "try by hand" pairs (brush long,
    strings trills, scribble runs, mclaren repeats, fields long). A pairing you like is one field in `lab/tags.json`.
-5. A default is taken only when the section has 3 attacks and one per 10 s; otherwise the widget plays on all notes and says why.
+5. A default is taken only when the section has 3 attacks, one per 10 s, and half of it within 5 s of one; otherwise the widget
+   plays on all notes and says why. The spread test came after the final review measured dark layers passing the count. The review
+   left it to you; you were asleep, so it was the builder's call. To go back to the count alone, drop the second test in
+   `enoughAttacks`. It only changes what placing chooses: no existing show moves.
 6. The field is `noteType` in `lab/tags.json`.
 7. The auto-composer does not use it.
 8. Runs and trills go per track on an ensemble; the others read all the notes.
 9. Round 9's widgets arrive with none; `honey` long is proposed.
+10. Flee keeps `runs`, though its register limit and its chord bursts were not weighed when it was chosen (the table): your eye decides.

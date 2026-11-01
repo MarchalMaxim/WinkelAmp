@@ -14,7 +14,7 @@ import { tagsOf } from '../../widgets/tags';
 import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
 import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
-import { describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
+import { allNotesTaken, describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
@@ -287,7 +287,13 @@ export class Panel {
       const l = sec.layers[Number(li.dataset.k)], parts = li.querySelector('.layer-parts');
       if (l && parts) parts.textContent = layerParts(l);
       const all = li.querySelector<HTMLElement>('[data-hear-all]'), usual = l && usualOf(this.d.catalogue.get(l.widget)?.meta, l.widget);
-      if (l && all) all.hidden = !usual || listenOf(l) !== usual;
+      if (l && all) {
+        all.hidden = !usual || listenOf(l) !== usual;
+        // The edit would be refused: two instances on all notes. Say so instead of a click that does nothing.
+        const taken = allNotesTaken(sec.layers, Number(li.dataset.k));
+        (all as HTMLButtonElement).disabled = taken;
+        all.title = taken ? 'This widget already plays on all notes in this section, in another layer' : 'It hears its usual kind of note: back to all notes';
+      }
     });
     this.controls?.sync();
     this.where();

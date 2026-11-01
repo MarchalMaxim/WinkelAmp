@@ -1,6 +1,6 @@
 # Widget TODO
 
-Not started. The user's words; wait for their go-ahead, as the machine can only handle so many workflows at once.
+Not started, unless an item says otherwise. The user's words; wait for their go-ahead, as the machine can only handle so many workflows at once.
 
 ## New widgets by theme
 

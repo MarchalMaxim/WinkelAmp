@@ -19,6 +19,8 @@ Existing shows and the lab's defaults stay byte-identical.
 calls. Read it first. `S` there is
 `C:/Users/maxim/AppData/Local/Temp/claude/C--Users-maxim-Desktop-projects-github-WinkelAmp--claude-worktrees-ambitious-project-continuation-ff6d7f/b3b4a070-2436-40c2-8249-6478eeb5f1d5/scratchpad`.
 
+**Built. The patches are gone:** the build deleted the folder named here, as planned; they stay in this branch's history.
+
 **The code is in two patches beside this plan,** `docs/superpowers/plans/2026-11-01-note-types/t1.patch` and `t2.patch`: the exact
 text, written while designing to prove this plan, and removed again. Both were applied in order from a clean checkout of
 the branch: all named tests passed, both typechecks were clean, `npx vitest run` had only the failure named below, and one placement

@@ -2,10 +2,17 @@
 // the segment, and what the pointer is over.
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { addPivot, bendFromDrag, hitTest, snapTime } from '../src/studio/ui/lanes';
+import { addPivot, bendFromDrag, hitTest, listenWord, snapTime } from '../src/studio/ui/lanes';
 import type { Pivot } from '../src/widgets/types';
 
 const span = { start: 0, end: 20 };
+
+describe('listenWord', () => {
+  it('names a part in words, the note types too', () => {
+    expect(['melody', 'repeats', 'long', 'runs', 'chords', 'trills', 'family:strings', 'violin'].map(listenWord))
+      .toEqual(['melody', 'repeated notes', 'long ringing notes', 'fast runs', 'big chords', 'trills', 'strings', 'violin']);
+  });
+});
 
 describe('snapTime', () => {
   it('snaps to the nearest beat within 0.25 s when Snap is on, and not when fine', () => {

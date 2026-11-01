@@ -144,12 +144,18 @@ describe('listenNotes with a note type', () => {
     expect(WA.listenNotes(both, 'repeats').notes).toEqual(hits);
   });
 
-  it('fires a note as its own attack on this layer when another voice plays within 40 ms, and changes no one else', () => {
+  it('fires a note as its own attack on this layer when another voice plays within 40 ms, and leaves the song as it was', () => {
     const run = seq(8, 0.1, (i) => 60 + 2 * i, 1);
     const chord: Note[] = [[0.98, 2, 30, 80], [0.99, 2, 34, 80]];   // 20 ms before the run's first note
     const notes = [...chord, ...run].sort(byStart);
+    // Frozen: a type that sorted or edited the song's notes would throw or be seen here. That each routed instance
+    // groups its own copy is runtime.ts's and lab/index.html's code, which only npm run runtime-check runs.
+    notes.forEach((n) => Object.freeze(n));
+    Object.freeze(notes);
     const before = JSON.stringify(WA.groupChords(notes));
     expect(WA.groupChords(notes)[0].notes).toHaveLength(3);         // all the notes: one attack
+    for (const t of NOTE_TYPES) heard(notes, t);
+    WA.noteTypeAttacks({ notes });
     const own = WA.groupChords(heard(notes, 'runs'));
     expect(own).toHaveLength(8);
     expect(own[0]).toMatchObject({ t: 1, lo: 60, hi: 60 });         // this layer: the run note alone
