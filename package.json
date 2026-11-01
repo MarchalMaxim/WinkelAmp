@@ -33,7 +33,8 @@
     "layers-check": "node scripts/checks/layers-check.mjs",
     "overlay-check": "node scripts/checks/overlay-check.mjs",
     "lanes-check": "node scripts/checks/lanes-check.mjs",
-    "picks-check": "node scripts/checks/picks-check.mjs"
+    "picks-check": "node scripts/checks/picks-check.mjs",
+    "picker-check": "node scripts/checks/picker-check.mjs"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.31.1",
