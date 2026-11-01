@@ -1,388 +1,398 @@
-// Honey (round 9, the user: "droopy, viscous, honey, slow"). It will not let go. A thick gold mass hangs from the top; every
-// note loads it, and under that load it sags, necks and stretches into threads that keep on thinning long past where
-// anything should break, then fold in lazy coils on a pool that takes ten seconds to level. The attack is seen at once (a
-// slow quiver and a pale glint through the mass, nearby bulbs jolt); the droop follows it.
-// Everything is a thickness field (a Float32Array, 1/3 of the stage): bodies add to it row by row, so neighbours bridge by
-// themselves, and thickness is colour through a table: thread-thin is pale, thick is dark. Threads thinner than the field
-// can hold are drawn crisp on the stage in the same pale gold.
+// Honey (round 9, the user: "droopy, viscous, honey, slow"). Not a picture of honey: honey as a way of moving. Flat, Arp-like
+// masses hang at different heights across the black, and threads sag from one to the next. A note weighs on a mass: it jolts
+// and droops at once, fills slowly, and pushes out a bud that crawls away on a neck going from fat to hair and slows as it
+// stretches; a bud that reaches another mass melts into it and leaves a thread, so the forms cannot let go of each other.
+// High notes send beads down the threads into a belly at the lowest point, and a heavy belly becomes a mass of its own.
+// Bodies are a metaball field cut at one level, with a distance-true edge; threads are tapered vector shapes under it in the
+// rim colour, so they belong to the bodies. No ceiling, no floor, no lighting: what gets too heavy sinks off the bottom.
 (() => {
-  const FW = 427, FH = 240, FWm = FW - 1, FHm = FH - 1;         // the field; about 3 stage pixels to one
-  const CS = 4, CN = Math.ceil(FW / CS) + 2;                    // the mass and the pool live on coarser columns, for their slow diffusion
-  const MAX_STRANDS = 28, MAX_DOTS = 620, FEW = 0.5;            // FEW: below this radius a thread leaves the field and is drawn crisp
+  const LW = 427, LH = 240;                                     // the model's units; about 3 stage pixels to one
+  const FS = 1.5, FW = 640, FH = 360, FWm = FW - 1, FHm = FH - 1, CUT = 0.2;
+  const MAX_NODES = 11, MAX_LINKS = 22, MAX_S = 30, MAX_VOL = 1000;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
   const [fc, fg] = mk(FW, FH);
   const img = fg.createImageData(FW, FH), px = new Uint32Array(img.data.buffer), F = new Float32Array(FW * FH);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), mix = (a, b, t) => a + (b - a) * t;
   const sstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-  // ---- colour: a table from thickness to colour, for three honeys the colour knob slides between
-  const STOPS = [0, 44, 95, 165, 255];                          // thin to thick, at table index (thickness × 90)
+  // ---- colour: flat, a rim tone sinking to a slightly deeper core; three honeys the colour knob slides between
   const HONEYS = [
-    [[255, 247, 205], [250, 226, 130], [238, 190, 70], [214, 150, 40], [176, 112, 24]],   // acacia
-    [[255, 233, 160], [240, 186, 56], [214, 142, 26], [138, 74, 12], [92, 44, 6]],        // honey
-    [[238, 176, 86], [176, 100, 22], [104, 50, 10], [52, 22, 5], [26, 10, 2]],            // treacle
+    [[244, 210, 112], [238, 198, 96], [255, 250, 225]],   // acacia
+    [[222, 152, 38], [214, 140, 30], [255, 232, 160]],    // honey
+    [[120, 62, 16], [102, 50, 12], [226, 150, 72]],        // treacle
   ];
-  const LR = new Float32Array(256), LG = new Float32Array(256), LB = new Float32Array(256), LA = new Float32Array(256);
-  for (let i = 0; i < 256; i++) LA[i] = sstep(13, 20, i);
-  let lutAt = -1;
+  const LC = new Uint32Array(256);
+  let lutAt = -1, threadCol = '#ecb036', paleRGB = '255,236,170';
   function buildLut(c) {
     const q = Math.round(c * 32) / 32; if (q === lutAt) return; lutAt = q;
     const f = q * 2, a = Math.min(1, Math.floor(f)), t = f - a;
+    const at = (k, j) => mix(HONEYS[a][k][j], HONEYS[a + 1][k][j], t);
     for (let i = 0; i < 256; i++) {
-      let k = 0; while (k < 3 && i > STOPS[k + 1]) k++;
-      const u = (i - STOPS[k]) / (STOPS[k + 1] - STOPS[k]);
-      const at = (j) => mix(mix(HONEYS[a][k][j], HONEYS[a][k + 1][j], u), mix(HONEYS[a + 1][k][j], HONEYS[a + 1][k + 1][j], u), t);
-      LR[i] = at(0); LG[i] = at(1); LB[i] = at(2);
+      const u = sstep(28, 62, i);
+      LC[i] = (mix(at(0, 2), at(1, 2), u) << 16) | (mix(at(0, 1), at(1, 1), u) << 8) | mix(at(0, 0), at(1, 0), u);
     }
-    const p = HONEYS[a][0], o = HONEYS[a + 1][0];
-    threadCol = `rgb(${mix(p[0], o[0], t) | 0},${mix(p[1], o[1], t) | 0},${mix(p[2], o[2], t) | 0})`;
+    threadCol = `rgb(${at(0, 0) | 0},${at(0, 1) | 0},${at(0, 2) | 0})`; paleRGB = `${at(2, 0) | 0},${at(2, 1) | 0},${at(2, 2) | 0}`;
   }
-  let threadCol = '#ffe9a0';
 
   // ---- state
-  const Dm = new Float32Array(CN), Dt = new Float32Array(CN), Pm = new Float32Array(CN), Pt = new Float32Array(CN), Q = new Float32Array(CN), Qp = new Float32Array(CN), LOAD = new Float32Array(CN);
-  const edge = new Float32Array(FW), surf = new Float32Array(FW), glint = new Float32Array(FW);
-  let strands = [], dots = [], drops = [], waves = [], glints = [], time = 0, lastSag = -9, vels = null;
-  const BASE_D = 19, BASE_P = 11;
-  Dm.fill(BASE_D); Pm.fill(BASE_P);
-  const edgeAt = (x) => edge[clamp(x | 0, 0, FWm)], surfAt = (x) => surf[clamp(x | 0, 0, FWm)];
+  let nodes = [], links = [], time = 0, lastBud = -9, vels = null, pLo = 30, pHi = 96, seeded = false;
+  let bx0 = FW, bx1 = 0, by0 = FH, by1 = 0, lay = null, lg = null;
 
-  // ---- writing into the field. span: one row of a body of radius R, with a soft skirt so neighbours bridge.
-  function span(y, cx, R, K = 1) {
-    const W = R * 1.22, A = Math.min(3.2, 0.26 + R * 0.15) * K, iw = 1 / (W * W), base = y * FW;
-    let a = Math.ceil(cx - W), b = Math.floor(cx + W); if (a < 0) a = 0; if (b > FWm) b = FWm;
-    for (let i = a; i <= b; i++) { const d = i - cx, q = 1 - d * d * iw; if (q > 0) F[base + i] += A * q * Math.sqrt(q); }
-  }
-  function disc(cx, cy, R, A) {
-    const W = R * 1.35, iw = 1 / (W * W);
-    let y0 = Math.ceil(cy - W), y1 = Math.floor(cy + W); if (y0 < 0) y0 = 0; if (y1 > FHm) y1 = FHm;
-    let a = Math.ceil(cx - W), b = Math.floor(cx + W); if (a < 0) a = 0; if (b > FWm) b = FWm;
+  // A metaball with a wide soft kernel, so outlines stay smooth: at distance R it reaches CUT.
+  function disc(cx, cy, R, A = 0.54) {
+    const fx = cx * FS, fy = cy * FS, W = R * FS * 1.6, iw = 1 / (W * W);
+    let y0 = Math.ceil(fy - W), y1 = Math.floor(fy + W), a = Math.ceil(fx - W), b = Math.floor(fx + W);
+    if (y0 < 1) y0 = 1; if (y1 > FHm - 1) y1 = FHm - 1; if (a < 1) a = 1; if (b > FWm - 1) b = FWm - 1;
+    if (y0 > y1 || a > b) return;
+    if (y0 < by0) by0 = y0; if (y1 > by1) by1 = y1; if (a < bx0) bx0 = a; if (b > bx1) bx1 = b;
     for (let y = y0; y <= y1; y++) {
-      const dy = y - cy, dy2 = dy * dy, base = y * FW;
-      for (let i = a; i <= b; i++) { const d = i - cx, q = 1 - (d * d + dy2) * iw; if (q > 0) F[base + i] += A * q * q; }
+      const dy = y - fy, dy2 = dy * dy, base = y * FW;
+      for (let i = a; i <= b; i++) { const d = i - fx, q = 1 - (d * d + dy2) * iw; if (q > 0) F[base + i] += A * q * q; }
     }
   }
-  // A hanging drop's radius, u rows above its lowest point: round below, then a long taper into the neck.
-  function tear(u, Rb) {
-    if (Rb <= 0.05) return 0;
-    if (u < Rb) { const k = (u - Rb) / Rb; return Rb * Math.sqrt(Math.max(0, 1 - k * k)); }
-    const k = (u - Rb) / (Rb * 1.5 + 3);
-    return Rb * Math.exp(-k * Math.sqrt(k));
-  }
 
-  // ---- notes
-  function bump(arr, xf, sigma, amt) {       // add a soft hill to a coarse column array at field x
-    const c = xf / CS, s = sigma / CS, a = Math.max(0, Math.floor(c - s * 2.5)), b = Math.min(CN - 1, Math.ceil(c + s * 2.5)), k = 1 / (2 * s * s);
-    for (let i = a; i <= b; i++) { const d = i - c; arr[i] += amt * Math.exp(-d * d * k); }
-  }
+  // ---- notes to places
   const quantile = (v) => {
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((p, q) => p - q);
+    if (!vels) {
+      const N = window.NOTES || []; vels = N.map((n) => n[3]).sort((p, q) => p - q);
+      const ms = N.map((n) => n[2]).sort((p, q) => p - q);
+      if (ms.length > 20) { pLo = ms[Math.floor(ms.length * 0.03)]; pHi = Math.max(pLo + 12, ms[Math.floor(ms.length * 0.97)]); }
+    }
     if (!vels.length) return 1;
     let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
     return a / vels.length;
   };
-  const noteX = (m, x) => clamp(FW * (0.05 + 0.9 * clamp((m - 30) / 66, 0, 1)) + x.rnd(-7, 7), 3, FW - 4);
-  function newStrand(nx, w, fat, d, x) {
-    const v0 = (5 + 46 * w) * fat * fat, y0 = edgeAt(nx) + 1;
-    const r0 = 1 + Math.sqrt(v0) * 0.26;
-    return { x0: nx, xt: nx, y: y0, vol: v0 * 0.08, swell: v0 * 0.92, V: r0 * r0 * 12, feed: Math.min(9, d * 1.3), rate: v0 * 0.34, rootR: 3 + Math.sqrt(v0) * 0.55, age: 0, hair: 0, jolt: 0, pluck: 0, glow: 1,
-      sway: x.rnd(0, 6.28), swayS: x.rnd(0.18, 0.4), land: false, lx: 0, phi: x.rnd(0, 6.28), landAge: 0, layAcc: 0, retract: false, into: null, beads: [], r: r0, Rb: 0, dead: false };
+  const noteX = (m, x) => clamp(LW * (0.06 + 0.88 * clamp((m - pLo) / (pHi - pLo), 0, 1)) + x.rnd(-9, 9), 8, LW - 8);
+
+  function mkNode(xx, yy, vol, x) {
+    const lobes = [{ a: 0, d: 0, r: 0.86, w: 0.12, p: 0, s: 0 }, { a: 1.57 + x.rnd(-0.5, 0.5), d: x.rnd(0.45, 0.7), r: x.rnd(0.5, 0.7), w: 1, p: x.rnd(0, 6.28), s: x.rnd(0.1, 0.22) }];
+    const more = 1 + Math.floor(x.rnd(0, 1.99));
+    for (let i = 0; i < more; i++) { const a = x.rnd(0, 6.28); lobes.push({ a, d: x.rnd(0.4, 0.75), r: x.rnd(0.35, 0.62), w: Math.max(0, Math.sin(a)), p: x.rnd(0, 6.28), s: x.rnd(0.08, 0.2) }); }
+    return { x: xx, y: yy, vol, swell: 0, sq: 0, sqv: 0, glow: 0, droop: 0.3, lobes, travel: false, tx: xx, ty: yy, from: null, ghost: false, dead: false, R: 0 };
   }
-  function breakStrand(s, x) {
-    if (s.retract) return;
-    const rootY = edgeAt(s.x0), L = s.y - rootY, cut = rootY + L * x.rnd(0.35, 0.7), bottom = s.land ? s.y - 2 : s.y - Math.sqrt(s.vol);
-    let y = cut + x.rnd(4, 9);                                  // the lower part beads and falls
-    while (y < bottom) { const r = x.rnd(0.7, 1.7); drops.push({ x: s.xt + (s.x0 - s.xt) * (1 - (y - rootY) / L), y, r, v: 0 }); y += x.rnd(9, 20); }
-    if (!s.land && !s.into) drops.push({ x: s.xt, y: s.y, r: Math.sqrt(s.vol), v: 0 });
-    for (const o of strands) if (o.into === s) { o.into = null; o.vol = 1; breakStrand(o, x); }
-    s.y = cut; s.land = false; s.into = null; s.retract = true; s.vol = 1.2; s.feed = 0; s.xt = s.x0 + (s.xt - s.x0) * 0.5;
+  function mkLink(a, b, V, rootA, rootB, x) {
+    return { a, b, V, rootA, rootB, sag: 0, belly: 0, beads: [], pluck: 0, hair: 0, broken: false, ca: 1, cb: 0, glow: 0, sway: x.rnd(0, 6.28), swayS: x.rnd(0.18, 0.4),
+      n: 0, X: new Float32Array(MAX_S + 1), Y: new Float32Array(MAX_S + 1), W: new Float32Array(MAX_S + 1), tLow: 0.5, L: 0, hs: 0 };
+  }
+  // The emptiest of a few places near the note, so the picture spreads over the canvas.
+  function emptyPlace(nx, y0, y1, x) {
+    let best = null, bs = -1e9;
+    for (let i = 0; i < 7; i++) {
+      const cx = clamp(nx + x.rnd(-85, 85), 16, LW - 16), cy = x.rnd(y0, y1);
+      let d = 1e9; for (const o of nodes) if (!o.ghost) d = Math.min(d, Math.hypot(o.tx - cx, o.ty - cy) - o.R);
+      const s = Math.min(d, 90) - Math.abs(cx - nx) * 0.25;
+      if (s > bs) { bs = s; best = [cx, cy]; }
+    }
+    return best;
+  }
+  function seed(x, pres) {
+    seeded = true;
+    const n = 3 + Math.round(3 * pres);
+    for (let i = 0; i < n; i++) {
+      const [cx, cy] = emptyPlace(LW * ((i + 0.5) / n), LH * 0.08, LH * 0.8, x);
+      const sz = x.rnd(0, 1), o = mkNode(cx, cy, 25 + sz * sz * 420, x); o.R = Math.sqrt(o.vol);
+      let near = null, nd = 1e9; for (const p of nodes) { const d = Math.hypot(p.x - cx, p.y - cy); if (d < nd) { nd = d; near = p; } }
+      nodes.push(o);
+      if (near && nd < LW * 0.42 && (i < 2 || x.rnd(0, 1) < 0.55)) { const l = mkLink(near, o, x.rnd(25, 90), 2.5, 2.5, x); l.sag = nd * 0.12; links.push(l); }
+    }
+  }
+  // A mass pushes out a bud that crawls to an empty place, or from off the top when the upper part has run empty.
+  function bud(p, nx, w, fat, x) {
+    const v0 = (5 + 46 * w) * fat * fat, r0 = 1 + Math.sqrt(v0) * 0.26;
+    const ghost = !p, y0 = ghost ? LH * 0.12 : p.y + 34, y1 = ghost ? LH * 0.42 : p.y + 60 + 60 * Math.min(1, fat);
+    const [tx, ty] = emptyPlace(nx, y0, y1, x);
+    if (ghost) { p = mkNode(tx + x.rnd(-14, 14), -26, 40, x); p.ghost = true; nodes.push(p); }
+    const c = mkNode(p.x + x.rnd(-3, 3), p.y + p.R * 0.45, v0 * 0.1, x);
+    c.swell = v0 * 0.9; c.travel = true; c.tx = tx; c.ty = ty; c.from = p; c.R = Math.sqrt(c.vol);
+    p.bud = c; if (!ghost) { const give = Math.min(v0 * 0.3, p.vol * 0.2); p.vol -= give; c.swell += give; }
+    nodes.push(c);
+    links.push(mkLink(p, c, r0 * r0 * 12, 3 + Math.sqrt(v0) * 0.55, 1 + Math.sqrt(v0) * 0.3, x));
+    lastBud = time;
+  }
+  function snap(l, x) { if (l.broken) return; l.broken = true; const c = x.rnd(0.35, 0.65); l.ca = c - 0.03; l.cb = c + 0.03; }
+  function absorb(k, d, x) {                 // d melts into k; its threads now hang from k
+    k.swell += d.vol + d.swell; k.glow = Math.max(k.glow, 0.5); k.sq += 2;
+    for (const l of links) { if (l.a === d) l.a = k; if (l.b === d) l.b = k; if (l.a === k && l.b === k) { k.swell += l.V * 0.3; l.dead = true; } }
+    if (k.from === d) k.from = null;
+    d.dead = true;
   }
 
   // ---- the knob pictures
-  const HC = '#e0a020', PC = '#ffe9a0';
-  const dropIcon = (g, cx, top, tip, R, col) => {  // a thread from top down to a drop
-    g.strokeStyle = PC; g.lineWidth = 1; g.beginPath(); g.moveTo(cx, top); g.lineTo(cx, tip - R); g.stroke();
-    ICON.dot(g, cx, tip - R, R, col || HC);
+  const HC = '#d8982a', PC = '#ecb036';
+  const pair = (g, x1, y1, r1, x2, y2, r2, sag, lw = 1) => {
+    g.strokeStyle = PC; g.lineWidth = lw; g.beginPath(); g.moveTo(x1, y1); g.quadraticCurveTo((x1 + x2) / 2, (y1 + y2) / 2 + sag * 2, x2, y2); g.stroke();
+    ICON.dot(g, x1, y1, r1, HC); if (r2 > 0) ICON.dot(g, x2, y2, r2, HC);
   };
   TOOLS.push({
     id: 'honey', name: 'Honey', tag: 'new',
-    blurb: 'A thick gold mass sags under each note, stretches into long threads that will not let go, and coils slowly into a pool.',
+    blurb: 'Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape droop at once, then fill, and slowly push out another.',
     params: [
       { key: 'thick', label: 'how thick it is', min: 0, max: 1, value: 0.5,
-        hint: 'How stiff the honey is. Left: runny, quick to fall. Right: nearly solid, barely moves.',
-        icon: (g, v, w, h) => { ICON.rect(g, 0, 0, w, 7, HC); dropIcon(g, w / 2, 7, 7 + (1 - v) * (h - 10) + 3, 3); } },
+        hint: 'How stiffly it all moves. Left: runny and quick. Right: nearly solid, it barely moves.',
+        icon: (g, v, w, h) => pair(g, w / 2, 6, 4, w / 2, 8 + (1 - v) * (h - 13), 3, 0) },
       { key: 'load', label: 'how much each note adds', min: 0.25, max: 2.2, value: 1,
-        hint: 'How heavy a note makes the honey. Left: thin threads only. Right: great heavy bulbs.',
-        icon: (g, v, w, h) => { ICON.rect(g, 0, 0, w, 5, HC); dropIcon(g, w / 2, 5, h - 2, 1.5 + v * 6); } },
+        hint: 'How heavy a note is. Left: small shapes, thin threads. Right: great heavy shapes.',
+        icon: (g, v, w, h) => pair(g, 8, 8, 3, w - 12, h - 10, 1.5 + v * 6, 2) },
       { key: 'stretch', label: 'how far a thread stretches', min: 0, max: 1, value: 0.7,
         hint: 'How far a thread stretches before it breaks. Left: it snaps early. Right: it never lets go.',
-        icon: (g, v, w, h) => { ICON.rect(g, 0, 0, w, 4, HC); dropIcon(g, w / 2, 4, 9 + v * (h - 11), 2.2); if (v < 0.5) ICON.dot(g, w / 2 + 0.5, h - 3, 1.3, HC); } },
-      { key: 'busy', label: 'how many notes start a sag', min: 0, max: 1, value: 0.5,
-        hint: 'How many notes start a new sag. Left: only the big ones. Right: nearly every note.',
-        icon: (g, v, w, h) => { ICON.rect(g, 0, 0, w, 4, HC); const n = 1 + Math.round(v * 5); for (let i = 0; i < n; i++) dropIcon(g, ((i + 0.5) / n) * w, 4, 12 + ((i * 7) % 3) * 4, 2); } },
+        icon: (g, v, w, h) => { if (v > 0.5) pair(g, 8, 8, 3, w - 8, 8, 3, 3 + (v - 0.5) * 12); else { ICON.dot(g, 8, 8, 3, HC); ICON.dot(g, w - 8, 8, 3, HC); ICON.line(g, 8, 8, 16 - v * 4, 13, PC, 1); ICON.line(g, w - 8, 8, w - 16 + v * 4, 13, PC, 1); } } },
+      { key: 'busy', label: 'how many notes push out a new shape', min: 0, max: 1, value: 0.5,
+        hint: 'How many notes push out a new shape. Left: only the big ones. Right: nearly every note.',
+        icon: (g, v, w, h) => { const n = 1 + Math.round(v * 4); ICON.dot(g, w / 2, 5, 3.5, HC); for (let i = 0; i < n; i++) pair(g, w / 2, 5, 0, ((i + 0.5) / n) * w, 14 + ((i * 7) % 3) * 3, 2, 1); } },
       { key: 'colour', label: 'how dark the honey is', min: 0, max: 1, value: 0.5,
         hint: 'How dark the honey is. Left: pale, light acacia. Right: dark treacle.',
         icon: (g, v, w, h) => ICON.dot(g, w / 2, h / 2, 8, ICON.lerp(v < 0.5 ? '#f6dd80' : '#d68e1a', v < 0.5 ? '#d68e1a' : '#34160a', v < 0.5 ? v * 2 : v * 2 - 1)) },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much of it you see. Left: almost nothing, a thin slow film that only the hardest attacks disturb. Right: fully there.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => ICON.dot(g, w / 2, h / 2, 8, HC)) },
+        hint: 'How much of it you see. Left: almost nothing, a few faint small shapes that only the hardest attacks disturb. Right: fully there.',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => pair(g, 10, 8, 2 + v * 3, w - 10, h - 8, 2 + v * 4, 2)) },
     ],
-    reset() {
-      strands = []; dots = []; drops = []; waves = []; glints = []; time = 0; lastSag = -9; vels = null;
-      Dm.fill(BASE_D); Dt.fill(0); Pm.fill(BASE_P); Pt.fill(0); LOAD.fill(0);
-    },
+    reset() { nodes = []; links = []; time = 0; lastBud = -9; vels = null; seeded = false; },
     onChord(ch, x) {
-      const pres = x.p('presence'), load = x.p('load'), busy = x.p('busy');
+      const pres = x.p('presence'); if (pres < 0.005) return;       // gone: nothing piles up behind the knob
+      const load = x.p('load'), busy = x.p('busy');
+      if (!seeded) seed(x, pres);
       const q = quantile(ch.vel), hardCut = (1 - pres) * 0.95;
       const attackK = pres >= 0.999 ? 1 : pres * sstep(hardCut - 0.25, hardCut, q);
-      // In the same frame: a quiver from where the note lands, a glint along the surface, the nearest threads twitch.
-      const top = ch.notes.reduce((a, n) => (n.v > a.v ? n : a), ch.notes[0]), lx = noteX(top.m, x), loud = ch.vel / 110;
-      if (attackK > 0.03) {
-        waves.push({ x: lx, age: 0, a: (2.2 + 5 * loud * loud) * (0.7 + Math.min(4, ch.notes.length) * 0.15) * attackK }); if (waves.length > 9) waves.shift();
-        glints.push({ x: lx, age: 0, a: (0.55 + 0.75 * loud) * attackK }); if (glints.length > 12) glints.shift();
-      }
-      const cut = Math.max((1 - busy) * 0.9, hardCut);
+      const matK = (0.1 + 0.9 * pres) * sstep(hardCut - 0.4, hardCut, q + 0.001);
+      const cut = Math.max((1 - busy) * 0.9, hardCut), cap = Math.round(3 + (MAX_NODES - 3) * pres);
       let started = 0;
       for (const n of ch.notes) {
         const nx = noteX(n.m, x), w = Math.pow(n.v / 105, 1.6) * load, pitch = clamp((n.m - 30) / 66, 0, 1), fat = 1.45 - 0.95 * pitch;
-        const hasThin = (n.m >= 74);
-        bump(LOAD, nx, 12 + 16 * fat, w * (2.2 + 2 * fat) * (0.1 + 0.9 * pres));       // weight on the mass, seen within a tenth of a second
-        for (const s of strands) {
-          const d = Math.abs(s.xt - nx); if (d > 46) continue;
-          const k = 1 - d / 46;
-          s.jolt = Math.max(s.jolt, (6 + 20 * w * fat) * k * attackK); s.pluck = Math.max(s.pluck, (1.2 + 3 * w) * k * attackK); s.glow = Math.max(s.glow, k * attackK);
+        // In the same frame: the nearest mass drops under the weight and flushes, a pulse leaves along its threads.
+        let near = null, nd = 1e9, count = 0, upper = 0, moving = 0;
+        for (const o of nodes) {
+          if (o.ghost) continue;
+          count++; if (o.y < LH * 0.34) upper++; if (o.travel) moving++;
+          const d = Math.abs(o.x - nx) + Math.abs(o.y - LH * 0.45) * 0.12; if (d < nd) { nd = d; near = o; }
         }
-        // High notes: small quick beads on the threads that are already there.
-        if (hasThin) {
-          let best = null, bd = 70;
-          for (const s of strands) { if (s.retract || s.beads.length > 2) continue; const d = Math.abs(s.x0 - nx); if (d < bd) { bd = d; best = s; } }
-          if (best && attackK > 0.1) { best.beads.push({ pos: 0, r: 0.8 + 1.5 * clamp(w, 0, 1.5) * attackK }); continue; }
+        if (near) {
+          near.swell += w * fat * fat * 7 * matK;
+          near.sq = Math.min(10, near.sq + (2 + 6 * w * fat) * attackK); near.glow = Math.max(near.glow, (0.3 + 0.6 * Math.min(1, w)) * attackK);
+          for (const l of links) {
+            if (l.broken) continue;
+            const at = l.a === near ? 1 : l.b === near ? -1 : 0;
+            if (at) {
+              l.pluck = Math.max(l.pluck, (1.2 + 3.5 * w) * attackK); l.V = Math.min(260, l.V + w * fat * 2.5 * matK);
+              l.glow = Math.max(l.glow, (0.3 + 0.6 * Math.min(1, w)) * attackK);
+            } else if (Math.abs((l.a.x + l.b.x) / 2 - nx) < 46) l.pluck = Math.max(l.pluck, (0.8 + 2 * w) * attackK);
+          }
         }
-        // Weight enough, and a sag starts; next to one already hanging, the note feeds that one instead.
-        if (quantile(n.v) < cut || started >= 4) continue;
-        let near = null, nd = 12 + 14 * fat;
-        for (const s of strands) { if (s.retract || s.into || s.land) continue; const d = Math.abs(s.x0 - nx); if (d < nd && s.y - edgeAt(s.x0) < 130) { nd = d; near = s; } }
-        if (near) { near.swell += (2 + 18 * w) * fat * fat; near.feed = Math.max(near.feed, Math.min(9, n.d * 1.3)); near.V += 6 * w; continue; }
-        if (time - lastSag < (ch.notes.length > 1 ? 0 : 0.5 * (1.5 - busy))) continue;
-        if (strands.length >= MAX_STRANDS) {
-          let old = null; for (const s of strands) if (!s.retract && !s.into && (!old || s.r < old.r || s.hair > old.hair)) old = s;
-          if (old) breakStrand(old, x);
-          if (strands.length >= MAX_STRANDS + 6) continue;
+        // A mass with no thread, once struck, spins a hair to its nearest neighbour; it will not stay alone.
+        if (near && attackK > 0.1 && links.length < MAX_LINKS && !links.some((l) => !l.broken && (l.a === near || l.b === near))) {
+          let o = null, od = LW * 0.5;
+          for (const c of nodes) { if (c === near || c.ghost || c.dead) continue; const d = Math.hypot(c.x - near.x, c.y - near.y); if (d < od) { od = d; o = c; } }
+          if (o) links.push(mkLink(near, o, 16, 1.6, 1.6, x));
         }
-        strands.push(newStrand(nx, w, fat, n.d, x)); started++; lastSag = time;
+        // High notes: a bead sets off down the nearest thread that hangs.
+        if (n.m >= 74 && attackK > 0.1) {
+          let best = null, bd = 90;
+          for (const l of links) { if (l.broken || l.beads.length > 2 || l.n < 2) continue; const d = Math.abs(l.X[l.n >> 1] / l.SX - nx); if (d < bd) { bd = d; best = l; } }
+          if (best) { const from = best.tLow > 0.5 ? 0 : 1; best.beads.push({ t: from, end: from, r: 0.9 + 1.5 * clamp(w, 0, 1.5) * attackK }); if (quantile(n.v) < 0.75) continue; }
+        }
+        // Weight enough, and it pushes out a bud; a mass already budding gets fatter instead.
+        const waited = time - lastBud > (count < 5 ? 3 : 7) * (1.6 - busy) && q >= hardCut;     // a passage quiet for this song still grows, slowly
+        if ((quantile(n.v) < cut && !waited) || started >= 2) continue;
+        if (near && near.bud && near.bud.travel && !near.bud.dead) { near.bud.swell += (2 + 18 * w) * fat * fat * matK; continue; }
+        if (time - lastBud < (ch.notes.length > 1 ? 0.5 : 1.1) * (1.5 - busy) || moving >= 4 || links.length >= MAX_LINKS + 6) continue;
+        if (count > cap) continue;
+        if (upper < 1 + Math.round(pres) && count > 1) bud(null, nx, w, fat, x);
+        else if (near) bud(near, nx, w, fat, x);
+        started++;
       }
     },
     frame(x) {
       const g = x.g, dt = x.dt, pres = x.p('presence');
       if (pres < 0.005) return;
       buildLut(x.p('colour'));
-      const stretch = x.p('stretch');
+      if (!seeded) seed(x, pres);
+      const stretch = x.p('stretch'), W = x.W, H = x.H, SX = W / LW, SY = H / LH;
       const tk = Math.pow(2, (0.5 - x.p('thick')) * 3.4) * (0.5 + 0.5 * pres);   // how quick everything is
-      const base = BASE_D * (0.3 + 0.7 * pres), baseP = BASE_P * (0.3 + 0.7 * pres);
+      const RK = 0.4 + 0.6 * Math.pow(pres, 0.7), cap = Math.round(3 + (MAX_NODES - 3) * pres);
       time += dt;
 
-      // ---- the mass and the pool: load comes in quickly, then both spread and settle slowly
+      // ---- the masses
       if (dt > 0) {
-        const fast = 1 - Math.exp(-dt * 13);
-        for (let i = 0; i < CN; i++) { const a = LOAD[i] * fast; LOAD[i] -= a; Dm[i] += a * Math.max(0.05, 1 - (Dm[i] - base) / 55); Dm[i] += (base - Dm[i]) * dt * 0.05 * Math.sqrt(tk); Pm[i] += (baseP - Pm[i]) * dt * 0.018; }
-        const kd = clamp(dt * 1.5 * tk, 0, 0.45), kp = clamp(dt * 3 * tk, 0, 0.45);   // a mound of about 30 field px levels in ten seconds
-        Dt[0] = Dm[0] + kd * (Dm[1] - Dm[0]); Pt[0] = Pm[0] + kp * (Pm[1] - Pm[0]);
-        for (let i = 1; i < CN - 1; i++) { Dt[i] = Dm[i] + kd * (Dm[i - 1] + Dm[i + 1] - 2 * Dm[i]); Pt[i] = Pm[i] + kp * (Pm[i - 1] + Pm[i + 1] - 2 * Pm[i]); }
-        Dt[CN - 1] = Dm[CN - 1] + kd * (Dm[CN - 2] - Dm[CN - 1]); Pt[CN - 1] = Pm[CN - 1] + kp * (Pm[CN - 2] - Pm[CN - 1]);
-        Dm.set(Dt); Pm.set(Pt);
-      }
-      // The quiver: rolling, slow, spreading out from each note.
-      Q.fill(0); Qp.fill(0);
-      for (const w of waves) {
-        w.age += dt;
-        const env = w.a * Math.exp(-w.age / 1.5) * Math.min(1, 0.45 + w.age * 8), reach = 16 + w.age * 62;
-        const c0 = Math.max(0, Math.floor((w.x - reach * 2.2) / CS)), c1 = Math.min(CN - 1, Math.ceil((w.x + reach * 2.2) / CS));
-        for (let i = c0; i <= c1; i++) {
-          const d = Math.abs(i * CS - w.x), v = env * Math.exp(-d / reach) * Math.cos(d * 0.085 - w.age * 3.6);
-          Q[i] += v; Qp[i] += v * 0.3;
+        let lowest = null, count = 0;
+        for (const n of nodes) if (!n.ghost) { count++; if (!n.travel && (!lowest || n.y > lowest.y)) lowest = n; }
+        for (const n of nodes) {
+          if (n.ghost) continue;
+          if (n.swell > 0) { const k = n.swell * (1 - Math.exp(-dt * 1.3 * Math.sqrt(tk))); n.swell -= k; n.vol = Math.min(MAX_VOL, n.vol + k); }   // it fills, it does not pop
+          n.vol -= n.vol * dt * 0.013;
+          n.sqv += (-n.sq * 7 - n.sqv * 1.2) * dt; n.sq += n.sqv * dt;       // a slow roll back from the jolt
+          n.glow *= Math.exp(-dt * 2.2);
+          n.droop += (clamp(n.vol / 520, 0.12, 1) - n.droop) * dt * 0.3 * tk;
+          if (n.travel) {
+            const dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy), p = n.from;
+            const L = p ? Math.hypot(n.x - p.x, n.y - p.y) : 0;
+            const v = ((3 + 0.05 * Math.min(420, n.vol)) * tk / (1 + L / 170)) * sstep(0, 14, d) + 0.12;     // slower the longer it stretches
+            if (d > 1) { n.x += dx / d * v * dt; n.y += dy / d * v * dt; } else n.travel = false;
+          } else n.y += (0.2 + 0.0022 * Math.min(800, n.vol)) * tk * (n === lowest && count > cap - 1 ? 7 : 1) * dt;   // the heavy ones sink; over the limit the lowest goes first
+          if (n.from && Math.hypot(n.x - n.from.x, n.y - n.from.y) > n.R + n.from.R + 4) n.from = null;
+          if (n.y - n.R > LH + 34 || n.vol < 5) n.dead = true;
         }
-      }
-      waves = waves.filter((w) => w.age < 6);
-      for (let i = 0; i < FW; i++) {
-        const c = i / CS, a = c | 0, f = c - a;
-        edge[i] = Dm[a] + (Dm[a + 1] - Dm[a]) * f + Q[a] + (Q[a + 1] - Q[a]) * f;
-        surf[i] = FH - (Pm[a] + (Pm[a + 1] - Pm[a]) * f + Qp[a] + (Qp[a + 1] - Qp[a]) * f);
-      }
-      // The glint travels both ways along the surfaces.
-      glint.fill(0);
-      for (const l of glints) {
-        l.age += dt;
-        const e = l.a * Math.exp(-l.age / 1.0), pos = l.age * 74, sig = 7 + l.age * 8;
-        for (const c of [l.x - pos, l.x + pos]) {
-          const a = Math.max(0, (c - sig * 2.4) | 0), b = Math.min(FWm, (c + sig * 2.4) | 0);
-          for (let i = a; i <= b; i++) { const d = (i - c) / sig; glint[i] += e * Math.exp(-d * d); }
-        }
-      }
-      glints = glints.filter((l) => l.age < 3.5);
-
-      // ---- the strands: sag, neck, merge, land, break
-      if (dt > 0) {
-        for (let i = 0; i < strands.length; i++) {
-          const a = strands[i]; if (a.retract || a.into) continue;
-          for (let j = i + 1; j < strands.length; j++) {
-            const b = strands[j]; if (b.retract || b.into) continue;
-            const dx0 = b.x0 - a.x0, ad = Math.abs(dx0);
-            if (ad < 34 && ad > 1) {                    // roots draw together, and a web of the mass rises between them
-              const m = Math.sign(dx0) * dt * 1.6 * tk; a.x0 += m; b.x0 -= m;
-              if (!a.land && !b.land) { a.xt += m * 0.7; b.xt -= m * 0.7; }
-              bump(LOAD, (a.x0 + b.x0) / 2, 9, dt * 1.3 * (1 - ad / 34));
-            }
-            if (a.land || b.land) continue;
-            const dxt = b.xt - a.xt, ax = Math.abs(dxt), dy = Math.abs(a.y - b.y), ra = Math.sqrt(a.vol), rb = Math.sqrt(b.vol);
-            if (ax < 40 && dy < 46) { const m = Math.sign(dxt) * dt * 3.2 * tk * (1 - ax / 40); a.xt += m; b.xt -= m; }
-            if (ax < (ra + rb) * 0.8 && dy < Math.max(ra, rb)) {      // two bulbs become one, hung from both threads
-              const big = a.vol >= b.vol ? a : b, small = big === a ? b : a;
-              big.vol += small.vol; big.V += small.V * 0.5; big.feed = Math.max(big.feed, small.feed); small.vol = 0; small.into = big; small.feed = 0;
-            }
+        // Close masses draw together and melt; a bud that nears one turns towards it.
+        for (let i = 0; i < nodes.length; i++) {
+          const a = nodes[i]; if (a.ghost || a.dead) continue;
+          for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j]; if (b.ghost || b.dead || a.from === b || b.from === a) continue;
+            const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), big = Math.max(a.R, b.R), sum = a.R + b.R;
+            if (d > sum + 24) continue;
+            if (a.travel) { a.tx = b.x; a.ty = b.y; } if (b.travel) { b.tx = a.x; b.ty = a.y; }
+            if (d < sum && d > 0.01) { const m = dt * 1.6 * tk * (1 - d / sum + 0.2) / d; a.x += dx * m; a.y += dy * m; b.x -= dx * m; b.y -= dy * m; }
+            if (d < big * 0.8) { if (a.vol >= b.vol) absorb(a, b, x); else { absorb(b, a, x); break; } }
           }
         }
       }
-      for (const s of strands) {
-        s.age += dt; s.glow *= Math.exp(-dt * 1.7); s.pluck *= Math.exp(-dt * 1.2);
-        const rootY = edgeAt(s.x0);
-        if (s.retract) { s.y -= dt * 5 * tk; s.vol += dt * 0.25; if (s.y - rootY < 1.5) { s.dead = true; bump(LOAD, s.x0, 10, 0.7); } }
-        else if (s.into) {
-          const t = s.into; if (t.dead || t.retract) { s.into = null; s.vol = 1; breakStrand(s, x); } else { s.xt = t.xt; s.y = t.y - Math.sqrt(t.vol) * 0.8; s.land = false; }
-        } else if (s.land) {
-          // The bulb drains into the pool, and what is left of the thread folds over and over on itself.
-          s.landAge += dt;
-          const flow = Math.min(s.vol, (3 + s.vol * 0.3) * dt * tk);
-          s.vol -= flow; bump(Pm, s.lx, 11, flow * 0.05 + dt * 0.5 * tk); bump(Pm, s.lx, 26, flow * 0.045);
-          const rope = clamp(s.r * 1.2 + 1.2, 2.1, 3.8), a = clamp(2.5 + rope * 1.9 + Math.sqrt(s.vol) * 0.4, 5, 11);
-          s.phi += dt * tk * clamp(11 / a, 0.9, 1.9);
-          s.xt = s.lx + a * Math.cos(s.phi);
-          const top = surfAt(s.lx), pile = Math.min(11, s.landAge * 0.7 + 1);
-          s.y = top - pile * (0.55 + 0.45 * Math.sin(s.phi * 0.17)) + 0.3 * a * Math.sin(s.phi) + Math.sqrt(s.vol) * 0.7;
-          s.layAcc += dt * tk;
-          if (s.layAcc > 0.085 && dt > 0) { s.layAcc = 0; dots.push({ x: s.xt, y: s.y, r: rope, age: 0, life: x.rnd(5, 8) }); if (dots.length > MAX_DOTS) dots.shift(); }
-        } else if (dt > 0) {
-          if (s.swell > 0) { const k = s.swell * (1 - Math.exp(-dt * 1.7 * Math.sqrt(tk))); s.swell -= k; s.vol = Math.min(560, s.vol + k); }   // the bulge fills, it does not pop
-          if (s.feed > 0) { const f = Math.min(dt, s.feed); s.feed -= dt; s.vol = Math.min(560, s.vol + s.rate * f); s.V += s.rate * f * 1.25; bump(Dm, s.x0, 14, -s.rate * f * 0.012); }
-          const Rb = Math.sqrt(s.vol), L = s.y - rootY, heavy = 1 + Math.max(0, Dm[clamp((s.x0 / CS) | 0, 0, CN - 1)] - base) / 45;
-          s.y += ((3.4 + 0.058 * Math.min(420, Rb * Rb)) * (1 + L / 240) * heavy * tk + s.jolt) * dt;
-          s.jolt *= Math.exp(-dt * 3.2);
-          if (s.y - Rb * 0.4 >= surfAt(s.xt)) { s.land = true; s.lx = s.xt; s.landAge = 0; }
-        }
-        // Volume conserved: the longer the thread, the thinner, and it keeps draining slowly into the bulb.
-        const L = Math.max(0, s.y - rootY);
-        if (dt > 0 && !s.retract && s.feed <= 0) { const d = s.V * (1 - Math.exp(-dt * 0.07 * tk)); s.V -= d; if (!s.land && !s.into) s.vol += d * 0.06; }
-        s.r = Math.max(0.2, Math.sqrt(s.V / (L + 7)));
-        s.rootR += ((s.r * 1.3 + 1.2 + Math.min(4.5, Math.sqrt(s.vol) * 0.4) * (s.land ? 0.4 : 1)) - s.rootR) * Math.min(1, dt * 0.35 * tk);
-        s.Rb = Math.sqrt(s.vol);
-        // Break: only after an enormous stretch; the upper part then goes back up, slowly.
-        if (!s.retract && dt > 0) {
-          if (s.r < 0.42 && s.feed <= 0) s.hair += dt * tk;
-          const hairMax = stretch >= 0.995 ? 1e9 : mix(2, 62, stretch * stretch), Lmax = mix(26, 420, Math.pow(stretch, 1.5));
-          if (s.hair > hairMax || (!s.land && L > Lmax)) breakStrand(s, x);
-        }
-        for (const b of s.beads) b.pos += dt * (11 + b.r * b.r * 7) * tk * (0.6 + 0.4 * Math.min(1, b.pos / 30 + 0.3));
-        for (const b of s.beads) if (b.pos >= L) { s.vol += b.r * b.r; b.done = true; }
-        if (s.beads.length) s.beads = s.beads.filter((b) => !b.done);
-      }
-      strands = strands.filter((s) => !s.dead);
-      for (const d of drops) {
-        d.v += dt * (2.2 + d.r * 2) * tk; d.y += d.v * dt + dt * (2 + d.r * d.r * 1.6) * tk;
-        if (d.y >= surfAt(d.x)) { d.dead = true; bump(Pm, d.x, 14, d.r * d.r * 0.09); dots.push({ x: d.x, y: surfAt(d.x) - 0.5, r: d.r * 1.15, age: 0, life: 4 }); }
-      }
-      if (drops.length) drops = drops.filter((d) => !d.dead);
-      for (const d of dots) { d.age += dt; d.y += dt * 1.1 * tk; }
-      if (dots.length && dots[0].age > 3) dots = dots.filter((d) => d.age < d.life);
+      for (const n of nodes) n.R = Math.sqrt(Math.max(1, n.vol)) * RK;
 
-      // ---- the field
-      F.fill(0);
-      for (let i = 0; i < FW; i++) {           // the mass: thick above, down to a soft lit edge; slow folds of thickness inside it
-        const e = edge[i], swell = 0.14 * Math.sin(i * 0.031 + time * 0.09) + 0.1 * Math.sin(i * 0.083 - time * 0.13);
-        const last = Math.min(FHm, Math.ceil(e + 2));
-        for (let y = 0; y <= last; y++) { const t = e - y; F[y * FW + i] += t < 0 ? Math.max(0, 0.2 + t * 0.14) : Math.min(2.9, 0.2 + t * (0.085 + swell * 0.04)); }
-        const s = surf[i], s0 = Math.max(0, Math.floor(s - 2));   // the pool
-        for (let y = s0; y < FH; y++) { const t = y - s; F[y * FW + i] += t < 0 ? Math.max(0, 0.2 + t * 0.14) : Math.min(2.6, 0.2 + t * 0.1); }
-      }
-      const threads = [];                      // what is too thin for the field: drawn crisp afterwards
-      const cxOf = (s, row, rootY, L) => {
-        const t = L > 0 ? clamp((row - rootY) / L, 0, 1) : 1, b = Math.sin(t * Math.PI);
-        const c = Math.min(CN - 1, (s.x0 / CS) | 0);
-        return s.x0 + (s.xt - s.x0) * t * Math.sqrt(t)
-          + b * (2.6 * Math.min(1, L / 60) * Math.sin(time * s.swayS + s.sway + t * 2.2) + s.pluck * Math.min(1, L / 70) * Math.sin(t * 13 - time * 4.5) + Q[c < 0 ? 0 : c] * 0.5);
-      };
-      for (const s of strands) {
-        const rootY = edgeAt(s.x0), L = s.y - rootY, Rb = s.Rb, fun = 5 + s.rootR * 1.6;
-        const r0 = Math.max(0, Math.floor(rootY - 14)), r1 = Math.min(FHm, Math.floor(s.y));
-        let run = null;
-        for (let row = r0; row <= r1; row++) {
-          const u = s.y - row, dr = Math.max(0, row - rootY);
-          const R = s.r + s.rootR * Math.exp(-dr / fun) + tear(u, Rb);
-          const cx = cxOf(s, row, rootY, L);
-          if (R >= FEW) span(row, cx, R, sstep(rootY - 14, rootY + 5, row));   // melts into the mass above it
-          if (R < 0.95 && (row % 4 === 0 || row === r1)) { if (!run) { run = { s, xs: [], ys: [], rs: [] }; threads.push(run); } run.xs.push(cx); run.ys.push(row); run.rs.push(R * sstep(0.95, 0.62, R)); }
-          else if (R >= 0.95) run = null;
+      // ---- the threads
+      F.fill(0); px.fill(0); bx0 = FW; bx1 = 0; by0 = FH; by1 = 0;
+      const pdt = dt > 0;
+      for (const l of links) {
+        if (l.dead) continue;
+        const a = l.a, b = l.b, dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, hs = Math.abs(dx) / L, ghosted = a.ghost || b.ghost;
+        l.L = L; l.hs = hs; l.SX = SX;
+        if (pdt) {
+          const sagT = L * (0.1 + 0.22 * hs) * Math.sqrt(hs) + Math.sqrt(l.belly) * 1.6 * hs;
+          l.sag += (sagT - l.sag) * Math.min(1, dt * 0.22 * tk);
+          l.pluck *= Math.exp(-dt * 1.2); l.glow *= Math.exp(-dt * 2.2);
+          if (!l.broken) {
+            l.V -= l.V * (1 - Math.exp(-dt * (ghosted ? 0.09 : 0.018) * tk));
+            const r = Math.sqrt(l.V / (L + 7));
+            if (r < 0.42) l.hair += dt * tk; else l.hair = 0;
+            const hairMax = stretch >= 0.995 ? 1e9 : mix(2, 62, stretch * stretch), Lmax = stretch >= 0.995 ? 1e9 : mix(26, 420, Math.pow(stretch, 1.5));
+            if (l.hair > hairMax || L > Lmax) snap(l, x);
+            if (a.dead || b.dead) snap(l, x);
+            const rt = (t) => r * 1.3 + 1.1 + Math.min(4.5, t * 0.4);
+            l.rootA += (rt(a.R) - l.rootA) * Math.min(1, dt * 0.3 * tk); l.rootB += (rt(b.R) - l.rootB) * Math.min(1, dt * 0.3 * tk);
+          } else {
+            const back = dt * 5 * tk / L; l.ca -= back; l.cb += back;
+            if ((l.ca <= 0.01 && l.cb >= 0.99)) l.dead = true;
+          }
         }
-        for (const b of s.beads) {
-          const row = rootY + b.pos, cx = cxOf(s, row, rootY, L);
-          for (let y = Math.max(0, Math.ceil(row - b.r * 3.5)); y <= Math.min(FHm, Math.floor(row + 1)); y++) { const R = tear(row + 0.5 - y, b.r); if (R > 0.3) span(y, cx, R); }
+        // The curve, its lowest point, and its width: fat at both ends, hair between, a belly where it hangs lowest.
+        const cy = (a.y + b.y) / 2 + l.sag * 2, cx = (a.x + b.x) / 2, den = a.y - 2 * cy + b.y;
+        const tl = Math.abs(den) > 1e-3 ? (a.y - cy) / den : 0.5; l.tLow = tl > 0.02 && tl < 0.98 ? tl : b.y > a.y ? 1 : 0;
+        const r = Math.max(0.22, Math.sqrt(l.V / (L + 7))) * RK, n = Math.max(8, Math.min(MAX_S, Math.round(L / 4.5)));
+        const funA = 5 + l.rootA * 1.6, funB = 5 + l.rootB * 1.6, ra = a.R * 0.8, rb = b.R * 0.8, ux = dx / L, uy = dy / L;
+        const brR = Math.sqrt(l.belly) * RK, brW = brR * 1.7 + 3, sw = 2.2 * Math.min(1, L / 60), pl = l.pluck * 0.7 * Math.min(1, L / 70) / (1 + r * 0.6);
+        const bphase = time * l.swayS + l.sway, pphase = time * 4.5;
+        l.n = n;
+        for (let i = 0; i <= n; i++) {
+          const t = i / n, u = 1 - t, bell = Math.sin(t * Math.PI), off = bell * (sw * Math.sin(bphase + t * 2.2) + pl * Math.sin(t * 13 - pphase));
+          l.X[i] = (u * u * a.x + 2 * u * t * cx + t * t * b.x - uy * off) * SX;
+          l.Y[i] = (u * u * a.y + 2 * u * t * cy + t * t * b.y + ux * off) * SY;
+          const da = Math.max(0, t * L - ra), db = Math.max(0, u * L - rb), dB = (t - l.tLow) * L / brW;
+          const wd = r + RK * (l.rootA * Math.exp(-da / funA) + l.rootB * Math.exp(-db / funB)), lim = Math.min(a.R * 0.8 + t * L * 0.5, b.R * 0.8 + u * L * 0.5);   // never wider than the body it leaves
+          l.W[i] = (wd < lim ? wd : lim) + brR * Math.exp(-dB * dB);
+        }
+        if (pdt && !l.broken) {
+          for (const c of l.beads) {
+            const to = l.tLow, d = to - c.t, v = dt * (0.05 + c.r * c.r * 0.035) * tk * (0.5 + 60 / (L + 40));
+            c.t += clamp(d, -v, v);
+            if (Math.abs(d) <= v) { c.done = true; const s = to >= 1 ? b : to <= 0 ? a : null; if (s) s.swell += c.r * c.r * 3; else l.belly += c.r * c.r * 2.5; }
+          }
+          if (l.beads.length) l.beads = l.beads.filter((c) => !c.done);
+          // A belly that has grown heavy becomes a mass of its own, hung from both ends.
+          if (l.belly > 46 && links.length < MAX_LINKS && nodes.length < cap + 2) {
+            const i = Math.round(l.tLow * n), m = mkNode(l.X[i] / SX, l.Y[i] / SY, l.belly, x);
+            m.travel = true; m.tx = m.x + x.rnd(-6, 6); m.ty = m.y + x.rnd(12, 40); m.R = Math.sqrt(m.vol); nodes.push(m);
+            const l2 = mkLink(m, b, l.V * 0.5, 2, l.rootB, x); l.V *= 0.5; l.b = m; l.rootB = 2; l.belly = 0; l2.sag = l.sag * 0.5; l.sag *= 0.5; l.beads.length = 0;
+            l2.n = 0; links.push(l2);
+          }
         }
       }
-      for (const d of drops) {
-        const v = 0.7 + d.r * 2.2;
-        for (let y = Math.max(0, Math.floor(d.y - d.r * 3.5 - v)); y <= Math.min(FHm, Math.floor(d.y)); y++) { const R = tear(d.y - y, d.r); if (R > 0.35) span(y, d.x, R); }
-      }
-      for (const d of dots) {                  // the folds, soft, and gone once the pool has swallowed them
-        const k = (1 - d.age / d.life) * sstep(surfAt(d.x) + 7, surfAt(d.x) - 1, d.y);
-        if (k > 0.02) disc(d.x, d.y, d.r * (0.75 + 0.25 * k), Math.min(0.8, 0.2 + d.r * 0.12) * k);
+      if (pdt) {
+        for (const n of nodes) if (n.ghost) { n.dead = !links.some((l) => !l.dead && !l.broken && (l.a === n || l.b === n)); }
+        nodes = nodes.filter((n) => !n.dead); links = links.filter((l) => !l.dead);
       }
 
-      // ---- thickness through the table; the soft highlight down one side comes from the gradient
-      for (let y = 0, i = 0; y < FH; y++) {
-        for (let xx = 0; xx < FW; xx++, i++) {
-          const v = F[i];
-          if (v < 0.05) { px[i] = 0; continue; }
-          const idx = v >= 2.83 ? 255 : (v * 90) | 0;
-          const gx = (xx < FWm ? F[i + 1] : v) - (xx > 0 ? F[i - 1] : v), gy = (y < FHm ? F[i + FW] : v) - (y > 0 ? F[i - FW] : v);
-          const inner = v > 0.3 ? (v > 0.8 ? 1 : (v - 0.3) * 2) : 0;
-          const hi = inner * Math.min(120, gx > 0 ? gx * gx * 520 : 0);                               // lit softly down the left side
-          const sh = 1 + (gx < 0 ? gx * 0.55 * inner : 0);
-          const gl = glint[xx] * (v < 0.3 ? 1 : v > 1.1 ? 0.03 : 0.03 + 0.97 * (1.1 - v) / 0.8);        // the glint runs along the surfaces, not through the depth
-          const lift = hi + gl * 150;
-          let r = LR[idx] * (sh < 0.4 ? 0.4 : sh) + lift, gg_ = LG[idx] * (sh < 0.4 ? 0.4 : sh) + lift * 0.86, b = LB[idx] * (sh < 0.4 ? 0.4 : sh) + lift * 0.42;
-          if (r > 255) r = 255; if (gg_ > 255) gg_ = 255; if (b > 255) b = 255;
-          px[i] = ((LA[idx] * 255) << 24) | (b << 16) | (gg_ << 8) | r;
+      // ---- the field: the masses, bellies and beads
+      for (const n of nodes) {
+        if (n.ghost) continue;
+        const R = n.R, sq = n.sq * RK;
+        for (const l of n.lobes) {
+          const an = l.a + 0.22 * Math.sin(time * l.s + l.p), d = l.d * R * (1 + 0.4 * n.droop * l.w);
+          disc(n.x + Math.cos(an) * d, n.y + Math.sin(an) * d + (R * 0.28 * n.droop + sq) * l.w, l.r * R * (1 + 0.05 * Math.sin(time * l.s * 1.7 + l.p)));
+        }
+      }
+      for (const l of links) {
+        if (!l.n) continue;
+        if (l.broken) for (const t of [l.ca, l.cb]) if (t > 0.02 && t < 0.98) { const i = Math.round(t * l.n); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1.1, l.W[i] * 0.9)); }
+        if (l.belly > 1.5) { const i = Math.round(l.tLow * l.n), R = Math.sqrt(l.belly) * RK; if (R >= 1) disc(l.X[i] / SX, l.Y[i] / SY + R * 0.3, R); }
+        for (const c of l.beads) { const i = Math.round(clamp(c.t, 0, 1) * l.n); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1, c.r * RK)); }
+      }
+
+      // ---- cut at one level, with an edge true to the distance so it stays clean at any size
+      for (let y = by0; y <= by1; y++) {
+        for (let xx = bx0, i = y * FW + bx0; xx <= bx1; xx++, i++) {
+          const v = F[i]; if (v < 0.06) continue;
+          let a = 255;
+          if (v < 0.5) {
+            const gx = F[i + 1] - F[i - 1], gy = F[i + FW] - F[i - FW], k = (v - CUT) / (Math.sqrt(gx * gx + gy * gy) * 0.5 + 1e-4) + 0.5;
+            if (k <= 0) continue; if (k < 1) a = (k * 255) | 0;
+          }
+          px[i] = (a << 24) | LC[v >= 2.55 ? 255 : (v * 100) | 0];
         }
       }
       fg.putImageData(img, 0, 0);
+      // The flush of an attack lies inside the shape: paler, then sinking back.
+      fg.globalCompositeOperation = 'source-atop';
+      for (const n of nodes) {
+        if (n.ghost || n.glow < 0.02) continue;
+        const cxf = n.x * FS, cyf = (n.y + n.sq * RK * 0.5) * FS, rf = n.R * FS * 1.9;
+        const gr = fg.createRadialGradient(cxf, cyf, 0, cxf, cyf, rf);
+        gr.addColorStop(0.55, `rgba(${paleRGB},${(n.glow * 0.55).toFixed(3)})`); gr.addColorStop(1, `rgba(${paleRGB},0)`);
+        fg.fillStyle = gr; fg.fillRect(cxf - rf, cyf - rf, rf * 2, rf * 2);
+      }
+      fg.globalCompositeOperation = 'source-over';
 
-      // ---- on the stage
-      const W = x.W, H = x.H, SX = W / FW, SY = H / FH;
-      g.save();
-      g.globalAlpha = 0.25 * pres; g.fillStyle = '#1a0e06'; g.fillRect(0, 0, W, H);   // the warm dark ground, only ever a veil over what is under it
-      g.globalCompositeOperation = 'source-over';
-      g.globalAlpha = Math.pow(pres, 1.3);
-      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'medium';
-      g.drawImage(fc, 0, 0, W, H);
-      // The hair: one pale filled path, with a faint halo, brighter where a note has just passed.
-      if (threads.length) {
-        g.fillStyle = threadCol; g.beginPath();
-        for (const t of threads) {
-          const n = t.xs.length; if (n < 2) continue;
-          g.moveTo(t.xs[0] * SX - t.rs[0] * SX, t.ys[0] * SY);
-          for (let i = 1; i < n; i++) g.lineTo(t.xs[i] * SX - t.rs[i] * SX, t.ys[i] * SY);
-          for (let i = n - 1; i >= 0; i--) g.lineTo(t.xs[i] * SX + t.rs[i] * SX, t.ys[i] * SY);
-          g.closePath();
-        }
-        g.fill();
-        g.globalCompositeOperation = 'lighter'; g.strokeStyle = threadCol; g.lineJoin = 'round';
-        for (const t of threads) {
-          const n = t.xs.length; if (n < 2) continue;
-          g.globalAlpha = (0.08 + 0.3 * t.s.glow) * pres; g.lineWidth = 3 + 2 * t.s.glow;
-          g.beginPath(); g.moveTo(t.xs[0] * SX, t.ys[0] * SY);
-          for (let i = 1; i < n; i++) g.lineTo(t.xs[i] * SX, t.ys[i] * SY);
-          g.stroke();
+      // ---- on the stage: threads under the bodies, in the same flat colour. For the 12% fade of the harness a steady
+      // brightness s takes alpha 0.12 s / (1 - 0.88 s), so the knob's low end really is quiet.
+      // Dimmed, threads and bodies are first joined on a layer, so where they overlap does not show through.
+      const s = pres >= 0.999 ? 1 : Math.pow(pres, 0.75), alpha = 0.12 * s / (1 - 0.88 * s), dim = s < 1;
+      if (dim && (!lay || lay.width !== W || lay.height !== H)) [lay, lg] = mk(W, H);
+      const stage = g, c = dim ? lg : g;
+      if (dim) c.clearRect(0, 0, W, H);
+      c.save();
+      c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.fillStyle = threadCol;
+      c.beginPath();
+      const side = (l, i0, i1, tip0, tip1) => {     // a tapered ribbon from sample i0 to i1 (all ribbons wound alike, so one fill unites them)
+        const X = l.X, Y = l.Y, Wd = l.W, m = l.n;
+        const off = (i, sgn) => {
+          const p = Math.max(0, i - 1), q = Math.min(m, i + 1); let tx = X[q] - X[p], ty = Y[q] - Y[p]; const d = Math.hypot(tx, ty) || 1; tx /= d; ty /= d;
+          const taper = (i === i0 && tip0) || (i === i1 && tip1) ? 0.25 : 1, w = Math.max(0.55, Wd[i] * SX) * taper * sgn;
+          return [X[i] - ty * w, Y[i] + tx * w];
+        };
+        let P = off(i0, 1); c.moveTo(P[0], P[1]);
+        for (let i = i0 + 1; i <= i1; i++) { P = off(i, 1); c.lineTo(P[0], P[1]); }
+        for (let i = i1; i >= i0; i--) { P = off(i, -1); c.lineTo(P[0], P[1]); }
+        c.closePath();
+      };
+      for (const l of links) {
+        if (!l.n) continue;
+        if (!l.broken) side(l, 0, l.n, false, false);
+        else {
+          const i0 = Math.floor(clamp(l.ca, 0, 1) * l.n), i1 = Math.ceil(clamp(l.cb, 0, 1) * l.n);
+          if (i0 >= 1) side(l, 0, i0, false, true);
+          if (i1 <= l.n - 1) side(l, i1, l.n, true, false);
         }
       }
-      g.restore();
+      c.fill();
+      // The threads of a struck mass flush with it, along their whole length.
+      let glowing = false;
+      for (const l of links) if (l.n && !l.broken && l.glow > 0.03) { glowing = true; break; }
+      if (glowing) {
+        c.fillStyle = `rgb(${paleRGB})`;
+        for (const l of links) {
+          if (!l.n || l.broken || l.glow <= 0.03) continue;
+          c.globalAlpha = 0.55 * l.glow; c.beginPath(); side(l, 0, l.n, false, false); c.fill();
+        }
+      }
+      c.globalAlpha = 1; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'medium';
+      c.drawImage(fc, 0, 0, W, H);
+      c.restore();
+      if (dim) { stage.save(); stage.globalCompositeOperation = 'source-over'; stage.globalAlpha = alpha; stage.drawImage(lay, 0, 0); stage.restore(); }
     },
   });
 })();
