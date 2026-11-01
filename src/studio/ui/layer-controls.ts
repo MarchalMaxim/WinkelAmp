@@ -9,6 +9,8 @@
  * Every change is one setLayer edit, one undo step.
  */
 import './layer-controls.css';
+import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
+import type { NoteType } from '../../widgets/types';
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { FAMILIES, LINES, listenOf, type Layer } from '../show/show';
@@ -28,13 +30,15 @@ const FAMILY_LABELS: Record<Family, string> = {
 const presentTracks = (pack: Pick<SongPack, 'tracks'>): TrackId[] => TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0);
 
 /** What a layer can listen to in this song: 'All notes'; 'In this recording': its tracks (TRACKS order, with their
-    note counts); 'Families': a family with two tracks or more; 'From the notes': the six derived lines. */
+    note counts); 'Families': a family with two tracks or more; 'From the notes': the six derived lines; 'Kinds of note': the note
+    types, on every song (a song with none of a type says so under the list). */
 export function listenOptions(pack: Pick<SongPack, 'tracks'>): ListenOption[] {
   const ids = presentTracks(pack);
   const out: ListenOption[] = [{ group: '', value: 'all', label: 'All notes' }];
   for (const id of ids) out.push({ group: 'In this recording', value: id, label: `${pack.tracks![id]!.label || TRACKS[id].label} (${pack.tracks![id]!.notes.length} notes)` });
   for (const f of FAMILIES) if (ids.filter((id) => TRACKS[id].family === f).length >= 2) out.push({ group: 'Families', value: `family:${f}`, label: FAMILY_LABELS[f] });
   for (const l of LINES) out.push({ group: 'From the notes', value: l, label: LINE_LABELS[l] });
+  for (const t of NOTE_TYPES) out.push({ group: 'Kinds of note', value: t, label: NOTE_TYPE_LABELS[t] });
   return out;
 }
 
@@ -42,12 +46,43 @@ export function listenOptions(pack: Pick<SongPack, 'tracks'>): ListenOption[] {
 export function listenLabel(l: Listen): string {
   if (l === 'all') return 'All notes';
   if (l in LINE_LABELS) return LINE_LABELS[l as Line];
+  if (l in NOTE_TYPE_LABELS) return NOTE_TYPE_LABELS[l as NoteType];
   if (l.startsWith('family:')) return FAMILY_LABELS[l.slice(7) as Family] ?? l;
   return TRACKS[l as TrackId]?.label ?? l;
 }
 
 /** The same in running text: lower case, but "French horns" keeps its capital. */
 export const partWords = (l: Listen): string => listenLabel(l).toLowerCase().replace(/\bfrench\b/g, 'French');
+
+const isNoteType = (l: Listen | undefined): l is NoteType => (NOTE_TYPES as readonly (string | undefined)[]).includes(l);
+
+/** How many attacks of a part a section holds (the layer's own attacks: its notes grouped among themselves). */
+export function attacksIn(L: WaLayers, pack: Pick<SongPack, 'notes' | 'tracks'>, listen: Listen, s: Span): number {
+  const { notes } = L.listenNotes({ notes: pack.notes, tracks: pack.tracks }, listen);
+  return L.groupChords(notes.filter((n) => n[0] >= s.start && n[0] < s.end)).length;
+}
+
+/** The attacks a section must hold for a widget to take its usual note type when placed: 3, and one per 10 s on average,
+    so a layer doesn't sit dark for most of its section by default. */
+export const neededAttacks = (s: Span): number => Math.max(3, Math.ceil((s.end - s.start) / 10));
+
+/** What a widget hears when placed in this section: its usual note type if the section has enough of it, else nothing
+    (all notes). */
+export function placedListen(L: WaLayers, pack: Pick<SongPack, 'notes' | 'tracks'>, s: Span, usual: NoteType | undefined): NoteType | undefined {
+  return usual && attacksIn(L, pack, usual, s) >= neededAttacks(s) ? usual : undefined;
+}
+
+export interface UsualLine { text: string; action: 'all' | 'use' | null }
+
+/** The line under "Listens to" for a widget with a usual note type: what it hears against what it usually hears, and
+    the one click that changes that ('all': back to all notes; 'use': its usual type). */
+export function usualLine(usual: NoteType, listen: Listen | undefined, attacks: number, need: number): UsualLine {
+  const words = NOTE_TYPE_LABELS[usual].toLowerCase();
+  if (listen === usual) return { text: `Hears ${words}, as this widget usually does.`, action: 'all' };
+  if (listen !== undefined || attacks >= need) return { text: `This widget usually hears ${words}.`, action: 'use' };
+  if (!attacks) return { text: `This widget usually hears ${words}, but this section has none: it plays on all notes.`, action: null };
+  return { text: `This widget usually hears ${words}, but this section has only ${attacks}: it plays on all notes.`, action: 'use' };
+}
 
 /** The widgets that read the shared canvas (they cut or smear what is below): a spotlight keeps them doing that in
     place; in a window they read only their own picture. */
@@ -102,6 +137,8 @@ export interface LayerControlsDeps {
   layers: WaLayers;
   pack: Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>;
   widget: string; hue: number;
+  /** The note type this widget usually hears (lab/tags.json). */
+  usual?: NoteType;
   /** The section's span now (a boundary drag changes it without a redraw). */
   span(): Span;
   /** The layer now (undo changes it without a redraw). */
@@ -128,6 +165,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       <h4>Listens to</h4>
       <div class="lc-listen"><select aria-label="What this layer listens to"></select><canvas class="lc-spark" width="${SPARK_W}" height="${SPARK_H}" aria-hidden="true"></canvas></div>
       <p class="lc-note small"></p>
+      <p class="lc-usual small" hidden><span></span> <button type="button" class="link" data-usual></button></p>
     </section>
     <section class="lc-part">
       <h4>Where</h4>
@@ -204,20 +242,37 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     for (let x = 0; x < SPARK_W; x++) if (cols[x]) { const h = Math.max(2, Math.round((Math.sqrt(cols[x] / top)) * SPARK_H)); g.fillRect(x, SPARK_H - h, 1, h); }
     g.fillStyle = '#ffffff22'; g.fillRect(0, SPARK_H - 1, SPARK_W, 1);
     spark.title = `${here} notes in this section`;
+    const noneAtAll = isNoteType(listen) && !notes.length;
     note.textContent = listen && heard === 'all' ? `This song has no ${partWords(listen)}: the layer plays on all notes.`
+      : noneAtAll ? `This song has no ${partWords(listen)}: the layer stays still.`
       : here ? `${here} note${here === 1 ? '' : 's'} in this section${listen ? '; it moves with these only' : ''}.` : 'Silent in this section: the layer stays still here.';
-    note.classList.toggle('warn', !!listen && heard === 'all');
+    note.classList.toggle('warn', (!!listen && heard === 'all') || (isNoteType(listen) && !here));
   };
 
   // Listens to
-  sel.addEventListener('change', () => {
-    const was = listenOf(d.layer() ?? { widget: d.widget }) ?? 'all', want = sel.value;
+  const hear = (want: Listen) => {
+    const was = listenOf(d.layer() ?? { widget: d.widget }) ?? 'all';
     if (!d.edit({ listen: want === 'all' ? null : want }, group('listen'))) {
       sel.value = was;
       note.textContent = `This widget already plays on ${partWords(want)} in this section, in another layer.`;
       note.classList.add('warn');
     }
-  });
+  };
+  sel.addEventListener('change', () => hear(sel.value));
+  const usualBtn = $<HTMLButtonElement>('[data-usual]');
+  usualBtn.addEventListener('click', () => hear(usualBtn.dataset.usual === 'all' ? 'all' : d.usual!));
+  let usualKey = '';
+  const drawUsual = (listen: Listen | undefined, span: Span) => {
+    const key = JSON.stringify([listen ?? 'all', span.start, span.end]);
+    if (!d.usual || key === usualKey) return;
+    usualKey = key;
+    const u = usualLine(d.usual, listen, attacksIn(L, d.pack, d.usual, span), neededAttacks(span));
+    $<HTMLElement>('.lc-usual').hidden = false;
+    $<HTMLElement>('.lc-usual span').textContent = u.text;
+    usualBtn.hidden = !u.action;
+    usualBtn.dataset.usual = u.action ?? '';
+    usualBtn.textContent = u.action === 'all' ? 'All notes instead' : 'Use them';
+  };
 
   // Where
   const region = () => d.layer()?.region;
@@ -264,6 +319,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     const listen = listenOf(l), r = l.region, span = d.span();
     fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
     drawSpark(listen, span);
+    drawUsual(listen, span);
     box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.mode || undefined) === r?.mode)));
     $<HTMLElement>('.lc-say').textContent = !r ? 'Seen across the whole picture, as in the lab.'
       : r.mode === 'spot' ? 'A mask: the full-size widget, seen only through the shape. Drag its handles on the stage to place it.'

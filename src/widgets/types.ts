@@ -75,4 +75,5 @@ export interface InstanceSpec { key: string; widget: string; listen?: Listen; ow
 /** until: the curve is read at min(t, until), a decaying instance's frozen value. */
 export interface SlotLayer { pivots?: readonly Pivot[]; until?: number; region?: Region; glide?: { from: Region; u: number } }
 export type Role = 'under' | 'ground' | 'base' | 'texture' | 'lead' | 'accent' | 'top' | 'standalone';
-export interface WidgetTags { feel: string[]; instruments: string[]; role: Role }
+/** noteType: what the widget hears when placed in the studio, if the section has enough of it. Absent: all notes. */
+export interface WidgetTags { feel: string[]; instruments: string[]; role: Role; noteType?: NoteType }

@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { defaultRegion, describePlace, gateDefault, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
+import { attacksIn, listenLabel as labelOf, neededAttacks, placedListen, usualLine } from '../src/studio/ui/layer-controls';
 import type { SongPack } from '../src/studio/pack/pack';
-import type { TagWords } from '../src/widgets/tags';
+import { NOTE_TYPES, type TagWords } from '../src/widgets/tags';
 import type { Note, WidgetMeta, WidgetTags } from '../src/widgets/types';
 
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../lab/${f}`, import.meta.url), 'utf8'));
@@ -23,19 +24,65 @@ describe('listenOptions', () => {
   it('all notes, the present tracks in TRACKS order with their note counts, families of 2+, then the lines', () => {
     const pack = { tracks: { horn: track('brass', 'French horns', 3), viola: track('strings', 'Violas', 5), violin: track('strings', 'Violins', 7) } } as unknown as Pick<SongPack, 'tracks'>;
     const o = listenOptions(pack);
-    expect(o.map((x) => x.value)).toEqual(['all', 'violin', 'viola', 'horn', 'family:strings', ...LINES]);
+    expect(o.map((x) => x.value)).toEqual(['all', 'violin', 'viola', 'horn', 'family:strings', ...LINES, ...NOTE_TYPES]);
     expect(o[0]).toEqual({ group: '', value: 'all', label: 'All notes' });
     expect(o.slice(1, 4).every((x) => x.group === 'In this recording')).toBe(true);
     expect(o[1].label).toBe('Violins (7 notes)');
     expect(o[4].group).toBe('Families');
-    expect(o.slice(5).every((x) => x.group === 'From the notes')).toBe(true);
-    expect(o.slice(5).map((x) => x.label)).toEqual(['Melody', 'Bass line', 'Inner voices', 'Low notes', 'High notes', 'Accents']);
+    expect(o.slice(5, 11).every((x) => x.group === 'From the notes')).toBe(true);
+    expect(o.slice(5, 11).map((x) => x.label)).toEqual(['Melody', 'Bass line', 'Inner voices', 'Low notes', 'High notes', 'Accents']);
+    expect(o.slice(11).every((x) => x.group === 'Kinds of note')).toBe(true);
+    expect(o.slice(11).map((x) => x.label)).toEqual(['Big chords', 'Fast runs', 'Trills', 'Long ringing notes', 'Repeated notes']);
   });
 
   it('without tracks (or with empty ones): all notes and the lines', () => {
-    expect(listenOptions({}).map((x) => x.value)).toEqual(['all', ...LINES]);
+    expect(listenOptions({}).map((x) => x.value)).toEqual(['all', ...LINES, ...NOTE_TYPES]);
     const empty = { tracks: { violin: track('strings', 'Violins', 0) } } as unknown as Pick<SongPack, 'tracks'>;
-    expect(listenOptions(empty).map((x) => x.value)).toEqual(['all', ...LINES]);
+    expect(listenOptions(empty).map((x) => x.value)).toEqual(['all', ...LINES, ...NOTE_TYPES]);
+  });
+
+  it('names a note type in words', () => {
+    expect(labelOf('long')).toBe('Long ringing notes');
+    expect(partWords('runs')).toBe('fast runs');
+  });
+});
+
+describe('a widget placed with its usual note type', () => {
+  const L = loadLayers();
+  /** n strikes of one pitch, 200 ms apart, from t: repeated notes. */
+  const strikes = (n: number, t: number): Note[] => Array.from({ length: n }, (_, i) => [t + i * 0.2, t + i * 0.2 + 0.1, 60, 80] as Note);
+  const pack = (n: Note[]) => ({ notes: n }) as unknown as Pick<SongPack, 'notes' | 'tracks'>;
+
+  it('needs 3 attacks, and one per 10 s on average', () => {
+    expect(neededAttacks({ start: 10, end: 19 })).toBe(3);
+    expect(neededAttacks({ start: 0, end: 30 })).toBe(3);
+    expect(neededAttacks({ start: 0, end: 31 })).toBe(4);
+    expect(neededAttacks({ start: 0, end: 60 })).toBe(6);
+  });
+
+  it('counts the attacks of the part in the section only', () => {
+    const p = pack(strikes(4, 5));
+    expect(attacksIn(L, p, 'repeats', { start: 0, end: 10 })).toBe(4);
+    expect(attacksIn(L, p, 'repeats', { start: 5.3, end: 10 })).toBe(2);
+    expect(attacksIn(L, p, 'repeats', { start: 6, end: 10 })).toBe(0);
+    expect(attacksIn(L, p, 'runs', { start: 0, end: 10 })).toBe(0);
+  });
+
+  it('takes the type when the section has enough of it, and stays on all notes when not', () => {
+    const p = pack(strikes(4, 5));
+    expect(placedListen(L, p, { start: 0, end: 10 }, 'repeats')).toBe('repeats');
+    expect(placedListen(L, p, { start: 0, end: 60 }, 'repeats')).toBeUndefined();   // 4 attacks in a minute: dark for most of it
+    expect(placedListen(L, p, { start: 20, end: 30 }, 'repeats')).toBeUndefined();
+    expect(placedListen(L, p, { start: 0, end: 10 }, 'trills')).toBeUndefined();
+    expect(placedListen(L, p, { start: 0, end: 10 }, undefined)).toBeUndefined();
+  });
+
+  it('says what it hears against what it usually hears, with the one click', () => {
+    expect(usualLine('runs', 'runs', 9, 3)).toEqual({ text: 'Hears fast runs, as this widget usually does.', action: 'all' });
+    expect(usualLine('runs', undefined, 9, 3)).toEqual({ text: 'This widget usually hears fast runs.', action: 'use' });
+    expect(usualLine('runs', 'violin', 0, 3)).toEqual({ text: 'This widget usually hears fast runs.', action: 'use' });
+    expect(usualLine('runs', undefined, 2, 3)).toEqual({ text: 'This widget usually hears fast runs, but this section has only 2: it plays on all notes.', action: 'use' });
+    expect(usualLine('runs', undefined, 0, 3)).toEqual({ text: 'This widget usually hears fast runs, but this section has none: it plays on all notes.', action: null });
   });
 });
 

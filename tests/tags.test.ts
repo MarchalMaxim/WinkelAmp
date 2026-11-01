@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { toMeta } from '../src/widgets/catalogue';
-import { feelWords, feelWordsIn, ROLES, tracksFor, validateTags, type TagWords } from '../src/widgets/tags';
+import { feelWords, feelWordsIn, NOTE_TYPES, ROLES, tracksFor, validateTags, type TagWords } from '../src/widgets/tags';
 import type { WidgetTags } from '../src/widgets/types';
 
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../lab/${f}`, import.meta.url), 'utf8'));
@@ -13,6 +13,24 @@ const ids = readdirSync(new URL('../lab/tools/', import.meta.url)).filter((f) =>
 const TRACK_IDS = ['piano', 'plucked', 'violin', 'viola', 'cello', 'contrabass', 'strings', 'timpani', 'voice', 'horn', 'trumpet',
   'trombone', 'brass', 'flute', 'oboe', 'clarinet', 'bassoon', 'saxophone'];
 const FAMILIES = ['keys', 'plucked', 'strings', 'winds', 'brass', 'percussion', 'voice'];
+
+describe('note types in lab/tags.json', () => {
+  it('a widget with a natural note type names it; a new widget without one has none', () => {
+    expect(tags.flee.noteType).toBe('runs');
+    expect(tags.martin.noteType).toBe('long');
+    expect(tags.pixelsort.noteType).toBe('chords');
+    expect(tags.stella.noteType).toBe('repeats');
+    expect(tags.brush.noteType).toBeUndefined();
+    expect(tags.kline.noteType).toBeUndefined();
+    for (const [id, t] of Object.entries(tags)) if (t.noteType !== undefined) expect(NOTE_TYPES, id).toContain(t.noteType);
+  });
+  it('an unknown note type is an error, naming the widget', () => {
+    const bad = { flee: { feel: [], instruments: [], role: 'accent', noteType: 'grace' } };
+    expect(validateTags(bad, words, ['flee']).errors).toEqual(["flee: noteType 'grace' is not one of chords, runs, trills, long, repeats"]);
+    const ok = { flee: { feel: [], instruments: [], role: 'accent', noteType: 'runs' } };
+    expect(validateTags(ok, words, ['flee']).errors).toEqual([]);
+  });
+});
 
 describe('lab/tags.json and lab/tag-words.json', () => {
   it('validate with no errors (an untagged new lab widget is only a warning, printed by widget-docs)', () => {

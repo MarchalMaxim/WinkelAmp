@@ -30,8 +30,8 @@ const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /**
- * Errors: an unknown feel or instrument word, a role not in Role, a key with no widget, a malformed entry, a synonym
- * that names no feel word or shadows one. Warnings: a widget without tags (new lab widgets keep arriving), a word
+ * Errors: an unknown feel or instrument word, a role not in Role, a note type not in NOTE_TYPES, a key with no widget, a
+ * malformed entry, a synonym that names no feel word or shadows one. Warnings: a widget without tags (new lab widgets keep arriving), a word
  * listed twice in one entry.
  */
 export function validateTags(tags: unknown, words: TagWords, widgetIds: readonly string[]): { errors: string[]; warnings: string[] } {
@@ -54,6 +54,7 @@ export function validateTags(tags: unknown, words: TagWords, widgetIds: readonly
       if (dup.length) warnings.push(`${id}: ${field} lists ${[...new Set(dup)].map((w) => `'${w}'`).join(', ')} twice`);
     }
     if (!ROLES.includes(t.role as Role)) errors.push(`${id}: role '${String(t.role)}' is not one of ${ROLES.join(', ')}`);
+    if (t.noteType !== undefined && !NOTE_TYPES.includes(t.noteType as NoteType)) errors.push(`${id}: noteType '${String(t.noteType)}' is not one of ${NOTE_TYPES.join(', ')}`);
   }
   for (const id of widgetIds) if (!own(tags, id)) warnings.push(`${id}: no tags in lab/tags.json`);
   return { errors, warnings };
