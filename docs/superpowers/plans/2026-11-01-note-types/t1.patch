@@ -16,7 +16,7 @@ index 7fac543..bc87433 100644
    `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
  
 diff --git a/lab/layers/lines.js b/lab/layers/lines.js
-index 6e3fb3d..321e256 100644
+index 6e3fb3d..c1e3d1f 100644
 --- a/lab/layers/lines.js
 +++ b/lab/layers/lines.js
 @@ -1,5 +1,6 @@
@@ -183,10 +183,10 @@ index 6e3fb3d..321e256 100644
 +    return out.sort(byStart);
 +  };
 +
-+  /** How many attacks of each note type a song has (what validateShow's warning and a note in the panel go by). */
-+  WA.noteTypeCounts = function (song) {
-+    var out = {};
-+    for (var i = 0; i < WA.NOTE_TYPES.length; i++) out[WA.NOTE_TYPES[i]] = WA.groupChords(noteTypeOfSong(song, WA.NOTE_TYPES[i])).length;
++  /** The times of each note type's attacks in a song (what validateShow's warnings go by). */
++  WA.noteTypeAttacks = function (song) {
++    var out = {}, at = function (ch) { return ch.t; };
++    for (var i = 0; i < WA.NOTE_TYPES.length; i++) out[WA.NOTE_TYPES[i]] = WA.groupChords(noteTypeOfSong(song, WA.NOTE_TYPES[i])).map(at);
 +    return out;
 +  };
 +
@@ -211,7 +211,7 @@ index 6e3fb3d..321e256 100644
      if (typeof listen === 'string' && listen.indexOf('family:') === 0) {
        var fam = listen.slice(7), ids = [];
 diff --git a/scripts/check-show.ts b/scripts/check-show.ts
-index 90cb0cc..63dfbd6 100644
+index 90cb0cc..73ba109 100644
 --- a/scripts/check-show.ts
 +++ b/scripts/check-show.ts
 @@ -13,7 +13,9 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -232,12 +232,12 @@ index 90cb0cc..63dfbd6 100644
 +      const p = JSON.parse(readFileSync(pack, 'utf8')) as { duration: number; notes: Note[]; tracks?: SongNotes['tracks'] };
        c.duration = p.duration;
        c.tracks = Object.keys(p.tracks ?? {});   // a listen naming a track this song lacks is a warning
-+      c.noteTypes = loadLayers().noteTypeCounts(p);   // and one naming a kind of note it has none of
++      c.noteTypes = loadLayers().noteTypeAttacks(p);   // and one naming a kind of note it, or the section, has none of
      } catch { /* a broken pack: no end or track checks */ }
    }
    let { errors, warnings } = validateShow(x, c);
 diff --git a/src/studio/show/show.ts b/src/studio/show/show.ts
-index 6ddb824..ff254a4 100644
+index 6ddb824..9a3ff3a 100644
 --- a/src/studio/show/show.ts
 +++ b/src/studio/show/show.ts
 @@ -6,6 +6,8 @@
@@ -255,8 +255,8 @@ index 6ddb824..ff254a4 100644
  /** tracks: the song's instrument tracks (pack v2); undefined: no track warnings. */
 -export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, WidgetMeta>; tracks?: readonly string[] }
 +export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, WidgetMeta>; tracks?: readonly string[];
-+  /** Attacks per note type in this song (WaLayers.noteTypeCounts); undefined: no such warnings. */
-+  noteTypes?: Partial<Record<NoteType, number>> }
++  /** Attack times per note type in this song (WaLayers.noteTypeAttacks); undefined: no such warnings. */
++  noteTypes?: Partial<Record<NoteType, readonly number[]>> }
  
  export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
  const COMPOSERS = ['auto', 'claude', 'user'];
@@ -274,13 +274,24 @@ index 6ddb824..ff254a4 100644
  function missingPart(listen: string, c: ShowContext): string | null {
 +  if ((NOTE_TYPES as readonly string[]).includes(listen)) {
 +    const t = listen as NoteType;
-+    return c.noteTypes?.[t] === 0 ? `this song has no ${NOTE_TYPE_LABELS[t].toLowerCase()}: this layer stays still` : null;
++    return c.noteTypes?.[t]?.length === 0 ? `this song has no ${NOTE_TYPE_LABELS[t].toLowerCase()}: this layer stays still` : null;
 +  }
    if (!c.tracks) return null;
    if (isTrackId(listen) && !c.tracks.includes(listen)) return `this song has no ${listen}: it plays on all notes`;
    if (listen.startsWith('family:')) {
+@@ -175,6 +184,10 @@ function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | n
+   }
+   seen.add(key);
+   if (l.restart !== undefined && typeof l.restart !== 'boolean') err(`${at}.restart`, 'not true or false');
++  const type = (NOTE_TYPES as readonly unknown[]).includes(l.listen) ? (l.listen as NoteType) : null, times = type && c.noteTypes?.[type];
++  if (type && span && times?.length && !times.some((t) => t >= span.start && t < span.end)) {
++    warn(`${at}.listen`, `this section has no ${NOTE_TYPE_LABELS[type].toLowerCase()}: this layer stays still here`);
++  }
+   if (l.region !== undefined) validateRegion(l.region, `${at}.region`, err, warn, typos);
+   if (l.intensity !== undefined) validateIntensity(l.intensity, `${at}.intensity`, span, err, warn, typos);
+   if (l.knobs === undefined) return;
 diff --git a/src/widgets/layers.ts b/src/widgets/layers.ts
-index 7bb6889..4db167f 100644
+index 7bb6889..e01d392 100644
 --- a/src/widgets/layers.ts
 +++ b/src/widgets/layers.ts
 @@ -1,7 +1,7 @@
@@ -296,7 +307,7 @@ index 7bb6889..4db167f 100644
    VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
    vis(a: number, cls: Persist): number;
    // lines.js (T4)
-+  NOTE_TYPES: readonly NoteType[]; noteTypeCounts(song: SongNotes): Record<NoteType, number>;   // attacks per type
++  NOTE_TYPES: readonly NoteType[]; noteTypeAttacks(song: SongNotes): Record<NoteType, number[]>;   // attack times per type
    groupChords(notes: readonly Note[]): Chord[]; soundingAt(notes: readonly Note[], t: number): SoundingNote[];
    lineNotes(notes: readonly Note[], line: Line): Note[];
    listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back
@@ -342,10 +353,10 @@ index 06103be..b4f50c2 100644
    | 'horn' | 'trumpet' | 'trombone' | 'brass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'saxophone';
 diff --git a/tests/note-types.test.ts b/tests/note-types.test.ts
 new file mode 100644
-index 0000000..971a6c0
+index 0000000..07216b7
 --- /dev/null
 +++ b/tests/note-types.test.ts
-@@ -0,0 +1,207 @@
+@@ -0,0 +1,213 @@
 +/// <reference types="node" />
 +import { describe, expect, it } from 'vitest';
 +import { loadLayers } from '../scripts/node/layers';
@@ -505,14 +516,14 @@ index 0000000..971a6c0
 +  });
 +});
 +
-+describe('noteTypeCounts', () => {
-+  it('counts attacks per type', () => {
++describe('noteTypeAttacks', () => {
++  it('gives the attack times per type', () => {
 +    const big: Note[] = [48, 55, 60, 64, 67].map((m) => [0, 1, m, 80]);
-+    const counts = WA.noteTypeCounts({ notes: [...big, ...seq(4, 0.2, () => 90, 5)] });
-+    expect(counts).toEqual({ chords: 1, runs: 0, trills: 0, long: 0, repeats: 4 });
++    const hits = seq(4, 0.25, () => 90, 5);
++    expect(WA.noteTypeAttacks({ notes: [...big, ...hits] })).toEqual({ chords: [0], runs: [], trills: [], long: [], repeats: [5, 5.25, 5.5, 5.75] });
 +  });
-+  it('is all zeros for a song with no notes', () => {
-+    expect(WA.noteTypeCounts({ notes: [] })).toEqual({ chords: 0, runs: 0, trills: 0, long: 0, repeats: 0 });
++  it('is empty for a song with no notes', () => {
++    expect(WA.noteTypeAttacks({ notes: [] })).toEqual({ chords: [], runs: [], trills: [], long: [], repeats: [] });
 +  });
 +});
 +
@@ -535,15 +546,21 @@ index 0000000..971a6c0
 +    expect(JSON.parse(text).sections[0].layers[0]).toEqual({ widget: 'flee', listen: 'runs' });
 +  });
 +
-+  it('warns when the song has none of the type, saying what happens, only when the counts are known', () => {
-+    const none = { noteTypes: { chords: 3, runs: 0, trills: 0, long: 1, repeats: 2 } };
-+    expect(validateShow(show('runs'), none).warnings).toEqual([
++  it('warns, once, when the song or the section has none of the type, saying what happens, only when the times are known', () => {
++    const c = { noteTypes: { chords: [3], runs: [], trills: [20], long: [10], repeats: [9.9] } };
++    expect(validateShow(show('runs'), c).warnings).toEqual([
 +      { path: 'sections[0].layers[0].listen', message: 'this song has no fast runs: this layer stays still' },
 +    ]);
-+    expect(validateShow(show('chords'), none).warnings).toEqual([]);
++    expect(validateShow(show('trills'), c).warnings).toEqual([
++      { path: 'sections[0].layers[0].listen', message: 'this section has no trills: this layer stays still here' },
++    ]);
++    expect(validateShow(show('long'), c).warnings).toHaveLength(1);            // the section ends at 10: that attack is the next one's
++    expect(validateShow(show('chords'), c).warnings).toEqual([]);
++    expect(validateShow(show('repeats'), c).warnings).toEqual([]);
 +    expect(validateShow(show('runs'), {}).warnings).toEqual([]);
 +    expect(validateShow(show('runs'), { tracks: [] }).warnings).toEqual([]);   // a type is no track the song lacks
-+    expect(validateShow(show(), none).warnings).toEqual([]);
++    expect(validateShow(show(), c).warnings).toEqual([]);
++    expect(validateShow(show('melody'), c).warnings).toEqual([]);
 +  });
 +
 +  it('addLayer and setLayer take a type', () => {
