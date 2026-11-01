@@ -15,8 +15,9 @@ the user's call.**
   lines worked out from the notes (melody, bass line, inner voices, low, high, accents). A layer that listens gets
   only that part's attacks, pulse and sounding notes; `strings@melody` and `strings@bassline` are two instances in one
   section.
-- **A layer is seen in a place.** A spotlight (it draws on the shared picture, seen only through the shape: right for
-  the readers that cut or smear what is below) or a window (it draws alone, fitted into the shape). Rect or ellipse,
+- **A layer is seen in a place.** A small copy (`window`, the default for every widget: it draws alone and the whole
+  picture is fitted into the shape) or a mask (`spot`: it draws full size on the shared picture, seen only through the
+  shape, right for the readers that cut or smear what is below). Rect or ellipse,
   turned, soft-edged, placed by dragging handles on the stage; a moved place glides over the section's fade.
 - **A layer follows an intensity curve**, drawn in lanes under the timeline like DJ automation (pivots, linear, ease,
   hold, bends; presets: fade in or out, swell, pulse every beat or bar, gate on loudness, while its part plays).

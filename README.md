@@ -39,7 +39,7 @@ you loved. Then:
 - **F** full screen, **H** hides the controls.
 - **Each layer** can also *listen to* one part (a track of the recording such as Violins or Cellos, a family, or a
   line worked out from the notes: melody, bass line, inner voices, low, high, accents), be seen only in a **place**
-  (a spotlight or a window you drag, turn and soften on the stage), and follow an **intensity** curve drawn in a lane
+  (a small copy of the widget, or a mask over the full-size picture, that you drag, turn and soften on the stage), and follow an **intensity** curve drawn in a lane
   under the timeline like DJ automation (presets: fade in or out, swell, pulse every beat or bar, gate on loudness,
   while its part plays). Lower intensity means fewer attacks, a fainter picture and a calmer pulse.
   [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md) explains all three.

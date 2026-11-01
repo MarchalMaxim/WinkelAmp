@@ -116,15 +116,19 @@ violins' line" rather than "the first violins".
 `x`, `y` are the centre and `w`, `h` the size, as fractions of the picture; `rot` turns it (degrees); `feather` 0..1
 softens the edge (default 0.25; 0 is a hard edge); `shape` is `rect` or `ellipse`.
 
-- **`spot`**: the widget draws on the shared picture as always, and is seen only through the shape. Use it for the
+- **`spot`** (the studio's **Mask**): the widget draws on the shared picture as always, full size, and is seen only
+  through the shape. Use it for the
   **readers**, the widgets that cut, smear or re-time what is below them (casket, pixel sort, tunnel, glitch blocks,
   fold, time slice): in a spot they still work on the whole stack under them, only inside the shape.
-- **`window`**: the widget draws alone on its own canvas (with the same fade), and that picture is fitted into the
+- **`window`** (the studio's **Small copy**): the widget draws alone on its own canvas (with the same fade), and that
+  whole picture is fitted into the
   shape (`fit`: `cover` crops, `contain` letterboxes, `stretch`) and laid over the stack (`blend`: `over`, or
   `lighten` to keep the brighter of the two). A reader in a window only cuts its own picture, which is usually empty:
   the studio says so.
 
-The studio's default for a new place is a soft centred ellipse: a spot for the readers, a window for everything else.
+The studio's and the lab's default for a new place is a small copy for every widget, the readers included: a window,
+a centred rectangle 40 % of the stage (`w` and `h` 0.4), `feather` 0.2, `fit` `contain`. Switch a reader to the mask
+to let it cut the stack below.
 When a continuing layer's region moves between sections, it glides over the new section's fade.
 
 ### `intensity`: how much of the layer there is, over time
