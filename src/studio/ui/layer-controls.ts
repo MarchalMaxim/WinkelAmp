@@ -188,12 +188,13 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     sel.value = cur;
   };
 
-  let drawn = '', drawnNotes: unknown = null;
+  let drawn = '', drawnNotes: unknown;
   const drawSpark = (listen: Listen | undefined, span: Span) => {
     const key = JSON.stringify([listen ?? 'all', span.start, span.end]);
+    const set = picksId(listen), mine = set !== null ? d.picks()?.[set]?.notes : undefined;   // an edited set draws again
+    if (key === drawn && mine === drawnNotes) return;
+    drawn = key; drawnNotes = mine;
     const { notes, heard } = L.listenNotes({ notes: d.pack.notes, tracks: d.pack.tracks, picks: d.picks() }, listen);
-    if (key === drawn && notes === drawnNotes) return;
-    drawn = key; drawnNotes = notes;
     const dpr = window.devicePixelRatio || 1;
     spark.width = Math.round(SPARK_W * dpr); spark.height = Math.round(SPARK_H * dpr);
     const g = spark.getContext('2d')!, len = Math.max(1e-6, span.end - span.start);
