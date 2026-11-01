@@ -100,7 +100,10 @@
           }
         },
         {
-          "widget": "casket"
+          "widget": "casket",
+          "knobs": {
+            "keep": 1
+          }
         }
       ]
     },
@@ -176,7 +179,10 @@
           "widget": "squares"
         },
         {
-          "widget": "casket"
+          "widget": "casket",
+          "knobs": {
+            "keep": 1
+          }
         }
       ]
     },
@@ -366,7 +372,10 @@
           "widget": "kline"
         },
         {
-          "widget": "casket"
+          "widget": "casket",
+          "knobs": {
+            "keep": 1
+          }
         }
       ]
     },

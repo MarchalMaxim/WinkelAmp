@@ -127,6 +127,7 @@
         {
           "widget": "casket",
           "knobs": {
+            "keep": 1,
             "melt": 3,
             "drips": 0.8
           }
