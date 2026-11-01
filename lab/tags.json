@@ -29,7 +29,7 @@
   "matisse": {"feel":["vivid","playful","warm"],"instruments":["clarinet","trumpet"],"role":"ground"},
   "mclaren": {"feel":["marching","vivid","flickering","playful"],"instruments":["piano","harpsichord"],"role":"ground"},
   "miro": {"feel":["playful","airy","pale","longing"],"instruments":["flute","clarinet"],"role":"ground"},
-  "murmuration": {"feel":["flowing","whirling","dread","skittish"],"instruments":["strings","cello"],"role":"base"},
+  "murmuration": {"feel":["unison","mysterious","twitchy","grainy"],"instruments":["violin","voice","flute"],"role":"lead"},
   "nebula": {"feel":["glowing","grainy","whirling","burning"],"instruments":["strings","voice"],"role":"base"},
   "pixelsort": {"feel":["stabbing","brittle","burning"],"instruments":["trombone","strings"],"role":"top"},
   "pointillism": {"feel":["grainy","vivid","liquid","playful"],"instruments":["plucked","flute"],"role":"base"},

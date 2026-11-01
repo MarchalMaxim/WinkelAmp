@@ -12,7 +12,7 @@ export interface TagWords {
   synonyms: Record<string, string>;
 }
 
-export const ROLES: readonly Role[] = ['under', 'ground', 'base', 'texture', 'accent', 'top'];
+export const ROLES: readonly Role[] = ['under', 'ground', 'base', 'texture', 'lead', 'accent', 'top'];
 
 /** Every feel word, in vocabulary order (axis by axis, as the file lists them). */
 export function feelWords(words: TagWords): string[] {

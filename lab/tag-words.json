@@ -162,6 +162,11 @@
         "fit": {
           "fast": 1
         }
+      },
+      "unison": {
+        "looks": "Many things moving as one: a flock or a shoal turning together, every dot in step.",
+        "sounds": "One line everyone follows: a melody in unison or octaves, a single voice.",
+        "fit": {}
       }
     },
     "light and colour": {
@@ -263,6 +268,13 @@
         "fit": {
           "loud": 1,
           "fast": 0.4
+        }
+      },
+      "mysterious": {
+        "looks": "Half-seen shapes you cannot quite make out; something forming and dissolving.",
+        "sounds": "Hushed and unresolved: soft, modal or chromatic, a question left open.",
+        "fit": {
+          "quiet": 0.6
         }
       }
     }
@@ -580,6 +592,9 @@
     "chaotic": "panic",
     "frantic": "panic",
     "attacking": "stabbing",
-    "smear": "smeared"
+    "smear": "smeared",
+    "synchronized": "unison",
+    "swarm": "unison",
+    "abrupt": "twitchy"
   }
 }
