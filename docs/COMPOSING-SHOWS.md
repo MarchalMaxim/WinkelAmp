@@ -464,7 +464,7 @@ Feel: flowing, liquid, silky, glowing, serene · Suits: violin, flute, strings �
 
 Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Five knobs now, all starting at the defaults you accepted.
 
-Feel: silky, longing, swelling, warm, stabbing · Suits: violin, plucked, cello · Role: base
+Feel: skittish, anxious, twitchy, fibrous · Suits: violin, plucked · Role: texture
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|

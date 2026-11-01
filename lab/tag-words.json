@@ -78,6 +78,13 @@
           "quiet": 0.4,
           "dense": 0.4
         }
+      },
+      "fibrous": {
+        "looks": "Hair, thread, filament: many fine strands, like the hairs on an arm.",
+        "sounds": "Bowed or plucked strings, many voices close together.",
+        "fit": {
+          "dense": 0.4
+        }
       }
     },
     "motion": {
@@ -132,6 +139,13 @@
         "fit": {
           "loud": 1,
           "dense": 0.4
+        }
+      },
+      "twitchy": {
+        "looks": "Answers every attack at once with a quick, sharp jolt, then snaps back.",
+        "sounds": "Fast, articulate, detached playing; quick attacks.",
+        "fit": {
+          "fast": 1
         }
       }
     },
@@ -218,6 +232,14 @@
           "loud": 0.8,
           "fast": 0.8,
           "dense": 0.6
+        }
+      },
+      "anxious": {
+        "looks": "Restless, never settling: small tremors, things that flinch and fidget.",
+        "sounds": "Nervous agitation below a climax: tremolo, fast repeated notes, unresolved harmony.",
+        "fit": {
+          "fast": 0.6,
+          "dense": 0.4
         }
       }
     }

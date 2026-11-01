@@ -40,7 +40,7 @@
   "scribble": {"feel":["skittish","grainy","brittle","flowing"],"instruments":["violin","viola"],"role":"base"},
   "squares": {"feel":["heavy","dark","dread","stabbing"],"instruments":["piano","contrabass","timpani"],"role":"accent"},
   "stella": {"feel":["marching","brittle","icy","stabbing"],"instruments":["harpsichord","timpani","piano"],"role":"accent"},
-  "strings": {"feel":["silky","longing","swelling","warm","stabbing"],"instruments":["violin","plucked","cello"],"role":"base"},
+  "strings": {"feel":["skittish","anxious","twitchy","fibrous"],"instruments":["violin","plucked"],"role":"texture"},
   "suprematism": {"feel":["heavy","vivid","triumphant","stabbing"],"instruments":["trumpet","timpani","trombone"],"role":"ground"},
   "timeslice": {"feel":["flowing","liquid","stabbing","panic"],"instruments":["violin","flute","strings"],"role":"top"},
   "tunnel": {"feel":["whirling","flowing","glowing","burning","panic"],"instruments":["tutti","strings"],"role":"base"}

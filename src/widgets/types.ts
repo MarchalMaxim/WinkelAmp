@@ -72,5 +72,5 @@ export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { n
 export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean }
 /** until: the curve is read at min(t, until), a decaying instance's frozen value. */
 export interface SlotLayer { pivots?: readonly Pivot[]; until?: number; region?: Region; glide?: { from: Region; u: number } }
-export type Role = 'under' | 'ground' | 'base' | 'accent' | 'top';
+export type Role = 'under' | 'ground' | 'base' | 'texture' | 'accent' | 'top';
 export interface WidgetTags { feel: string[]; instruments: string[]; role: Role }
