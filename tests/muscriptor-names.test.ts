@@ -135,6 +135,13 @@ describe('loopCheck', () => {
     expect(r.why).toBeUndefined();
   });
 
+  it('passes one stuck chunk on a short clip, and fails two', () => {
+    const one = loopCheck([...plainChunks(3), ...burst(2)]);
+    expect(one.ok).toBe(true);
+    expect(one.burstShare).toBeCloseTo(1 / 3);
+    expect(loopCheck([...plainChunks(6), ...burst(2), ...burst(5)]).ok).toBe(false);
+  });
+
   it('does not call an irregular rate or a few repeats a burst', () => {
     let t = 0;
     const irregular = Array.from({ length: 40 }, (_, i) => row((t += i % 2 ? 0.05 : 0.2), 72, 'viola', 0.04));

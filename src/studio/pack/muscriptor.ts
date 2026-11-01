@@ -121,6 +121,8 @@ export function guessPreset(lanes: readonly string[]): MsPreset {
 export const LOOP_ZERO_SHARE = 0.05;
 /** Bursting chunks: Rite on medium is 0.167; large reaches 0.083 on a 12-chunk clip and 0.048 on a whole piece. */
 export const LOOP_BURST_SHARE = 0.15;
+/** One chunk is never a loop: on a clip of 6 chunks or fewer it alone would reach the share (the zero padding of a last chunk can do it). */
+export const LOOP_BURST_MIN_CHUNKS = 2;
 export const LOOP_BURST_STARTS = 30;
 export const LOOP_BURST_REGULAR = 0.9;
 export const LOOP_BURST_TOL_S = 0.02;
@@ -162,6 +164,6 @@ export function loopCheck(rows: readonly (readonly unknown[])[]): { ok: boolean;
   const burstShare = chunks.size ? bursts / chunks.size : 0;
   const pct = (x: number) => `${Math.round(x * 100)} %`;
   if (zeroShare >= LOOP_ZERO_SHARE) return { ok: false, zeroShare, burstShare, why: `${pct(zeroShare)} of its notes have no length` };
-  if (burstShare >= LOOP_BURST_SHARE) return { ok: false, zeroShare, burstShare, why: `one note repeats at a fixed rate in ${pct(burstShare)} of its ${LOOP_CHUNK_S} s chunks` };
+  if (burstShare >= LOOP_BURST_SHARE && bursts >= LOOP_BURST_MIN_CHUNKS) return { ok: false, zeroShare, burstShare, why: `one note repeats at a fixed rate in ${pct(burstShare)} of its ${LOOP_CHUNK_S} s chunks` };
   return { ok: true, zeroShare, burstShare };
 }
