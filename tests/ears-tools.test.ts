@@ -21,6 +21,9 @@ afterEach(() => {
 });
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
+// No test may reach this machine's real MuScriptor (a probe imports torch): a server without a fake finds no config.
+process.env.WINKELAMP_MUSCRIPTOR = join(tmpdir(), 'wa-ears-no-muscriptor', 'muscriptor.json');
+
 const health = async (port: number) => (await (await fetch(`http://127.0.0.1:${port}/health`)).json()) as EarsHealth;
 const noYmt3: ToolStatus = { ok: false, python: null, reason: 'YourMT3 is not set up: no C:/x/ymt3.json (npm run setup-ymt3)' };
 

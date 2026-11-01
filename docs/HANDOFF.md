@@ -50,7 +50,12 @@ merged, and the real packs change only when the README's overnight commands are 
 - `npm run studio-check` is 33/33 with `WINKELAMP_PY=C:/nope/python.exe WINKELAMP_YMT3=C:/nope
   WINKELAMP_PY_BP=C:/nope/python.exe`. With the real models its "ears up" step failed on that loaded machine: it waits
   180 s, and a real ingest of the 30 s test tone took 263 s from the command line.
-- No real MuScriptor run went through the studio's dialog: the check's ingest is a fake, and T3 ran the real import.
+- The ears server's POST with `engine=muscriptor&instruments=baroque&overnight=1` ran the real ingest on a copy of Winter:
+  25 s, `ms-hybrid`, `tracks.violin.from` muscriptor, `tracks.piano.from` ymt3, a valid pack, its cache then listed as
+  saved. All five overnight files fit their preset. The model itself was not run from the dialog or through the ears
+  server, and `redo-check`'s ingest is a fake.
+- `ymt3Saved` checks the sha1 only, where ingest also checks model and revision: after a YourMT3+ upgrade the dialog can
+  say "saved" while the ingest runs it again.
 
 ## 2026-11-01: instruments, places, intensity lanes, tags and the HD master
 

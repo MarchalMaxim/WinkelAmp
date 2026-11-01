@@ -316,7 +316,8 @@ try {
   // same recording dropped again is found, not ingested twice.
   {
     const { startEars } = await vite.ssrLoadModule('/scripts/ears/server.ts');
-    const ears = await startEars({ port: 0, songs, probe: async () => ({ ok: false, python: null, device: null, reason: 'studio-check: no transcriber here' }) });
+    const ears = await startEars({ port: 0, songs, probe: async () => ({ ok: false, python: null, device: null, reason: 'studio-check: no transcriber here' }),
+      probeMuscriptor: async () => ({ ok: false, python: null, reason: 'studio-check: not asked' }) });
     try {
       const other = path.join(tmp, 'Second Take.wav');
       spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', tones, '-af', 'volume=0.8', other]);
