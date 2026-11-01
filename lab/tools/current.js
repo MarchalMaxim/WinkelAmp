@@ -1,6 +1,8 @@
 // The current v3: a small real-time fluid (128x72 velocity, 256x144 RGB dye) with several thin threads that braid.
 // The melody steers the main white-gold thread; the other threads (inner voices, bass) weave around it and cross on
 // their own notes. Chords pour coloured dye into the water, tempo sets how fast the water runs, big chords tear vortices.
+// 2026-11-01 (the user: a slider should be able to dim, not only boost): a sixth knob, how present. Turned down, threads
+// and water fade, the water slows, and only the hardest chords of the piece nudge the line, pour colour or tear vortices.
 (() => {
   const NX = 128, NY = 72, CELL = 10;           // velocity grid; 1 cell = 10 canvas px
   const DX = 256, DY = 144, DCELL = 5;          // dye grid; 1 cell = 5 canvas px
@@ -133,12 +135,12 @@
     [R, R2] = [R2, R]; [G, G2] = [G2, G]; [B, B2] = [B2, B];
   }
 
-  function paintDye(g) {
+  function paintDye(g, faint) {
     for (let k = 0, o = 0; k < dn; k++, o += 4) {
       px[o] = TONE[Math.min(1023, (R[k] * 256) | 0)]; px[o + 1] = TONE[Math.min(1023, (G[k] * 256) | 0)]; px[o + 2] = TONE[Math.min(1023, (B[k] * 256) | 0)];
     }
     og.putImageData(img, 0, 0);
-    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.2;
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.2 * faint;
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
     g.drawImage(off, 0, 0, 1280, 720);
     g.globalAlpha = 1;
@@ -182,6 +184,31 @@
   const swirlOf = (x) => drv(x, 1, 0, 3, 1, 'bass');         // how hard big chords tear vortices; harder with more bass
   const STEER = 1, VISC = 0.45, PERSIST = 1;                 // steering by the melody, how fast motion settles, how long lines last
 
+  // how present (0..1). All three are exactly 1 at presence 1 and only ever multiply, so the look at the default cannot move.
+  const faintOf = (pres) => 1 - 0.84 * (1 - Math.pow(pres, 1.5));   // how strongly the water shows
+  // The threads and heads are drawn again every frame on a canvas that loses only 12% a frame, so a line adds up to about
+  // 8 times its alpha: they need a steeper fade than the water or their cores stay white however low the knob goes.
+  const lineOf = (pres) => Math.pow(faintOf(pres), 1.5);
+  const calmOf = (pres) => 1 - 0.65 * (1 - pres);            // how fast and hard the water moves; never 0, a stopped head lays no thread
+  // Which chords still stir the water, judged against this piece's own chords (recordings differ a lot in how hard they
+  // are played): every one at 1, the hardest 40% at 0.4 or so, the hardest 5% at 0. Grouped as the lab groups its attacks.
+  let chordVels = null;
+  const hardEnough = (vel, pres) => {
+    const cut = (1 - pres) * 0.95;
+    if (cut <= 0) return true;
+    if (!chordVels) {
+      chordVels = []; let t0 = -Infinity;
+      for (const n of window.NOTES || []) {
+        if (n[0] - t0 < 0.04) chordVels[chordVels.length - 1] = Math.max(chordVels[chordVels.length - 1], n[3]);
+        else { chordVels.push(n[3]); t0 = n[0]; }
+      }
+      chordVels.sort((a, b) => a - b);
+    }
+    if (!chordVels.length) return true;
+    let a = 0, b = chordVels.length; while (a < b) { const k = (a + b) >> 1; if (chordVels[k] < vel) a = k + 1; else b = k; }
+    return a / chordVels.length >= cut;
+  };
+
   // Knob pictures: little braided threads in the thread colours.
   const tc = (i, a = 1) => `rgba(${TCOL[i][0]},${TCOL[i][1]},${TCOL[i][2]},${a})`;
   function strand(g, w, h, amp, ph, col, lw, cycles = 1.5) {
@@ -192,9 +219,9 @@
 
   TOOLS.push({
     id: 'current', name: 'The current', tag: 'v3',
-    blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices.',
+    blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> knob, to tone it right down: faint threads in slow water, and only the hardest chords pour colour.',
     params: [
-      // Five knobs; keys, ranges, defaults and drives are unchanged from v3, so saved settings still apply.
+      // Six knobs: five with the keys, ranges, defaults and drives of v3, so saved settings still apply, and how present.
       { key: 'threads', label: 'how many threads', min: 1, max: 5, step: 1, value: 3,
         hint: 'How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 4);
@@ -217,17 +244,21 @@
           ICON.blur(g, 2.5, () => { g.fillStyle = `rgb(${c})`; g.beginPath(); g.ellipse(w / 2, h / 2 - 2, w / 2 - 6, h / 2 - 6, 0, 0, Math.PI * 2); g.fill(); });
           for (let i = 0; i < 12; i++) ICON.rect(g, 3 + i * (w - 6) / 12, h - 4, Math.ceil((w - 6) / 12), 2.5, `hsl(${i * 30},85%,50%)`);
           ICON.rect(g, 2 + v * (w - 6), h - 6, 2, 5.5, ICON.ink); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: faint threads in slow, barely tinted water, and only the hardest chords pour colour. Right: every chord pours and stirs at full strength (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const a = 1.5 + v * (h / 2 - 5);
+          strand(g, w, h, a, Math.PI, tc(2), 1.2); strand(g, w, h, a, 0, tc(1), 1.2); strand(g, w, h, a * 0.12, 0, tc(0), 1.6); }) },
     ],
     reset(x) {
       u.fill(0); v.fill(0); p.fill(0); R.fill(0); G.fill(0); B.fill(0);
       Object.assign(main, { x: x.W / 2, y: x.H / 2, a: x.rnd(-Math.PI, Math.PI), lastTop: null, side: 1 }); main.ta = main.a;
       heads = []; for (let i = 0; i < MAXT; i++) heads.push({ i, x: main.x, y: main.y, pts: [], e: 0, ph: 0, tph: 0, drop: 0 });
-      hist = []; time = 0; rate = 0; flash = 0; flowPh = 0;
+      hist = []; time = 0; rate = 0; flash = 0; flowPh = 0; chordVels = null;
     },
     onChord(ch, x) {
-      const T = Math.round(x.p('threads')), steer = STEER, loud = ch.vel / 110;
+      const T = Math.round(x.p('threads')), steer = STEER, loud = ch.vel / 110, pres = x.p('presence'), calm = calmOf(pres);
       const stepM = main.lastTop === null ? 0 : clamp(ch.hi - main.lastTop, -7, 7);
-      main.ta += stepM * 0.13 * steer / (1 + rate * 0.15); main.lastTop = ch.hi; rate = Math.min(12, rate + 1);
+      main.ta += stepM * 0.13 * steer * calm / (1 + rate * 0.15); main.lastTop = ch.hi; rate = Math.min(12, rate + 1);
       if (stepM) main.side = Math.sign(stepM);
       // Voices: rank the chord top to bottom and hand each note to a thread (single notes go by register).
       const ns = ch.notes.slice().sort((a, b) => b.m - a.m), hit = new Set();
@@ -235,11 +266,12 @@
         const i = T === 1 ? 0 : ns.length === 1 ? (ns[0].m >= 55 ? 0 : T - 1) : Math.round(r / (ns.length - 1) * (T - 1));
         const h = heads[i], nv = ns[r].v / 110;
         h.e = Math.min(1.6, h.e + 0.45 * nv + 0.2 * Math.min(1, ns[r].d));
-        if (i > 0 && !hit.has(i)) { hit.add(i); h.tph += (0.6 + 0.4 * nv) * (h.i % 2 ? 1 : -1) * Math.max(0.3, steer) / (1 + rate * 0.12); }   // the strand crosses over
+        if (i > 0 && !hit.has(i)) { hit.add(i); h.tph += (0.6 + 0.4 * nv) * (h.i % 2 ? 1 : -1) * Math.max(0.3, steer) * calm / (1 + rate * 0.12); }   // the strand crosses over
       }
+      if (!hardEnough(ch.vel, pres)) return;    // turned down, softer chords steer and swell the threads but stir nothing
       // Every attack nudges the main thread sideways (melody direction picks the side) so the line ripples.
       const ca = Math.cos(main.a), sa = Math.sin(main.a), side = main.side;
-      splatVel(main.x - ca * 14, main.y - sa * 14, -sa * side * 10 * loud, ca * side * 10 * loud, 3);
+      splatVel(main.x - ca * 14, main.y - sa * 14, -sa * side * 10 * loud * calm, ca * side * 10 * loud * calm, 3);
       splatDye(main.x, main.y, [1, 0.9, 0.7], 0.5 * loud, 1.8);
       flash = Math.max(flash, 0.5 * loud);
       // Chords pour colour: hue from the dye-colour setting, shifted by the chord's register, brighter when louder.
@@ -252,7 +284,7 @@
       // Big chords tear the water: a pair of opposite vortices behind the head rolls the dye into a mushroom.
       const sw = swirlOf(x);
       if (ch.vel >= 88 && ch.notes.length >= 3 && sw > 0.01) {
-        const s = (1 + (ch.vel - 88) / 16) * sw, back = 50, offs = 34 + 10 * s;
+        const s = (1 + (ch.vel - 88) / 16) * sw * calm, back = 50, offs = 34 + 10 * s;
         const qx = main.x - ca * back, qy = main.y - sa * back, turn = Math.random() < 0.5 ? 1 : -1;
         splatSwirl(qx - sa * offs, qy + ca * offs, 40 * s * turn, 4.2);
         splatSwirl(qx + sa * offs, qy - ca * offs, -40 * s * turn, 4.2);
@@ -264,7 +296,8 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt;
-      const T = Math.round(x.p('threads')), flow = x.p('flow'), persist = PERSIST, wMul = x.p('width'), braid = x.p('braid');
+      const pres = x.p('presence'), calm = calmOf(pres), faint = faintOf(pres), line = lineOf(pres);
+      const T = Math.round(x.p('threads')), flow = x.p('flow') * calm, persist = PERSIST, wMul = x.p('width'), braid = x.p('braid');
       rate *= Math.pow(0.5, dt / 0.6); flash *= Math.pow(0.5, dt / 0.15);
       // The main head: heading turned by melodic steps, leaning up for high notes and down for low ones, kept off the walls.
       const top = x.top();
@@ -304,12 +337,12 @@
         const tint = [c[0] / 255, c[1] / 255 * 0.85, c[2] / 255 * 0.6], amt = (0.03 + 0.07 * Math.min(1, h.e)) * (i ? 0.7 : 1);
         if (dist < 200) for (let s = 1; s <= segs; s++) splatDye(ox + (h.x - ox) * s / segs, oy + (h.y - oy) * s / segs, tint, amt, 0.8);
         h.drop += dist;
-        const life = (2.6 + 4 * Math.exp(-rate / 3)) * persist / (1 + rate * 0.15);
+        const life = (2.6 + 4 * Math.exp(-rate / 3)) * persist / (1 + rate * 0.15) / calm;   // a slower thread lives longer, so it stays as long
         if (h.drop > 5 || !h.pts.length || dist > 200) { h.pts.push({ x: h.x, y: h.y, age: 0, life, e: h.e }); h.drop = 0; }
         else { const q = h.pts[h.pts.length - 1]; q.x = h.x; q.y = h.y; q.e = Math.max(q.e, h.e); }
       }
 
-      step(dt, curlOf(x), VISC, persist, flow);
+      step(dt, curlOf(x) * calm, VISC, persist, flow);
 
       const cap = Math.min(1300, 3200 / T); let total = 0;
       for (let i = 0; i < T; i++) {
@@ -329,16 +362,16 @@
       }
       const gain = Math.min(1, Math.sqrt(1300 / Math.max(1, total)));   // a dense tangle dims instead of burning white
 
-      paintDye(g);
+      paintDye(g, faint);
       g.globalCompositeOperation = 'lighter';
-      for (let i = T - 1; i >= 0; i--) paintThread(g, heads[i], wMul, gain);
+      for (let i = T - 1; i >= 0; i--) paintThread(g, heads[i], wMul, gain * line);
       // The heads: the main one glows and flashes on attacks; the strands carry a small bead.
       const f = 1 + flash * 2.5, gr = g.createRadialGradient(main.x, main.y, 0, main.x, main.y, 16 * f);
-      gr.addColorStop(0, `rgba(255,250,235,${0.3 + 0.4 * Math.min(1, flash)})`); gr.addColorStop(1, 'rgba(255,200,110,0)');
+      gr.addColorStop(0, `rgba(255,250,235,${(0.3 + 0.4 * Math.min(1, flash)) * line})`); gr.addColorStop(1, 'rgba(255,200,110,0)');
       g.fillStyle = gr; g.beginPath(); g.arc(main.x, main.y, 16 * f, 0, Math.PI * 2); g.fill();
       for (let i = 0; i < T; i++) {
         const h = heads[i], c = TCOL[i];
-        g.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(i ? 0.3 : 0.55) + 0.4 * Math.min(1, h.e)})`;
+        g.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${((i ? 0.3 : 0.55) + 0.4 * Math.min(1, h.e)) * line})`;
         g.beginPath(); g.arc(h.x, h.y, (1.6 + 1.6 * Math.min(1, h.e)) * Math.sqrt(wMul), 0, Math.PI * 2); g.fill();
       }
     },

@@ -15,6 +15,8 @@
 //     the older ink (the fresh drop stays round on top), lasts about two beats, pulls harder for louder chords and has
 //     more tines for fuller chords.
 //   - A cap on the ink area per chord and per second keeps the climax from wiping the bath clean on every chord.
+//   - Below the old floor of "drop size" (0.4) the comb's pull, its tine lines and the strike's halo fade with the drops,
+//     so the left end is calm as well as small; from 0.4 up that factor is exactly 1, and every saved value looks as before.
 (() => {
   const TAU = Math.PI * 2, CAP = 11000, MAXSEG = 11, MERGE = 1.4, M = 60, FAR = 420, FARSEG = 48;
   const GAP = 0.45, INST = 0.6, LIFE = 16, RMAX = 270;
@@ -24,6 +26,7 @@
     [[14, 22, 72], [30, 64, 150], [120, 140, 176], [244, 200, 112]], // indigo and gold
     [[6, 44, 46], [20, 104, 94], [146, 174, 150], [234, 240, 224]],  // verdigris and ash
   ];
+  const calm = (x) => Math.min(1, x.p('drop') / 0.4);
   const hex = (c) => '#' + c.map((a) => Math.round(a).toString(16).padStart(2, '0')).join('');
   let rings, grow, strokes, nextId, total, pen, vort, ioi, velMean, lastT, lastAcc, passBack, phraseNo, areaRate, stats, fastGap, slowGap, lastSec;
 
@@ -105,7 +108,7 @@
     const tines = 4 + Math.min(8, ch.notes.length), ext = Math.abs(x.W * nx) + Math.abs(x.H * ny), sp = ext / tines;
     const off = back ? sp / 2 : x.rnd(0, sp);
     strokes.push({ ox: x.W / 2 + nx * off, oy: x.H / 2 + ny * off, ux, uy, nx, ny, sp, lam: 10 + sp * 0.05, wave: 0.25,
-      amt: cb * (60 + 230 * loud), t: 0, dur: Math.max(0.25, Math.min(1.1, 2.2 * ioi)), e: 0, upto, glow: 0.06 + 0.16 * loud });
+      amt: cb * (60 + 230 * loud) * calm(x), t: 0, dur: Math.max(0.25, Math.min(1.1, 2.2 * ioi)), e: 0, upto, glow: (0.06 + 0.16 * loud) * calm(x) });
     passBack = !passBack; if (!passBack) pen.pairs++; // the next stroke is the return pass; after it the comb turns
   }
 
@@ -119,8 +122,8 @@
     id: 'marbling', name: 'Marbling', tag: 'v2',
     blurb: 'Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.',
     params: [
-      { key: 'drop', label: 'drop size', min: 0.4, max: 1.8, value: 1,
-        hint: 'How big the drops are overall; louder notes always make bigger ones. Left: small beads. Right: floods.',
+      { key: 'drop', label: 'drop size', min: 0.1, max: 1.8, value: 1,
+        hint: 'How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods.',
         icon: (g, v, w, h) => { const r = 2.5 + v * 9.5; ICON.dot(g, w / 2, h / 2, r, '#801016'); ICON.dot(g, w / 2, h / 2, r * 0.72, '#000'); ICON.dot(g, w / 2, h / 2, r * 0.55, '#c43424'); ICON.dot(g, w / 2, h / 2, r * 0.28, '#f0e2cc'); } },
       { key: 'combing', label: 'combing', min: 0, max: 1.5, value: 0.6, drive: '+rate',
         hint: 'How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers.',
@@ -242,7 +245,7 @@
     },
     frame(x) {
       if (!rings) clear(x);
-      const g = x.g, dt = x.dt;
+      const g = x.g, dt = x.dt, strike = calm(x);
       areaRate *= Math.pow(0.5, dt / 0.7);
       // blooming drops
       for (const d of grow) {
@@ -288,7 +291,7 @@
         path(r);
         if (fill > 0.02) { g.fillStyle = rgb(r.col, f * flash, fill); g.fill(); }
         if (fill < 0.98) { g.lineWidth = 1.3 + (1 - fill) * 1.2; g.strokeStyle = rgb(r.col.map((c) => c * 0.7 + 80), (0.25 + 0.75 * f) * flash, 1 - fill * 0.85); g.stroke(); }
-        if (fl > 0) { g.lineWidth = 1 + 2.5 * r.loud * fl; g.strokeStyle = `rgba(255,246,230,${(0.15 + 0.5 * r.loud) * fl})`; g.stroke(); } // the strike
+        if (fl > 0) { g.lineWidth = 1 + 2.5 * r.loud * fl; g.strokeStyle = `rgba(255,246,230,${(0.15 + 0.5 * r.loud) * fl * strike})`; g.stroke(); } // the strike
       }
       // the tines, glimpsed as they are dragged through
       for (const s of strokes) {

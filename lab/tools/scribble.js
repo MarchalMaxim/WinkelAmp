@@ -2,6 +2,8 @@
 // layer that fades like graphite. Each pen owns a register; its notes jolt it, press it harder and speed it up.
 // Loops coil tight when the music is dense/dissonant and open into long arcs when it is soft.
 // Chords make the pen scratch back over its own recent line; the biggest chords strike a long red stroke.
+// How present (the user, 2026-11-01: sliders "only seem to be able to BOOST the effect"): turned down, the sheet is faint,
+// the lines thin, the pens slow and steady, and they answer only the hardest attacks of the piece; no long strokes at 0.
 (() => {
   const LW = 1280, LH = 720, TAU = Math.PI * 2;
   const layer = document.createElement('canvas'); layer.width = LW; layer.height = LH; const lg = layer.getContext('2d');
@@ -32,6 +34,17 @@
     pens.forEach((p, i) => { p.i = i; p.ty = homeY(i, n); });
   }
   const pitchY = (m) => LH * (0.9 - 0.8 * clamp((m - 28) / 66));
+  // how present (0..1): which attacks the pens answer, judged against this piece's own notes (recordings differ a lot in
+  // how hard they play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  let vels = null;
+  const hardEnough = (v, x) => {
+    const cut = (1 - x.p('presence')) * 0.95;
+    if (cut <= 0) return true;
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
 
   // A colour for the layer: on paper the layer stores absorption (paper - ink), shown with 'difference'.
   function col(rgb, a) {
@@ -98,7 +111,7 @@
   TOOLS.push({
     id: 'scribble', name: 'Scribble', tag: 'new',
     blurb: 'Nervous pens scrawl continuous loops, one pen per register: notes jolt and press them, loops coil tight in dense, dissonant passages and open into long arcs when it is soft. Chords make a pen scratch back over its own line (often in red), the biggest chords strike a long stroke, and old lines fade like graphite.',
-    // At most 5 knobs (lab/README.md). Fixed now: pressure response 1, chord scratch 1, red accents 0.6, bone ink, dark field;
+    // Five knobs (lab/README.md) plus how present, as on Rorschach; no drive on it. Fixed now: pressure response 1, chord scratch 1, red accents 0.6, bone ink, dark field;
     // the jitter follows loudness on its own. New keys where a default changed, so old saved settings don't override them.
     params: [
       { key: 'speed', label: 'how fast the pens run', min: 0.2, max: 3, value: 1, drive: '+rate',
@@ -118,11 +131,14 @@
       { key: 'weight', label: 'how heavy the line', min: 0.3, max: 2.5, value: 1.2,
         hint: 'How thick the pen line is. Left: a hairline. Right: heavy, pressed graphite.',
         icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.5 + v * 3.3) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: faint thin lines, slow steady pens, and only the hardest attacks press or scratch. Right: every note jolts the pens at full strength.',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.6 + v * 1.8)) },
     ],
     reset(x) {
       lg.globalCompositeOperation = 'source-over'; lg.globalAlpha = 1; lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);
       lg.lineCap = 'round'; lg.lineJoin = 'round';
-      pens = []; strokes = []; fadeAcc = 0; lastStab = -9; tension = 0; diss = 0; shake = 0;
+      pens = []; strokes = []; fadeAcc = 0; lastStab = -9; tension = 0; diss = 0; shake = 0; vels = null;
       const n = Math.round(x.p('pens') ?? 3); syncPens(n);
     },
     onChord(ch, x) {
@@ -135,18 +151,19 @@
         harsh += ic === 1 ? 1 : ic === 2 ? 0.6 : ic === 6 ? 0.7 : 0;
       }
       diss = Math.max(diss, pairs ? clamp(harsh / pairs * 2.2) : 0);
-      const pp = FIX.press;
+      const pp = FIX.press, pres = x.p('presence'), calm = 1 - 0.8 * (1 - pres);
       for (const q of ch.notes) {
+        if (!hardEnough(q.v, x)) continue;
         let i = 0; while (i < n - 1 && q.m >= edges[i + 1]) i++;
         const p = pens[i], v = q.v / 127;
         p.press = Math.max(p.press, clamp(Math.pow(v, 1.3) * pp));
         p.burst = Math.max(p.burst, v);
-        p.hv += R(-1, 1) * 7 * v;                    // the jolt: a kink in the line on the attack
+        p.hv += R(-1, 1) * 7 * v * calm;             // the jolt: a kink in the line on the attack
         p.ty = clamp(p.ty * 0.5 + pitchY(q.m) * 0.5, LH * 0.22, LH * 0.78);
       }
       const sc = FIX.scratch;
       const amt = sc * clamp((ch.vel - 58) / 45) * clamp(0.35 + ch.notes.length / 6);
-      if (amt > 0.12) {
+      if (amt > 0.12 && hardEnough(ch.vel, x)) {
         const redP = FIX.red * (0.35 + 0.65 * clamp(amt));
         const ink = paperMode ? pal(INK_P, FIX.ink) : mix(pal(INK_D, FIX.ink), [255, 255, 255], 0.25);
         const red = paperMode ? RED_P : RED_D;
@@ -157,7 +174,7 @@
           const c = Math.random() < redP ? red : ink, a1 = clamp(amt, 0, 1.6);
           if (big && Math.random() < 0.45) hatch(pens[i], a1, c); else retrace(pens[i], a1, c);
         }
-        if (((ch.vel >= 92 && ch.notes.length >= 3) || ch.vel >= 102) && sc > 0.3 && time - lastStab > 0.7) {
+        if (((ch.vel >= 92 && ch.notes.length >= 3) || ch.vel >= 102) && sc > 0.3 && time - lastStab > 0.7 / pres) {
           lastStab = time;
           const p = pens[Math.floor(Math.random() * n)];
           stab(p, clamp(amt), Math.random() < FIX.red ? red : ink);
@@ -167,6 +184,9 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt;
+      // how present: 1 keeps every factor at exactly 1, so the picture at the default is untouched. The sheet's alpha falls
+      // steeply: the stage keeps most of last frame, so a line stays far brighter on it than this alpha alone would make it.
+      const pres = x.p('presence'), calm = 1 - 0.8 * (1 - pres), thin = 1 - 0.5 * (1 - pres), inkA = 1 - 0.94 * (1 - pres * pres);
       syncPens(Math.round(x.p('pens')));
       // field: dark (the shared fade) or paper (layer stores absorption)
       const pv = 0; // the paper field is gone (it painted over any widget mixed with it); the code stays for later
@@ -186,15 +206,15 @@
       diss *= Math.pow(0.5, dt / 1.2);
       const tgt = clamp(0.55 * diss + 1.0 * x.feat.rate);
       tension += (tgt - tension) * (1 - Math.pow(0.5, dt / 0.5));
-      const loops = x.p('loops'), speed = x.p('speed'), jit = clamp(0.3 + 0.5 * x.feat.level), pp = FIX.press;
+      const loops = x.p('loops'), speed = x.p('speed'), jit = clamp(0.3 + 0.5 * x.feat.level) * calm, pp = FIX.press;
       const k = clamp(loops * (0.2 + 1.2 * tension));
       const ink = paperMode ? pal(INK_P, FIX.ink) : pal(INK_D, FIX.ink);
 
       for (const p of pens) {
         p.burst *= Math.pow(0.5, dt / 0.14);
         const floor = 0.22 + 0.45 * x.feat.level; // a quiet pen still leaves a readable line
-        p.press = Math.max(floor * pp, p.press * Math.pow(0.5, dt / 0.8));
-        const vd = Math.min(700, 120 * speed * (0.6 + 0.6 * x.feat.level + 2.2 * p.burst));
+        p.press = Math.max(floor * pp * thin, p.press * Math.pow(0.5, dt / 0.8));
+        const vd = Math.min(700, 120 * speed * (0.6 + 0.6 * x.feat.level + 2.2 * p.burst)) * calm;
         const Rt = (150 - 138 * Math.pow(k, 0.7)) * (0.75 + 0.5 * Math.sin(time * 0.37 + p.wob));
         p.R += (Rt - p.R) * (1 - Math.pow(0.5, dt / 0.3));
         const vt = vd * (0.9 + 2.6 * k), om = Math.min(26, vt / Math.max(8, p.R));   // at most ~4 loops a second
@@ -226,7 +246,7 @@
         }
         if (Math.random() < dt * 0.15) p.dir = -p.dir;
         const pr = clamp(p.press);
-        const w = (1.25 + 7 * Math.pow(pr, 1.3) * (0.4 + 0.6 * pp)) * x.p('weight');
+        const w = (1.25 + 7 * Math.pow(pr, 1.3) * (0.4 + 0.6 * pp)) * x.p('weight') * thin;
         const a = clamp(0.32 + 0.8 * pr);
         const bandInk = mix(ink, paperMode ? [0, 0, 0] : [255, 255, 255], 0.12 * (p.i / Math.max(1, pens.length - 1)));
         line(pts, w, bandInk, a);
@@ -241,17 +261,18 @@
         if (s.taper) {
           for (let j = from; j < to; j++) {
             const f = 1 - j / n;
-            line([s.pts[j * 2], s.pts[j * 2 + 1], s.pts[j * 2 + 2], s.pts[j * 2 + 3]], s.w * (0.25 + f), s.rgb, s.a);
+            line([s.pts[j * 2], s.pts[j * 2 + 1], s.pts[j * 2 + 2], s.pts[j * 2 + 3]], s.w * thin * (0.25 + f), s.rgb, s.a);
           }
-        } else line(s.pts.slice(from * 2, to * 2 + 2), s.w, s.rgb, s.a);
+        } else line(s.pts.slice(from * 2, to * 2 + 2), s.w * thin, s.rgb, s.a);
       }
       strokes = strokes.filter((s) => s.k < s.pts.length / 2 - 1);
 
-      if (shake > 0.3) { g.translate(R(-shake, shake), R(-shake, shake)); shake *= Math.pow(0.82, dt * 60); }
+      if (shake > 0.3) { const sh = shake * pres; g.translate(R(-sh, sh), R(-sh, sh)); shake *= Math.pow(0.82, dt * 60); }
       if (paperMode) {
         g.fillStyle = `rgb(${paperCol.map((v) => v | 0).join(',')})`; g.fillRect(-20, -20, x.W + 40, x.H + 40);
         g.globalCompositeOperation = 'difference';
       } else g.globalCompositeOperation = 'lighten';
+      g.globalAlpha *= inkA;
       g.drawImage(layer, 0, 0, x.W, x.H);
     },
   });

@@ -7,6 +7,8 @@
 // piece's home note (its most common bass), chooses the pair (home and its neighbours red, the sharp side yellow, the flat
 // side blue), and minor or major picks which colour is the ground. A change floods the screen from the attacking colony
 // as one huge dot. In silence a sparse all-over field of small dots keeps breathing.
+// A sixth knob, how present (2026-11-01, "can only boost, not tone down"): turned down, the whole sheet is laid on faintly
+// so what's under it shows, the net and the seeds calm, and only the piece's hardest notes start a colony or a flood.
 (() => {
   const TAU = Math.PI * 2, GA = Math.PI * (3 - Math.sqrt(5));
   const W = 1280, H = 720;
@@ -18,6 +20,27 @@
   let cols = [], nets = [], seeds = [], flood = null, cur = PAIRS[0][0], time = 0;
   let pcE = new Float32Array(12), bassH = new Float32Array(12), lastChordT = 0, mode = 0, lastFlip = -99;
   let cand = null, candT = 0, tight = 0.5, kick = 0, breathe = 0;
+  // how present (0..1), read each frame: still = 1 at full presence, 0.3 at none: how much the seeds and new dots stir.
+  // The sheet stays opaque on its own canvas, so the cut-paper collars survive; the canvas goes on the stage at low alpha.
+  let still = 1, netSize = 1, lay = null, lg = null;
+  function sheet(x) {
+    if (!lay || lay.width !== x.canvas.width) {
+      lay = document.createElement('canvas'); lay.width = x.canvas.width; lay.height = x.canvas.height; lg = lay.getContext('2d');
+      const s = lay.width / W; lg.setTransform(s, 0, 0, s, 0, 0);
+    }
+    return lg;
+  }
+  // Which notes answer, judged against this piece's own notes (recordings differ a lot in how hard they are played):
+  // every one at 1, the hardest 40% at 0.4, the hardest 5% at 0. A quiet stretch would stay empty for minutes, so when
+  // nothing has answered for a while (5.5 s at 0, less higher up) the next chord's strongest note does.
+  let vels = null, lastAns = -99;
+  const hardEnough = (v, x) => {
+    const cut = (1 - x.p('presence')) * 0.95; if (cut <= 0) return true;
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
 
   // The net tile: open scalloped loops on a slightly irregular hex lattice, seamless, in one colour. Cached per colour.
   const S = 26, RH = 22, NC = 8, NR = 8, TW = S * NC, TH = RH * NR;
@@ -107,7 +130,7 @@
   // Each dot's radius now (0 = not there yet or gone), so a flood can draw the scene twice without redoing it.
   function update(q) {
     const age = time - q.born, end = q.life;
-    q.rv[0] = age >= end + 0.75 ? Math.max(0, q.R0 * (1 - (age - end - 0.75) / 0.3)) : q.R0 * (1 + 0.22 * Math.exp(-age / 0.07));
+    q.rv[0] = age >= end + 0.75 ? Math.max(0, q.R0 * (1 - (age - end - 0.75) / 0.3)) : q.R0 * (1 + 0.22 * still * Math.exp(-age / 0.07));
     for (let k = 1; k <= q.n; k++) {
       const a = age - q.at[k - 1]; let r = 0;
       if (a > 0) r = q.dr[k - 1] * easeBack(a / 0.2);
@@ -133,7 +156,7 @@
   function drawScene(g, gr, fg, sc) {
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
     // the all-over seed dots, breathing slowly
-    for (const s of seeds) disc(g, fg, s.x, s.y, s.r * (0.75 + 0.25 * Math.sin(breathe + s.ph)));
+    for (const s of seeds) disc(g, fg, s.x, s.y, s.r * (0.75 + 0.25 * still * Math.sin(breathe + s.ph)));
     // net patches: one clip of their union, filled with the loops
     let any = false; g.save(); g.beginPath();
     for (const p of nets) if (p.rn > 1) { any = true; g.moveTo(p.x + p.rn, p.y); g.arc(p.x, p.y, p.rn, 0, TAU); }
@@ -157,7 +180,7 @@
 
   TOOLS.push({
     id: 'kusama', name: 'Kusama', tag: 'new', on: false,
-    blurb: 'After Yayoi Kusama. One flat colour with dots in its partner colour. Every note starts a colony of dots at its pitch (low left, high right): a big dot on the attack, smaller ones spreading out while the note is held. Full chords lay patches of an infinity net that tightens as the music speeds up. The harmony picks the colours (red/white, yellow/black, blue/white; minor and major swap ground and dots), flooding in from the new chord as one huge dot.',
+    blurb: 'After Yayoi Kusama. One flat colour with dots in its partner colour. Every note starts a colony of dots at its pitch (low left, high right): a big dot on the attack, smaller ones spreading out while the note is held. Full chords lay patches of an infinity net that tightens as the music speeds up. The harmony picks the colours (red/white, yellow/black, blue/white; minor and major swap ground and dots), flooding in from the new chord as one huge dot. <b>How present</b> tones it right down: a faint, calm field where only the hardest notes answer.',
     params: [
       { key: 'size', label: 'how big the colonies are', min: 0.4, max: 1.8, value: 1, drive: '+level',
         hint: 'How big each note’s colony of dots grows. Left: small clusters. Right: huge dots and wide colonies.',
@@ -179,10 +202,14 @@
         hint: 'How readily a change of harmony floods the screen with a new colour pair. Left: only now and then. Right: at every change of chord.',
         icon: (g, v, w, h) => { const sc = [[RED, CREAM], [YEL, INK], [CREAM, BLUE], [INK, YEL]], n = 1 + Math.round(v * 3), sw = (w - 4) / n;
           for (let i = 0; i < n; i++) { ICON.rect(g, 2 + i * sw, 3, Math.ceil(sw), h - 6, sc[i][0]); ICON.dot(g, 2 + (i + 0.5) * sw, h / 2, Math.min(sw, h) * 0.22, sc[i][1]); } } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: a faint, nearly still field where only the hardest notes (in a quiet stretch, one now and then) start a colony or change the colours. Right: every note at full colour (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.dot(g, w / 2, h / 2, 2 + 4 * v, ICON.red);
+          for (let k = 1, n = 1 + Math.round(v * 7); k <= n; k++) { const a = k * GA, d = 5 + 4 * v + 1.6 * Math.sqrt(k); ICON.dot(g, w / 2 + Math.cos(a) * d * 1.3, h / 2 + Math.sin(a) * d * 0.8, 1.2, ICON.red); } }) },
     ],
     reset() {
       cols = []; nets = []; flood = null; cur = PAIRS[0][0]; time = 0; lastChordT = 0; mode = 0; lastFlip = -99;
-      pcE = new Float32Array(12); bassH = new Float32Array(12); cand = null; candT = 0; tight = 0.5; kick = 0; breathe = 0;
+      pcE = new Float32Array(12); bassH = new Float32Array(12); cand = null; candT = 0; tight = 0.5; kick = 0; breathe = 0; vels = null; lastAns = -99; netSize = 1;
       makeSeeds();
     },
     onChord(ch, x) {
@@ -195,45 +222,55 @@
 
       // the colonies: one per note, a chord on one row
       const y0 = x.rnd(0.14, 0.86) * H, notes = [...ch.notes].sort((a, b) => a.m - b.m).slice(0, 7);
-      let fx = 0, fy = 0;
-      notes.forEach((n, i) => {
+      const pres = x.p('presence'), calm = 1 - pres;
+      const due = calm > 0 && time - lastAns >= 0.5 + 5 * calm ? notes.reduce((a, b) => (b.v > a.v ? b : a)) : null;
+      let fx = 0, fy = 0, hard = false;                                     // hard: a note of this chord answered (always, at full presence)
+      notes.forEach((n) => {
         const p = Math.max(0, Math.min(1, (n.m - 24) / 72)), cx = W * (0.06 + 0.88 * p) + x.rnd(-14, 14), cy = y0 + x.rnd(-30, 30);
-        spawnColony(x, n.m, n.v, n.d, cx, cy); if (i === 0) { fx = cx; fy = cy; }
+        if (n !== due && !hardEnough(n.v, x)) return;
+        spawnColony(x, n.m, n.v, n.d, cx, cy); if (!hard) { hard = true; fx = cx; fy = cy; lastAns = time; }
       });
       // full chords lay a patch of net around the chord's middle
-      if (ch.notes.length >= 3 || x.feat.density > 0.45) {
+      if (hard && (ch.notes.length >= 3 || x.feat.density > 0.45)) {
         const mp = Math.max(0, Math.min(1, (sum / ch.notes.length - 24) / 72));
         nets.push({ x: W * (0.06 + 0.88 * mp) + x.rnd(-40, 40), y: y0 + x.rnd(-40, 40), R: 70 + 34 * Math.min(8, ch.notes.length) * (0.5 + ch.vel / 127),
           born: time, life: x.p('stay') * 1.2, rn: 0 });
         if (nets.length > 40) nets.shift();
       }
-      if (ch.vel > 70) kick = Math.max(kick, (ch.vel - 70) / 57 * 0.16);
+      if (hard && ch.vel > 70) kick = Math.max(kick, (ch.vel - 70) / 57 * 0.16 * pres);
 
       // the harmony: a new colour pair once it has held (or at once on a strong chord), not sooner than the knob allows
       const hm = harmony(), sch = schemeFor(hm.root, hm.md); mode = hm.md;
       if (sch !== cur) {
         if (cand !== sch) { cand = sch; candT = time; }
-        const gap = 8 * Math.pow(0.08, x.p('flip')), held = time - candT >= 0.5 || ch.notes.length >= 3 || ch.vel > 95;
-        if (held && time - lastFlip >= gap) {
-          flood = { x: fx, y: fy, old: cur, start: time, dur: 0.5, rmax: Math.hypot(Math.max(fx, W - fx), Math.max(fy, H - fy)) + 20 };
+        const gap = 8 * Math.pow(0.08, x.p('flip')) * (1 + 4 * calm), held = time - candT >= 0.5 || ch.notes.length >= 3 || ch.vel > 95;
+        if (hard && held && time - lastFlip >= gap) {
+          flood = { x: fx, y: fy, old: cur, start: time, dur: 0.5 + 1.5 * calm, rmax: Math.hypot(Math.max(fx, W - fx), Math.max(fy, H - fy)) + 20 };
           cur = sch; lastFlip = time; cand = null;
         }
       } else cand = null;
     },
     frame(x) {
-      const g = x.g, dt = x.dt; time += dt; breathe += dt * 1.3;
+      const pres = x.p('presence'), calm = 1 - pres; still = 1 - 0.7 * calm;
+      const g = calm > 0 ? sheet(x) : x.g, dt = x.dt; time += dt; breathe += dt * 1.3 * still;
       cols = cols.filter(update);
+      netSize = calm > 0 ? netSize + (x.p('size') - netSize) * (1 - Math.exp(-dt / (1.5 * calm))) : x.p('size');   // calmer: slower to follow its drive
       nets = nets.filter((p) => { const a = time - p.born; if (a > p.life + 0.6) return false;
-        p.rn = p.R * x.p('size') * (1 - Math.pow(1 - Math.min(1, a / 0.9), 3)) * (a > p.life ? 1 - (a - p.life) / 0.6 : 1); return true; });
-      tight += (x.p('tight') - tight) * (1 - Math.exp(-dt / 0.6));
+        p.rn = p.R * netSize * (1 - Math.pow(1 - Math.min(1, a / 0.9), 3)) * (a > p.life ? 1 - (a - p.life) / 0.6 : 1); return true; });
+      tight += (x.p('tight') - tight) * (1 - Math.exp(-dt / (0.6 + 3 * calm)));
       kick *= Math.exp(-dt / 0.18);
       const sc = 1.7 * Math.pow(0.2, tight) * (1 - kick);
       if (flood && time - flood.start >= flood.dur) flood = null;
-      if (!flood) { drawScene(g, cur[0], cur[1], sc); return; }
-      drawScene(g, flood.old[0], flood.old[1], sc);
-      const u = Math.min(1, (time - flood.start) / flood.dur), r = flood.rmax * (1 - Math.pow(1 - u, 2.2));
-      g.save(); g.beginPath(); g.arc(flood.x, flood.y, Math.max(1, r), 0, TAU); g.clip();
-      drawScene(g, cur[0], cur[1], sc); g.restore();
+      if (!flood) drawScene(g, cur[0], cur[1], sc);
+      else {
+        drawScene(g, flood.old[0], flood.old[1], sc);
+        const u = Math.min(1, (time - flood.start) / flood.dur), r = flood.rmax * (1 - Math.pow(1 - u, 2.2));
+        g.save(); g.beginPath(); g.arc(flood.x, flood.y, Math.max(1, r), 0, TAU); g.clip();
+        drawScene(g, cur[0], cur[1], sc); g.restore();
+      }
+      // Alone, a faint layer piles up on the shared fade (the old picture survives at 0.88 per frame): alpha a settles at
+      // a / (0.12 + 0.88 a). So for it to show s, from 0.2 at the left end to 1, a = 0.12 s / (1 - 0.88 s).
+      if (calm > 0) { const s = 0.2 + 0.8 * pres; x.g.globalAlpha = 0.12 * s / (1 - 0.88 * s); x.g.drawImage(lay, 0, 0, W, H); x.g.globalAlpha = 1; }
     },
   });
 })();

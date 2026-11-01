@@ -7,6 +7,7 @@
 // Attacks → shimmer: each note sends a faint glint along the horizon, from where its pitch sits (low left, high right),
 // spreading outward both ways and fading; loud notes leave a dim trace on the water below.
 // Bass → the horizon sinks a little (the "where the horizon sits" knob follows the bass by default), gliding slowly.
+// How present: sinks the whole picture toward black and calms it; only the piece's hardest notes still glint.
 (() => {
   const W = 1280, H = 720, TAU = Math.PI * 2;
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -65,6 +66,17 @@
     return [Math.atan2(y, x) / r, Math.hypot(x, y)];
   };
 
+  // how present (0..1): which notes glint, judged against this piece's own notes (recordings differ a lot in how hard
+  // they are played): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0.
+  let vels = null;
+  const hardEnough = (v, cut) => {
+    if (cut <= 0) return true;
+    vels ??= (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
+
   let glints = [], blooms = [], time = 0, hy = null, hyv = 0, con = null, flash = 0, tx = 0, ty = 0, grainPat = null, lastHue = 212;
 
   // Icon pieces: a little seascape, sky colour over sea colour, horizon at y.
@@ -98,26 +110,33 @@
       { key: 'colour', label: 'colour from the harmony', min: 0, max: 1, value: 0.5,
         hint: 'How much the chords tint the grey. Left: pure greys. Right: each chord tints the sky and the sea (still gently).',
         icon: (g, v, w, h) => scape(g, w, h, h / 2, ICON.lerp('#8e9399', '#9c8fc4', v), ICON.lerp('#3d4145', '#2a5560', v)) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much of the picture there is. Left: a dark, almost still sea where only the hardest notes of the piece glint, faintly. Right: the full sky and sea, every note glinting (as before).',
+        icon: (g, v, w, h) => { scape(g, w, h, h / 2, ICON.lerp('#121417', '#9aa4ae', v), ICON.lerp('#08090b', '#363d45', v)); ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.line(g, 3, h / 2, w - 3, h / 2, '#e9e2da', 1)); } },
     ],
-    reset() { glints = []; blooms = []; flash = 0; hy = null; hyv = 0; con = null; tx = ty = 0; },
+    reset() { vels = null; glints = []; blooms = []; flash = 0; hy = null; hyv = 0; con = null; tx = ty = 0; },
     onChord(ch, x) {
       const sh = x.p('shimmer'), y = hy ?? x.p('level') * H, n = ch.notes.length;
-      flash = Math.min(1.2, flash + 0.35 * Math.pow(ch.vel / 115, 1.5));
+      const pres = x.p('presence'), cut = (1 - pres) * 0.95;
+      if (!hardEnough(ch.vel, cut)) return;                 // ch.vel is the chord's hardest note
+      flash = Math.min(1.2, flash + 0.35 * Math.pow(ch.vel / 115, 1.5) * pres);
       if (sh <= 0.01) return;
       // a strong attack also opens a wide, soft breath of light in the haze over the place it struck
       if (ch.vel > 70) {
         let mp = 0, wt = 0; for (const no of ch.notes) { mp += x.pitch01(no.m) * no.v; wt += no.v; }
-        const k = Math.pow((ch.vel - 70) / 50, 1.4) * sh;
+        const k = Math.pow((ch.vel - 70) / 50, 1.4) * sh * pres;
         blooms.push({ x: W * (0.12 + 0.76 * mp / wt) + x.rnd(-30, 30), age: 0, amp: Math.min(1.3, k), r: 160 + 70 * Math.min(6, n) + x.rnd(0, 60), life: 2.6 + 0.6 * Math.min(4, n) });
         if (blooms.length > 12) blooms.shift();
       }
+      const calm = 1 - 0.6 * (1 - pres), glow = 1 - 0.65 * (1 - pres);   // fainter also means slower, dimmer glints
       for (const no of ch.notes) {
+        if (!hardEnough(no.v, cut)) continue;
         const p = x.pitch01(no.m), vel = no.v / 127, k = sh * vel * (n > 3 ? 0.55 + 1.4 / n : 1);
         glints.push({
           x: W * (0.1 + 0.8 * p) + x.rnd(-40, 40), age: 0,
-          amp: k * (0.55 + 0.45 * p),                       // high notes glint brighter, low ones broader and dimmer
+          amp: k * (0.55 + 0.45 * p) * glow,                // high notes glint brighter, low ones broader and dimmer
           len: (26 + 110 * (1 - p)) * (0.6 + 0.6 * vel) * (0.6 + 0.4 * sh),
-          sp: (50 + 160 * p) * (0.6 + 0.6 * vel) * (0.5 + 0.5 * sh),
+          sp: (50 + 160 * p) * (0.6 + 0.6 * vel) * (0.5 + 0.5 * sh) * calm,
           life: (1.6 + 2.8 * Math.min(1, no.d / 2)) * (0.7 + 0.3 * sh),
           refl: vel > 0.66 ? (vel - 0.6) * 2.2 : 0,         // a loud note leaves a trace on the water
           dy: x.rnd(-0.6, 0.6), y0: y,
@@ -126,16 +145,16 @@
       if (glints.length > 140) glints.splice(0, glints.length - 140);
     },
     frame(x) {
-      const g = x.g, dt = x.dt;
-      time += dt;
+      const g = x.g, dt = x.dt, pres = x.p('presence');
+      time += dt * pres;                                    // the sea's drift and breath slow down with it
       // Slow gliding of everything: the horizon, the contrast (quick to rise, slow to fall), the tint.
       const tgtY = x.p('level') * H;
       if (hy == null) hy = tgtY;
       { // a critically damped glide so the horizon settles without a jolt
-        const w0 = 2.2, a = w0 * w0 * (tgtY - hy) - 2 * w0 * hyv; hyv += a * dt; hy += hyv * dt; }
+        const w0 = 2.2 * Math.max(0.25, pres), a = w0 * w0 * (tgtY - hy) - 2 * w0 * hyv; hyv += a * dt; hy += hyv * dt; }
       const tgtC = x.p('contrast');
       if (con == null) con = tgtC;
-      con += (tgtC - con) * (1 - Math.pow(0.5, dt / (tgtC > con ? 0.3 : 2.2)));
+      con += (tgtC - con) * (1 - Math.pow(0.5, dt / ((tgtC > con ? 0.3 : 2.2) / Math.max(0.1, pres))));
       flash *= Math.pow(0.5, dt / 0.45);
 
       // Harmony: the sounding notes, weighted by loudness and how fresh they are, as a vector on the circle of fifths.
@@ -153,7 +172,7 @@
       const sat = x.p('colour') * (3 + 17 * clar) * tint;
 
       // The two fields. Lightness: sky brightens and sea darkens as the contrast rises.
-      const c = con, Y = hy, soft = 1.5 + x.p('soft') * 70, br = 0.04 * Math.sin(time * 0.21) + 0.03 * Math.sin(time * 0.087 + 1);
+      const c = con * (1 - 0.5 * (1 - pres)), Y = hy, soft = 1.5 + x.p('soft') * 70, br = 0.04 * Math.sin(time * 0.21) + 0.03 * Math.sin(time * 0.087 + 1);
       const skyTop = 30 + 14 * c, skyLow = 40 + 34 * c + br * 10, seaHi = 27 - 12 * c, seaMid = 20 - 13 * c, seaLow = 23 - 12 * c;
       const sh = lastHue, ss = sat, seah = lastHue - 25, seas = sat * 0.8;
       const gr = g.createLinearGradient(0, 0, 0, H), f = (v) => clamp(v / H);
@@ -176,8 +195,12 @@
       }
       g.restore();
 
+      // How present: sky and sea sink toward black (painted first, so nothing but Horizon is under this veil); the light
+      // below keeps a little more of itself, so at the left end a hard note still shows on a nearly black sea.
+      if (pres < 1) { g.save(); g.globalAlpha = 1; g.fillStyle = `rgba(0,0,0,${0.95 * (1 - pres)})`; g.fillRect(0, 0, W, H); g.restore(); }
+
       // The line: a thin band of haze light, brighter when loud and on each attack, breathing very slowly.
-      const lineA = clamp((0.1 + 0.5 * c + 0.45 * flash + br) * (0.55 + 0.45 * sharp), 0, 1.2);
+      const lineA = clamp((0.1 + 0.5 * c + 0.45 * flash + br) * (0.55 + 0.45 * sharp), 0, 1.2) * (1 - 0.8 * (1 - pres));
       g.globalCompositeOperation = 'screen';
       { const bw = 2 + soft * 0.9, lg = g.createLinearGradient(0, Y - bw, 0, Y + bw);
         lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, hsl(sh, ss * 0.5, 82, Math.min(1, lineA * 0.55))); lg.addColorStop(1, 'rgba(255,255,255,0)');

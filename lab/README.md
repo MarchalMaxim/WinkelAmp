@@ -45,6 +45,11 @@ params: [
 - `icon(g, v, w, h)` draws what the knob does at `v` on a 40×26 canvas (CSS pixels; pixel density, clearing, ink colour,
   lineWidth 1.5 and round caps are set for you). The harness draws it at v=0 and v=1 at the slider's ends and a live one
   by the name, which follows the music when the knob is driven. A throwing icon falls back to a plain bar.
+- **Every widget needs a way to go quiet** (the user: sliders should "dim, and not only boost"). `tools/rorschach.js` is the
+  reference: a plain `presence` knob, 'how present', 0..1, default 1, undriven, that dims the ink, calms the motion and answers
+  fewer attacks (the hardest of this song's notes only). It may be a sixth knob. At default values a widget draws exactly
+  what it drew before, and a stored knob value never changes meaning. Drive adds `depth * (max - min)`, so widening a driven
+  knob's range changes its swing and the default look: add a new plain knob instead. Compare seeded `?render=1` frames.
 - Drives (stored as `+level` etc.) show as words: louder / faster / higher notes / more bass / fuller chords → more / less.
 - `tag`: `'new'` for a new widget, `'v2'`, `'v3'`… for a rework. A tag that differs from the version the user judged
   (`VERDICTS` in `index.html`, from `ratings.md`) marks the card "reworked" and sorts it to the top.

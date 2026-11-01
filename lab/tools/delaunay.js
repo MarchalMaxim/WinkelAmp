@@ -55,6 +55,17 @@
   const segsOf = (d, k, cut) => Math.min(SLOTS, d.cuts[k] * (cut < 0.34 ? 1 : cut < 0.67 ? 2 : 4)) | 0;
   const discOf = (m) => (m < 48 ? 0 : m < 72 ? 1 : 2);
   const ringOf = (d, m) => Math.max(0, Math.min(RINGS - 1, Math.floor((m - d.lo) / 4)));
+  // how present (0..1): which notes light the discs, judged against this piece's own notes (recordings differ a lot in
+  // how hard they play): every one at 1, the hardest 43% at 0.4, the hardest 5% at 0
+  let vels = null;
+  const hardEnough = (v, pres) => {
+    const cut = (1 - pres) * 0.95;
+    if (cut <= 0) return true;
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
 
   // light every slot of the segment that holds `slot` (in a ring cut into n), keeping the brighter colour
   function paint(ring, slot, n, step, amt, flash) {
@@ -90,6 +101,13 @@
       for (let k = 0; k < 4; k++) ICON.ring(g, cx, cy, 1.8 + k * sp * (1 + k * 0.08 * v), k % 2 ? ICON.gold : ICON.red, 1.5);
     },
     memory: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, hsl(0), 'dot'),
+    presence(g, v, w, h) {                             // a ringed disc, small and faint at the left, large and full at the right
+      const cx = w / 2, cy = h / 2, R = 4 + 7.5 * v;
+      ICON.alpha(g, 0.15 + 0.85 * v, () => {
+        [0, 6, 3, 9].forEach((s, i) => fill(g, cx, cy, R * 0.55, R, i * TAU / 4, (i + 1) * TAU / 4, hsl(s)));
+        fill(g, cx, cy, 0, R * 0.55, Math.PI / 2, Math.PI * 1.5, hsl(2)); fill(g, cx, cy, 0, R * 0.55, -Math.PI / 2, Math.PI / 2, hsl(8));
+      });
+    },
     cut(g, v, w, h) {                                  // the same ring cut into halves, quarters or eighths
       const n = v < 0.34 ? 2 : v < 0.67 ? 4 : 8, cx = w / 2, cy = h / 2;
       for (let j = 0; j < n; j++) fill(g, cx, cy, 5, 11, -Math.PI / 2 + j * TAU / n, -Math.PI / 2 + (j + 1) * TAU / n, hsl([0, 6, 3, 9, 1, 7, 4, 10][j]));
@@ -116,11 +134,15 @@
       { key: 'cut', label: 'how finely cut', min: 0, max: 1, value: 0.25,
         hint: 'How many segments each ring is cut into. Left: big halves and quarters. Right: fine eighths and sixteenths.',
         icon: ICONS.cut },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: faint discs that barely turn, and only the hardest notes light a segment. Right: every note lights and swells at full strength (as before).',
+        icon: ICONS.presence },
     ],
-    reset() { build(); },
+    reset() { vels = null; build(); },
     onChord(ch, x) {
-      const cut = x.p('cut'), con = x.p('contrast'), pulse = x.p('pulse');
+      const pres = x.p('presence'), cut = x.p('cut'), con = x.p('contrast'), pulse = x.p('pulse') * pres;
       for (const n of ch.notes) {
+        if (!hardEnough(n.v, pres)) continue;
         const di = discOf(n.m), d = discs[di], k = ringOf(d, n.m), ring = d.rings[k];
         const segs = segsOf(d, k, cut), vk = clamp01(n.v / 110), step = FIFTH[((n.m % 12) + 12) % 12];
         // the segment at this note's clock position on the circle of fifths (C at the top), as the ring has turned
@@ -131,7 +153,7 @@
           const gs = SLOTS / segs, side = (step % 2 ? -1 : 1) * gs;
           paint(ring, (slot + side + SLOTS) % SLOTS, segs, step + 6, (0.4 + 0.45 * vk) * con, 0.25 * con);
         }
-        ring.wk += (ring.w > 0 ? 1 : -1) * (0.5 + 1.4 * vk * vk);     // the struck ring jumps forward
+        ring.wk += (ring.w > 0 ? 1 : -1) * (0.5 + 1.4 * vk * vk) * pres;     // the struck ring jumps forward
         // the swell starts at the struck ring and runs outward through the disc
         const A = pulse * (4 + 20 * vk * vk) * (d.fr / 0.47 * 0.6 + 0.4);
         for (let j = k; j < RINGS; j++) kicks.push({ d: di, k: j, a: A * Math.pow(0.82, j - k), wait: (j - k) * 0.045 });
@@ -140,9 +162,11 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt;
-      const turn = x.p('turn'), mem = x.p('memory'), cut = x.p('cut');
-      const spin = 0.04 + 1.6 * turn * turn + 0.3 * turn;
-      const glow = 0.1 * x.feat.level;   // louder: the whole painting lifts a little
+      const turn = x.p('turn'), mem = x.p('memory'), cut = x.p('cut'), pres = x.p('presence');
+      const spin = (0.04 + 1.6 * turn * turn + 0.3 * turn) * (1 - (1 - pres) * 0.85);
+      const glow = 0.1 * x.feat.level * pres;   // louder: the whole painting lifts a little
+      // how present: the resting glaze sinks almost to black, what the music lights keeps a little more
+      const dimRest = 1 - (1 - Math.pow(pres, 1.3)) * 0.92, dimLit = 1 - (1 - pres) * 0.7;
       const kLit = Math.exp(-dt / mem), kFl = Math.exp(-dt / 0.12), kMem = Math.exp(-dt / (mem * 7 + 6));
       // swells waiting to start
       for (const q of kicks) { q.wait -= dt; if (q.wait <= 0) { const r = discs[q.d].rings[q.k]; r.vel += q.a * 13; } }
@@ -152,7 +176,7 @@
         // the composition drifts very slowly with the song
         d.x = x.W * d.fx + base * 0.012 * Math.sin(x.t * 0.05 + d.ph);
         d.y = x.H * d.fy + base * 0.01 * Math.sin(x.t * 0.037 + d.ph * 1.3);
-        d.R = base * d.fr * (1 + 0.025 * x.feat.level);
+        d.R = base * d.fr * (1 + 0.025 * x.feat.level * pres);
         let acc = 0;
         for (let k = 0; k < RINGS; k++) {
           const r = d.rings[k];
@@ -176,7 +200,7 @@
             // a dark glaze of its colour (a little brighter while remembered), the full colour while lit, cream on the attack
             const c = q.kind === 1 ? CREAM : q.kind === 2 ? INK : PAL[q.step % 12];
             const gl = q.kind === 2 ? 1 : 0.15 + 0.2 * q.mem + glow, fl = q.fl * 0.55;
-            const ch = (i) => { const b = c[i] * gl, v = b + (c[i] - b) * Math.min(1, q.lit); return Math.round(v + (CREAM[i] - v) * fl); };
+            const ch = (i) => { const b = c[i] * gl * dimRest, top = c[i] * dimLit, v = b + (top - b) * Math.min(1, q.lit); return Math.round(v + (CREAM[i] * dimLit - v) * fl); };
             g.fillStyle = `rgb(${ch(0)},${ch(1)},${ch(2)})`; g.beginPath();
             g.arc(d.x, d.y, r1, a0, a1);
             if (r0 > 0) g.arc(d.x, d.y, r0, a1, a0, true); else g.lineTo(d.x, d.y);
