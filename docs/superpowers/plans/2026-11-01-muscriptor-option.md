@@ -76,6 +76,8 @@ Measured on the five overnight files. Where one departs from the brief, it says 
   of joining the strings. These are label swaps no pass can see.
 - Spring's Largo viola stays mostly labelled violin from 262 s: only the doubled notes are resolved.
 - A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).
+- Autumn 420–430 s: after the stuck chord is collapsed, cello and contrabass held notes run on to the 430 s chunk edge
+  over audio fading to about −42 to −49 dB (the contrabass is held the whole 10 s).
 - Tremolo in a sounding stuck chunk loses its attacks: one held chord.
 - Lanes still move together a lot: 54 % of Four Seasons' notes share start and end with two other lanes, and its
   contrabass is mostly the cello an octave down. Only string doubles outside a lane's core are dropped.
@@ -360,7 +362,12 @@ and `src/studio/ui/library.ts` (new table entries only), `src/studio/ui/style.cs
 - what `resolveInstruments` refuses;
 - `--kind piano` with the model;
 - `--notes` other than `auto` or `hybrid` with the model;
-- a `--muscriptor-notes` file that is missing, unreadable, or has names `mapMsRows` does not know.
+- a `--muscriptor-notes` file that is missing, unreadable, or has names `mapMsRows` does not know;
+- a `--muscriptor-notes` file with a lane outside the list, compared as class names, because caches hold those.
+
+A run on the pack's own audio without `--title` keeps the pack's title, as it keeps `source.name`: T4's overnight table
+would otherwise rename every song "Audio". On a pack already up to date for the list, `--muscriptor-notes` is not imported
+without `--force`, and the log says so.
 
 **`pack.ts`.**
 

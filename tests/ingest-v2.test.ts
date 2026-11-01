@@ -3,7 +3,7 @@
 // small Node stub (stub.mjs), and a hook loaded into the ingest process runs any `*.mjs` "python" with node (dropping
 // Python's -I), so the CLI's real code finds, runs, caches and falls back exactly as it does with the real tools.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -451,6 +451,59 @@ describe.skipIf(!hasFfmpeg)('npm run ingest, MuScriptor as an option', () => {
     expect(r.err).toMatch(/kazoo/);
     expect(existsSync(songDir('ms-kazoo'))).toBe(false);
   }, 90_000);
+
+  it('refuses an import with a lane outside the list, and writes nothing', () => {
+    // An overnight file has MuScriptor's names: its piano is the hunt theme, which `strings` must keep out of the tracks.
+    const night = nightFile('night-baroque.json', [...msViolins, ...msPiano]);
+    const r = run([wav, '--id', 'ms-outside', '--muscriptor-notes', night, '--instruments', 'strings']);
+    expect(r.code).toBe(2);
+    expect(r.err).toMatch(new RegExp(`acoustic_piano \\(${msPiano.length} rows\\)`));
+    expect(r.err).toMatch(/outside --instruments violin,viola,cello,contrabass/);
+    expect(existsSync(songDir('ms-outside'))).toBe(false);
+    // A cache has class names, and is held to the same list.
+    const cache = nightFile('night-cache.json', [[1, 2, 76, 100, 'Violin'], [1, 2, 84, 100, 'Acoustic Piano']]);
+    const c = run([wav, '--id', 'ms-outside', '--muscriptor-notes', cache, '--instruments', 'strings']);
+    expect(c.code).toBe(2);
+    expect(c.err).toMatch(/acoustic_piano \(1 rows\)/);
+    expect(existsSync(songDir('ms-outside'))).toBe(false);
+    // A list wider than the file is fine: Spring's list has a piano its run did not find.
+    expect(run([wav, '--id', 'ms-wider', '--muscriptor-notes', nightFile('night-wider.json', [...msViolins, ...msCellos]), '--instruments', 'baroque']).code).toBe(0);
+  }, 180_000);
+
+  it('says when an up to date pack did not import the file', () => {
+    const args = (f: string) => [wav, '--id', 'ms-twice', '--muscriptor-notes', f, '--instruments', 'strings'];
+    expect(run(args(nightFile('night-a.json', [...msViolins, ...msCellos]))).code).toBe(0);
+    const other = nightFile('night-b.json', msViolins);
+    const again = run(args(other));
+    expect(again.code).toBe(0);
+    expect(again.out).toMatch(/up to date/);
+    expect(again.out).toMatch(/night-b\.json was not imported: --force imports it/);
+    expect(pack('ms-twice').tracks!.cello).toBeDefined();
+    expect(run([...args(other), '--force']).code).toBe(0);
+    expect(pack('ms-twice').tracks!.cello).toBeUndefined();
+  }, 180_000);
+
+  it("keeps the title on a run on the pack's own audio", () => {
+    expect(run([wav, '--id', 'titled', '--title', 'Kept Name']).code).toBe(0);
+    const own = join(songDir('titled'), 'audio.wav');
+    const night = nightFile('night-title.json', [...msViolins, ...msCellos]);
+    expect(run([own, '--id', 'titled', '--muscriptor-notes', night, '--instruments', 'strings']).code).toBe(0);
+    expect(pack('titled').title).toBe('Kept Name');
+    expect(pack('titled').source.name).toBe('Struck Tone.wav');
+    expect(run([own, '--id', 'titled', '--force']).code).toBe(0);
+    expect(pack('titled').title).toBe('Kept Name');
+    // --title still says otherwise, and a file from elsewhere still names the song.
+    expect(run([own, '--id', 'titled', '--force', '--title', 'New Name']).code).toBe(0);
+    expect(pack('titled').title).toBe('New Name');
+    expect(run([wav, '--id', 'titled', '--force']).code).toBe(0);
+    expect(pack('titled').title).toBe('Struck Tone');
+    // A first ingest of a file called audio has only its name to go on.
+    const fresh = join(tmp, 'fresh', 'audio.wav');
+    mkdirSync(join(tmp, 'fresh'), { recursive: true });
+    copyFileSync(wav, fresh);
+    expect(run([fresh, '--id', 'titled-fresh']).code).toBe(0);
+    expect(pack('titled-fresh').title).toBe('Audio');
+  }, 300_000);
 
   it("refuses an import that is not a file of notes, or another model's", () => {
     const bad = (name: string, text: string, message: RegExp) => {

@@ -6,6 +6,8 @@
  *     [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp|muscriptor] [--force] [--progress json]
  *     [--instruments-model ymt3|muscriptor] [--instruments strings|baroque|classical|<list>] [--muscriptor-notes <file>]
  *
+ * --title defaults to the file's name; a run on the pack's own audio (songs/<id>/audio.mp3) keeps the pack's title.
+ *
  * Three transcribers, and a fourth by choice, each cached in the song's folder by the audio's sha1 (and its model,
  * revision or settings):
  * - the GPU piano model (scripts/ears/transcribe.py through WINKELAMP_PY, the venv or `python`): notes.gpu.json;
@@ -34,7 +36,8 @@
  * in the pack, never an exit 3 (a stuck result stays cached, as greedy decoding repeats itself; --redo muscriptor runs it
  * again). --muscriptor-notes <file> reads a saved run (an overnight notes.muscriptor-large.json or such a cache) instead
  * of running the model, and writes the cache bound to this recording; it needs --instruments too, as the overnight files
- * do not say their list.
+ * do not say their list, and a file with a lane outside that list is refused (exit 2), since the pack and the cache
+ * would then misstate it. On a pack already up to date for that list the file is not imported without --force.
  * Exit codes: 2 usage, 3 a transcriber that was asked for failed, 4 the audio cannot be decoded.
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
@@ -44,7 +47,7 @@ import type { IngestProgress } from '../src/studio/ingest/ears-types';
 import { etaWords, MS_YMT3_SHARE, overallOf, stageWeights, type Stage } from '../src/studio/ingest/progress';
 import { buildPack, WARN_NO_YMT3, type BuildInput } from '../src/studio/pack/build';
 import { cleanTracks, cleanWarning, frameDb } from '../src/studio/pack/clean-tracks';
-import { listKey, loopCheck, mapMsRows, mergeKeyboard, MS_IMPORT_PACKAGE, MS_MODEL, resolveInstruments } from '../src/studio/pack/muscriptor';
+import { listKey, loopCheck, mapMsRows, mergeKeyboard, MS_CLASS, MS_IMPORT_PACKAGE, MS_MODEL, resolveInstruments } from '../src/studio/pack/muscriptor';
 import { parseNotesFile } from '../src/studio/pack/notes';
 import { PACK_VERSION, validatePack, type SongPack } from '../src/studio/pack/pack';
 import { cleanRows, onsetLevels, type Ymt3Row } from '../src/studio/pack/tracks';
@@ -84,8 +87,11 @@ interface BpCache { version: 1; sha1: string; model: string; settings: typeof BP
 
 const sameList = (a: readonly string[] | undefined, b: readonly string[]) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** A saved run (an overnight file or a cache), checked before anything slow starts. Its `instruments` says nothing of its list. */
-function readMsImport(path: string): Pick<MsCache, 'dtype' | 'seconds'> & { rows: Ymt3Row[] } {
+/**
+ * A saved run (an overnight file or a cache), checked before anything slow starts. Its `instruments` says nothing of its
+ * list, so `list` is the caller's word, and a lane outside it would make that word false in the pack and the cache.
+ */
+function readMsImport(path: string, list: readonly string[]): Pick<MsCache, 'dtype' | 'seconds'> & { rows: Ymt3Row[] } {
   const no = (why: string) => new Exit(2, `--muscriptor-notes ${path}: ${why}`);
   if (!existsSync(path) || !statSync(path).isFile()) throw no('no such file');
   let raw: { model?: unknown; dtype?: unknown; seconds?: unknown; notes?: unknown } | null;
@@ -99,6 +105,15 @@ function readMsImport(path: string): Pick<MsCache, 'dtype' | 'seconds'> & { rows
   const { rows, unknown } = mapMsRows(raw.notes);
   if (unknown.length) throw no(`unknown instrument ${unknown.join(', ')}`);
   if (rows.length !== raw.notes.length) throw no(`${raw.notes.length - rows.length} of its ${raw.notes.length} rows are not [start, end, midi, velocity, instrument]`);
+  // Compared as class names: an overnight file has MuScriptor's names, a cache has mapped ones, and mapMsRows gives both the same.
+  const asked = new Set(list.map((n) => MS_CLASS[n]));
+  const outside = new Map<string, number>();
+  for (const r of rows) if (!asked.has(r[4])) outside.set(r[4], (outside.get(r[4]) ?? 0) + 1);
+  if (outside.size) {
+    const lane = (cls: string) => Object.keys(MS_CLASS).find((n) => MS_CLASS[n] === cls) ?? cls;
+    const named = [...outside].map(([cls, n]) => `${lane(cls)} (${n} rows)`).join(', ');
+    throw no(`it has ${named}, outside --instruments ${list.join(',')}: pass the list it was made with`);
+  }
   return { rows, dtype: raw.dtype === 'bfloat16' ? 'bfloat16' : 'float32', seconds: isNum(raw.seconds) ? raw.seconds : 0 };
 }
 
@@ -145,7 +160,7 @@ function args(argv: string[]) {
   const msNotes = flags.get('muscriptor-notes') as string | undefined;
   if (msNotes !== undefined && modelArg === 'ymt3') throw new Exit(2, '--muscriptor-notes goes with --instruments-model muscriptor, not ymt3');
   const instruments = flags.get('instruments') as string | undefined;
-  let ms: { list: string[]; imported: ReturnType<typeof readMsImport> | null } | null = null;
+  let ms: { list: string[]; imported: ReturnType<typeof readMsImport> | null; importedFrom: string | null } | null = null;
   if (modelArg === 'muscriptor' || msNotes !== undefined) {
     if (instruments === undefined) throw new Exit(2, "MuScriptor needs --instruments <preset|list>: without a list it hears Vivaldi's strings as guitars, and a saved run does not say its list");
     const r = resolveInstruments(instruments);
@@ -153,7 +168,7 @@ function args(argv: string[]) {
     if (kind === 'piano') throw new Exit(2, '--kind piano does not go with --instruments-model muscriptor, which means an ensemble');
     if (mode !== 'auto' && mode !== 'hybrid') throw new Exit(2, `--notes ${notesArg} does not go with --instruments-model muscriptor: only auto or hybrid`);
     if (msNotes !== undefined && redo.has('muscriptor')) throw new Exit(2, '--redo muscriptor runs the model and --muscriptor-notes reads a saved run: pass one');
-    ms = { list: r.list, imported: msNotes === undefined ? null : readMsImport(msNotes) };
+    ms = { list: r.list, imported: msNotes === undefined ? null : readMsImport(msNotes, r.list), importedFrom: msNotes ?? null };
   } else {
     if (instruments !== undefined) throw new Exit(2, '--instruments goes with --instruments-model muscriptor');
     if (redo.has('muscriptor')) throw new Exit(2, '--redo muscriptor goes with --instruments-model muscriptor');
@@ -161,7 +176,7 @@ function args(argv: string[]) {
   const progress = flags.get('progress');
   if (progress !== undefined && progress !== 'json') throw new Exit(2, `--progress ${String(progress)}: only json is supported`);
   return {
-    file, id, title: (flags.get('title') as string | undefined) ?? named.title, mode, notesFile: mode === 'file' ? notesArg : null,
+    file, id, title: flags.get('title') as string | undefined, namedTitle: named.title, mode, notesFile: mode === 'file' ? notesArg : null,
     pianoNotes: pianoNotes ?? null, kind: ms ? 'ensemble' as const : kind, ms, redo, force: flags.has('force') || redo.size > 0, json: progress === 'json',
   };
 }
@@ -204,12 +219,15 @@ async function main(): Promise<void> {
     if (old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0 &&
       existsSync(join(dir, old.audio)) && (!o.ms || sameList(old.transcribers?.find((t) => t.name === 'muscriptor')?.instruments, o.ms.list))) {
       log(`${o.id}: up to date (${old.notesFrom} notes; --force rebuilds it, e.g. with other notes): ${packFile}`);
+      if (o.ms?.importedFrom) log(`  --muscriptor-notes ${o.ms.importedFrom} was not imported: --force imports it`);
       report({ stage: 'done', progress: 1, overall: 1, message: 'up to date', id: o.id, warnings: old.quality.warnings });
       return;
     }
     if (old.source?.sha1 !== sha1) log(`${o.id}: replacing the pack of a different recording (${old.source?.name})`);
   }
   const sourceName = inPlace && old?.source?.name ? old.source.name : basename(o.file);
+  // The title too: audio.mp3 says nothing of the song, and a plain re-ingest would rename it "Audio".
+  const title = o.title ?? (inPlace && old?.title ? old.title : o.namedTitle);
 
   // What runs. auto: everything that can, falling back; the named modes need their transcribers.
   const usePiano = !o.pianoNotes && ['auto', 'gpu', 'hybrid', 'ymt3', 'bp'].includes(o.mode);
@@ -488,7 +506,7 @@ async function main(): Promise<void> {
 
   stage('write', 0, 'writing');
   const pack = buildPack({
-    id: o.id, title: o.title, audio: audioName, source: { name: sourceName, bytes: st.size, sha1 },
+    id: o.id, title, audio: audioName, source: { name: sourceName, bytes: st.size, sha1 },
     analysis, notes, by: 'ingest', at: new Date().toISOString(), ymt3, bp, kind: o.kind, muscriptor,
     notesMode: o.mode === 'hybrid' || o.mode === 'bp' ? 'hybrid' : o.mode === 'ymt3' ? 'ymt3' : 'auto',
   });

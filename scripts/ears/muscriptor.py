@@ -142,7 +142,21 @@ def decode(path, m):
     return wav
 
 
+def check_out(out):
+    """A path that cannot be opened (Windows refuses one over 260 characters) answers now, not after the whole GPU run.
+    The cause comes first: whoever reads this may cut a long path, and the cause with it."""
+    existed = os.path.exists(out)
+    try:
+        with open(out, 'a', encoding='utf-8'):
+            pass
+    except OSError as e:
+        fail(2, f'cannot write the output ({e.strerror or type(e).__name__}; a path of {len(out)} characters, Windows refuses over 260): {out}')
+    if not existed:
+        os.remove(out)
+
+
 def transcribe(opts, audio_path, out):
+    check_out(out)
     m, err = import_all()
     if err:
         fail(3, err)

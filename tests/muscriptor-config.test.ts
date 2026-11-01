@@ -1,11 +1,12 @@
 /// <reference types="node" />
 // MuScriptor from Node, the python stubbed: a `*.mjs` "python" runs with node (without Python's -I), so the real code
 // finds, spawns, parses and retries as it does with the real tool.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { findMuscriptor, msConfigPath, probeMsWith, probeMuscriptor, runMuscriptor, type MsConfig } from '../scripts/node/muscriptor';
+import { findMuscriptor, msConfigPath, MUSCRIPTOR_PY, probeMsWith, probeMuscriptor, runMuscriptor, type MsConfig } from '../scripts/node/muscriptor';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const real = await importOriginal<typeof import('node:child_process')>();
@@ -206,4 +207,25 @@ describe('runMuscriptor', () => {
     expect((e as Error).message).toContain('line before');
     expect((e as Error).message).toContain('exited 4');
   });
+});
+
+// The real muscriptor.py with any python: the check comes before torch, and the audio is missing, so no model ever loads.
+const hasPython = spawnSync('python', ['--version']).status === 0;
+describe.skipIf(!hasPython)('muscriptor.py, the output path', () => {
+  const py = (out: string) => spawnSync('python', ['-I', MUSCRIPTOR_PY, join(tmp, 'no-such.wav'), out], { encoding: 'utf8', timeout: 90_000 });
+
+  it('refuses a path it cannot open before the run, the cause first', () => {
+    const out = join(tmp, 'nowhere', 'deep', 'out.json');
+    const r = py(out);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/^muscriptor\.py: cannot write the output \(/m);
+    expect(r.stderr).toContain(out);
+    expect(r.stderr).not.toMatch(/muscriptor package:|missing Python package/);
+  }, 90_000);
+
+  it('leaves no file behind when the path is fine', () => {
+    const out = join(tmp, 'fine.json');
+    expect(py(out).stderr).not.toMatch(/cannot write the output/);
+    expect(existsSync(out)).toBe(false);
+  }, 90_000);
 });
