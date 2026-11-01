@@ -239,18 +239,17 @@ over; it needs the gaps), `comfort`, `duet`, `gust` (already keeps its full blas
 
 ### 8. Mergeable with the note picker
 
-**[builder]** The plan's patches were merged in a dry run with `git merge-tree` against the branches as they stand:
+**[builder]** The plan's patches were merged in a dry run with `git merge-tree`:
 
-- `claude/note-picker`: no conflict. To keep it so, `isListen` gains its note-type check as a new first statement instead of
-  editing the line the picker edits; `listenNotes` gains its branch after the `LINES` line, as the picker inserts before it;
-  `WaLayers` gains its members away from the `listenNotes` line; the `missingPart` warning is in a function the picker leaves
-  alone; `COMPOSING-SHOWS.md` gains its bullet before the lines bullet, as the picker's goes after.
-- `claude/widgets-round9`: no conflict in anything this touches. `lab/TODO.md` conflicts already between that branch and this
-  one, before this work.
+- `claude/note-picker` at `6ae36df`: no conflict. To keep it so, `isListen` gains its note-type check as a new first statement
+  instead of editing the line the picker edits; `listenNotes` gains its branch after the `LINES` line, as the picker inserts
+  before it; `WaLayers` gains its members away from the `listenNotes` line; the `missingPart` warning is in a function the picker
+  leaves alone; `COMPOSING-SHOWS.md` gains its bullet before the lines bullet, as the picker's goes after; `layer-controls.ts`
+  and its test take their imports on lines of their own, away from the ones the picker edits.
+- `claude/widgets-round9` at `34357cc`: no conflict.
 
-The picker is still being built: its plan changes `listenLabel`, `layerParts`, `drawSpark`'s `listenNotes` call and the select
-row in `layer-controls.ts`, near this work, so a later merge may need a small hand. A set of picks and a note type never meet:
-`attacksIn` only ever asks about a note type, and `isNoteType` says no to a `picks:` listen.
+Both branches are still moving, so a later merge may need a small hand. A set of picks and a note type never meet: `attacksIn`
+only ever asks about a note type, and `isNoteType` says no to a `picks:` listen.
 
 One wart, chosen for that: `validateLayer`'s message for an unknown listen does not list the note types, because the picker
 rewrites that line. Add them when the picker has landed.

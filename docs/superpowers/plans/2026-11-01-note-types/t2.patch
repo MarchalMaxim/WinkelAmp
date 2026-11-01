@@ -112,20 +112,19 @@ index 7df8298..e6db94a 100644
      const list = [...widgets.values()].filter(inGroup);
      if (!list.length) continue;
 diff --git a/src/studio/ui/layer-controls.ts b/src/studio/ui/layer-controls.ts
-index e3627ca..4221f47 100644
+index e3627ca..76b479e 100644
 --- a/src/studio/ui/layer-controls.ts
 +++ b/src/studio/ui/layer-controls.ts
-@@ -13,7 +13,8 @@ import { TRACKS, TRACK_IDS } from '../pack/instruments';
+@@ -9,6 +9,8 @@
+  * Every change is one setLayer edit, one undo step.
+  */
+ import './layer-controls.css';
++import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
++import type { NoteType } from '../../widgets/types';
+ import { TRACKS, TRACK_IDS } from '../pack/instruments';
  import type { SongPack } from '../pack/pack';
  import { FAMILIES, LINES, listenOf, type Layer } from '../show/show';
- import type { Span, WaLayers } from '../../widgets/layers';
--import type { Family, Line, Listen, Pivot, Region, TrackId } from '../../widgets/types';
-+import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
-+import type { Family, Line, Listen, NoteType, Pivot, Region, TrackId } from '../../widgets/types';
- 
- export interface ListenOption { group: string; value: Listen; label: string }
- 
-@@ -28,13 +29,15 @@ const FAMILY_LABELS: Record<Family, string> = {
+@@ -28,13 +30,15 @@ const FAMILY_LABELS: Record<Family, string> = {
  const presentTracks = (pack: Pick<SongPack, 'tracks'>): TrackId[] => TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0);
  
  /** What a layer can listen to in this song: 'All notes'; 'In this recording': its tracks (TRACKS order, with their
@@ -142,7 +141,7 @@ index e3627ca..4221f47 100644
    return out;
  }
  
-@@ -42,6 +45,7 @@ export function listenOptions(pack: Pick<SongPack, 'tracks'>): ListenOption[] {
+@@ -42,6 +46,7 @@ export function listenOptions(pack: Pick<SongPack, 'tracks'>): ListenOption[] {
  export function listenLabel(l: Listen): string {
    if (l === 'all') return 'All notes';
    if (l in LINE_LABELS) return LINE_LABELS[l as Line];
@@ -150,7 +149,7 @@ index e3627ca..4221f47 100644
    if (l.startsWith('family:')) return FAMILY_LABELS[l.slice(7) as Family] ?? l;
    return TRACKS[l as TrackId]?.label ?? l;
  }
-@@ -49,6 +53,36 @@ export function listenLabel(l: Listen): string {
+@@ -49,6 +54,36 @@ export function listenLabel(l: Listen): string {
  /** The same in running text: lower case, but "French horns" keeps its capital. */
  export const partWords = (l: Listen): string => listenLabel(l).toLowerCase().replace(/\bfrench\b/g, 'French');
  
@@ -187,16 +186,16 @@ index e3627ca..4221f47 100644
  /** The widgets that read the shared canvas (they cut or smear what is below): a spotlight keeps them doing that in
      place; in a window they read only their own picture. */
  export const READERS: readonly string[] = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
-@@ -111,6 +145,8 @@ export interface LayerControlsDeps {
-   /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back), under the
-       key memoryKey() gives for this layer now (its section and instance key, so a reorder never hands it to another). */
-   memory: Map<string, Region>; memoryKey(): string;
+@@ -102,6 +137,8 @@ export interface LayerControlsDeps {
+   layers: WaLayers;
+   pack: Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>;
+   widget: string; hue: number;
 +  /** The note type this widget usually hears (lab/tags.json). */
 +  usual?: NoteType;
- }
- 
- let step = 0;
-@@ -128,6 +164,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
+   /** The section's span now (a boundary drag changes it without a redraw). */
+   span(): Span;
+   /** The layer now (undo changes it without a redraw). */
+@@ -128,6 +165,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
        <h4>Listens to</h4>
        <div class="lc-listen"><select aria-label="What this layer listens to"></select><canvas class="lc-spark" width="${SPARK_W}" height="${SPARK_H}" aria-hidden="true"></canvas></div>
        <p class="lc-note small"></p>
@@ -204,7 +203,7 @@ index e3627ca..4221f47 100644
      </section>
      <section class="lc-part">
        <h4>Where</h4>
-@@ -204,20 +241,37 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
+@@ -204,20 +242,37 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
      for (let x = 0; x < SPARK_W; x++) if (cols[x]) { const h = Math.max(2, Math.round((Math.sqrt(cols[x] / top)) * SPARK_H)); g.fillRect(x, SPARK_H - h, 1, h); }
      g.fillStyle = '#ffffff22'; g.fillRect(0, SPARK_H - 1, SPARK_W, 1);
      spark.title = `${here} notes in this section`;
@@ -246,7 +245,7 @@ index e3627ca..4221f47 100644
  
    // Where
    const region = () => d.layer()?.region;
-@@ -264,6 +318,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
+@@ -264,6 +319,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
      const listen = listenOf(l), r = l.region, span = d.span();
      fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
      drawSpark(listen, span);
@@ -432,23 +431,21 @@ index ca62b1c..9ccfede 100644
  });
  
 diff --git a/tests/layer-controls.test.ts b/tests/layer-controls.test.ts
-index cb330ae..b634d22 100644
+index cb330ae..ce96076 100644
 --- a/tests/layer-controls.test.ts
 +++ b/tests/layer-controls.test.ts
-@@ -4,10 +4,10 @@
- import { readFileSync } from 'node:fs';
- import { describe, expect, it } from 'vitest';
+@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
  import { loadLayers } from '../scripts/node/layers';
--import { defaultRegion, describePlace, gateDefault, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
-+import { attacksIn, defaultRegion, describePlace, gateDefault, listenLabel, listenOptions, neededAttacks, partWords, placedListen, presetPivots, READERS, usualLine } from '../src/studio/ui/layer-controls';
+ import { defaultRegion, describePlace, gateDefault, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
  import { filterWidgets } from '../src/studio/ui/widget-picker';
++import { attacksIn, listenLabel as labelOf, neededAttacks, placedListen, usualLine } from '../src/studio/ui/layer-controls';
  import type { SongPack } from '../src/studio/pack/pack';
 -import type { TagWords } from '../src/widgets/tags';
 +import { NOTE_TYPES, type TagWords } from '../src/widgets/tags';
  import type { Note, WidgetMeta, WidgetTags } from '../src/widgets/types';
  
  const read = (f: string) => JSON.parse(readFileSync(new URL(`../lab/${f}`, import.meta.url), 'utf8'));
-@@ -23,19 +23,65 @@ describe('listenOptions', () => {
+@@ -23,19 +24,65 @@ describe('listenOptions', () => {
    it('all notes, the present tracks in TRACKS order with their note counts, families of 2+, then the lines', () => {
      const pack = { tracks: { horn: track('brass', 'French horns', 3), viola: track('strings', 'Violas', 5), violin: track('strings', 'Violins', 7) } } as unknown as Pick<SongPack, 'tracks'>;
      const o = listenOptions(pack);
@@ -475,7 +472,7 @@ index cb330ae..b634d22 100644
 +  });
 +
 +  it('names a note type in words', () => {
-+    expect(listenLabel('long')).toBe('Long ringing notes');
++    expect(labelOf('long')).toBe('Long ringing notes');
 +    expect(partWords('runs')).toBe('fast runs');
 +  });
 +});

@@ -21,7 +21,7 @@ calls. Read it first. `S` there is
 
 **The code is in two patches beside this plan,** `docs/superpowers/plans/2026-11-01-note-types/t1.patch` and `t2.patch`: the exact
 text, written while designing to prove this plan, and removed again. Both were applied in order from a clean checkout of
-`49469b3`: all named tests passed, both typechecks were clean, `npx vitest run` had only the failure named below, and one placement
+the branch: all named tests passed, both typechecks were clean, `npx vitest run` had only the failure named below, and one placement
 ran in a real studio. T2's commit deletes the folder.
 
 ## Global Constraints
@@ -39,7 +39,8 @@ ran in a real studio. T2's commit deletes the folder.
   development. If either fact stops being true, run it.
 - **Never all notes.** No path turns a note-type layer into one that hears every note. `heard` is the type, with no notes.
 - **Stay mergeable.** `claude/note-picker` is being built beside this. Do not edit the `isListen` line that tests `LINES`, the
-  `validateLayer` message, the `listenNotes` line in `WaLayers` or the `Listen` doc comments. The patches already avoid them.
+  `validateLayer` message, the `listenNotes` line in `WaLayers`, the `Listen` doc comments or the import lines the picker edits. The
+  patches already avoid them.
 - **Known failure, not ours.** `tests/show-v2.test.ts > vivaldi-summer.json saves as its version…` fails at `49469b3`, before this
   work: that show was committed by hand, not in canonical form. Leave it, and report it.
 - **Commits.** `git add` explicit paths. Messages as below, then a blank line and
@@ -60,9 +61,8 @@ ran in a real studio. T2's commit deletes the folder.
    a run note 20 ms after an unrelated chord is its own attack on the layer and part of the chord for everyone else.
 5. **The defaults are reasoned, not seen.** The spec says so and asks the user to look. If you have a browser on a free port, look
    at stella on Beethoven, martin on the Nocturne, pixelsort over any base on the Prelude, flee on Winter Wind.
-6. **Merges.** `git merge-tree --write-tree HEAD claude/note-picker` gives no conflict and `claude/widgets-round9` only
-   `lab/TODO.md`, as of this plan. Re-run after each task. Later picker tasks touch `listenLabel`, `layerParts`, `drawSpark` and the
-   select row; a small hand is expected there, not a redesign.
+6. **Merges.** The patches merge with no conflict with `claude/note-picker` at `6ae36df` and `claude/widgets-round9` at `34357cc`.
+   Re-run `git merge-tree --write-tree HEAD <branch>` after each task. Both are moving; a small hand may be needed, not a redesign.
 7. **One wart on purpose.** `validateLayer`'s message for an unknown listen does not list the note types until the picker has landed.
 
 ## Task 1: Note types in the shared layer code and show validation
@@ -183,7 +183,8 @@ usual?: NoteType;
   gives none.
 - `tests/layer-controls.test.ts`:
   - `listenOptions`: values end `...LINES, ...NOTE_TYPES` in all three existing cases; the last five are in `Kinds of note` with the five labels.
-  - `names a note type in words`: `listenLabel('long')` `Long ringing notes`; `partWords('runs')` `fast runs`.
+  - `names a note type in words`: `listenLabel('long')` `Long ringing notes`; `partWords('runs')` `fast runs`. (Imported as `labelOf`, on a
+    line of its own: the picker's branch adds `listenLabel` to the existing import line.)
   - `neededAttacks`: 9 s → 3; 30 s → 3; 31 s → 4; 60 s → 6.
   - `attacksIn`: 4 strikes from 5 s: 4 in 0..10; 2 in 5.3..10; 0 in 6..10; 0 for `runs`.
   - `placedListen`: the same strikes: `repeats` in 0..10; none in 0..60 (4 in a minute); none in 20..30; none for `trills`; none for `undefined`.
