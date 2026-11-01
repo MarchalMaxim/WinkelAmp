@@ -11,6 +11,9 @@
 // passage's short notes lay tiles split in four (a finer mosaic) that fade twice as fast. A fresh attack pops its tiles
 // with a light rim; a loud one also throws a spray of lit tiles around itself. So soft/loud, held/quick and sparse/dense
 // read as different textures: Klee's dotted fields and his solid blocks.
+// A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, the tiles, the dark
+// ground and the veil fade (the ground to nothing, so it stops covering what's under it), the attacks stop popping and
+// spraying, the veil drifts slower, and only the song's hardest notes paint.
 (() => {
   const NV = 6;
   // the voices: register band (upper bound, exclusive) and glaze colour (what the tile takes on at full strength)
@@ -21,6 +24,18 @@
   const GROUND = [30, 20, 15];                           // the dark umber between and under the tiles
   const LO = 31, HI = 94, HALO = 2;                              // pitch range mapped onto the rows
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  // how present (0..1): which notes paint, judged against this piece's own notes (recordings differ a lot in how hard
+  // they play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  const DROUGHT = 8;
+  let pres = 1, vels = null, dimmed = null, lastPaint = -DROUGHT;
+  const hardEnough = (v) => {
+    const cut = (1 - pres) * 0.95;
+    if (cut <= 0) return true;
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
   // Voice leading: a chord's notes (low to high) go to voices in the same order, each to the voice nearest its pitch
   // (dynamic programming over the six voices), so a voice follows its line as it climbs and falls and can wander
   // across the others' rows. A chord of more than six notes doubles its extra notes on the nearest voice.
@@ -115,11 +130,21 @@
       for (let c = 0; c < 4; c++) ICON.rect(g, 3 + c * 9, 4, 8, 18, [GL[OCHRE], GL[MADDER], GL[ULTRA], GL[ROSE]][c]);
       ICON.alpha(g, v, () => { for (let j = 0; j < 4; j++) for (let i = 0; i < 9; i++) ICON.dot(g, 4 + i * 4 + (j % 2) * 2, 5 + j * 5, 0.9, '#fff6e2'); });
     },
+    presence(g, v, w, h) {                                // a few faint tiles, or a full bright mosaic
+      const s = 6, R = ICON.rng(11), cols = Math.floor((w - 2) / s), rows = Math.floor((h - 2) / s);
+      const ox = (w - cols * s) / 2, oy = (h - rows * s) / 2;
+      ICON.alpha(g, 0.2 + 0.8 * v, () => {
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          const on = R(), hue = Math.floor(R() * 6);
+          if (on < 0.12 + 0.88 * v) ICON.rect(g, ox + c * s + 0.5, oy + r * s + 0.5, s - 1, s - 1, GL[hue]);
+        }
+      });
+    },
   };
 
   TOOLS.push({
     id: 'klee', name: 'Klee', tag: 'v2',
-    blurb: 'After Paul Klee\'s polyphony paintings: a mosaic of small warm tiles. Each voice of the music writes along its own row in its own glaze, the row climbing and falling with its pitch; where voices cross, the glazes mix. New in v2: quiet notes lay small squares and loud held ones solid blocks, quick passages a finer split mosaic, and every attack pops (a loud one throws a spray of lit tiles).',
+    blurb: 'After Paul Klee\'s polyphony paintings: a mosaic of small warm tiles. Each voice of the music writes along its own row in its own glaze, the row climbing and falling with its pitch; where voices cross, the glazes mix. New in v2: quiet notes lay small squares and loud held ones solid blocks, quick passages a finer split mosaic, and every attack pops (a loud one throws a spray of lit tiles). The <b>how present</b> knob tones it right down: a few faint tiles on a fading ground, and only the hardest notes paint.',
     params: [
       { key: 'stay', label: 'how long the colour stays', min: 3, max: 40, value: 14,
         hint: 'How long the paint stays on the tiles. Left: a few seconds, only the last phrase. Right: the whole passage builds up.',
@@ -136,19 +161,30 @@
       { key: 'veil', label: 'veil of dots', min: 0, max: 1, value: 0.6, drive: '-level',
         hint: 'The fine light dots that drift over the picture. Left: bare tiles. Right: a bright veil. It follows the music: quiet passages shimmer, loud ones blaze bare.',
         icon: ICONS.veil },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: a few faint tiles with no ground under them, and only the hardest notes paint. Right: every note paints at full strength (as before).',
+        icon: ICONS.presence },
     ],
     reset(x) {
       S = 0; amt = []; build(Math.round(x.p('size')));
       cursor = []; lastCh = []; runs = [];
       for (let v = 0; v < NV; v++) { cursor.push(((v * 0.37 + 0.1) % 1) * COLS); lastCh.push(-1); }
-      chId = 0; veilX = 0; veilY = 0; pv = HOME.slice();
+      chId = 0; veilX = 0; veilY = 0; pv = HOME.slice(); vels = null; lastPaint = -DROUGHT;
     },
     onChord(ch, x) {
       if (!N) build(Math.round(x.p('size')));
+      pres = x.p('presence');
+      // (a long stretch below the cut still gets its hardest note every few seconds: the prelude's agitato has nothing in
+      // the song's hardest quarter, and a toned-down widget should stay faint there, not go dead for a minute and a half)
+      const all = [...ch.notes];
+      let heard = all.filter((n) => hardEnough(n.v));
+      if (!heard.length && x.t - lastPaint >= DROUGHT) heard = all.sort((a, b) => b.v - a.v).slice(0, 1);
+      if (!heard.length) return;
+      lastPaint = x.t;
       chId++;
       // in sparse music (Beethoven's lone knocks, the oboe's cadenza) each note is a bigger stroke: longer and broader
       const thick = x.p('thick'), adv = new Array(NV).fill(0), sparse = 1 - clamp((x.feat?.rate ?? 0) * 4);
-      const notes = [...ch.notes].sort((a, b) => a.m - b.m), who = assign(notes.map((n) => n.m));
+      const notes = heard.sort((a, b) => a.m - b.m), who = assign(notes.map((n) => n.m));
       notes.forEach((n, j) => { pv[who[j]] = n.m; });
       for (let j = 0; j < notes.length; j++) {
         const n = notes[j], v = who[j], vk = clamp(n.v / 110);
@@ -159,7 +195,7 @@
         const c0 = Math.floor(cursor[v]);
         // the grain: a short note in a quick passage lays small split tiles; a held one a solid block (sparse music: blocks)
         const gr = clamp(1 - (n.d - 0.14) / 0.36) * (1 - 0.8 * sparse);
-        runs.push({ v, c0, r0, rows, L, d: Math.max(0.05, n.d), age: 0, shown: 0, base: 0.45 + 0.5 * vk, fl: 0.6 + 0.5 * vk, vk, gr, hit: false });
+        runs.push({ v, c0, r0, rows, L, d: Math.max(0.05, n.d), age: 0, shown: 0, base: 0.45 + 0.5 * vk, fl: (0.6 + 0.5 * vk) * (0.2 + 0.8 * pres), vk, gr, hit: false });
         adv[v] = Math.max(adv[v], L);
       }
       for (let v = 0; v < NV; v++) if (adv[v]) cursor[v] = (cursor[v] + adv[v]) % COLS;
@@ -167,7 +203,10 @@
       reveal(0);
     },
     frame(x) {
-      const g = x.g, dt = x.dt;
+      pres = x.p('presence');
+      // below full presence the picture is built on its own canvas and laid over the stage at the end
+      if (pres < 1 && !dimmed) { dimmed = document.createElement('canvas'); dimmed.width = W; dimmed.height = H; }
+      const g = pres < 1 ? dimmed.getContext('2d') : x.g, dt = x.dt;
       const s = Math.round(x.p('size'));
       if (s !== S) build(s);
       reveal(dt);
@@ -181,7 +220,9 @@
       for (let i = 0; i < N; i++) { flash[i] *= fk; hold[i] *= hk; }
 
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      if (pres < 1) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = pres; }   // the ground goes first
       g.drawImage(under, 0, 0);
+      g.globalAlpha = 1;
       const mix = x.p('mix'), gap = Math.max(1, S * 0.09), px4 = washImg.data;
       // pass 1: each tile's colour (into the wash image too)
       col.length = 0;
@@ -250,15 +291,23 @@
       g.fillStyle = 'rgba(255,238,205,0.17)'; g.fill(qL); g.fillStyle = 'rgba(20,10,6,0.22)'; g.fill(qD);
       g.strokeStyle = 'rgba(255,248,228,0.7)'; g.lineWidth = 1.5; g.stroke(rims);
       // the veil: fine light dots drifting slowly over everything
-      const vv = x.p('veil');
+      const vv = x.p('veil') * pres * pres, drift = 0.3 + 0.7 * pres;
       if (vv > 0.01) {
         const sp = Math.max(7, S * 0.5), pat = veil(sp), pw = pat.width;
-        veilX = (veilX + dt * 7) % pw; veilY = (veilY + dt * 3.2) % pw;
+        veilX = (veilX + dt * 7 * drift) % pw; veilY = (veilY + dt * 3.2 * drift) % pw;
         if (veilFill.c !== pat || veilFill.g !== g) veilFill = { c: pat, g, p: g.createPattern(pat, 'repeat') };
         g.save(); g.fillStyle = veilFill.p; g.translate(veilX - pw, veilY - pw);
         g.globalAlpha = Math.min(1, vv * 0.22); g.fillRect(0, 0, W + pw * 2, H + pw * 2);           // faint over the dark
         g.globalCompositeOperation = 'overlay'; g.globalAlpha = Math.min(1, vv * 1.1); g.fillRect(0, 0, W + pw * 2, H + pw * 2);  // bright on the colour
         g.restore();
+      }
+      if (pres < 1) {
+        // sink the picture toward black, then lay it over the stage: its black lets the stage show as far as presence
+        // allows, and 'lighten' keeps the level steady under the stage's own 12% fade (plain alpha would pile up every frame)
+        g.fillStyle = `rgba(0,0,0,${0.9 * (1 - pres)})`; g.fillRect(0, 0, W, H);
+        const st = x.g;
+        st.fillStyle = `rgba(0,0,0,${pres})`; st.fillRect(0, 0, W, H);
+        st.globalCompositeOperation = 'lighten'; st.drawImage(dimmed, 0, 0); st.globalCompositeOperation = 'source-over';
       }
     },
   });
@@ -283,14 +332,14 @@
             else { body[i] = Math.max(body[i] * 0.85, u.vk * 0.3); if (a[i] > 0.3) grain[i] = u.gr; }
           }
           else if (sounding) a[i] = Math.min(1.6, a[i] + dt * 0.55 * wgt);
-          if (sounding && !dist) hold[i] = Math.max(hold[i], 0.16);
+          if (sounding && !dist) hold[i] = Math.max(hold[i], 0.16 * pres);
         }
       }
       u.shown = want;
       // a loud attack throws a spray of lit tiles around its first column, in its own glaze (soft notes land alone)
       if (!u.hit) {
         u.hit = true;
-        const e = clamp((u.vk - 0.72) / 0.2);        // from about mezzo-forte up
+        const e = clamp((u.vk - 0.72) / 0.2) * clamp(pres * 2 - 1);        // from about mezzo-forte up (none once it's half toned down)
         if (e > 0) {
           const RB = e > 0.5 ? 2 : 1, a = amt[u.v];
           for (let rr = -RB; rr < u.rows + RB; rr++) {

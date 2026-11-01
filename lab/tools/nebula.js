@@ -6,6 +6,8 @@
 // white) is born there, cooling into the note's colour as it streams off. Loud notes flare big, soft ones barely whisper; deep
 // notes are wide, slow and heavy, high notes small, quick and glinting. The pull now fades with distance, so a chord
 // becomes several separate knots joined by threads instead of one lump.
+// A sixth knob, how present (the user: sliders should dim, not only boost): turned down, the grains and the cores fade, the
+// drift, the pull, the puffs and the shoves calm, and only this piece's hardest notes ignite. At 1 everything is exactly as it was.
 (() => {
   const MAXN = 7000, PCS = 12;
   const px = new Float32Array(MAXN), py = new Float32Array(MAXN), vx = new Float32Array(MAXN), vy = new Float32Array(MAXN);
@@ -24,6 +26,17 @@
   const RANGE2 = 240 * 240;                              // beyond about this far a note's pull falls away quickly
   let W = 1280, H = 720, cx = 640, cy = 360, R0 = 280, spin = 0, flash = 0, time = 0, cur = 0;
   const R = Math.random;
+  // how present (0..1): which notes ignite, judged against this piece's own notes (recordings differ a lot in how hard
+  // they play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  let vels = null;
+  const hardEnough = (v, x) => {
+    const cut = (1 - x.p('presence')) * 0.95;
+    if (cut <= 0) return true;
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
 
   function seed(i) {
     const a = R() * Math.PI * 2, r = R0 * Math.sqrt(R()) * 1.1;
@@ -68,15 +81,18 @@
           const n = Math.round(v * 16);
           for (let j = 0; j < n; j++) { const a = r() * 6.28, d = 3 + r() * (3 + v * 7);
             ICON.dot(g, w / 2 + Math.cos(a) * d * 1.5, h / 2 + Math.sin(a) * d, 0.8, j % 2 ? ICON.gold : ICON.red); } } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: nearly dark, a few faint wisps gathering at the notes, and only the hardest notes of the piece glow. Right: every note ignites at full strength (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.dots(g, 6 + v * 24, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }); ICON.dot(g, w / 2, h / 2, 1.2 + 3 * v, ICON.gold); }) },
     ],
     reset(x) {
       W = x.W; H = x.H; cx = W / 2; cy = H / 2; R0 = H * 0.4; flash = 0; cur = 0;
-      S.fill(0); TG.fill(0); REG.fill(0.5); FL.fill(0);
+      S.fill(0); TG.fill(0); REG.fill(0.5); FL.fill(0); vels = null;
       for (let i = 0; i < MAXN; i++) { seed(i); pc[i] = 0.35 + R() * 0.3; }
     },
     onChord(ch, x) {
-      flash = Math.max(flash, ch.vel / 127);
-      const burst = x.p('burst'), n = Math.round(x.p('amount')), seen = new Set();
+      if (hardEnough(ch.vel, x)) flash = Math.max(flash, ch.vel / 127);
+      const burst = x.p('burst'), n = Math.round(x.p('amount')), seen = new Set(), pres = x.p('presence');
       // Fast passages fire many attacks: each one gives less, so the cloud keeps its threads instead of turning to fur.
       const calm = 1 / (1 + 2.5 * x.feat.rate);
       // One chord may relight at most half the dust (shared between its notes), so its puffs never overwrite each other.
@@ -88,13 +104,14 @@
         const p = x.pitch01(note.m), vv = note.v / 127;
         REG[k] = S[k] < 0.05 ? p : REG[k] + (p - REG[k]) * 0.5;
         S[k] = Math.max(S[k], 0.3 * Math.sqrt(vv));            // the pull starts on the attack, not a frame later
+        if (!hardEnough(note.v, x)) continue;                  // turned down, softer notes only pull: no flare, no puff, no shove
         FL[k] = Math.min(1.6, Math.max(FL[k], vv * (0.55 + 0.45 * Math.min(1, burst))) + 0.15 * vv);
         if (burst <= 0.01) continue;
         const [ax, ay] = where(k), low = 1 - Math.min(1, p / 0.7), col = colourOf(REG[k]);
         // 1. Ignition: grains are reborn at the note, lit almost white, unfurling outward. Deep notes: a wide, slow, heavy puff.
         //    High notes: a tight spray of quick sparks.
-        const cnt = Math.min(420, share, Math.round(burst * (20 + 190 * vv * vv) * (0.75 + 0.6 * low) * (0.35 + 0.65 * calm)));
-        const speed = (45 + 210 * vv) * (1.0 - 0.3 * low) * (0.5 + 0.5 * Math.min(1.5, burst)), r0 = 5 + 18 * low;
+        const cnt = Math.min(420, share, Math.round(burst * (20 + 190 * vv * vv) * (0.75 + 0.6 * low) * (0.35 + 0.65 * calm) * pres));
+        const speed = (45 + 210 * vv) * (1.0 - 0.3 * low) * (0.5 + 0.5 * Math.min(1.5, burst)) * (0.3 + 0.7 * pres), r0 = 5 + 18 * low;
         for (let j = 0; j < cnt; j++) {
           const i = cur++ % n, a = R() * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), sp = speed * (0.25 + 0.75 * R());
           const rr = r0 * (0.4 + 0.6 * R()); px[i] = ax + c * rr; py[i] = ay + s * rr;
@@ -103,7 +120,7 @@
         }
         if (cur > 1e9) cur = 0;
         // 2. The dust already near the note is shoved open in a ring, strongest half-way out, mostly sideways.
-        const kick = burst * 200 * vv * calm, reach = 200, reach2 = reach * reach;
+        const kick = burst * 200 * vv * calm * pres, reach = 200, reach2 = reach * reach;
         for (let i = 0; i < n; i++) {
           if (heat[i] > 0.65) continue;
           const dx = px[i] - ax, dy = py[i] - ay, d2 = dx * dx + dy * dy; if (d2 > reach2) continue;
@@ -114,6 +131,7 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt; if (dt <= 0) return;
+      const pres = x.p('presence'), fade = 0.1 + 0.9 * pres;   // how strongly it shows at all
       time += dt; spin += dt * 0.03;
       // 1. The field: fold the sounding notes into 12 pitch-class attractors.
       TG.fill(0); regW.fill(0); regS.fill(0);
@@ -132,9 +150,9 @@
         }
       }
       // 2. Move the grains. The pull goes like 1/d close in and falls away fast beyond RANGE, so every note keeps its own knot.
-      const n = Math.round(x.p('amount')), G = 52000 * x.p('pull') / Math.pow(Math.max(1, total), 0.3), sw = x.p('swirl');
+      const n = Math.round(x.p('amount')), G = 52000 * x.p('pull') / Math.pow(Math.max(1, total), 0.3) * (0.5 + 0.5 * pres), sw = x.p('swirl');   // turned down, the dust gathers into looser knots, so they don't glare
       const drag = Math.exp(-dt * 0.95), hotDrag = Math.exp(-dt * 3.2), vmax = 560, calm = Math.max(0, 1 - total), kc = 1 - Math.exp(-dt / 0.5), cool = Math.exp(-dt / 0.55);
-      const quiet = na ? 0.35 : 1, drift = (22 + 30 * calm) * quiet, jit = (3 + 40 * calm) * quiet * Math.sqrt(dt);   // any note at all calms the drift
+      const quiet = na ? 0.35 : 1, drift = (22 + 30 * calm) * quiet * pres, jit = (3 + 40 * calm) * quiet * Math.sqrt(dt) * pres;   // any note at all calms the drift
       const L = x.p('threads') * dt, rx = R0 * 1.8, ry = R0 * 1.3;
       const paths = [], fast = [], hot = []; for (let b = 0; b < NB; b++) { paths.push(new Path2D()); fast.push(new Path2D()); hot.push(new Path2D()); }
       for (let i = 0; i < n; i++) {
@@ -165,7 +183,7 @@
       // 3. Draw: one stroke per register colour, added light so dense streams glow. Deep colours draw their threads a little thicker (thin lines keep it fast).
       flash *= Math.exp(-dt / 0.3);
       g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
-      const a = Math.min(0.9, (0.22 + 0.25 * flash) * Math.sqrt(4000 / Math.max(1000, n)));
+      const a = Math.min(0.9, (0.22 + 0.25 * flash) * Math.sqrt(4000 / Math.max(1000, n))) * fade;
       for (let b = 0; b < NB; b++) {
         const lw = 0.8 + 0.05 * (NB - 1 - b);
         g.lineWidth = 1.4; g.strokeStyle = `rgba(${PAL[b]},${(a * 0.8).toFixed(3)})`; g.stroke(paths[b]);   // slow grains: soft dust
@@ -177,8 +195,8 @@
       for (let k = 0; k < PCS; k++) {
         const reg = REG[k], low = Math.max(0, 1 - reg / 0.7);
         FL[k] *= Math.exp(-dt / (0.18 + 0.3 * low));
-        const s = Math.min(1.2, S[k]), f = FL[k], lit = 0.18 * s + 0.75 * f; if (lit < 0.015) continue;
-        const [X, Y] = where(k), rad = (7 + 12 * s + 34 * f) * (0.6 + 0.9 * low), b = Math.min(NB - 1, (colourOf(reg) * NB) | 0);
+        const s = Math.min(1.2, S[k]), f = FL[k], lit = (0.18 * s + 0.75 * f) * fade; if (lit < 0.015) continue;
+        const [X, Y] = where(k), rad = (7 + 12 * s + 34 * f) * (0.6 + 0.9 * low) * (0.5 + 0.5 * pres), b = Math.min(NB - 1, (colourOf(reg) * NB) | 0);
         const gr = g.createRadialGradient(X, Y, 0, X, Y, rad);
         gr.addColorStop(0, `rgba(${PALHOT[b]},${Math.min(1, lit * 0.6).toFixed(3)})`);
         gr.addColorStop(0.3, `rgba(${PAL[b]},${Math.min(1, lit * 0.35).toFixed(3)})`);

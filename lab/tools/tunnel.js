@@ -1,6 +1,8 @@
 // Tunnel (round 4, new): a zoom-feedback space you fall through.
 // Each frame the whole canvas is redrawn a little larger (and turned) about a vanishing point, so everything already
 // on screen streams outward toward you. Attacks drop nested outlines at the mouth; their echoes become the walls.
+// A sixth knob, how present (the user, 2026-11-01: the sliders only boost): turned down, outlines and walls fade, the fall
+// slows and barely turns or wanders, and only the hardest notes of the song throw an outline.
 (() => {
   // snap: the shared canvas at its real size (×S in a supersampled render), drawn back over 1280×720 units
   let snap = null, sg = null;
@@ -34,6 +36,21 @@
   // The knobs that were dropped: fixed, or following the music the way their old default drives did (base + 0.5 * range * feature).
   const CURVE = 2.2, SURGE = 1.3;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // how present (0..1). 1 leaves every multiplier at exactly 1. Which notes throw an outline is judged against this piece's
+  // own notes (recordings differ a lot in how hard they play): every one at 1, the hardest two thirds at 0.5, the hardest 5%
+  // at 0. The list is only built once the knob is down.
+  const inkOf = (pres) => 1 - 0.9 * (1 - Math.pow(pres, 1.5));   // how strongly everything drawn shows
+  const calmOf = (pres) => 1 - 0.8 * (1 - pres);                 // the fall, the turning and the wander
+  const wallOf = (pres) => 1 - 0.75 * (1 - pres);                // how long the walls linger
+  let allVels = null;
+  const hardNote = (v, pres) => {
+    const cut = Math.pow(1 - pres, 1.5) * 0.95;
+    if (cut <= 0) return true;
+    if (!allVels) allVels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    if (!allVels.length) return true;
+    let a = 0, b = allVels.length; while (a < b) { const k = (a + b) >> 1; if (allVels[k] < v) a = k + 1; else b = k; }
+    return a / allVels.length >= cut;
+  };
   const fold = (x) => ({
     drift: clamp(0.45 + 0.5 * x.feat.rate, 0, 1),                      // busier playing: the vanishing point wanders further
     mouth: clamp(1 + 0.5 * 2.7 * x.feat.level, 0.3, 3),                // louder: bigger outlines
@@ -42,8 +59,8 @@
 
   TOOLS.push({
     id: 'tunnel', name: 'Tunnel', tag: 'new',
-    blurb: 'You fall through a zoom-feedback tunnel: every note drops an outline at the far mouth (low notes big and outside, high ones nested inside) and the picture streams toward you. Busier playing speeds the fall on a steep curve, the melody steers the vanishing point, and big chords punch a surge forward.',
-    // At most 5 knobs (lab/README.md); all five keep their old keys, ranges and defaults. The dropped ones are fixed now
+    blurb: 'You fall through a zoom-feedback tunnel: every note drops an outline at the far mouth (low notes big and outside, high ones nested inside) and the picture streams toward you. Busier playing speeds the fall on a steep curve, the melody steers the vanishing point, and big chords punch a surge forward. Turn <b>how present</b> down to tone it right down: a few faint outlines on a slow drift, thrown only by the hardest notes.',
+    // Five knobs (lab/README.md) and how present; all five keep their old keys, ranges and defaults. The dropped ones are fixed now
     // (acceleration curve 2.2, surge 1.3) or follow the music on their own (drift, mouth size, echoes: see fold()).
     params: [
       { key: 'speed', label: 'how fast you fall', min: 0, max: 2, value: 0.8,
@@ -72,17 +89,22 @@
       { key: 'palette', label: 'colours', min: 0, max: 3, step: 1, value: 0,
         hint: 'The colours, from low notes to high ones. Left to right: ember (blood red to gold), ice (deep blue to white), bruise (violet to teal), bone (grey to warm white).',
         icon: (g, v, w, h) => ICON.palette(g, [0, 0.33, 0.66, 1].map((p) => col(p, Math.round(v * 3), 1, 1)), w, h) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much of the picture it takes. Left: a few faint outlines on a slow drift, thrown only by the hardest notes. Right: every note at full strength (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const n = 1 + Math.round(v * 3), c = col(0.3, 0, 1, 1);
+          for (let i = 0; i < n; i++) ICON.ring(g, w / 2, h / 2, 3 + i * 3, c, 1.3); }) },
     ],
-    reset(x) { objs = []; surge = 0; spin = 0; kick = 0; vp = { x: x.W / 2, y: x.H / 2 }; },
+    reset(x) { objs = []; surge = 0; spin = 0; kick = 0; vp = { x: x.W / 2, y: x.H / 2 }; allVels = null; },
     onChord(ch, x) {
       mel = x.pitch01(ch.hi); // the melody (top note) steers where the tunnel bends
-      const F = fold(x), shape = x.p('shape'), n = ch.notes.length;
+      const F = fold(x), shape = x.p('shape'), n = ch.notes.length, pres = x.p('presence');
       // Sparse, quiet music (a lone motif, the chorale) drops bigger outlines, so the tunnel never shrinks to a dot.
       const mouth = F.mouth * (1 + 1.1 * Math.max(0, 1 - x.feat.rate / 0.4) * (1 - x.feat.level)); // (loud already means big)
       const punch = Math.max(0, (ch.vel - 78) / 30) * Math.min(1, Math.sqrt(n / 3));
       const big = punch > 0.35;
-      if (big) { surge = Math.max(surge, punch * SURGE); kick = Math.min(1, punch); }
-      const notes = [...ch.notes].sort((a, b) => a.m - b.m).slice(-9);
+      // how present: soft notes are still heard (the melody above) but do nothing visible; a chord with no hard note can't surge.
+      const notes = [...ch.notes].sort((a, b) => a.m - b.m).slice(-9).filter((nt) => hardNote(nt.v, pres));
+      if (big && notes.length) { surge = Math.max(surge, punch * SURGE); kick = Math.min(1, punch); }
       // Echoes: each note also drops fainter copies deeper in (smaller), so even a lone note makes a short corridor.
       const ech = Math.min(F.echoes, Math.floor(36 / notes.length));
       notes.forEach((nt) => {
@@ -99,11 +121,12 @@
       const g = x.g, dt = x.dt, f = x.feat; time += dt;
       // Fall speed: a floor, plus the attack rate on a non-linear curve, plus the decaying surge from big chords.
       surge *= Math.exp(-dt / 0.4); kick *= Math.exp(-dt / 0.15);
-      const zv = x.p('speed') * (0.42 + 2.2 * Math.pow(f.rate, CURVE) + 0.3 * f.level) + surge * 1.8;
+      const pres = x.p('presence'), ink = inkOf(pres), calm = calmOf(pres);
+      const zv = (x.p('speed') * (0.42 + 2.2 * Math.pow(f.rate, CURVE) + 0.3 * f.level) + surge * 1.8) * calm;
       const sc = Math.exp(zv * dt);
-      const dRot = (x.p('spin') + surge * 0.3 * Math.sign(x.p('spin') || 1)) * dt; spin += dRot;
+      const dRot = (x.p('spin') + surge * 0.3 * Math.sign(x.p('spin') || 1)) * dt * calm; spin += dRot;
       // The vanishing point follows the melody (x) and the bass (y), with a slow wander.
-      const F = fold(x), dr = F.drift;
+      const F = fold(x), dr = F.drift * calm;
       const tx = x.W / 2 + dr * x.W * 0.34 * ((mel - 0.5) * 1.6 + 0.35 * Math.sin(time * 0.21));
       const ty = x.H / 2 + dr * x.H * 0.32 * (Math.sin(time * 0.29 + 1.3) * 0.7 + (0.4 - f.bass) * 0.8);
       const ke = 1 - Math.exp(-dt * 1.6); vp.x += (tx - vp.x) * ke; vp.y += (ty - vp.y) * ke;
@@ -114,7 +137,7 @@
         snap = document.createElement('canvas'); snap.width = x.canvas.width; snap.height = x.canvas.height; sg = snap.getContext('2d');
       }
       sg.globalCompositeOperation = 'copy'; sg.drawImage(x.canvas, 0, 0);
-      const b = Math.pow(0.5, dt / x.p('trail')) / 0.88;
+      const b = Math.pow(0.5, dt / (x.p('trail') * wallOf(pres))) / 0.88;
       g.fillStyle = '#000'; g.fillRect(0, 0, x.W, x.H);
       g.save();
       g.translate(vp.x, vp.y); g.rotate(dRot); g.scale(sc, sc); g.translate(-vp.x, -vp.y);
@@ -127,7 +150,7 @@
       const shape = x.p('shape'), pal = x.p('palette'), mouth = F.mouth;
       g.save(); g.translate(vp.x, vp.y);
       for (const nt of x.sounding().slice(-6)) {
-        const p = x.pitch01(nt.m), a = 0.16 * (nt.v / 127) * Math.exp(-(x.t - nt.start) / 2);
+        const p = x.pitch01(nt.m), a = 0.16 * (nt.v / 127) * Math.exp(-(x.t - nt.start) / 2) * ink;
         if (a < 0.01) continue;
         g.strokeStyle = col(p, pal, 0.8, a); g.lineWidth = 1;
         path(g, kindOf(shape, p), size0(p, nt.v, mouth) * 0.7, spin); g.stroke();
@@ -143,12 +166,12 @@
         o.rot += dRot;
         const flash = Math.exp(-o.age / 0.09), hold = Math.exp(-Math.max(0, o.age - o.d) / 0.6);
         const fog = Math.min(1, Math.pow(o.r / 70, 0.6)); // far = dim, near = full
-        const a = fog * (0.2 + 0.8 * Math.min(1, o.v / 105)) * (0.35 + 0.65 * hold) * Math.exp(-o.age / 3) * o.dim;
+        const a = fog * (0.2 + 0.8 * Math.min(1, o.v / 105)) * (0.35 + 0.65 * hold) * Math.exp(-o.age / 3) * o.dim * ink;
         if (a < 0.02) continue;
         g.save(); g.translate(o.x, o.y);
         const lw = (o.big ? 2.2 : 1.3) * (o.v / 95) * Math.pow(Math.max(1, o.r / 30), 0.55);
-        if (o.big && o.age < 0.25) { g.fillStyle = col(o.p, o.pal, 0.5, 0.3 * (1 - o.age / 0.25)); path(g, o.kind, o.r, o.rot); if (o.kind !== 3) g.fill(); }
-        g.strokeStyle = col(o.p, o.pal, (0.7 + 0.3 * fog) * (1 + flash * 0.25), Math.min(1, a + flash * 0.3 * o.dim)); g.lineWidth = lw;
+        if (o.big && o.age < 0.25) { g.fillStyle = col(o.p, o.pal, 0.5, 0.3 * (1 - o.age / 0.25) * ink); path(g, o.kind, o.r, o.rot); if (o.kind !== 3) g.fill(); }
+        g.strokeStyle = col(o.p, o.pal, (0.7 + 0.3 * fog) * (1 + flash * 0.25), Math.min(1, a + flash * 0.3 * o.dim * ink)); g.lineWidth = lw;
         path(g, o.kind, o.r, o.rot); g.stroke();
         g.restore();
       }
@@ -157,7 +180,7 @@
       // A surge flashes the mouth: a brief pale core at the vanishing point.
       if (kick > 0.05) {
         const rg = g.createRadialGradient(vp.x, vp.y, 0, vp.x, vp.y, 90 + 160 * kick);
-        rg.addColorStop(0, col(0.85, pal, 1, 0.35 * kick)); rg.addColorStop(1, 'rgba(0,0,0,0)');
+        rg.addColorStop(0, col(0.85, pal, 1, 0.35 * kick * ink)); rg.addColorStop(1, 'rgba(0,0,0,0)');
         g.globalCompositeOperation = 'screen'; g.fillStyle = rg; g.fillRect(vp.x - 260, vp.y - 260, 520, 520); g.globalCompositeOperation = 'source-over';
       }
     },

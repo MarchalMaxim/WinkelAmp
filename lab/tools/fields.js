@@ -95,10 +95,12 @@
     id: 'fields', name: 'Colour fields', tag: 'v3',
     blurb: 'Huge, slow, soft fields of colour (Rothko-like), made to sit under other widgets; each field owns a part of the keyboard, bass at the bottom. New in v3: every note now lights its field from inside (low notes to the left, high to the right; loud ones bright and wide, soft ones a faint glow), busy playing makes the edges hum, and a chord change floods its field with the new colour instead of a bright stripe. Quiet passages stay a deep colour instead of going black.',
     params: [
-      { key: 'back', label: 'stay in the background', min: 0, max: 1, value: 0.4,
-        hint: 'How much it steps back for widgets drawn over it. Left: a full, glowing painting. Right: a dim veil of colour behind everything.',
+      // Above 1 the picture keeps sinking toward black (the attack swells stop, the note glows go on, fainter): the old
+      // right end, 1, is now about halfway, and every value up to 1 still draws what it always drew.
+      { key: 'back', label: 'stay in the background', min: 0, max: 1.9, step: 0.01, value: 0.4,
+        hint: 'How much it steps back for widgets drawn over it. Left: a full, glowing painting. Right: almost nothing, a breath of colour behind everything that only the loud passages lift.',
         icon: (g, v, w, h) => {
-          ICON.alpha(g, 1 - 0.75 * v, () => fieldIcon(g, 2, 3, w - 4, h - 6, '#d0602e', 0));
+          ICON.alpha(g, 1 - 0.92 * v, () => fieldIcon(g, 2, 3, w - 4, h - 6, '#d0602e', 0));
           ICON.alpha(g, 0.25 + 0.75 * v, () => ICON.square(g, w / 2, h / 2, 9, ICON.ink, 0.2));
         } },
       { key: 'chords', label: 'chords move the colour', min: 0, max: 1, value: 0.7,
@@ -151,7 +153,7 @@
           life: 0.55 + 0.9 * p + Math.min(2.6, dur) * 0.7, dh: (Math.random() - 0.5) * 10 });
       }
       if (glows.length > 56) glows.splice(0, glows.length - 56);
-      F.forEach((f, b) => { if (per[b]) f.flare = Math.min(1, f.flare + 0.35 * (1 - 0.7 * B) * Math.min(1, 0.3 + per[b]) * punch); });
+      F.forEach((f, b) => { if (per[b]) f.flare = Math.min(1, f.flare + 0.35 * Math.max(0, 1 - 0.7 * B) * Math.min(1, 0.3 + per[b]) * punch); });
       runMax = Math.max(runMax, ch.vel); runMean += (ch.vel - runMean) * 0.08;
       if (cool <= 0 && ch.notes.length >= 2 && ch.vel >= Math.max(runMax - 8, runMean + 10)) { cool = 0.3; hard = 1; }
       // A chord change: the chord's own place on the fifths circle is far from where the colour sits now.
@@ -228,7 +230,7 @@
         const s = s0 * (0.75 + 0.2 * en) * satAll;
         const tl = (1.05 + 0.35 * en) * lightAll * LMUL[b];
         f.light = f.light == null ? 0.8 * tl : f.light + (tl - f.light) * kL;   // after a seek it starts near its light, not black
-        const raw = l0 * f.light, l = Math.min(62, (raw < 34 ? raw : Math.min(52, 34 + (raw - 34) * 0.45)) + l0 * f.flare * 0.5 * (1 - 0.6 * B));
+        const raw = l0 * f.light, l = Math.min(62, (raw < 34 ? raw : Math.min(52, 34 + (raw - 34) * 0.45)) + l0 * f.flare * 0.5 * Math.max(0, 1 - 0.6 * B));
         f.h = h; f.s = s; f.l = l; f.l0 = l0;
         const sw = f.flare * 2.5, bl = 0.6 + (1 - edge) * 7 + B * 2.5, amp = 0.2 + (1 - edge) * 2.6 + 1.1 * rate * A;
         const x0 = L.x0 - sw, x1 = L.x1 + sw, y0 = L.y0 - sw * 0.5, y1 = L.y1 + sw * 0.5;
@@ -243,7 +245,7 @@
       });
       // The notes: each attack's glow blooms inside its field in a few hundredths of a second and sinks as the notes
       // ring away. 'screen' only ever lightens, so many glows (busy playing) make a field shimmer without burning out.
-      const gg = Math.min(1, 1.3 * A) * (1 - 0.55 * B);
+      const gg = Math.min(1, 1.3 * A) * (B <= 1 ? 1 - 0.55 * B : 0.45 * (2 - B));
       sg.filter = 'none'; sg.globalCompositeOperation = 'screen';
       for (const q of glows) {
         q.age += dt; const L = layout[q.b], f = F[q.b]; if (!L || !f || f.l == null || q.age >= q.life) continue;
