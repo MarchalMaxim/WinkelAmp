@@ -4,7 +4,7 @@
   "song": "rach-prelude-recording",
   "title": "Rachmaninoff: Prelude in C♯ minor",
   "composer": {
-    "by": "claude",
+    "by": "user",
     "at": "2026-10-31T07:31:28.000Z"
   },
   "sections": [
@@ -27,7 +27,12 @@
       "label": "Dread",
       "layers": [
         {
-          "widget": "rorschach"
+          "widget": "rorschach",
+          "intensity": [
+            { "t": 12.4, "v": 0, "shape": "ease" },
+            { "t": 48.425, "v": 1, "shape": "ease" },
+            { "t": 84.45, "v": 0 }
+          ]
         },
         {
           "widget": "squares",
@@ -39,19 +44,51 @@
     },
     {
       "start": 84.45,
-      "end": 115.9,
+      "end": 103.934,
       "label": "Agitato",
       "fade": 4,
       "layers": [
         {
           "widget": "squares",
-          "listen": "bassline"
+          "listen": "bassline",
+          "intensity": [
+            { "t": 89.182, "v": 0.27 }
+          ]
         },
         {
           "widget": "flee",
           "knobs": {
             "mix": 0.15
           }
+        }
+      ]
+    },
+    {
+      "start": 103.934,
+      "end": 115.9,
+      "label": "Agitato",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "squares",
+          "listen": "bassline",
+          "intensity": [
+            { "t": 103.934, "v": 0.27 }
+          ]
+        },
+        {
+          "widget": "flee",
+          "knobs": {
+            "mix": 0.15
+          }
+        },
+        {
+          "widget": "marbling",
+          "intensity": [
+            { "t": 109.582, "v": 1 },
+            { "t": 109.582, "v": 0, "bend": -1 },
+            { "t": 109.91, "v": 1 }
+          ]
         }
       ]
     },
@@ -62,27 +99,16 @@
       "fade": 2,
       "layers": [
         {
-          "widget": "squares",
-          "listen": "bassline"
-        },
-        {
           "widget": "flee",
           "knobs": {
             "mix": 0.15
-          }
-        },
-        {
-          "widget": "casket",
-          "knobs": {
-            "melt": 3,
-            "drips": 0.8
           }
         }
       ]
     },
     {
       "start": 125.8,
-      "end": 178.65,
+      "end": 130.198,
       "label": "The casket",
       "fade": 1,
       "layers": [
@@ -103,6 +129,34 @@
           "knobs": {
             "melt": 3,
             "drips": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "start": 130.198,
+      "end": 178.65,
+      "label": "The casket",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "rorschach",
+          "knobs": {
+            "spatter": 2
+          }
+        },
+        {
+          "widget": "suprematism",
+          "intensity": [
+            { "t": 130.198, "v": 0, "shape": "ease" },
+            { "t": 137.553, "v": 1, "shape": "ease" },
+            { "t": 178.65, "v": 0 }
+          ]
+        },
+        {
+          "widget": "squares",
+          "knobs": {
+            "size": 1.5
           }
         }
       ]

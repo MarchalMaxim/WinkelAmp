@@ -57,6 +57,7 @@ describe('show v2: committed shows', () => {
     expect(lineSet(out)).toEqual(lineSet(text));
     expect(canonicalShow(JSON.parse(out) as Show)).toBe(out);
     expect(validateShow(show).errors).toEqual([]);
+    if (usesV2(unrouted(show))) return;   // edited in the studio since: it has regions or curves, so it stays version 2
     const v1 = canonicalShow(unrouted(show));
     expect(v1).toContain('\n  "version": 1,');
     expect(lineSet(v1)).toEqual(lineSet(text.replace(/\n *"listen": "[^"]*",?/g, '').replace('\n  "version": 2,', '\n  "version": 1,')));
