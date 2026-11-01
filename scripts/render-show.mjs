@@ -294,7 +294,9 @@ try {
         if (k > 0) window.renderTo(start + k / FPS);
         const png = new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error(`frame ${k}: no PNG`))), 'image/png'));
         await prev;
-        prev = png.then((body) => fetch(`/__frame?k=${k}`, { method: 'POST', body }))
+        // The PNG's bytes, not the Blob: a Blob body goes through Chrome's blob store, and busy 2× frames (4–5 MB PNGs:
+        // Winter Wind's horizon) made a POST fail with "Failed to fetch" after 100 to 150 frames (T24).
+        prev = png.then(async (b) => fetch(`/__frame?k=${k}`, { method: 'POST', body: await b.arrayBuffer() }))
           .then(async (r) => { if (!r.ok) throw new Error(`frame ${k}: ${r.status} ${await r.text()}`); });
       }
       await prev;
