@@ -243,7 +243,8 @@ over; it needs the gaps), `comfort`, `duet`, `gust` (already keeps its full blas
 
 **[builder]** The plan's patches were merged in a dry run with `git merge-tree`:
 
-- `claude/note-picker` at `6ae36df`: no conflict. To keep it so, `isListen` gains its note-type check as a new first statement
+- `claude/note-picker` at `f3ce23f`: no conflict, and the merged tree typechecks and passes its tests, but for the known
+  `vivaldi-summer.json` failure. To keep it so, `isListen` gains its note-type check as a new first statement
   instead of editing the line the picker edits; `listenNotes` gains its branch after the `LINES` line, as the picker inserts
   before it; `WaLayers` gains its members away from the `listenNotes` line; the `missingPart` warning is in a function the picker
   leaves alone; `COMPOSING-SHOWS.md` gains its bullet before the lines bullet, as the picker's goes after; `layer-controls.ts`

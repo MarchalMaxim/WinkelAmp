@@ -64,7 +64,8 @@ ran in a real studio. T2's commit deletes the folder.
    outside the instance's swap for a routed listen (`0193aa2` fixes that for picks only, on purpose: "a routed listen such as @melody
    keeps what the lab draws"). Checked for the two defaults that queue: stella's `post` reads only what `frame` and `onChord` captured;
    pixelsort's `chord` reads `x.feat.rate`, so its melt follows all the music's density, which is what it was tuned on. Both left as they are.
-6. **Merges.** The patches merge with no conflict with `claude/note-picker` at `6ae36df` and `claude/widgets-round9` at `34357cc`.
+6. **Merges.** The patches merge with no conflict with `claude/note-picker` at `f3ce23f` (that merged tree was also typechecked and
+   tested: only the known failure) and `claude/widgets-round9` at `34357cc`.
    Re-run `git merge-tree --write-tree HEAD <branch>` after each task. Both are moving; a small hand may be needed, not a redesign.
 7. **One wart on purpose.** `validateLayer`'s message for an unknown listen does not list the note types until the picker has landed.
 
