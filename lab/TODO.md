@@ -1,6 +1,6 @@
 # Widget TODO
 
-## Being built in round 9
+## Built in round 9 (see lab/round9/README.md)
 
 The user's words.
 
