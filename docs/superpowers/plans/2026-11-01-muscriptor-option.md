@@ -77,6 +77,8 @@ Measured on the five overnight files. Where one departs from the brief, it says 
 - Spring's Largo viola stays mostly labelled violin from 262 s: only the doubled notes are resolved.
 - A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).
 - Tremolo in a sounding stuck chunk loses its attacks: one held chord.
+- Lanes still move together a lot: 54 % of Four Seasons' notes share start and end with two other lanes, and its
+  contrabass is mostly the cello an octave down. Only string doubles outside a lane's core are dropped.
 - MuScriptor large needs up to 15 GB of GPU memory. Stopping `npm run ears` on Windows may not stop a running Python
   child (not tested; `child.kill()` reaches only the ingest process). No cancel button is in this plan.
 
@@ -399,7 +401,9 @@ YourMT3's, `'ymt3'`. Without YourMT3+: the rows as they are, `'muscriptor'`, and
 3. **MuScriptor block, after it.** The cache is `songs/<id>/notes.muscriptor-<listKey>.json`:
    `{version: 1, sha1, model, package, instruments, dtype, seconds, notes}`, rows mapped and **uncleaned**. It is valid on
    sha1, model and list, and on package when an install is found (the YourMT3+ rule). `--muscriptor-notes` reads the file
-   instead of running, and writes this cache bound to the current sha1. A failing loop check is cached too, since greedy
+   instead of running, and writes this cache bound to the current sha1, with `package` set to the installed config's
+   `version`, or `0.4.0` with no install (the version that made all five overnight files, which carry no such field), so
+   the imported cache is never stale on the next run. A failing loop check is cached too, since greedy
    decoding repeats itself; `--redo muscriptor` runs it again.
 4. **Fallback,** never an exit 3, and `pack.quality.warnings` says so:
    - `MuScriptor is not set up (npm run setup-muscriptor): the tracks come from YourMT3+`
@@ -436,7 +440,7 @@ whose python is the stub through `WINKELAMP_MUSCRIPTOR`):
 - *caches by audio, model and list*: a second `--force` run leaves `count().muscriptor` the same; another list runs again
   and two `notes.muscriptor-*.json` exist; `--redo muscriptor` runs again.
 - *imports an overnight file and never runs the model*: `{model, notes, instruments: {violin: 12}, zeroLength: 0}` →
-  `count().muscriptor` unchanged, the cache written with the audio's sha1, and the next plain run reads it.
+  `count().muscriptor` unchanged, the cache written with the audio's sha1 and `package` = the stub config's `version`, and the next plain run reads it.
 - *an imported row with velocity null counts*: the track is not empty.
 - *refuses an import with an unknown name*: exit 2, naming it.
 - *falls back when it is not set up, when it fails, and when it looks stuck*: exit 0 each, `notesFrom` `hybrid`, no
@@ -499,7 +503,7 @@ export interface TranscribeChoices {
   instruments: string[] | null;
   ymt3: ToolStatus; muscriptor: ToolStatus;
   ymt3Saved: boolean;
-  saved: { key: string; instruments: string[]; notes: number; seconds: number }[];   // notes.muscriptor-<8 hex>.json of this sha1
+  saved: { key: string; instruments: string[]; notes: number; seconds: number }[];   // only files matching ^notes.muscriptor-[0-9a-f]{8}.json$, of this sha1
   overnight: { lanes: string[]; notes: number; preset: MsPreset } | null;            // notes.muscriptor-large.json, with guessPreset
 }
 ```
@@ -590,10 +594,12 @@ npm run ingest -- songs/vivaldi-winter/audio.mp3 --id vivaldi-winter --muscripto
 npm run ingest -- songs/vivaldi-spring/audio.mp3 --id vivaldi-spring --muscriptor-notes songs/vivaldi-spring/notes.muscriptor-large.json --instruments baroque
 npm run ingest -- songs/vivaldi-autumn/audio.mp3 --id vivaldi-autumn --muscriptor-notes songs/vivaldi-autumn/notes.muscriptor-large.json --instruments baroque
 npm run ingest -- songs/vivaldi-four-seasons/audio.mp3 --id vivaldi-four-seasons --muscriptor-notes songs/vivaldi-four-seasons/notes.muscriptor-large.json --instruments baroque
-npm run ingest -- songs/beethoven5/audio.mp3 --id beethoven5 --muscriptor-notes songs/beethoven5/notes.muscriptor-large.json --instruments classical
+npm run ingest -- songs/beethoven5/audio.mp3 --id beethoven5 --muscriptor-notes songs/beethoven5/notes.muscriptor-large.json --instruments classical --piano-notes lab/notes-b5.js
 ```
 
-Beethoven's pack was made with `--piano-notes` from the lab's file. Add it there if it should keep those notes.
+Beethoven's pack took its piano notes from the lab's file, so its command keeps `--piano-notes`. Without it, the
+all-notes would quietly become `notes.gpu.json`'s. `lab/notes-b5.js` is the likely file (HANDOFF does not name it):
+T3's Look checks that the all-notes match the current pack before this goes in the README.
 
 - [ ] Write the failing tests; implement; `npx vitest run tests/transcribe-options.test.ts tests/ears-server.test.ts`.
 - [ ] `npm run typecheck`; `npm test`; `npm run redo-check`; `npm run studio-check`.
