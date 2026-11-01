@@ -6,6 +6,8 @@
  * follow an intensity curve. canonicalShow writes version 2 only when some layer does, so v1 files keep their bytes.
  */
 import { isSlug } from '../pack/pack';
+import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
+import type { NoteType } from '../../widgets/types';
 import { TRACKS, isTrackId } from '../pack/instruments';
 import type { Drive, Family, KnobState, Line, Listen, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
 
@@ -28,7 +30,9 @@ export interface Show {
 }
 export interface Issue { path: string; message: string }
 /** tracks: the song's instrument tracks (pack v2); undefined: no track warnings. */
-export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, WidgetMeta>; tracks?: readonly string[] }
+export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, WidgetMeta>; tracks?: readonly string[];
+  /** Attack times per note type in this song (WaLayers.noteTypeAttacks); undefined: no such warnings. */
+  noteTypes?: Partial<Record<NoteType, readonly number[]>> }
 
 export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
 const COMPOSERS = ['auto', 'claude', 'user'];
@@ -51,6 +55,7 @@ export const REGION_SIZE = [0.02, 2] as const, REGION_CENTRE = [-0.5, 1.5] as co
 
 /** 'all' | a TrackId | family:<Family> | a Line. */
 export function isListen(x: unknown): x is Listen {
+  if ((NOTE_TYPES as readonly unknown[]).includes(x)) return true;
   if (typeof x !== 'string') return false;
   if (x === 'all' || isTrackId(x) || (LINES as readonly string[]).includes(x)) return true;
   return x.startsWith('family:') && (FAMILIES as readonly string[]).includes(x.slice(7));
@@ -147,6 +152,10 @@ interface Span { start: number; end: number }
 
 /** Why a listen is not heard as written, or null: a track or family this song does not have (c.tracks given). */
 function missingPart(listen: string, c: ShowContext): string | null {
+  if ((NOTE_TYPES as readonly string[]).includes(listen)) {
+    const t = listen as NoteType;
+    return c.noteTypes?.[t]?.length === 0 ? `this song has no ${NOTE_TYPE_LABELS[t].toLowerCase()}: this layer stays still` : null;
+  }
   if (!c.tracks) return null;
   if (isTrackId(listen) && !c.tracks.includes(listen)) return `this song has no ${listen}: it plays on all notes`;
   if (listen.startsWith('family:')) {
@@ -175,6 +184,10 @@ function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | n
   }
   seen.add(key);
   if (l.restart !== undefined && typeof l.restart !== 'boolean') err(`${at}.restart`, 'not true or false');
+  const type = (NOTE_TYPES as readonly unknown[]).includes(l.listen) ? (l.listen as NoteType) : null, times = type && c.noteTypes?.[type];
+  if (type && span && times?.length && !times.some((t) => t >= span.start && t < span.end)) {
+    warn(`${at}.listen`, `this section has no ${NOTE_TYPE_LABELS[type].toLowerCase()}: this layer stays still here`);
+  }
   if (l.region !== undefined) validateRegion(l.region, `${at}.region`, err, warn, typos);
   if (l.intensity !== undefined) validateIntensity(l.intensity, `${at}.intensity`, span, err, warn, typos);
   if (l.knobs === undefined) return;

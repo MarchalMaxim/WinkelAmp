@@ -183,7 +183,7 @@ try {
     from = 'composed';
   } else throw new Error(`no show ${arg}: not a file, not in ${showsDir()}, and no song pack ${arg} in ${songs}`);
   const pack = readPack(show.song);
-  const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}) });
+  const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}), noteTypes: loadLayers().noteTypeAttacks(pack) });
   for (const w of v.warnings) console.log(`warning  ${w.path}: ${w.message}`);
   if (v.errors.length) {
     for (const e of v.errors) console.error(`error  ${e.path}: ${e.message}`);

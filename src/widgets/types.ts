@@ -55,6 +55,8 @@ export interface WidgetMeta { id: string; name: string; blurb: string; tag: stri
 
 /** A line derived from the notes at run time. */
 export type Line = 'melody' | 'bassline' | 'inner' | 'low' | 'high' | 'accents';
+/** A kind of note a rule finds in the notes at run time (lab/layers/lines.js). A Listen too. */
+export type NoteType = 'chords' | 'runs' | 'trills' | 'long' | 'repeats';
 export type Family = 'keys' | 'plucked' | 'strings' | 'winds' | 'brass' | 'percussion' | 'voice';
 export type TrackId = 'piano' | 'plucked' | 'violin' | 'viola' | 'cello' | 'contrabass' | 'strings' | 'timpani' | 'voice'
   | 'horn' | 'trumpet' | 'trombone' | 'brass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'saxophone';

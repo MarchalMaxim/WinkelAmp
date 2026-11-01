@@ -1,5 +1,6 @@
 // What a layer hears (plan §2, spec Decisions 3 and 4): the derived lines of a song's notes (melody, bassline, inner,
-// low, high, accents), the notes of a `listen` (a line, a track, a family), and the per-instance pulse.
+// low, high, accents), its note types (big chords, runs, trills, long notes, repeated notes), the notes of a `listen`
+// (a line, a note type, a track, a family), and the per-instance pulse.
 //
 // groupChords, soundingAt and advancePulse are copies of src/widgets/chords.ts and features.ts (advanceFeatures), the
 // same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data.
@@ -72,6 +73,165 @@
     }
   };
 
+  // ---- Note types (spec 2026-11-01-note-types): rules measured on six songs. On a piano a note's length is mostly the
+  // pedal, so they read onsets first. Each takes notes sorted by start and returns indices into them, maybe repeated.
+
+  /** Attacks of 5 notes or more: all their notes. */
+  var bigChordIds = function (notes) {
+    var chords = WA.groupChords(notes), out = [], off = 0;
+    for (var c = 0; c < chords.length; c++) {
+      var len = chords[c].notes.length;
+      if (len >= 5) for (var i = off; i < off + len; i++) out.push(i);
+      off += len;
+    }
+    return out;
+  };
+
+  /** Chains of at least 6 notes, each 30..200 ms after the one before and 1..3 semitones from it, that keep their
+      direction at least half the time and travel at least 5 semitones. The longest chains take their notes first. */
+  var runIds = function (notes) {
+    var n = notes.length, len = new Int32Array(n).fill(1), prev = new Int32Array(n).fill(-1), i, j, k;
+    for (i = 0; i < n; i++) {
+      for (j = i - 1; j >= 0 && notes[i][0] - notes[j][0] <= 0.2; j--) {
+        var gap = notes[i][0] - notes[j][0], d = Math.abs(notes[i][2] - notes[j][2]);
+        if (gap < 0.03 || d < 1 || d > 3) continue;
+        if (len[j] + 1 > len[i] || (len[j] + 1 === len[i] && gap < notes[i][0] - notes[prev[i]][0])) { len[i] = len[j] + 1; prev[i] = j; }
+      }
+    }
+    var order = [];
+    for (i = 0; i < n; i++) order.push(i);
+    order.sort(function (a, b) { return len[b] - len[a]; });
+    var used = new Uint8Array(n), out = [];
+    for (var o = 0; o < n; o++) {
+      var end = order[o];
+      if (used[end] || len[end] < 6) continue;
+      var ids = [];
+      for (k = end; k >= 0 && !used[k]; k = prev[k]) ids.push(k);
+      ids.reverse();
+      if (ids.length < 6) continue;
+      var keep = 0, lo = 127, hi = 0;
+      for (k = 2; k < ids.length; k++) {
+        if (Math.sign(notes[ids[k]][2] - notes[ids[k - 1]][2]) === Math.sign(notes[ids[k - 1]][2] - notes[ids[k - 2]][2])) keep++;
+      }
+      for (k = 0; k < ids.length; k++) { lo = Math.min(lo, notes[ids[k]][2]); hi = Math.max(hi, notes[ids[k]][2]); }
+      if (keep / (ids.length - 2) < 0.5 || hi - lo < 5) continue;
+      for (k = 0; k < ids.length; k++) { used[ids[k]] = 1; out.push(ids[k]); }
+    }
+    return out;
+  };
+
+  /** Each pitch's note indices, and the pitches in the order they first sound. */
+  var pitchIndex = function (notes) {
+    var by = {}, pitches = [];
+    for (var i = 0; i < notes.length; i++) {
+      var m = notes[i][2];
+      if (!by[m]) { by[m] = []; pitches.push(m); }
+      by[m].push(i);
+    }
+    return { by: by, pitches: pitches };
+  };
+
+  /** Strict alternation of two pitches at most a tone apart, 30..180 ms between onsets, at least 7.5 notes a second,
+      at least 65 % of the notes near the pair in its span. Under 6 notes it must also stand alone. */
+  var trillIds = function (notes) {
+    var ix = pitchIndex(notes), out = [];
+    var standsAlone = function (ids, a, b, t0, t1) {
+      var mine = {}, q;
+      for (q = 0; q < ids.length; q++) mine[ids[q]] = true;
+      for (q = firstAtOrAfter(notes, t0 - 0.2); q < notes.length && notes[q][0] <= t1 + 0.2; q++) {
+        var m = notes[q][2], t = notes[q][0];
+        if (mine[q] || m < a - 5 || m > b + 5 || m === a || m === b) continue;
+        if (t < t0 - 0.04 || t > t1 + 0.04) return false;
+      }
+      return true;
+    };
+    var flush = function (seq, from, to, a, b) {
+      if (to - from < 4) return;
+      var ids = seq.slice(from, to), t0 = notes[ids[0]][0], t1 = notes[ids[ids.length - 1]][0], close = 0, q;
+      for (q = firstAtOrAfter(notes, t0); q < notes.length && notes[q][0] <= t1; q++) if (notes[q][2] >= a - 5 && notes[q][2] <= b + 5) close++;
+      if (ids.length / close < 0.65 || (ids.length - 1) / (t1 - t0) < 7.5) return;
+      if (ids.length >= 6 || standsAlone(ids, a, b, t0, t1)) for (q = 0; q < ids.length; q++) out.push(ids[q]);
+    };
+    for (var p = 0; p < ix.pitches.length; p++) for (var d = 1; d <= 2; d++) {
+      var a = ix.pitches[p], b = a + d;
+      if (!ix.by[b]) continue;
+      var seq = ix.by[a].concat(ix.by[b]).sort(function (x, y) { return notes[x][0] - notes[y][0]; }), start = 0;
+      for (var k = 1; k <= seq.length; k++) {
+        var gap = k < seq.length ? notes[seq[k]][0] - notes[seq[k - 1]][0] : 0;
+        if (!(k < seq.length && notes[seq[k]][2] !== notes[seq[k - 1]][2] && gap <= 0.18 && gap >= 0.03)) { flush(seq, start, k, a, b); start = k; }
+      }
+    }
+    return out;
+  };
+
+  /** Rings at least 1.5 s and among the longest tenth of these notes, and nothing starts within 4 semitones of it in
+      its first second (from 60 ms on). */
+  var longIds = function (notes) {
+    var ds = notes.map(function (x) { return x[1] - x[0]; }).sort(function (a, b) { return a - b; });
+    var min = Math.max(1.5, ds[Math.floor(ds.length * 0.9)] || 0), out = [];
+    for (var i = 0; i < notes.length; i++) {
+      if (notes[i][1] - notes[i][0] < min) continue;
+      var moved = false;
+      for (var j = i + 1; j < notes.length && notes[j][0] - notes[i][0] < 1; j++) {
+        if (Math.abs(notes[j][2] - notes[i][2]) <= 4 && notes[j][0] - notes[i][0] > 0.06) { moved = true; break; }
+      }
+      if (!moved) out.push(i);
+    }
+    return out;
+  };
+
+  /** One pitch struck at least 3 times, 50..350 ms between onsets, with nothing within 4 semitones starting between
+      two strikes (clear of each by 40 ms). */
+  var repeatIds = function (notes) {
+    var ix = pitchIndex(notes), out = [];
+    var clean = function (sel, m) {
+      for (var q = 1; q < sel.length; q++) for (var j = sel[q - 1] + 1; j < sel[q]; j++) {
+        var d = Math.abs(notes[j][2] - m);
+        if (d > 0 && d <= 4 && notes[j][0] - notes[sel[q - 1]][0] > 0.04 && notes[sel[q]][0] - notes[j][0] > 0.04) return false;
+      }
+      return true;
+    };
+    for (var p = 0; p < ix.pitches.length; p++) {
+      var ids = ix.by[ix.pitches[p]], start = 0;
+      for (var k = 1; k <= ids.length; k++) {
+        var gap = k < ids.length ? notes[ids[k]][0] - notes[ids[k - 1]][0] : Infinity;
+        if (gap <= 0.35 && gap >= 0.05) continue;
+        if (k - start >= 3) { var sel = ids.slice(start, k); if (clean(sel, ix.pitches[p])) out.push.apply(out, sel); }
+        start = k;
+      }
+    }
+    return out;
+  };
+
+  var NOTE_RULES = { chords: bigChordIds, runs: runIds, trills: trillIds, long: longIds, repeats: repeatIds };
+
+  /** A note type's notes in one list, as the input's tuples in the input's order. */
+  var ruleNotes = function (notes, type) {
+    var ids = NOTE_RULES[type](notes), mark = new Uint8Array(notes.length), out = [], i;
+    for (i = 0; i < ids.length; i++) mark[ids[i]] = 1;
+    for (i = 0; i < notes.length; i++) if (mark[i]) out.push(notes[i]);
+    return out;
+  };
+
+  /** A note type's notes in a song. Trills and runs on an ensemble go per track, as one instrument's trill is lost among
+      all the notes (Vivaldi: 2 trills in all the notes, 11 on the tracks): the union, stable-sorted by start. A track
+      under 40 notes does not count, and with fewer than two left the rule reads all the notes. */
+  var noteTypeOfSong = function (song, type) {
+    var tracks = song.tracks, ids = [], out = [];
+    if (type === 'trills' || type === 'runs') for (var k in tracks) if (has(tracks, k) && tracks[k].notes.length >= 40) ids.push(k);
+    if (ids.length < 2) return ruleNotes(song.notes, type);
+    ids.sort(function (x, y) { return TRACK_ORDER.indexOf(x) - TRACK_ORDER.indexOf(y); });
+    for (var i = 0; i < ids.length; i++) out = out.concat(ruleNotes(tracks[ids[i]].notes, type));
+    return out.sort(byStart);
+  };
+
+  /** The times of each note type's attacks in a song (what validateShow's warnings go by). */
+  WA.noteTypeAttacks = function (song) {
+    var out = {}, at = function (ch) { return ch.t; };
+    for (var i = 0; i < WA.NOTE_TYPES.length; i++) out[WA.NOTE_TYPES[i]] = WA.groupChords(noteTypeOfSong(song, WA.NOTE_TYPES[i])).map(at);
+    return out;
+  };
+
   /** The notes of a derived line, as the input's tuples, stable-sorted by start. */
   WA.lineNotes = function (notes, line) {
     var out = [], i;
@@ -101,6 +261,7 @@
   };
 
   var LINES = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
+  WA.NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats'];
   /** §1's TrackId order: a family's union concatenates its tracks in this order before the stable sort. */
   var TRACK_ORDER = ['piano', 'plucked', 'violin', 'viola', 'cello', 'contrabass', 'strings', 'timpani', 'voice',
     'horn', 'trumpet', 'trombone', 'brass', 'flute', 'oboe', 'clarinet', 'bassoon', 'saxophone'];
@@ -112,6 +273,8 @@
     var all = { notes: song.notes, heard: 'all' };
     if (listen === undefined || listen === null || listen === 'all') return all;
     if (LINES.indexOf(listen) >= 0) return { notes: WA.lineNotes(song.notes, listen), heard: listen };
+    // A type the song lacks hears nothing, or a widget meant for a few notes would fire on every one.
+    if (WA.NOTE_TYPES.indexOf(listen) >= 0) return { notes: noteTypeOfSong(song, listen), heard: listen };
     var tracks = song.tracks;
     if (typeof listen === 'string' && listen.indexOf('family:') === 0) {
       var fam = listen.slice(7), ids = [];

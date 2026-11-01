@@ -1,7 +1,7 @@
 // Widget tags (plan 2026-10-31 §8): feel words, suited instruments and a stack role per widget, from lab/tags.json, in
 // the vocabulary of lab/tag-words.json. Pure: the callers read the two files (sources.ts in the browser, readFileSync
 // in Node).
-import type { Role, WidgetTags } from './types';
+import type { NoteType, Role, WidgetTags } from './types';
 
 export interface TagWords {
   /** axis → word → what it looks and sounds like, and how well it fits loud/dense/low/fast/quiet music (0..1). */
@@ -13,6 +13,13 @@ export interface TagWords {
 }
 
 export const ROLES: readonly Role[] = ['under', 'ground', 'base', 'texture', 'lead', 'accent', 'top', 'standalone'];
+
+/** The kinds of note a layer can listen to (spec 2026-11-01-note-types): those the measurements support. As in
+    lab/layers/lines.js. 'long' on a piano means it rings long: the length is mostly the pedal. */
+export const NOTE_TYPES: readonly NoteType[] = ['chords', 'runs', 'trills', 'long', 'repeats'];
+export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
+  chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes',
+};
 
 /** Every feel word, in vocabulary order (axis by axis, as the file lists them). */
 export function feelWords(words: TagWords): string[] {

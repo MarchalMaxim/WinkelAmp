@@ -94,6 +94,12 @@ values:
   have none.
 - **A family**: `family:strings`, `family:winds`, `family:brass`, `family:keys`, `family:plucked`,
   `family:percussion`, `family:voice` (the union of that family's tracks).
+- **A kind of note** a rule finds in the notes, on every song: `chords` (attacks of 5 notes or more), `runs` (fast
+  stepwise passages), `trills` (rare: 0 to 11 a song), `long` (on a piano: rings long, as the length is mostly the
+  pedal), `repeats` (one pitch struck again and again). Runs and trills go per track on an ensemble. There are no grace
+  notes: the transcription cannot tell them from a pick-up or a dropped note, so pick those by hand. A song with none of
+  a kind is a warning (`this song has no trills: this layer stays still`): the layer hears nothing, it never falls back
+  to all notes.
 - **A line** worked out from the notes, on every song, piano too: `melody` (the top line), `bassline`, `inner`,
   `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
 
