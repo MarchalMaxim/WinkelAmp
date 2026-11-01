@@ -42,13 +42,13 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 }
 ```
 
-- `version` is 1. `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
+- `version` is 1, or 2 when a layer uses `listen`, `region` or `intensity` (below). `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
   single dashes). One show per song: `id` = `song`. `title` and `composer` (`auto` | `claude` | `user`, with a time)
   are optional; write `"by": "claude"`.
 - `sections` are sorted, start at 0, end at the song's length (±0.5 s) and join without gaps or overlaps (±0.05 s).
   A section under 1 s draws a warning. Times are seconds; they are stored to the millisecond.
 - `layers` run **bottom → top**: each widget draws over the ones before it. At most 6 (a warning past that; 2–3 is
-  usual). A widget appears once per section.
+  usual). A widget appears once per section (once per part it listens to: see `listen`).
 - `knobs` (optional) maps a knob key to its base value (a number), or to the lab's full setting
   `{ "base": 96, "drive": "-level", "depth": 0.4 }` (what the lab's "Copy settings" gives). A drive moves the knob with
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
@@ -72,6 +72,112 @@ section after a loud one inherits its last strokes, fading. Use `fade: 0` for a 
 (5–8 s) where the music dissolves. `fade: 0` cuts only the widgets leaving at that boundary: a widget still fading out
 from an earlier boundary finishes its own fade under the new stack, so for a clean hard change keep the section
 before it longer than its own fade (or give it a short one). Seeking in the studio starts clean at the section under the playhead.
+
+## Listening, places and intensity (version 2)
+
+A layer can do three more things. Any one of them makes the file `"version": 2` (`check-show --fix` and the studio's
+save write the version for you; a show that uses none stays version 1, byte for byte).
+
+### `listen`: what the layer hears
+
+```json
+{ "widget": "strings", "listen": "violin" }
+```
+
+The layer gets attacks, a pulse and sounding notes from one part only, so its driven knobs follow that part. The
+values:
+
+- `"all"` (the same as leaving it out): every note, as before.
+- **A track** the recording has: `piano`, `violin`, `viola`, `cello`, `contrabass`, `strings` (a section the
+  transcriber could not split), `horn`, `oboe`, `clarinet`, `bassoon`, … `npm run describe-song -- <id>` lists the
+  tracks the song really has and where each one plays. Ensemble recordings get tracks from YourMT3+; piano recordings
+  have none.
+- **A family**: `family:strings`, `family:winds`, `family:brass`, `family:keys`, `family:plucked`,
+  `family:percussion`, `family:voice` (the union of that family's tracks).
+- **A line** worked out from the notes, on every song, piano too: `melody` (the top line), `bassline`, `inner`,
+  `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
+
+A layer listening to a part is its own *instance*: `strings` and `strings@melody` can sit in one section (say woven
+threads on the melody over the same widget on the bass line) and draw independently; each instance appears once per
+section. Removing `listen` gives the plain widget back with its state.
+
+**Honest instrument labels.** Name a track only when `describe-song` lists it. A track the song lacks is a warning
+(`this song has no horn: it plays on all notes`) and the layer plays on all notes. The labels are what the transcriber
+heard: "Violins" is YourMT3+'s violin track (it does not separate firsts from seconds), "String section" is string
+sound it could not split, and short tracks (a few dozen notes) are guesses. In a section label or a commit, say "the
+violins' line" rather than "the first violins".
+
+### `region`: where the layer is seen
+
+```json
+{ "widget": "casket", "region": { "mode": "spot", "shape": "ellipse", "x": 0.5, "y": 0.45, "w": 0.5, "h": 0.6, "feather": 0.25 } }
+```
+
+`x`, `y` are the centre and `w`, `h` the size, as fractions of the picture; `rot` turns it (degrees); `feather` 0..1
+softens the edge (default 0.25; 0 is a hard edge); `shape` is `rect` or `ellipse`.
+
+- **`spot`**: the widget draws on the shared picture as always, and is seen only through the shape. Use it for the
+  **readers**, the widgets that cut, smear or re-time what is below them (casket, pixel sort, tunnel, glitch blocks,
+  fold, time slice): in a spot they still work on the whole stack under them, only inside the shape.
+- **`window`**: the widget draws alone on its own canvas (with the same fade), and that picture is fitted into the
+  shape (`fit`: `cover` crops, `contain` letterboxes, `stretch`) and laid over the stack (`blend`: `over`, or
+  `lighten` to keep the brighter of the two). A reader in a window only cuts its own picture, which is usually empty:
+  the studio says so.
+
+The studio's default for a new place is a soft centred ellipse: a spot for the readers, a window for everything else.
+When a continuing layer's region moves between sections, it glides over the new section's fade.
+
+### `intensity`: how much of the layer there is, over time
+
+```json
+{ "widget": "squares", "intensity": [{ "t": 120, "v": 0 }, { "t": 124, "v": 1, "shape": "hold" }, { "t": 131.5, "v": 1 }, { "t": 133, "v": 0.2 }] }
+```
+
+Pivots in **song seconds** inside the section (they do not move when a boundary does), sorted, `v` from 0 to 1. Each
+segment takes the `shape` of the pivot that starts it: straight (default; `bend` −1..1 curves it), `ease` (slow, fast,
+slow) or `hold` (a step at the next pivot). Before the first pivot and after the last the value holds. At most 256
+pivots per layer per section.
+
+What a value below 1 does, all at once and always the same way (no randomness, so playing, seeking and the render
+agree):
+
+- **fewer attacks**: at 0.5 the layer hears a fixed half of the attacks, at 0.2 a fifth, at 0 none: it is
+  intermittently active, not dimmed;
+- **fainter**: it is pasted at a weight that shows that fraction of it (a widget that repaints its picture each frame
+  is corrected so 0.5 looks like half, not like nearly nothing);
+- **a calmer pulse**: its own level and rate follow only the attacks that reached it, so knobs driven by `+level` or
+  `+rate` settle down too.
+
+The widget keeps running at 0, so it comes back in its own state. A layer leaving at a boundary fades from the value
+its curve had there.
+
+The presets (in the studio's layer panel and the lab's cards; they write ordinary pivots you can then edit):
+
+- **Fade in** over N seconds from the section's start; **Fade out** over the last N seconds.
+- **Swell**: up to full in the middle of the section, then back (eased).
+- **Pulse** every N beats or 4-beat bars: full on the beat, falling away over half the period (made coarser if it
+  would need more than 256 pivots).
+- **Gate on loudness**: open where the recording is louder than a threshold (default: its 60th percentile there),
+  shut between, with short ramps.
+- **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
+
+In the studio the curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),
+drag a segment to bend it, right-click for its shape, double-click to delete.
+
+## Picking widgets by their tags
+
+Every widget has tags in `lab/tags.json`, printed under each widget below as **Feel**, **Suits** and **Role**:
+
+- **Feel** words are synesthetic (icy, warm, heavy, airy, liquid, stabbing, panic, longing…); `lab/tag-words.json` says
+  for each what it looks like and what music it sounds like, with synonyms (cold → icy, fiery → burning).
+- **Suits** names instruments it goes well with (violin, cello, piano, timpani, tutti…).
+- **Role** is where it sits in a stack: `under` and `ground` go first, `base` fills the picture, `accent` moves over a
+  base, `top` works on what is below.
+
+To pick: take the feel words of the user's description (or of the music: describe-song's character words map to them
+through `fit`), keep the widgets whose Feel shares them, prefer those whose Suits names a track the song has, then build
+the stack bottom → top by Role. The studio's widget picker filters the same way (feel chips, instruments, "suits this
+song"), and the auto-composer reads the description's feel words and routes an accent to the instrument it suits.
 
 ## The user's taste
 
