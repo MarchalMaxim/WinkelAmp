@@ -1,18 +1,20 @@
-// Brass gust: the Futurists' lines of force. Every attack shoots a bundle of long tapered slivers out of a mouth off the
-// left or lower edge; the bundle is one wedge while it is fresh and shreds lengthwise as its slivers part and blow on.
+// Brass gust: the Futurists' lines of force. Every attack shoots a bundle of long tapered slivers out of a mouth, a
+// slot off the left or lower edge; the bundle is one wedge for an instant and shreds lengthwise as its slivers part and blow on.
 // The air is what makes it gusty: dashes ride a coarse velocity field that the wedges write into, so you see the force
 // arrive, pass and curl away. Strength is ranked against this piece's own attacks, so a piano gusts as a brass band does.
 (() => {
-  const GW = 32, GH = 18, MAX_WEDGES = 46, MAX_SLIVERS = 620;
-  // Heat, cold to white-hot: ember red through brass. A sliver is painted in one bucket, so a frame is a few fills.
-  const HEAT = [[92, 28, 0], [136, 40, 0], [200, 58, 4], [232, 92, 8], [255, 136, 16], [255, 168, 30], [255, 200, 76], [255, 244, 190]]
-    .map(([r, g, b], i) => `rgba(${r},${g},${b},${[0.3, 0.34, 0.38, 0.4, 0.4, 0.44, 0.52, 0.8][i]})`);
+  const GW = 32, GH = 18, MAX_WEDGES = 26, MAX_SLIVERS = 420;
+  // Heat, cold to white-hot: bronze through brass, white kept for the thin needles. A sliver is painted in one bucket, so a
+  // frame is a few fills. Painted with 'lighten', not 'lighter': under the harness's 12% fade an additive colour stacks about
+  // 8x and clips to lemon, whereas lighten settles on the colour itself, so stacked brass stays brass and edges stay hard.
+  const HEAT = [[84, 42, 12], [128, 66, 16], [176, 98, 20], [214, 132, 26], [238, 162, 36], [248, 178, 50], [255, 204, 92], [255, 236, 160]]
+    .map(([r, g, b], i) => `rgba(${r},${g},${b},${[0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.95][i]})`);
   // The air's dashes by speed: dull and nearly invisible at rest, hot when a blast has them.
-  const AIR = [['rgba(120,76,44,0.20)', 1], ['rgba(170,108,44,0.36)', 1.1], ['rgba(226,146,34,0.56)', 1.35], ['rgba(250,180,40,0.7)', 1.7], ['rgba(255,206,70,0.8)', 2.2]];
+  const AIR = [['rgba(74,50,34,0.3)', 1], ['rgba(150,98,44,0.3)', 1], ['rgba(206,134,36,0.42)', 1], ['rgba(238,164,40,0.55)', 1.1], ['rgba(250,178,48,0.65)', 1.35]];
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   let wedges = [], fronts = [], dashes = [], vx = null, vy = null, ux = null, uy = null;
-  let time = 0, sinceFull = 9, shoveX = 0, shoveY = 0, shoveVX = 0, shoveVY = 0, bloom = 0;
+  let time = 0, sinceFull = 9, shoveX = 0, shoveY = 0, shoveVX = 0, shoveVY = 0;
   let attackVels = null, velsOf = null;
 
   // Every attack's loudness in this piece, sorted (the same 40 ms grouping as the lab's chords).
@@ -38,12 +40,12 @@
     const n = GW * GH; vx = new Float32Array(n); vy = new Float32Array(n); ux = new Float32Array(n); uy = new Float32Array(n);
   }
   function clearAll() {
-    wedges = []; fronts = []; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0; bloom = 0;
+    wedges = []; fronts = []; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0;
     gridReady(); vx.fill(0); vy.fill(0);
     for (const d of dashes) { d.vx = 0; d.vy = 0; }
   }
   function airReady(x, want) {
-    while (dashes.length < want) dashes.push({ x: x.rnd(0, x.W), y: x.rnd(0, x.H), vx: 0, vy: 0, h: x.rnd(-3.2, 3.2), ph: x.rnd(0, 6.28), curl: x.rnd(1.4, 4) * (Math.random() < 0.5 ? -1 : 1), sz: x.rnd(0.7, 1.4) });
+    while (dashes.length < want) dashes.push({ x: x.rnd(0, x.W), y: x.rnd(0, x.H), vx: 0, vy: 0, ph: x.rnd(0, 6.28), curl: x.rnd(1.4, 4) * (Math.random() < 0.5 ? -1 : 1), sz: x.rnd(0.7, 1.4) });
   }
   // The wall: the air inside the swept stretch of a wedge lies down along it and is shoved out to its sides.
   function push(w, s0, s1, half, V, x) {
@@ -75,8 +77,9 @@
     const span = (m) => clamp((m - 34) / 54, 0, 1);
     const mean = ch.notes.reduce((s, n) => s + span(n.m), 0) / ch.notes.length;
     const pick = mean + x.rnd(-0.22, 0.22);
-    const mx = pick < 0.42 ? -30 : pick < 0.72 ? -30 : W * x.rnd(0.14, 0.4);
-    const my = pick < 0.42 ? H * x.rnd(0.5, 0.74) : pick < 0.72 ? H * x.rnd(0.86, 1.04) : H + 30;
+    const round = x.rnd(0, 1);     // the middle mouth wanders round the corner, so blasts don't all leave one point
+    const mx = pick < 0.42 ? -30 : pick < 0.72 ? (round < 0.5 ? -30 : W * (round - 0.5) * 0.3) : W * x.rnd(0.14, 0.4);
+    const my = pick < 0.42 ? H * x.rnd(0.5, 0.74) : pick < 0.72 ? (round < 0.5 ? H * (0.72 + 0.6 * round) : H + 30) : H + 30;
     const centre = (5 + 50 * Math.pow(mean, 1.1) + x.rnd(-3, 3)) * Math.PI / 180;
     // A chord is a fan of wedges from the one mouth, at most five: the outer notes and a spread between them.
     const sorted = [...ch.notes].sort((a, b) => a.m - b.m);
@@ -89,11 +92,15 @@
       const L = (0.2 + 0.8 * Math.pow(Math.min(1, own / 0.9), 1.5)) * W * 1.3 * reach * presK;
       const hw = (10 + 92 * Math.pow(1 - s, 1.5)) * (0.4 + 0.6 * own) * (full ? 1.2 : 1);
       const hold = n.d > 0.25 ? Math.min(n.d, 0.6 + 3 * own) : 0.05;
-      addWedge({ mx, my, a, L, hw, s, p: own, hold, full, life: (0.34 + 0.95 * own) * x.p('linger') * (full ? 2 : 1), V: (320 + 1500 * own) }, x);
+      const slot = (i - (keep.length - 1) / 2) * (24 + 44 * own);   // each note leaves its own stretch of the mouth
+      addWedge({ mx: mx - Math.sin(a) * slot, my: my - Math.cos(a) * slot, a, L, hw, s, p: own, hold, full, life: (0.34 + 0.95 * own) * x.p('linger') * (full ? 2 : 1), V: (320 + 1500 * own) }, x);
     });
     if (full) {
-      sinceFull = 0; bloom = Math.max(bloom, 0.55);
-      fronts.push({ mx, my, ax: Math.cos(centre), ay: -Math.sin(centre), a: centre, s: 0, V: 2900 * presK, end: W * 1.6, age: 0 });
+      sinceFull = 0;
+      // The front is a rank of needles at uneven distances, not a plane: force, with no edge to it.
+      const rank = [];
+      for (let i = 0; i < 44; i++) rank.push({ o: x.rnd(-1, 1), lag: x.rnd(0, 420), len: x.rnd(140, 620), wd: x.rnd(0.8, 3.4), heat: x.rnd(0, 1) < 0.2 ? 7 : Math.round(x.rnd(4, 6)) });
+      fronts.push({ mx, my, ax: Math.cos(centre), ay: -Math.sin(centre), nx: Math.sin(centre), ny: Math.cos(centre), s: 0, V: 2900 * presK, end: W * 1.6, age: 0, rank });
     }
     // A shove, not a shake: the picture lurches downwind and springs back.
     const lurch = Math.pow(p, 3) * (full ? 34 : 15) * (0.2 + 0.8 * pres) * 26;
@@ -104,14 +111,14 @@
     const w = { ...o, ax: Math.cos(o.a), ay: -Math.sin(o.a), nx: Math.sin(o.a), ny: Math.cos(o.a), age: 0, was: 0, slivers: [] };
     const top = clamp(Math.round(3 + w.s * 3.2 + w.p * 2), 2, 7);    // low is deep red-brass, high runs white-gold
     const k = Math.round(4 + 11 * w.p + 3 * (1 - w.s));
-    // The body and its needle: one solid wedge for the instant the blast lands.
-    w.slivers.push({ da: 0, off: 0, tip: 1, wd: w.hw * 0.55, top: clamp(top - 2, 2, 4), tail: 0.4, ph: 0, fl: 0.15, spread: 0, tear: 0.5, long: 0.42, adv: 0.03 });
-    w.slivers.push({ da: 0, off: 0, tip: 0.94, wd: Math.max(2, w.hw * 0.2), top: Math.min(7, top + 1), tail: 0.6, ph: x.rnd(0, 6), fl: 0.3, spread: 0, tear: 0.2, long: 0.6, adv: 0.05 });
+    // The body and its needle: one solid wedge only for the instant the blast lands, even under a held note.
+    w.slivers.push({ da: 0, off: 0, tip: 1, wd: w.hw * 0.42, top: clamp(top - 1, 2, 5), tail: 0.9, ph: 0, fl: 0.15, spread: 0, tear: 0.5, long: 0.42, adv: 0.03, brief: 0.07 + 0.14 * w.p });
+    w.slivers.push({ da: 0, off: 0, tip: 0.94, wd: Math.max(1.5, w.hw * 0.08), top: Math.min(7, top + 1), tail: 0.6, ph: x.rnd(0, 6), fl: 0.3, spread: 0, tear: 0.2, long: 0.6, adv: 0.05 });
     // The strands it tears into: they part, blow on at their own speeds and flutter.
     for (let i = 0; i < k; i++) {
-      const off = x.rnd(-1, 1), central = 1 - Math.abs(off);
+      const off = x.rnd(-1, 1), central = 1 - Math.abs(off), r = x.rnd(0, 1);
       w.slivers.push({
-        off, da: off * w.hw / Math.max(200, w.L), tip: x.rnd(0.55, 1.08), wd: w.hw * x.rnd(0.08, 0.26), top: clamp(top - (central < 0.4 ? 3 : central < 0.75 ? 2 : 1), 1, 6),
+        off, da: off * w.hw * 0.9 / Math.max(200, w.L), tip: x.rnd(0.55, 1.08), wd: w.hw * (0.03 + 0.13 * r * r) + 0.8, top: clamp(top - (central < 0.4 ? 3 : central < 0.75 ? 2 : 1), 1, 6),
         tail: x.rnd(0.25, 1.3), ph: x.rnd(0, 6.28), fl: x.rnd(0.5, 1.5), spread: off * x.rnd(0.3, 1), tear: x.rnd(0.5, 1.2), long: x.rnd(0.65, 1.1), adv: x.rnd(0.06, 0.26),
       });
     }
@@ -125,13 +132,13 @@
 
   // One strand as a tapered polygon along its wedge, narrow at the back, widest two thirds along, pointed at the front.
   const PTS = 6;
-  function strand(path, w, q, tail, front, a, buffet) {
+  function strand(path, w, q, tail, front, a, buffet, scale) {
     const len = front - tail; if (len < 2) return;
     const fade = Math.min(1, Math.max(0, 1 - Math.max(0, a - w.hold) / (w.life * q.long)));
-    const thin = q.wd * (0.35 + 0.65 * fade) * (1 + buffet * 0.3 * Math.sin(a * 21 + q.ph));
+    const thin = scale * q.wd * (0.35 + 0.65 * fade) * (1 + buffet * 0.3 * Math.sin(a * 21 + q.ph));
     const part = q.spread * Math.max(0, a - 0.05) * 60;       // strands part as the wedge tears
-    const flut = (4 + 16 * Math.max(0, a - 0.08)) * q.fl * (1 + buffet * 1.6);
-    const lat = (s) => s * q.da + (s / w.L) * part + (q.off * w.hw * 0.08) + Math.sin(s / w.L * 3.4 - a * 8 + q.ph) * flut * clamp(s / 300, 0, 1);
+    const flut = (3 + 9 * Math.max(0, a - 0.08)) * q.fl * (1 + buffet * 1.2);
+    const lat = (s) => s * q.da + (s / w.L) * part + (q.off * w.hw * 0.55) + Math.sin(s / w.L * 2.3 - a * 8 + q.ph) * flut * clamp(s / 300, 0, 1);
     let first = true;
     for (let i = 0; i <= PTS; i++) {                          // up one side
       const u = i / PTS, s = tail + len * u, hw = thin * Math.pow(u, 1.1) * Math.pow(1 - u, 0.4) * 1.75;
@@ -173,11 +180,11 @@
     onChord(ch, x) { gridReady(); blow(ch, x); },
     frame(x) {
       gridReady();
-      const g = x.g, dt = Math.min(0.05, x.dt), W = x.W, H = x.H, cw = W / GW, chh = H / GH, pres = x.p('presence'), bright = 0.15 + 0.85 * pres;
-      // The ground: the harness fades to black each frame; a little aubergine added back holds it near #12091e without
-      // covering what is under it. (rgb = the fade's loss at that level, colour-burn's few levels included.)
-      g.globalCompositeOperation = 'lighter'; g.globalAlpha = pres;
-      g.fillStyle = 'rgb(5,4,7)'; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+      const g = x.g, dt = Math.min(0.05, x.dt), W = x.W, H = x.H, cw = W / GW, chh = H / GH, pres = x.p('presence'), bright = 0.03 + 0.97 * pres * pres;
+      // The ground: the harness fades to black each frame; a floor of aubergine (#12091e) holds it there without covering
+      // anything brighter underneath, and leaves no stains where an old blast faded a few levels past it.
+      g.globalCompositeOperation = 'lighten'; g.globalAlpha = pres;
+      g.fillStyle = 'rgb(18,9,30)'; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
 
       if (dt > 0) {
         time += dt; sinceFull += dt;
@@ -206,12 +213,12 @@
         // the shove springs back
         shoveVX += (-shoveX * 90 - shoveVX * 11) * dt; shoveVY += (-shoveY * 90 - shoveVY * 11) * dt;
         shoveX += shoveVX * dt; shoveY += shoveVY * dt;
-        bloom *= Math.pow(0.5, dt / 0.16);
       }
       g.translate(clamp(shoveX, -60, 60), clamp(shoveY, -60, 60));
-      g.globalCompositeOperation = 'lighter';
+      g.globalCompositeOperation = 'lighten';
 
-      // The air
+      // The air. At rest its dashes lie along one slow field, a faint current to watch rather than a scatter of specks.
+      const lazy = (d) => Math.sin(d.y * 0.006 + time * 0.11) * 1.1 + Math.cos(d.x * 0.005 - time * 0.09) * 0.8 - 0.2 + (d.ph - 3.14) * 0.06;
       const want = Math.round(x.p('air') * 1000);
       airReady(x, want);
       const paths = AIR.map(() => new Path2D());
@@ -219,58 +226,62 @@
         const d = dashes[n];
         if (dt > 0) {
           const gx = sample(vx, d.x, d.y, cw, chh), gy = sample(vy, d.x, d.y, cw, chh), gs = Math.abs(gx) + Math.abs(gy);
-          const amb = 5 + 3 * Math.sin(time * 0.3 + d.ph);        // the lazy drift when nothing is blowing
-          const tx = gx + Math.sin(d.y * 0.011 + time * 0.23 + d.ph) * amb + 3, ty = gy + Math.cos(d.x * 0.009 - time * 0.19 + d.ph) * amb - 1.5;
+          const amb = 5 + 3 * Math.sin(time * 0.3 + d.ph), rest = lazy(d);    // the lazy drift when nothing is blowing
+          const tx = gx + Math.cos(rest) * amb, ty = gy + Math.sin(rest) * amb;
           const k = 1 - Math.exp(-dt * (gs > 50 ? 11 : 1.6));
           d.vx += (tx - d.vx) * k; d.vy += (ty - d.vy) * k;
           // when the push has passed it still carries, and curls away
           const sp0 = Math.hypot(d.vx, d.vy), turn = d.curl * dt * clamp(sp0 / 60, 0, 1) * clamp(1.4 - sp0 / 320, 0, 1) * (gs > 240 ? 0.1 : 1);
           if (turn) { const c = Math.cos(turn), s = Math.sin(turn), a = d.vx; d.vx = a * c - d.vy * s; d.vy = a * s + d.vy * c; }
           d.x += d.vx * dt; d.y += d.vy * dt;
-          d.h += Math.sin(time * 0.7 + d.ph) * dt * 0.8;
           if (d.x < -40) d.x += W + 80; else if (d.x > W + 40) d.x -= W + 80;
           if (d.y < -40) d.y += H + 80; else if (d.y > H + 40) d.y -= H + 80;
         }
         const sp = Math.hypot(d.vx, d.vy), b = sp < 26 ? 0 : sp < 110 ? 1 : sp < 300 ? 2 : sp < 650 ? 3 : 4;
-        const dir = sp > 22 ? Math.atan2(d.vy, d.vx) : d.h, len = (4 + Math.min(300, sp * 0.13)) * d.sz, c = Math.cos(dir), s = Math.sin(dir);
-        const hook = clamp(d.curl * 0.12, -0.5, 0.5) * len * clamp(1 - sp / 500, 0, 1);
+        const dir = sp > 22 ? Math.atan2(d.vy, d.vx) : lazy(d), len = (9 + Math.min(240, sp * sp / 1500)) * d.sz, c = Math.cos(dir), s = Math.sin(dir);
+        const hook = clamp(d.curl * 0.1, -0.3, 0.3) * len * clamp(1 - sp / 500, 0, 1);
         const p = paths[b]; p.moveTo(d.x, d.y);
         p.quadraticCurveTo(d.x - c * len * 0.5 - s * hook, d.y - s * len * 0.5 + c * hook, d.x - c * len, d.y - s * len);
       }
       g.lineCap = 'round'; g.globalAlpha = bright;
       AIR.forEach(([col, lw], i) => { g.strokeStyle = col; g.lineWidth = lw; g.stroke(paths[i]); });
 
-      // The front of a full blast floods across: a white-gold wall with a long burn behind it.
-      for (const f of fronts) {
-        const k = clamp(1 - f.s / (f.end + 800), 0, 1), back = 600;
-        const gr = g.createLinearGradient(f.s - back, 0, f.s + 30, 0);
-        gr.addColorStop(0, 'rgba(200,50,15,0)'); gr.addColorStop(0.55, `rgba(214,70,4,${0.14 * k})`);
-        gr.addColorStop(0.9, `rgba(255,196,40,${0.32 * k})`); gr.addColorStop(0.985, `rgba(255,246,208,${0.95 * k})`); gr.addColorStop(1, 'rgba(255,246,208,0)');
-        g.save(); g.translate(f.mx, f.my); g.rotate(-f.a); g.fillStyle = gr; g.fillRect(f.s - back, -2400, back + 30, 4800); g.restore();
-      }
-      if (bloom > 0.01) { g.fillStyle = `rgba(255,170,60,${0.14 * bloom})`; g.fillRect(-70, -70, W + 140, H + 140); }
-
       // The wedges, batched by heat. A strand runs to its front fast, burns while its note holds, then its back catches up.
       const buckets = HEAT.map(() => new Path2D());
-      let drawn = 0;
+      // The front of a full blast: its needles run through the air, which the grid has already laid down behind them.
+      for (const f of fronts) for (const q of f.rank) {
+        const head = f.s - q.lag, back = head - q.len; if (head < 0 || back > f.end) continue;
+        const o = q.o * (260 + head * 0.55), hx = f.mx + f.ax * head + f.nx * o, hy = f.my + f.ay * head + f.ny * o;
+        const bx = f.mx + f.ax * back + f.nx * o, by = f.my + f.ay * back + f.ny * o, W2 = q.wd * clamp(1 - head / (f.end * 1.2), 0.3, 1);
+        const p = buckets[q.heat]; p.moveTo(hx, hy); p.lineTo(bx + f.nx * W2, by + f.ny * W2); p.lineTo(bx - f.nx * W2, by - f.ny * W2); p.closePath();
+      }
+      // What keeps it from a flat field: newest first, once the slivers would cover about a fifth of the frame the older ones
+      // thin out, then drop. It also caps what the climax costs to raster.
+      const budget = W * H * 0.2;
+      let drawn = 0, painted = 0;
       for (let i = wedges.length - 1; i >= 0; i--) {
         const w = wedges[i], a = w.age, ease = 1 - Math.pow(1 - Math.min(1, a / 0.1), 3), after = Math.max(0, a - w.hold);
         const held = a < w.hold && w.hold > 0.1, buffet = held ? 1 : 0, gone = after / w.life;
         let live = false;
         for (const q of w.slivers) {
-          if (after > w.life * q.long) continue;
+          if (after > w.life * q.long || (q.brief && a > q.brief)) continue;
           if (drawn++ > MAX_SLIVERS) break;
           live = true;
           const t01 = after / (w.life * q.long);
           const front = w.L * q.tip * ease * (1 + q.adv * after * 2.2) * (1 + buffet * 0.05 * Math.sin(a * 13 + q.ph));
-          const tail = w.L * q.tip * Math.pow(Math.min(1, after * q.tail * 3.2 / Math.max(0.35, w.life)), 0.85) * q.tear * 1.2;
+          // A held note doesn't root a strand at the mouth: it comes away and keeps burning out in the open.
+          const tearT = after + Math.max(0, Math.min(a, w.hold) - 0.12) * 0.5;
+          const tail = Math.min(front * (0.62 + t01 * 0.9), w.L * q.tip * Math.pow(Math.min(1, tearT * q.tail * 3.2 / Math.max(0.35, w.life)), 0.85) * q.tear * 1.2);
           const heat = Math.min(q.top, Math.round(q.top * (1 - t01) * (1 - t01) + (a < 0.14 ? 1 : 0))) - (held && a > 0.3 && q.wd > 6 ? 1 : 0);
-          strand(buckets[clamp(heat, 0, 7)], w, q, tail, front, a, buffet);
+          const squeeze = painted > budget ? Math.max(0.2, budget / painted) : 1;
+          if (painted > budget * 1.8 && q.wd > 2) continue;
+          const scale = squeeze * (q.brief ? 1 - a / q.brief : 1);
+          painted += Math.max(0, front - tail) * q.wd * scale * 1.2;
+          strand(buckets[clamp(q.wd > 4 ? Math.min(6, heat) : heat, 0, 7)], w, q, tail, front, a, buffet, scale);
         }
         if (!live && gone > 0) wedges.splice(i, 1);
       }
-      // exposure: a crowd of wedges must stay brass, not burn out to one white mass
-      g.globalAlpha = bright / (1 + 0.14 * Math.max(0, wedges.length - 5));
+      g.globalAlpha = bright;
       buckets.forEach((p, i) => { g.fillStyle = HEAT[i]; g.fill(p); });
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     },
