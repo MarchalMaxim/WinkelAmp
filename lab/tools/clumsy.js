@@ -1,9 +1,11 @@
 // Clumsy (the user, round 9: "the movement of the individual things expresses the emotion clumsiness. The objects tumble
 // and rush to keep up. every attack causes disorder again. concepts are tumbling over each other, like hopping").
-// A crowd of mismatched flat shapes under gravity, always hopping towards a rough line at a goal on the floor and never
-// getting there in time. Each is a rigid body with its weight off-centre, so it lands on a corner, tips, rocks and rolls.
-// Every attack moves the goal (top note) and kicks shapes (low notes the big ones, high notes the small ones; louder is
-// higher and spinnier, longer hangs, short trips, a full chord hits everybody). The hardest attacks tilt the floor.
+// A crowd of mismatched flat shapes under gravity, hopping towards a rough line at a goal on the floor. Each is a rigid
+// body with its weight off-centre, so it lands on a corner, tips, rocks and rolls. Given a gap in the music they do get
+// there and stand still, which is the order the next attack ruins; in a storm of notes they never make it. An attack kicks
+// shapes (low notes the big ones, high notes the small ones; louder is higher and spinnier, longer hangs, short trips, a
+// full chord hits everybody; the longer the silence before it, the more it hits). A strong one, or one after a real
+// silence, also moves the goal (top note), and the hardest tilt the floor.
 (() => {
   const G = 2600, SUB = 1 / 120, POOL = 30;
   const TAU = Math.PI * 2;
@@ -39,7 +41,7 @@
   }
   const force = (c) => c.vel * (1 + 0.07 * Math.min(8, c.notes.length - 1));
 
-  let shapes = [], zc = 0, goal = -1, march = 1, lastGoal = -9, lastAll = -9, tilt = 0, tiltV = 0, lastJolt = -9, budget = 4, song = 0, acc = 0, lineW = 0, jolt = 0;
+  let shapes = [], zc = 0, goal = -1, march = 1, lastGoal = -9, lastAll = -9, tilt = 0, tiltV = 0, lastJolt = -9, budget = 9, song = 0, acc = 0, lineW = 0, jolt = 0, lastAtk = -9;
 
   function build(x) {
     shapes = []; zc = 0;
@@ -52,7 +54,7 @@
         i, r, polys, kind: ORDER[i % ORDER.length], ink: INKS[i % INKS.length],
         cr: ORDER[i % ORDER.length] === 'bar' ? 0.62 : 0.82,
         x: x.rnd(0.1, 0.9) * x.W, y: F - r - x.rnd(0, 180), vx: 0, vy: 0, a: x.rnd(-0.6, 0.6), w: x.rnd(-3, 3),
-        sq: 0, sqV: 0, crouch: 0, ground: 0, next: 0, float: 0, kicked: -9, z: i, slot: i, still: 0, on: false,
+        sq: 0, sqV: 0, crouch: 0, ground: 0, next: 0, float: 0, kicked: -9, z: i, slot: i, still: 0, on: false, quiet: 0, content: false, retried: false,
         dope: i === 2 ? 2.6 : x.rnd(0.6, 1.5), legs: i === 2 ? 0.5 : x.rnd(0.85, 1.15), err: x.rnd(-1, 1),   // number 2 is always the last one
       });
     }
@@ -60,6 +62,8 @@
   }
   const floorAt = (x) => x.H * 0.86;
   const fy = (x, px) => floorAt(x) + jolt + Math.tan(tilt) * (px - x.W / 2);
+
+  const above = (s, x) => Math.max(0, fy(x, s.x) - s.y - s.r * x.p('size') * 0.8);   // how far off the floor it already is
 
   // The ones in play, biggest first in .rank; slots laid out as one rough line around the goal.
   function roster(x) {
@@ -82,10 +86,11 @@
     const trip = x.rnd() < 0.14;
     const R = s.r * x.p('size');
     const near = clamp(Math.abs(dx) / 90, 0.22, 1);        // nearly there: a small careful hop, still badly judged
-    const hh = (95 * (1 - 0.62 * panic) + R * 0.75) * near * x.p('hop') * presK * s.legs * x.rnd(0.75, 1.25) * (trip ? 0.35 : 1);
+    // A hop from someone's back only reaches as high as one from the floor would: the crowd stays near the ground.
+    const hh = (95 * (1 - 0.62 * panic) + R * 0.75) * near * x.p('hop') * presK * s.legs * x.rnd(0.75, 1.25) * (trip ? 0.35 : 1) - above(s, x);
     const vy = Math.sqrt(2 * G * Math.max(6, hh)), T = 2 * vy / G;
-    const cap = (170 + 620 * panic) * rush * s.legs;
-    s.vx = clamp(dx / T * x.rnd(1.05, 1.15 + 0.5 * near), -cap, cap);                // always a bit too far
+    const cap = (230 + 700 * panic) * rush * s.legs;
+    s.vx = clamp(dx / T * x.rnd(1.05, 1.15 + 0.5 * near * (1 - s.quiet)), -cap, cap);   // too far, less so once things have calmed
     s.vy = -vy;
     const dir = dx >= 0 ? 1 : -1, wrong = x.rnd() < 0.15 ? -1 : 1;
     s.w = dir * wrong * x.rnd(3.5, 9) * Math.pow(38 / R, 0.6) * (0.3 + 0.7 * near) * (trip ? 2.1 : 1) * presK;  // always too much spin
@@ -96,12 +101,13 @@
   function kick(s, n, loud, x) {
     const dis = x.p('disorder'), presK = 0.35 + 0.65 * x.p('presence'), R = s.r * x.p('size');
     const long = clamp((n.d - 0.45) / 1, 0, 1), short = clamp((0.18 - n.d) / 0.12, 0, 1);
-    const limit = floorAt(x) - 40;
-    const h = Math.min(limit, (16 + 250 * Math.pow(loud, 1.9)) * dis * presK * Math.pow(32 / R, 0.25) * (1 + 0.15 * long) * (1 - 0.45 * short) * x.rnd(0.8, 1.2));
-    s.vy = -Math.sqrt(2 * G * h);
+    const h = Math.min(floorAt(x) - 40, (16 + 210 * Math.pow(loud, 1.9)) * dis * presK * Math.pow(32 / R, 0.25) * (1 + 0.15 * long) * (1 - 0.45 * short) * x.rnd(0.8, 1.2));
+    // The height is measured from the floor: hit in mid-air it tumbles, but it doesn't launch again from up there.
+    const left = h - above(s, x);
+    s.vy = left > 0 ? Math.min(s.vy, -Math.sqrt(2 * G * left)) : s.vy;
     s.vx += x.rnd(-1, 1) * (40 + 230 * loud) * dis * presK;
     s.w += (x.rnd() < 0.5 ? -1 : 1) * x.rnd(0.6, 1) * (3 + 14 * loud) * dis * presK * Math.pow(40 / R, 0.7) * (1 + 0.7 * short);
-    s.float = long * 0.9; s.ground = 0; s.crouch = 0; s.sqV -= 5 + 7 * loud; s.kicked = song; s.content = false;
+    s.float = long * 0.5; s.ground = 0; s.crouch = 0; s.sqV -= 5 + 7 * loud; s.kicked = song; s.content = false; s.retried = false;
     s.next = song + x.rnd(0.08, 0.34) * s.dope;                        // the late reaction
     if (x.rnd() < 0.7) s.z = ++zc;
   }
@@ -141,7 +147,8 @@
       }
       if (contacts) {
         s.x += nx * deepest; s.y += ny * deepest; s.ground = 0.07;
-        s.w *= Math.exp(-h * (Math.abs(s.w) < 7 ? 2.2 : 0.9)); s.vx *= Math.exp(-h * (slide ? 0.1 : 1.3));
+        const calm = s.content ? s.quiet : 0;                           // arrived: the wobble is allowed to end
+        s.w *= Math.exp(-h * (Math.abs(s.w) < 7 ? 2.2 + 10 * calm : 0.9)); s.vx *= Math.exp(-h * (slide ? 0.1 : 1.3 + 8 * calm));
         if (contacts > 1 && Math.abs(s.w) < 1.6 && Math.abs(s.vy) < 40) { s.w *= 0.8; if (!slide) s.vx *= 0.92; }   // flat on the floor: the chatter dies
       }
       s.w = clamp(s.w * Math.exp(-h * 0.15), -30, 30);
@@ -154,16 +161,19 @@
       const d = Math.sqrt(d2), nX = dx / d, nY = dy / d, over = min - d, ma = ra * ra, mb = rb * rb, sum = ma + mb;
       // A hard meeting knocks both about; a slow one is just two flat shapes sliding in front of each other, or nothing would ever settle.
       const closing = -((b.vx - a.vx) * nX + (b.vy - a.vy) * nY);
-      if (closing < 110) {
-        const creep = (a.content && b.content ? 0 : 26) * h;
-        a.x -= Math.sign(nX) * creep * mb / sum; b.x += Math.sign(nX) * creep * ma / sum;
+      const calm = Math.min(a.quiet, b.quiet);                         // right after a hit they crash into each other; later they hop past
+      if (closing < 110 + 900 * calm) {
+        // Only one still looking for its place shuffles; it doesn't shove the ones who already arrived back out of theirs.
+        const creep = 26 * h, ca = !a.content && a.ground > 0, cb = !b.content && b.ground > 0;
+        if (ca) a.x -= Math.sign(nX) * creep * (cb ? mb / sum : 1);
+        if (cb) b.x += Math.sign(nX) * creep * (ca ? ma / sum : 1);
         continue;
       }
       const push = over * 0.6;
       a.x -= nX * push * mb / sum; a.y -= nY * push * mb / sum; b.x += nX * push * ma / sum; b.y += nY * push * ma / sum;
       const rvx = b.vx - a.vx, rvy = b.vy - a.vy, vn = rvx * nX + rvy * nY;
       if (vn >= 0) continue;
-      const jn = -(1.28) * vn / (1 / ma + 1 / mb);
+      const jn = -(1 + 0.28 * (1 - calm)) * vn / (1 / ma + 1 / mb);
       a.vx -= jn * nX / ma; a.vy -= jn * nY / ma; b.vx += jn * nX / mb; b.vy += jn * nY / mb;
       // sliding past each other turns into spin, and a real hit tips both over
       const tX = -nY, tY = nX, vt = rvx * tX + rvy * tY + a.w * ra + b.w * rb;
@@ -178,8 +188,9 @@
       }
       if (Math.abs(nY) > 0.6) up.ground = Math.max(up.ground, 0.05);    // standing on a back counts as a place to hop from
     }
-    for (const s of act) {                                              // nobody leaves through the top, however hard the hit
-      if (s.vy < 0) s.vy = Math.max(s.vy, -Math.sqrt(2 * G * Math.max(0, s.y - x.H * Math.max(0.06, 0.42 - 0.16 * x.p('disorder')))));
+    const roof = x.H * clamp(0.6 - 0.22 * x.p('disorder') - 0.1 * (x.p('hop') - 1), 0.06, 0.6);
+    for (const s of act) {                                              // they hop, they don't fly: there's a limit to how far up a hit throws
+      if (s.vy < 0) s.vy = Math.max(s.vy, -Math.sqrt(2 * G * Math.max(0, s.y - roof)));
       s.vx = clamp(s.vx, -1100, 1100);
     }
   }
@@ -187,19 +198,22 @@
   function brain(act, x, dt) {
     const n = act.length, sp = n > 1 ? lineW / n : 0, rush = x.p('rush'), pres = x.p('presence');
     const movers = Math.ceil(n * (0.18 + 0.82 * pres));
-    budget = Math.min(4, budget + dt * 5);
+    budget = Math.min(9, budget + dt * (4 + 1.3 * x.rate));
     for (const s of act) {
       const R = s.r * x.p('size');
+      s.quiet = clamp((song - Math.max(s.kicked, lastGoal)) / 0.85, 0, 1);
       if (s.i >= movers) { s.crouch = 0; continue; }                   // turned down: some of them just sit it out
       const target = clamp(goal + (s.slot - (n - 1) / 2) * sp + s.err * sp * 0.22, R, x.W - R), dx = target - s.x;
       if (s.crouch > 0) { s.crouch -= dt; if (s.crouch <= 0) { s.crouch = 0; hop(s, x, target - s.x); } continue; }
       if (s.ground <= 0 || song < s.next) continue;
-      const quiet = clamp((song - s.kicked) / 2.5, 0, 1);
-      const tol = (10 + R * 0.5 + 26 * quiet) * (s.content ? 2.2 : 1), off = Math.abs(dx) >= tol;
+      // Arrived is arrived: once there it takes a real shove (or the next attack) to set it off again.
+      const tol = (14 + R * 0.5 + 40 * s.quiet) * (s.content ? 2 : 1), off = Math.abs(dx) >= tol;
       s.content = !off;
-      const tipped = !off && Math.abs(Math.sin(s.a)) > 0.8 && Math.abs(s.w) < 0.5;   // lying on its side: one more try, in a while
+      const lying = s.kind === 'bar' || s.kind === 'ell' || s.kind === 'half';        // a square on a quarter turn is just a square
+      const tipped = !off && lying && !s.retried && Math.abs(Math.sin(s.a)) > 0.8 && Math.abs(s.w) < 0.5;   // on its side: one more try
       s.still = tipped ? s.still + dt : 0;
-      if (off || s.still > 1.6) {
+      if (s.still > 0.7) s.retried = true;
+      if (off || s.still > 0.7) {
         const panic = clamp(Math.abs(dx) / (x.W * 0.3), 0, 1);
         s.crouch = (0.15 - 0.1 * panic) * x.rnd(0.7, 1.3) * s.dope / rush; s.still = 0;
         s.next = song + 0.25;                                          // once crouched, it goes
@@ -213,17 +227,21 @@
     // How present: only the hardest attacks of this song get through when it is turned down (all the notes' scale).
     const cut = (1 - pres) * 0.95;
     if (cut > 0 && rankIn(velsN, ch.vel) < cut) return;
-    const fr = rankIn(velsC, force(ch)), W = x.W, many = ch.notes.length;
-    // The goal jumps: top note, on this song's own range. A repeat of the same note marches it on instead.
-    if (song - lastGoal > 0.3 + 0.05 * Math.min(10, x.rate) || (many >= 4 && song - lastGoal > 0.25)) {
+    const fr = rankIn(velsC, force(ch)), W = x.W, many = ch.notes.length, dis = x.p('disorder');
+    const gap = clamp((song - lastAtk - 0.35) / 0.9, 0, 1); lastAtk = song;   // 1 after a real silence: the order it breaks was there
+    // The goal jumps: top note, on this song's own range. A repeat of the same note marches it on instead. Not on every
+    // soft note: that alone would keep everybody hopping for ever, and there would be no order left to lose.
+    const sinceGoal = song - lastGoal;
+    if (gap >= 1 || (fr > 0.72 && sinceGoal > 0.9) || (many >= 5 && sinceGoal > 0.7) || (x.rate > 4 && sinceGoal > 1.1)) {
       const half = Math.min(lineW / 2, W * 0.36) + 30;
       let g = half + rankIn(tops, ch.hi) * (W - 2 * half);
       if (Math.abs(g - goal) < W * 0.14) { g = goal + march * x.rnd(0.14, 0.3) * W; if (g < half || g > W - half) { march = -march; g = goal + march * x.rnd(0.14, 0.3) * W; } }
-      goal = clamp(g, half, W - half); lastGoal = song;
+      goal = clamp(goal + clamp(g - goal, -W * 0.3, W * 0.3) * (0.2 + 0.8 * Math.min(1, dis)), half, W - half); lastGoal = song;
+      for (const s of act) s.content = false;
     }
     // The kicks: in a storm of notes only so many get through, or the picture would just boil.
     const everyone = (many >= 5 || fr > 0.95) && song - lastAll > 0.42;
-    const dense = 1 / (1 + 0.11 * x.rate);
+    const dense = 1 / (1 + 0.11 * x.rate);   // a storm trips them low and often; it doesn't throw them in the air
     const movers = Math.ceil(act.length * (0.18 + 0.82 * pres)), crew = act.filter((s) => s.i < movers);
     if (everyone) {
       lastAll = song;
@@ -234,24 +252,25 @@
         kick(s, q, loud * dense, x);
       }
     } else {
-      for (const q of ch.notes) {
-        if (budget < 1 && fr < 0.75) continue;
+      // How many it hits: harder hits more, and so does one that breaks a silence. Pitch picks who.
+      const hits = Math.max(many, Math.ceil(crew.length * (0.08 + 0.4 * fr * fr + 0.3 * gap + 0.02 * Math.min(10, x.rate)) * clamp(0.35 + 0.65 * dis, 0, 1.25)));
+      for (let i = 0; i < hits; i++) {
+        const q = ch.notes[i % many];
+        if (budget < 1 && fr < 0.75) break;
         budget = Math.max(0, budget - 1);
         const p = rankIn(tops, q.m) * 0.5 + x.pitch01(q.m) * 0.5;
         let best = null, score = 9;
-        for (const s of crew) { if (song - s.kicked < 0.2) continue; const d = Math.abs(s.rank - (1 - p)) + x.rnd(0, 0.28); if (d < score) { score = d; best = s; } }
-        if (best) kick(best, q, rankIn(velsN, q.v) * dense, x);
-        // a soft note is a stumble for the neighbours, and a big one hits a few more
-        const extra = Math.floor(fr * 2.6);
-        for (let i = 0; i < extra; i++) { const s = crew[Math.floor(x.rnd() * crew.length)]; if (s && song - s.kicked > 0.2) kick(s, q, rankIn(velsN, q.v) * 0.7 * dense, x); }
+        for (const s of crew) { if (song - s.kicked < 0.2) continue; const d = Math.abs(s.rank - (1 - p)) + x.rnd(0, i < many ? 0.28 : 0.9); if (d < score) { score = d; best = s; } }
+        if (best) kick(best, q, Math.min(1, rankIn(velsN, q.v) * (i < many ? 1 : 0.7) + 0.25 * gap) * dense, x);
       }
     }
-    // Disorder also means the order is gone: some swap places, so they have to go over each other to get back.
-    const swaps = Math.round(act.length * (0.08 + 0.3 * fr) * x.p('disorder') * dense);
+    // Disorder also means the order is gone: some of the ones just hit swap places, so they have to go over each other to get back.
+    const hitNow = crew.filter((s) => s.kicked === song);
+    const swaps = Math.round(hitNow.length * (0.1 + 0.25 * fr) * Math.min(1.5, dis));
     for (let i = 0; i < swaps; i++) {
-      const a = crew[Math.floor(x.rnd() * crew.length)]; if (!a) break;
-      const to = clamp(a.slot + Math.round(x.rnd(-5, 5)), 0, act.length - 1), b = act.find((s) => s.slot === to);
-      if (b && b !== a) { b.slot = a.slot; a.slot = to; }
+      const a = hitNow[Math.floor(x.rnd() * hitNow.length)]; if (!a) break;
+      const to = clamp(a.slot + Math.round(x.rnd(-3, 3)), 0, act.length - 1), b = act.find((s) => s.slot === to);
+      if (b && b !== a) { b.slot = a.slot; a.slot = to; b.content = false; }
     }
     // The biggest of the piece jolt the floor: it tilts, they lose their footing and slide into a heap.
     if (fr > 0.965 && song - lastJolt > 1.8) {
@@ -261,7 +280,7 @@
 
   TOOLS.push({
     id: 'clumsy', name: 'Clumsy', tag: 'new',
-    blurb: 'A crowd of mismatched shapes hop towards a line and never make it: bad landings, too much spin, the last one still scrambling. Every attack moves the goal and knocks them over again, and they land on each other.',
+    blurb: 'A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.',
     params: [
       { key: 'crowd', label: 'how many', min: 3, max: 30, step: 1, value: 16,
         hint: 'How many shapes are trying to keep up. Left: three or four. Right: a jostling mob.',
@@ -282,7 +301,7 @@
         hint: 'How much it takes over. Left: the ground goes dark, few shapes move, and only the hardest attacks reach them. Right: broad daylight, every attack knocks them about.',
         icon: (g, v, w, h) => { ICON.rect(g, 3, 3, w - 6, h - 6, ICON.lerp('#120e06', '#d8a838', v)); ICON.alpha(g, 0.2 + 0.8 * v, () => ICON.square(g, w / 2, h / 2, 10, ICON.red, 0.4)); } },
     ],
-    reset(x) { velsN = null; shapes = []; zc = 0; tilt = 0; tiltV = 0; jolt = 0; lastJolt = -9; lastGoal = -9; lastAll = -9; budget = 4; goal = -1; acc = 0; song = x.t || 0; march = 1; },
+    reset(x) { velsN = null; shapes = []; zc = 0; tilt = 0; tiltV = 0; jolt = 0; lastJolt = -9; lastGoal = -9; lastAll = -9; budget = 9; goal = -1; acc = 0; lastAtk = -9; song = x.t || 0; march = 1; },
     onChord(ch, x) {
       scales(); if (!shapes.length) build(x);
       attack(ch, x, roster(x));
