@@ -78,6 +78,35 @@
           "quiet": 0.4,
           "dense": 0.4
         }
+      },
+      "fibrous": {
+        "looks": "Hair, thread, filament: many fine strands, like the hairs on an arm.",
+        "sounds": "Bowed or plucked strings, many voices close together.",
+        "fit": {
+          "dense": 0.4
+        }
+      },
+      "rough": {
+        "looks": "Coarse, dry-brushed, torn edges: nothing smooth, the bristles show.",
+        "sounds": "Harsh, rasping attack: heavy bowing, brass forte, accents dug in.",
+        "fit": {
+          "loud": 0.6
+        }
+      },
+      "smeared": {
+        "looks": "Paint dragged and wiped across: streaks that trail behind the stroke.",
+        "sounds": "Attacks that drag: slurred chords, glissandi, a blur of pedal.",
+        "fit": {
+          "loud": 0.3,
+          "dense": 0.3
+        }
+      },
+      "tentacled": {
+        "looks": "Thick arms that reach, curl and grab out from a dark centre.",
+        "sounds": "Low lines that reach upward: rising bass figures, low chords that swell and spread.",
+        "fit": {
+          "low": 0.8
+        }
       }
     },
     "motion": {
@@ -133,6 +162,25 @@
           "loud": 1,
           "dense": 0.4
         }
+      },
+      "twitchy": {
+        "looks": "Answers every attack at once with a quick, sharp jolt, then snaps back.",
+        "sounds": "Fast, articulate, detached playing; quick attacks.",
+        "fit": {
+          "fast": 1
+        }
+      },
+      "unison": {
+        "looks": "Many things moving as one: a flock or a shoal turning together, every dot in step.",
+        "sounds": "One line everyone follows: a melody in unison or octaves, a single voice.",
+        "fit": {}
+      },
+      "precise": {
+        "looks": "Follows every note exactly: each one marked where and when it sounds, nothing loose or improvised.",
+        "sounds": "Clean, articulate playing where each note counts: runs, études, counterpoint.",
+        "fit": {
+          "fast": 0.5
+        }
       }
     },
     "light and colour": {
@@ -171,6 +219,11 @@
         "fit": {
           "fast": 0.8
         }
+      },
+      "binary": {
+        "looks": "On or off, black or white: no greys, no hue, no in-between.",
+        "sounds": "Hard, clear attacks with silence between: staccato, a dry piano.",
+        "fit": {}
       }
     },
     "atmosphere": {
@@ -218,6 +271,44 @@
           "loud": 0.8,
           "fast": 0.8,
           "dense": 0.6
+        }
+      },
+      "anxious": {
+        "looks": "Restless, never settling: small tremors, things that flinch and fidget.",
+        "sounds": "Nervous agitation below a climax: tremolo, fast repeated notes, unresolved harmony.",
+        "fit": {
+          "fast": 0.6,
+          "dense": 0.4
+        }
+      },
+      "violent": {
+        "looks": "Strikes that land like blows: sudden, huge, merciless.",
+        "sounds": "Brutal accents, sforzando hammering, off-beat stabs (the Rite).",
+        "fit": {
+          "loud": 1,
+          "fast": 0.4
+        }
+      },
+      "mysterious": {
+        "looks": "Half-seen shapes you cannot quite make out; something forming and dissolving.",
+        "sounds": "Hushed and unresolved: soft, modal or chromatic, a question left open.",
+        "fit": {
+          "quiet": 0.6
+        }
+      },
+      "alien": {
+        "looks": "Uncanny, not of this world: things that grow, reach and writhe in a way nothing alive should.",
+        "sounds": "Low, strange harmony: clusters, tritones, growling bass, dark brass.",
+        "fit": {
+          "low": 0.7,
+          "loud": 0.4
+        }
+      },
+      "cryptic": {
+        "looks": "Glyphs, numbers and code you can almost read: a message in a cipher.",
+        "sounds": "Intricate and cool: dense figuration, counterpoint, a pattern to decode.",
+        "fit": {
+          "dense": 0.4
         }
       }
     }
@@ -501,7 +592,6 @@
     "hasty": "skittish",
     "nervous": "skittish",
     "jittery": "skittish",
-    "violent": "stabbing",
     "angry": "stabbing",
     "aggressive": "stabbing",
     "gloomy": "dark",
@@ -534,6 +624,20 @@
     "menacing": "dread",
     "sinister": "dread",
     "chaotic": "panic",
-    "frantic": "panic"
+    "frantic": "panic",
+    "attacking": "stabbing",
+    "smear": "smeared",
+    "synchronized": "unison",
+    "swarm": "unison",
+    "abrupt": "twitchy",
+    "brutal": "violent",
+    "creepy": "alien",
+    "cthulhu": "alien",
+    "eldritch": "alien",
+    "tendrils": "tentacled",
+    "logical": "precise",
+    "textual": "cryptic",
+    "flashy": "flickering",
+    "monochrome": "binary"
   }
 }

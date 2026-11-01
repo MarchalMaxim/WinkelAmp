@@ -12,8 +12,8 @@ describe('readLabHarness (the real lab/index.html)', () => {
 
   it('reads TOOL_IDS in card order, each with a file', () => {
     // relative order (the lab puts new widgets in front of these)
-    expect(['harmonograph', 'hilma', 'kline'].map((id) => h.toolIds.indexOf(id))).toEqual(
-      ['harmonograph', 'hilma', 'kline'].map((id) => h.toolIds.indexOf(id)).sort((a, b) => a - b));
+    expect(['harmonograph', 'kline', 'score'].map((id) => h.toolIds.indexOf(id))).toEqual(
+      ['harmonograph', 'kline', 'score'].map((id) => h.toolIds.indexOf(id)).sort((a, b) => a - b));
     expect(h.toolIds.indexOf('harmonograph')).toBeGreaterThanOrEqual(0);
     expect(h.toolIds).toContain('casket');
     for (const id of h.toolIds) expect(existsSync(new URL(`lab/tools/${id}.js`, ROOT)), id).toBe(true);

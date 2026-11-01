@@ -31,7 +31,6 @@
     "ikeda": 'redraw',              // r 0.77
     "horizon": 'redraw',            // r 0.66
     "harmonograph": 'redraw',       // r 0.59
-    "hilma": 'strokes',             // r 0.49
     "kline": 'redraw',              // r 0.60
     "score": 'redraw',              // r 0.71
     "boogie": 'redraw',             // r 0.71

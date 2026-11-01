@@ -1,6 +1,8 @@
 // Rorschach ink v2: the loved mirrored blots. Five knobs (the 2026-10-31 knob style); the other nine are fixed at the
 // defaults the user loved (FIX below). Ink lives on a small persistent canvas (one "fundamental domain" next to the fold),
 // bleeds and fades on its own clock, and is stamped out every frame as 2 (book), 4 (quad) or 2n (kaleidoscope) mirrored copies.
+// v3 (the user, 2026-11-01: "very present even when fully toned down"): a sixth knob, how present. Turned down, the
+// ink is fainter, the page barely heaves or shakes, and only the hardest bass attacks drop ink.
 (() => {
   const IW = 320, IH = 360, PAD = 18, S = 2;               // ink canvas at 1/2 resolution, PAD = mirrored margin at the fold
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
@@ -29,6 +31,16 @@
   // music exactly as their old default drives did (base + half the old range × the feature).
   const FIX = { sizeBy: 0.5, split: 50, origin: 0.45, drift: 0.2, breathe: 0.7, rim: 1, paper: 0.25 };
   const soakOf = (x) => Math.max(0.2, Math.min(3, 1 + 1 * 0.5 * (3 - 0.2) * x.feat.rate));        // faster → soaks quicker
+  // how present (0..1): which low notes drop ink, judged against this piece's own low notes (recordings differ a lot in
+  // how hard their bass is): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  let lowVels = null;
+  const hardEnough = (v, x) => {
+    if (!lowVels) lowVels = (window.NOTES || []).filter((n) => n[2] < FIX.split).map((n) => n[3]).sort((a, b) => a - b);
+    const cut = (1 - x.p('presence')) * 0.95;
+    if (cut <= 0 || !lowVels.length) return true;
+    let a = 0, b = lowVels.length; while (a < b) { const k = (a + b) >> 1; if (lowVels[k] < v) a = k + 1; else b = k; }
+    return a / lowVels.length >= cut;
+  };
   const bleedOf = (x) => Math.max(0, Math.min(2.5, 0.8 + 1 * 0.5 * (2.5 - 0) * x.feat.density));  // fuller → feathers more
   let mode = 1, sinceBlot = 9, centres = [], lobes = [], creep = [], flecks = [], wet = [], fadeAcc = 0, bleedAcc = 0, shake = 0, pulse = 0, time = 0;
 
@@ -161,9 +173,10 @@
   }
 
   TOOLS.push({
-    id: 'rorschach', name: 'Rorschach ink', tag: 'v2',
-    blurb: 'Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. Five knobs now, all starting at the defaults you loved.',
-    // Five knobs (keys, ranges and drives unchanged, so saved settings still apply); the other nine are fixed in FIX above.
+    id: 'rorschach', name: 'Rorschach ink', tag: 'v3',
+    blurb: 'Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. New in v3: a <b>how present</b> knob, to tone it right down: fainter ink, a still page, and only the hardest bass attacks drop ink.',
+    // Six knobs: the five old ones (keys, ranges and drives unchanged, so saved settings still apply) and how present (v3);
+    // the other nine are fixed in FIX above.
     params: [
       { key: 'sym', label: 'mirror pattern', min: 1, max: 8, step: 1, value: 1,
         hint: 'How the ink is mirrored. Left: one fold down the middle, like a folded page. Next: four-way. Right: a kaleidoscope star of up to 8 folds.',
@@ -186,19 +199,22 @@
       { key: 'fade', label: 'how long the ink stays', min: 1, max: 13, value: 9, drive: '-level',
         hint: 'How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.08 + v * 0.92, ICON.red, 'dot') },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: faint ink on a still page, and only the hardest bass attacks drop it. Right: every low note blooms at full strength (as before).',
+        icon: (g, v, w, h) => { for (const sx of [-1, 1]) ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.dot(g, w / 2 + sx * 7, h / 2, 2 + 5 * v, ICON.red)); } },
     ],
-    reset() { ig.clearRect(0, 0, IW, IH); centres = []; lobes = []; creep = []; flecks = []; wet = []; fadeAcc = 0; bleedAcc = 0; shake = 0; pulse = 0; sinceBlot = 9; },
+    reset() { lowVels = null; ig.clearRect(0, 0, IW, IH); centres = []; lobes = []; creep = []; flecks = []; wet = []; fadeAcc = 0; bleedAcc = 0; shake = 0; pulse = 0; sinceBlot = 9; },
     onChord(ch, x) {
       [BODY, RIMC, SHEEN] = pal(x.p('ink'));
       const amt = x.p('spatter'), split = FIX.split;
       const violent = amt > 0.05 && ch.vel >= 112 - 8 * amt && ch.notes.length >= 3;
       let lows = 0;
       for (const n of ch.notes) {
-        if (n.m < split) { if (lows++ < 2) bloom(n, x); }
+        if (n.m < split) { if (hardEnough(n.v, x) && lows++ < 2) bloom(n, x); }
         else spatter(n, violent, amt);
       }
       // a thin bass line (an orchestra heard by a piano transcriber): if no ink has dropped for a while, the chord's lowest note blooms
-      if (!lows && sinceBlot > 1.2) { let low = ch.notes[0]; for (const n of ch.notes) if (n.m < low.m) low = n; bloom({ ...low, fallback: true }, x); }
+      if (!lows && sinceBlot > 1.2) { let low = ch.notes[0]; for (const n of ch.notes) if (n.m < low.m) low = n; if (hardEnough(low.v, x)) bloom({ ...low, fallback: true }, x); }
       if (violent) burst(ch, amt, FIX.origin);
     },
     frame(x) {
@@ -283,9 +299,10 @@
       wet = wet.filter((w) => w.age < 0.6); if (wet.length > 5) wet = wet.slice(-5);
 
       // the whole sheet breathes: a slow swell, plus a heave on every bloom
-      const br = FIX.breathe; pulse *= Math.pow(0.5, dt / 0.3);
+      const pres = x.p('presence'), br = FIX.breathe * pres; pulse *= Math.pow(0.5, dt / 0.3);
       const sc = 1 + br * (0.02 * Math.sin(time * 1.1) + 0.06 * pulse);
-      if (shake > 0.3) { g.translate(R(-shake, shake), R(-shake * 0.6, shake * 0.6)); shake *= Math.pow(0.5, dt / 0.12); }
+      if (shake > 0.3) { const sh = shake * pres; g.translate(R(-sh, sh), R(-sh * 0.6, sh * 0.6)); shake *= Math.pow(0.5, dt / 0.12); }
+      const inkA = 0.12 + 0.88 * pres;   // how strongly the sheet shows at all
       const W = x.W, H = x.H;
       // the fold(s): barely-there creases
       g.fillStyle = 'rgba(255,240,230,0.025)';
@@ -296,11 +313,11 @@
       const rimA = Math.min(1, (0.55 + 0.3 * Math.min(1, x.level)) * rimAmt);
       const rot = time * 0.03 * br;
       if (rimAmt > 0.02) {
-        layer(g, W, H, rot, sc, rim, -PAD, rimA, 'source-over');
-        if (rimAmt > 1) { g.globalAlpha = (rimAmt - 1) * 0.6; g.globalCompositeOperation = 'lighter'; g.drawImage(lay, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
+        layer(g, W, H, rot, sc, rim, -PAD, rimA * inkA, 'source-over');
+        if (rimAmt > 1) { g.globalAlpha = (rimAmt - 1) * 0.6 * inkA; g.globalCompositeOperation = 'lighter'; g.drawImage(lay, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
       }
-      layer(g, W, H, rot, sc, tmp, -PAD, 1, 'source-over');          // ink with its mirrored margin, so the fold edge stays solid
-      if (wet.length) layer(g, W, H, rot, sc, shn, 0, 1, 'lighter');
+      layer(g, W, H, rot, sc, tmp, -PAD, inkA, 'source-over');          // ink with its mirrored margin, so the fold edge stays solid
+      if (wet.length) layer(g, W, H, rot, sc, shn, 0, inkA, 'lighter');
     },
   });
 })();
