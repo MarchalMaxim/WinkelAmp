@@ -354,7 +354,7 @@
       const g = x.g, dt = x.dt, pres = x.p('presence');
       if (dt > 0) {
         clock += dt;
-        const f = x.feat, want = Math.min(1, 0.9 * f.rate + 0.35 * f.level + 0.4 * f.density);
+        const f = x.feat, want = Math.min(1, 0.55 * f.rate + 0.3 * f.level + 0.25 * f.density);
         health += (want - health) * (1 - Math.exp(-dt / (want > health ? 2.5 : 5)));
         growTips(x, dt);
         witherStems(x, dt);
