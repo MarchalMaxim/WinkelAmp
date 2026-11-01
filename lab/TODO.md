@@ -16,3 +16,9 @@ The user's words.
 ## Changes
 
 - **The casket.** It should be a one-time applied widget, I think... Apply it once on some attacks, instead of continuously.
+
+## Note types as a default
+
+Widgets that answer only certain types of notes, like grace notes. The user: "let's have this as a 'default' option, so that we can easily apply these types of widgets to music and the default will be chosen. Makes it easier for the composer."
+
+A guess at the shape, to confirm: new note-type lines beside `melody` and `accents` (grace notes, trills, long notes, runs), and a widget that has a natural type gets it when placed, and can be changed. First check on an ornamented piece how many grace notes the transcription catches.
