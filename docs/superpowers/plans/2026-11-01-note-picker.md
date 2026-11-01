@@ -33,8 +33,9 @@ wording:** `docs/mockups/note-picker/template.html`.
 - **Ports.** The user is live-testing on 5173: never use or restart 5173, 5174 or 5180. Other builds run on 5190–5399.
   Your own dev server: `npx vite --port <p> --strictPort` from 5401 up, stopped when done. Every script takes
   `WINKELAMP_PORT` after T1 step 1; run `fidelity`, `render-show` and the checks with `WINKELAMP_PORT=5402`.
-- **The ratings saver.** Test browsers never post to 5174: `openStudio` aborts it after T1 step 1, and a page opened by
-  hand routes `/localhost:5174/` to abort.
+- **The ratings saver.** Test browsers never post to 5174. The scripts that open a lab page (`fidelity`, `studio-check`)
+  and `render-show` already abort it, `openStudio` does after T1 step 1, and any other page opened by hand routes
+  `/localhost:5174/` to abort.
 - **The user's files.** Do not edit `shows/*.json`, `lab/ratings.json` or `lab/index.html`. A test that saves uses temp
   folders (`openStudio` does) or a scratch copy under `NP/<task>/` through `WINKELAMP_SHOWS`. `melodies/` stays empty in
   this build: it is the user's.
@@ -46,7 +47,7 @@ wording:** `docs/mockups/note-picker/template.html`.
   function gets a vitest test. Browser checks are `npm run` scripts in `scripts/checks/`, which CI never runs.
 - **Commits.** `git add` explicit paths. Message style as in `git log` (`Studio: …`), then a blank line and
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Never commit audio, `songs/`, `renders/`, `notes*.js`,
-  `.superpowers`, `study/`. Never push or merge, except the last step, which pushes this branch only.
+  `.superpowers`, `study/`. Never push or merge: the workflow pushes this branch itself.
 - **Looking is part of done.** Pictures go to `NP/T<n>/`; read them and say in the report what they show.
 
 ## Review Focus
@@ -73,7 +74,7 @@ T2 builds on T1, one after the other.
 - Modify: `src/widgets/types.ts`, `src/widgets/runtime.ts`, `lab/layers/lines.js`, `src/widgets/layers.ts` (comment on
   `listenNotes`), `src/studio/show/{show,edit,conductor}.ts`, `scripts/studio-api.ts`, `scripts/node/pack-io.ts`,
   `src/studio/ui/api.ts`, `scripts/lib/studio-session.mjs`, `scripts/render-show.mjs`, `scripts/fidelity.mjs`,
-  `package.json`, `docs/COMPOSING-SHOWS.md`.
+  `scripts/checks/runtime-layers-check.mjs`, `scripts/studio-check.mjs`, `package.json`, `docs/COMPOSING-SHOWS.md`.
 - Create: `src/studio/show/melody.ts`, `scripts/checks/picks-check.mjs`.
 - Tests: `tests/picks-show.test.ts`, `tests/picks-edit.test.ts`, `tests/picks-runtime.test.ts`, `tests/melody.test.ts`;
   add to `tests/layers-lines.test.ts`, `tests/studio-api.test.ts`, `tests/check-show.test.ts`.
@@ -82,7 +83,8 @@ T2 builds on T1, one after the other.
 
 ```ts
 // src/widgets/types.ts
-export interface SongNotes { notes: Note[]; tracks?: …; picks?: Record<string, { notes: Note[] }> }
+export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>>;
+  picks?: Record<string, { notes: Note[] }> }
 export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean;
   /** A set of picks: the notes this instance hears. A loaded key whose notes change is evaluated again. */
   notes?: Note[] }
@@ -94,7 +96,7 @@ export const picksListen = (id: string): Listen => `picks:${id}`;
 /** 'picks:p1' → 'p1'; anything else → null. */
 export function picksId(listen: unknown): string | null;
 /** Notes as a set holds them: malformed ones dropped, numbers to 4 decimals, sorted by start (stable). Says each fix. */
-export function repairPickNotes(n: unknown, at?: string, fix?: Report): Note[];
+export function repairPickNotes(n: unknown, at?: string, fix?: (path: string, message: string) => void): Note[];
 export const isListen: also `picks:<slug>`;
 export function usesV2: also a non-empty show.picks.
 
@@ -162,9 +164,10 @@ export const melodiesDir = (): string;
   - `GET /api/melodies/<song>` → the file, or `emptyMelody(song)`. `PUT` → `validateMelody` (and `song` equal to the id), else
     400 `{ errors }`; writes `canonicalMelody`, 204. `apiMiddleware(dirs: { songs; shows; melodies? })` defaults to
     `melodies/` beside `shows`; `studioApi` passes `melodiesDir()`. Writes only from this machine, as the others.
-- `WINKELAMP_PORT`: in `studio-session.mjs` `port: Number(process.env.WINKELAMP_PORT) || o.port || 5196`, and the same over
-  5190 in `render-show.mjs` and `fidelity.mjs`, `strictPort` still false. `openStudio` also routes `/localhost:5174/` to
-  abort.
+- `WINKELAMP_PORT`: in `studio-session.mjs` `port: Number(process.env.WINKELAMP_PORT) || o.port || 5196`, so it overrides the
+  fixed ports the checks pass. The same over the servers that scripts start themselves: 5190 in `render-show.mjs`,
+  `fidelity.mjs` and `runtime-layers-check.mjs`, 5197 in `studio-check.mjs`. `strictPort` stays false. `openStudio` also
+  routes `/localhost:5174/` to abort on its page.
 - `docs/COMPOSING-SHOWS.md`: a short `picks` part under `listen`, in its plain style, saying picks come from the studio.
 
 - [ ] **Step 1: The port variable and the abort.** Commit nothing yet.
@@ -301,7 +304,8 @@ rest(on: boolean): void;
 // src/studio/ui/picker.ts
 export class Picker {
   constructor(d: { store: Store; player: Player; api: ShowStore; pack: SongPack; canvas: HTMLCanvasElement;
-    catalogue: Map<string, CatalogueEntry>; order: string[]; lib: { sources; harness; layers };
+    catalogue: Map<string, CatalogueEntry>; order: string[];
+    lib: { sources: Record<string, string>; harness: LabHarness; layers: WaLayers };
     meta(widget: string): WidgetMeta | undefined; notify(n: Notice): void });
   open(editSet?: string): Promise<void>;
   close(): void;
