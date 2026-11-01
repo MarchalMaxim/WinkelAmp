@@ -20,7 +20,7 @@ describe('lab/tags.json and lab/tag-words.json', () => {
   });
 
   it('have at least the first 28 feel words on 5 axes, none twice, and 18 instruments', () => {
-    // The vocabulary grows from the user's own words as widgets are tuned (2026-11-01: anxious, twitchy, fibrous; rough, smeared, violent; unison, mysterious; alien, tentacled).
+    // The vocabulary grows from the user's own words as widgets are tuned (2026-11-01: anxious, twitchy, fibrous; rough, smeared, violent; unison, mysterious; alien, tentacled; precise, binary, cryptic).
     expect(Object.keys(words.feel)).toHaveLength(5);
     expect(feelWords(words).length).toBeGreaterThanOrEqual(28);
     expect(new Set(feelWords(words)).size).toBe(feelWords(words).length);

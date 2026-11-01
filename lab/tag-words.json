@@ -174,6 +174,13 @@
         "looks": "Many things moving as one: a flock or a shoal turning together, every dot in step.",
         "sounds": "One line everyone follows: a melody in unison or octaves, a single voice.",
         "fit": {}
+      },
+      "precise": {
+        "looks": "Follows every note exactly: each one marked where and when it sounds, nothing loose or improvised.",
+        "sounds": "Clean, articulate playing where each note counts: runs, études, counterpoint.",
+        "fit": {
+          "fast": 0.5
+        }
       }
     },
     "light and colour": {
@@ -212,6 +219,11 @@
         "fit": {
           "fast": 0.8
         }
+      },
+      "binary": {
+        "looks": "On or off, black or white: no greys, no hue, no in-between.",
+        "sounds": "Hard, clear attacks with silence between: staccato, a dry piano.",
+        "fit": {}
       }
     },
     "atmosphere": {
@@ -290,6 +302,13 @@
         "fit": {
           "low": 0.7,
           "loud": 0.4
+        }
+      },
+      "cryptic": {
+        "looks": "Glyphs, numbers and code you can almost read: a message in a cipher.",
+        "sounds": "Intricate and cool: dense figuration, counterpoint, a pattern to decode.",
+        "fit": {
+          "dense": 0.4
         }
       }
     }
@@ -615,6 +634,10 @@
     "creepy": "alien",
     "cthulhu": "alien",
     "eldritch": "alien",
-    "tendrils": "tentacled"
+    "tendrils": "tentacled",
+    "logical": "precise",
+    "textual": "cryptic",
+    "flashy": "flickering",
+    "monochrome": "binary"
   }
 }
