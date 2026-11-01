@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "id": "sugar",
+  "title": "Character study — Sugar Glass",
+  "duration": 60.15,
+  "notes": "Composed from compose(7), score time (G major, 76 BPM, a bar every 1.58 s). Two bars of tip-toe pizzicato, then the celesta tune (A, 0:03.3); sparkling runs (B, 0:15.9); A again with the music box an octave up and sparkle arpeggios (A', 0:28.6); the runs in canon (B', 0:41.2); a coda that runs up to G7 (0:56.1) and settles on one high G (0:57.0). Whimsical, tiny and quick: beads and stars, a gentle pulse on the steady beat; each section's scene returns with it, varied by the music box's sparkle the second time.",
+  "match": { "kind": "study", "study": "sugar", "seed": 7 },
+  "scenes": {
+    "celesta": {
+      "look": { "palette": ["#08050c", "#33204a", "#ff96dc", "#fff4fb"], "trails": 0.35, "warp": 0.1, "glow": 0.7 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "beads", "color": "note", "size": 0.4 } },
+        { "id": "plucks", "type": "sparks", "params": { "style": "stars", "intensity": 0.65, "size": 0.25 } },
+        { "id": "beat", "type": "pulse", "params": { "style": "rings", "intensity": 0.3, "region": "bottom" } }
+      ]
+    },
+    "runs": {
+      "look": { "palette": ["#06060e", "#24244e", "#a8b4ff", "#f8f8ff"], "trails": 0.45, "warp": 0.15, "glow": 0.75 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "beads", "color": "note", "size": 0.3 } },
+        { "id": "plucks", "type": "sparks", "params": { "style": "stars", "intensity": 0.7, "size": 0.25 } },
+        { "id": "beat", "type": "pulse", "params": { "style": "rings", "intensity": 0.25, "region": "bottom" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.3, "color": "#a8b4ff" } }
+      ]
+    },
+    "away": {
+      "look": { "palette": ["#08050c", "#3a2050", "#ffb4ec", "#ffffff"], "trails": 0.55, "warp": 0.2, "mirror": 6, "glow": 0.8 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "beads", "color": "note", "size": 0.4 } },
+        { "id": "plucks", "type": "sparks", "params": { "style": "stars", "intensity": 0.85, "size": 0.3, "region": "top" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "aurora", "intensity": 0.35, "region": "top", "color": "#ff96dc" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "celesta", "transition": { "kind": "cut" } },
+    { "at": 14.36, "accent": { "kind": "swell", "color": "#ff96dc", "strength": 0.3 } },
+    { "at": 15.94, "scene": "runs", "transition": { "kind": "blend", "duration": 1 } },
+    { "at": 28.52, "scene": "celesta", "transition": { "kind": "blend", "duration": 1 } },
+    { "at": 28.52, "enter": { "id": "box", "type": "sparks", "params": { "style": "dust", "intensity": 0.6, "size": 0.2, "region": "top" } }, "fade": 1 },
+    { "at": 39.62, "accent": { "kind": "swell", "color": "#ff96dc", "strength": 0.35 } },
+    { "at": 41.2, "scene": "runs", "transition": { "kind": "blend", "duration": 1 } },
+    { "at": 42, "ramp": { "target": "harmony.intensity", "to": 0.5, "duration": 10 } },
+    { "at": 53.78, "scene": "away", "transition": { "kind": "blend", "duration": 1.5 } },
+    { "at": 55.41, "ramp": { "target": "look.glow", "to": 0.95, "duration": 0.7 } },
+    { "at": 56.11, "accent": { "kind": "flash", "color": "#fff4fb", "strength": 0.9 } },
+    { "at": 56.99, "ramp": { "target": "look.trails", "to": 0.85, "duration": 2 } },
+    { "at": 56.99, "ramp": { "target": "look.glow", "to": 0.3, "duration": 2.5 } }
+  ]
+}

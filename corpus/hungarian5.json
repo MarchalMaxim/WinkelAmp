@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "id": "hungarian5",
+  "title": "Hungarian Dance No. 5",
+  "artist": "Brahms",
+  "duration": 45.845,
+  "notes": "A string-orchestra excerpt. The csárdás theme (0:00) swells to P2 at 0:09 and breathes; the theme comes back higher and hotter after the pause (0:14.1); at 0:25.9 the quick, crisp second idea turns towards the major; from 0:34.8 a rising line drives to the final tutti (P1, 0:39.4), which rings out. The pulse is too weak for a pulse element (clarity 0.18): the melody and the onsets carry the rhythm. Fixed crimson-to-amber palettes because the mood read starts on 'mist'.",
+  "match": { "kind": "recording" },
+  "scenes": {
+    "csardas": {
+      "look": { "palette": ["#0a0204", "#4a0a14", "#c2351e", "#ffcf7a"], "trails": 0.55, "warp": 0.35, "glow": 0.65 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.8, "size": 0.5 } },
+        { "id": "bows", "type": "sparks", "params": { "style": "embers", "intensity": 0.55, "size": 0.35, "region": "bottom" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.6, "size": 0.6, "region": "bottom" } }
+      ]
+    },
+    "fervor": {
+      "look": { "palette": ["#0a0204", "#5a0c12", "#e0461e", "#ffe09a"], "trails": 0.6, "warp": 0.5, "mirror": 2, "glow": 0.75 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.9, "size": 0.6 } },
+        { "id": "bows", "type": "sparks", "params": { "style": "embers", "intensity": 0.85, "size": 0.4, "region": "bottom" } },
+        { "id": "heat", "type": "bloom", "params": { "style": "fields", "intensity": 0.35, "color": "#7a1420" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.6, "size": 0.65, "region": "bottom" } }
+      ]
+    },
+    "vivace": {
+      "look": { "palette": ["#0c0602", "#5a2a06", "#e39c2c", "#fff3c8"], "trails": 0.35, "warp": 0.15, "mirror": 2, "glow": 0.75 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "beads", "intensity": 0.8, "size": 0.4 } },
+        { "id": "bows", "type": "sparks", "params": { "style": "stars", "intensity": 0.7, "size": 0.3 } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.35, "color": "#e39c2c" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.5, "size": 0.5, "region": "bottom" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "csardas", "transition": { "kind": "cut" } },
+    { "at": 6.17, "ramp": { "target": "look.glow", "to": 0.8, "duration": 3 } },
+    { "at": 9.23, "accent": { "kind": "swell", "color": "#ffcf7a", "strength": 0.5 } },
+    { "at": 14.13, "scene": "fervor", "transition": { "kind": "cut" } },
+    { "at": 22.8, "ramp": { "target": "look.warp", "to": 0.8, "duration": 3 } },
+    { "at": 25.86, "scene": "vivace", "transition": { "kind": "cut" } },
+    { "at": 34.75, "scene": "fervor", "transition": { "kind": "blend", "duration": 1 } },
+    { "at": 34.75, "ramp": { "target": "look.glow", "to": 0.95, "duration": 4.5 } },
+    { "at": 39.37, "accent": { "kind": "flash", "color": "#fff0c8", "strength": 1 } },
+    { "at": 39.37, "accent": { "kind": "shock", "color": "#ffcf7a", "strength": 0.6 } },
+    { "at": 40.5, "exit": "tune", "fade": 2 },
+    { "at": 40.5, "ramp": { "target": "look.glow", "to": 0.3, "duration": 4 } },
+    { "at": 40.5, "ramp": { "target": "look.trails", "to": 0.9, "duration": 3 } }
+  ]
+}

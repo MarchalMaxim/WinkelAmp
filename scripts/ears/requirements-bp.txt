@@ -1,0 +1,16 @@
+# basic-pitch (scripts/ears/bp.py), the gap fill of ensemble recordings when YourMT3+ is not set up.
+# Python 3.11 in its own venv, e.g. C:/Users/maxim/.venvs/wa-bp (ingest finds it there, or through WINKELAMP_PY_BP):
+#   py -3.11 -m venv C:/Users/maxim/.venvs/wa-bp
+#   C:/Users/maxim/.venvs/wa-bp/Scripts/pip install -r scripts/ears/requirements-bp.txt
+# bp.py runs the ONNX model shipped inside the package (saved_models/icassp_2022/nmp.onnx) through onnxruntime;
+# basic-pitch also pulls in tensorflow on Windows, which bp.py does not use for inference.
+# These are the versions the runner was tested with; the venv is never re-pinned.
+basic-pitch==0.4.0
+onnxruntime==1.31.1
+librosa==0.11.0
+numpy==1.26.4
+resampy==0.4.2
+scipy==1.17.1
+soundfile==0.14.0
+pretty_midi==0.2.11.post0
+mir_eval==0.8.2

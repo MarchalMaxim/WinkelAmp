@@ -1,7 +1,12 @@
-/** The "Look" panel: scenes, colors, feel sliders, mirror, saved looks, and the patch bay. */
+/**
+ * The Tweak drawer: the scene (the show's own, a stage library scene, or a Classic
+ * v1 scene), colors, feel sliders, mirror, saved looks, and the patch bay. The
+ * Calm ↔ Wild slider sits outside the drawer, always visible, but is bound here too.
+ */
 import type { Features } from '../audio/features';
 import { MOTIONS, SOURCES, sourceValue, DEFAULT_MAPPING, type MotionId, type SourceId } from '../mapping';
 import { MIRRORS, SCENE_IDS, cloneLook, type Look, type SavedLook } from '../settings';
+import { LIBRARY } from '../stage/library';
 import { PALETTES, hsl, paletteColor } from '../visual/color';
 import { icon } from './icons';
 
@@ -15,10 +20,16 @@ export interface PanelCallbacks {
   save(): void;
   recall(saved: SavedLook): void;
   remove(index: number): void;
+  /** A stage scene chip was picked: 'auto' or a library scene's name. */
+  stageScene(choice: SceneChoice): void;
 }
+
+/** What the picture shows: 'auto' (the script or the live director), a library scene's name, or 'classic' (v1, `look.scene`). */
+export type SceneChoice = string;
 
 export class Panel {
   private meters = new Map<MotionId, HTMLElement>();
+  private choice: SceneChoice = 'auto';
 
   constructor(private look: () => Look, private cb: PanelCallbacks) {
     this.build();
@@ -31,6 +42,18 @@ export class Panel {
   }
 
   private build() {
+    const chips = [
+      { id: 'auto', title: 'Follow the show: the song’s script, or the live director' },
+      ...LIBRARY.map((s) => ({ id: s.name, title: `Hold the ${s.name} scene` })),
+    ];
+    $('stage-scenes').innerHTML = chips
+      .map((c) => `<button class="scene-chip" role="radio" data-stage="${escapeHtml(c.id)}" title="${escapeHtml(c.title)}">${c.id === 'auto' ? 'Auto' : escapeHtml(c.id)}</button>`)
+      .join('');
+    $('stage-scenes').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-stage]');
+      if (b && !b.disabled) this.cb.stageScene(b.dataset.stage!);
+    });
+
     $('scenes').innerHTML = SCENE_IDS.map(
       (id, i) =>
         `<button class="scene-card" role="radio" data-scene="${id}" title="${SCENE_LABELS[id]} (${i + 1})">${icon(id)}<span>${SCENE_LABELS[id]}</span></button>`,
@@ -113,9 +136,20 @@ export class Panel {
       .join('');
   }
 
+  /** Reflects the scene choice; `stageless`: no stage on this browser, only Classic. */
+  syncScene(choice: SceneChoice, look: Look, stageless: boolean) {
+    this.choice = choice;
+    document.querySelectorAll<HTMLButtonElement>('[data-stage]').forEach((b) => {
+      b.setAttribute('aria-checked', String(b.dataset.stage === choice));
+      b.disabled = stageless;
+    });
+    this.sync(look);
+  }
+
   /** Reflects a look in every control. */
   sync(look: Look) {
-    document.querySelectorAll<HTMLElement>('[data-scene]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.scene === look.scene)));
+    const classic = this.choice === 'classic';
+    document.querySelectorAll<HTMLElement>('[data-scene]').forEach((b) => b.setAttribute('aria-checked', String(classic && b.dataset.scene === look.scene)));
     document.querySelectorAll<HTMLElement>('[data-palette]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.palette === look.palette)));
     document.querySelectorAll<HTMLElement>('[data-mirror]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.mirror) === look.mirror)));
     for (const key of ['wild', 'trails', 'drift'] as const) setRange($<HTMLInputElement>(key), look[key]);

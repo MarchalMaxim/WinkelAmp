@@ -1,0 +1,196 @@
+{
+  "version": 2,
+  "id": "vivaldi-winter",
+  "song": "vivaldi-winter",
+  "title": "Vivaldi: The Four Seasons, “Winter”",
+  "composer": {
+    "by": "claude",
+    "at": "2026-10-31T18:00:00.000Z"
+  },
+  "sections": [
+    {
+      "start": 0,
+      "end": 100,
+      "label": "Allegro non molto: the strings enter one by one",
+      "layers": [
+        {
+          "widget": "current",
+          "listen": "viola",
+          "knobs": {
+            "threads": 2,
+            "width": 1.4
+          }
+        },
+        {
+          "widget": "strings",
+          "listen": "violin"
+        },
+        {
+          "widget": "squares",
+          "listen": "cello",
+          "knobs": {
+            "split": 72,
+            "size": 0.55
+          }
+        },
+        {
+          "widget": "halftone",
+          "listen": "piano",
+          "knobs": {
+            "grid": 13,
+            "life": 1,
+            "standing": 0.2
+          }
+        }
+      ]
+    },
+    {
+      "start": 100,
+      "end": 146,
+      "label": "The solo against the tutti",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "murmuration",
+          "listen": "viola"
+        },
+        {
+          "widget": "strings",
+          "listen": "violin",
+          "knobs": {
+            "bend": 0.7
+          }
+        },
+        {
+          "widget": "squares",
+          "listen": "cello",
+          "knobs": {
+            "split": 72,
+            "size": 0.55
+          }
+        }
+      ]
+    },
+    {
+      "start": 146,
+      "end": 211,
+      "label": "The storm, all together",
+      "fade": 2,
+      "layers": [
+        {
+          "widget": "kandinsky"
+        },
+        {
+          "widget": "strings",
+          "listen": "violin",
+          "knobs": {
+            "heat": 0
+          }
+        }
+      ]
+    },
+    {
+      "start": 211,
+      "end": 352,
+      "label": "Largo: the solo line over the rain",
+      "fade": 4,
+      "layers": [
+        {
+          "widget": "horizon"
+        },
+        {
+          "widget": "halftone",
+          "listen": "viola"
+        },
+        {
+          "widget": "strings",
+          "listen": "violin",
+          "knobs": {
+            "bend": 1,
+            "heat": 0
+          }
+        }
+      ]
+    },
+    {
+      "start": 352,
+      "end": 395.5,
+      "label": "Allegro: on the ice",
+      "fade": 2,
+      "layers": [
+        {
+          "widget": "ikeda",
+          "listen": "violin"
+        },
+        {
+          "widget": "squares",
+          "listen": "cello",
+          "knobs": {
+            "split": 72,
+            "size": 0.55
+          }
+        }
+      ]
+    },
+    {
+      "start": 395.5,
+      "end": 497,
+      "label": "The ice cracks",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "rorschach",
+          "listen": "cello"
+        },
+        {
+          "widget": "strings",
+          "listen": "violin"
+        }
+      ]
+    },
+    {
+      "start": 497,
+      "end": 519,
+      "label": "A hush before the end",
+      "fade": 4,
+      "layers": [
+        {
+          "widget": "horizon"
+        },
+        {
+          "widget": "current",
+          "listen": "viola",
+          "knobs": {
+            "threads": 2
+          }
+        }
+      ]
+    },
+    {
+      "start": 519,
+      "end": 566.06,
+      "label": "The winds at war",
+      "fade": 1,
+      "layers": [
+        {
+          "widget": "kandinsky"
+        },
+        {
+          "widget": "squares",
+          "listen": "cello",
+          "knobs": {
+            "split": 72,
+            "size": 0.55
+          }
+        },
+        {
+          "widget": "strings",
+          "listen": "violin"
+        },
+        {
+          "widget": "casket"
+        }
+      ]
+    }
+  ]
+}

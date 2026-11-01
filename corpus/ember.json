@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "ember",
+  "title": "Character study — Ember",
+  "duration": 69.1,
+  "notes": "Composed from compose(1), score time. Tremolo strings and Poisson ricochets flicker over D minor (0:00); the chord changes at 0:11.8 and the pushed-and-pulled violin tune enters at 0:18.3 and runs to 0:32; from 0:37.2 the harmony climbs a chord every two seconds with gusts of flame to the A7♭9 tutti sforzando at 0:54.45 (the climax), a gasp of silence, then embers (0:55.4) and a last upward ricochet into the dark (1:05.3). Fire: fluid, rising embers, low orbs for the off-grid accents; the climb is a ramp of glow and warp.",
+  "match": { "kind": "study", "study": "ember", "seed": 1 },
+  "scenes": {
+    "kindling": {
+      "look": { "palette": ["#080203", "#3d0a06", "#d2461a", "#ffd08a"], "trails": 0.6, "warp": 0.4, "glow": 0.6 },
+      "elements": [
+        { "id": "flame", "type": "fluid", "params": { "intensity": 0.5 } },
+        { "id": "sparks", "type": "sparks", "params": { "style": "embers", "intensity": 0.65, "size": 0.35, "region": "bottom" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.5, "size": 0.6, "region": "bottom" } }
+      ]
+    },
+    "flame": {
+      "look": { "palette": ["#080203", "#4a0c06", "#e65a1e", "#ffe0a0"], "trails": 0.6, "warp": 0.45, "glow": 0.7 },
+      "elements": [
+        { "id": "flame", "type": "fluid", "params": { "intensity": 0.6 } },
+        { "id": "tune", "type": "melody", "params": { "style": "ink", "intensity": 0.85, "size": 0.5 } },
+        { "id": "sparks", "type": "sparks", "params": { "style": "embers", "intensity": 0.7, "size": 0.35, "region": "bottom" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.55, "size": 0.6, "region": "bottom" } }
+      ]
+    },
+    "blaze": {
+      "look": { "palette": ["#0a0202", "#5c0e04", "#ff6a1a", "#fff0c0"], "trails": 0.55, "warp": 0.6, "glow": 0.6 },
+      "elements": [
+        { "id": "flame", "type": "fluid", "params": { "intensity": 0.85 } },
+        { "id": "sparks", "type": "sparks", "params": { "style": "embers", "intensity": 0.85, "size": 0.4, "region": "bottom" } },
+        { "id": "ricochet", "type": "sparks", "params": { "style": "stars", "intensity": 0.6, "size": 0.3, "region": "top" } },
+        { "id": "low", "type": "bass", "params": { "style": "orbs", "intensity": 0.7, "size": 0.7, "region": "bottom" } }
+      ]
+    },
+    "ashes": {
+      "look": { "palette": ["#050102", "#2a0604", "#a8361a", "#f0a060"], "trails": 0.85, "warp": 0.3, "glow": 0.4 },
+      "elements": [
+        { "id": "flame", "type": "fluid", "params": { "intensity": 0.35 } },
+        { "id": "sparks", "type": "sparks", "params": { "style": "embers", "intensity": 0.5, "size": 0.3, "region": "bottom" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "kindling", "transition": { "kind": "cut" } },
+    { "at": 11.8, "accent": { "kind": "swell", "color": "#ffd08a", "strength": 0.35 } },
+    { "at": 18.2, "scene": "flame", "transition": { "kind": "blend", "duration": 1.5 } },
+    { "at": 29.0, "accent": { "kind": "shock", "color": "#ffd08a", "strength": 0.45 } },
+    { "at": 37.2, "scene": "blaze", "transition": { "kind": "cut" } },
+    { "at": 37.3, "ramp": { "target": "look.glow", "to": 0.95, "duration": 17 } },
+    { "at": 37.3, "ramp": { "target": "look.warp", "to": 0.9, "duration": 17 } },
+    { "at": 54.45, "accent": { "kind": "flash", "color": "#fff0c0", "strength": 1 } },
+    { "at": 54.45, "accent": { "kind": "shock", "color": "#ff6a1a", "strength": 0.8 } },
+    { "at": 55.4, "scene": "ashes", "transition": { "kind": "cut" } },
+    { "at": 57, "ramp": { "target": "look.glow", "to": 0.2, "duration": 11 } },
+    { "at": 65.3, "accent": { "kind": "swell", "color": "#f0a060", "strength": 0.3 } }
+  ]
+}

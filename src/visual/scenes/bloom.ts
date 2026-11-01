@@ -8,8 +8,8 @@ export class Bloom implements Scene {
   private phase = 0;
 
   draw(fr: Frame) {
-    const { ctx, f, m, r, dt } = fr;
-    this.phase += dt * (0.05 + m.spin * 0.9);
+    const { ctx, f, m, r, musicDt } = fr;
+    this.phase += musicDt * (0.05 + m.spin * 0.9);
     const spec = f.spectrum;
     const N = 160;
     const petals = 6;
@@ -67,7 +67,8 @@ export class Bloom implements Scene {
     ctx.fill();
 
     // Pollen: high frequencies throw sparks off the tips.
-    const sparks = Math.floor(f.treble * m.glow * 40);
+    // (Thrown at random, so only while music time runs: a frozen picture must not twinkle.)
+    const sparks = musicDt > 0 ? Math.floor(f.treble * m.glow * 40) : 0;
     ctx.fillStyle = hsl({ ...colorNow(fr, 0.25), l: 85 }, 0.8);
     for (let i = 0; i < sparks; i++) {
       const a = Math.random() * Math.PI * 2;

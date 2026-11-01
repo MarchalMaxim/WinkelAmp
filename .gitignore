@@ -2,3 +2,24 @@ node_modules
 dist
 *.log
 .DS_Store
+.superpowers/
+study/
+studies-out/
+
+# The lab plays local recordings; their audio and the notes transcribed from them stay out of git.
+lab/*.mp3
+lab/*.wav
+lab/*.ogg
+lab/notes*.js
+# The lab's per-song pack data (npm run lab-notes): tracks, beats and loudness computed from the recordings.
+lab/pack-*.js
+
+# Showcase videos (lab/render.mjs) carry the recordings: local only.
+lab/showcase/*.mp4
+lab/showcase/*.png
+
+# Song packs (npm run ingest): the recordings and everything computed from them, local only.
+songs/
+
+# Videos from npm run render-show and recordings: they carry the recordings, local only.
+renders/

@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget lab</title>
+<style>
+  :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --on: #b43a2a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 18px 16px 32px; }
+  h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
+  p.sub { margin: 0 0 14px; color: var(--dim); }
+  .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; overflow: hidden; }
+  #c { width: 100%; height: 100%; display: block; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 8px; }
+  button { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #5a4b4f; }
+  .time { color: var(--dim); font-variant-numeric: tabular-nums; min-width: 92px; }
+  .track { position: relative; height: 10px; border-radius: 4px; background: #1b171b; cursor: pointer; margin-bottom: 14px; }
+  .head { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; }
+  .legend { font-size: 12.5px; color: var(--dim); margin: 0 0 10px; line-height: 1.6; }
+  .legend b { color: var(--fg); font-weight: 600; }
+  .legend .how { display: block; }
+  .missing { font-size: 12px; color: #6d635b; margin: 0 0 8px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; }
+  .tool { border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; cursor: pointer; background: #110e11; min-width: 0; }
+  .tool.on { border-color: var(--on); background: #1d1013; }
+  .tool > b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .tag { display: inline-block; font-size: 10.5px; line-height: 1; padding: 3px 6px 3px; border-radius: 9px; margin-left: 6px; font-weight: 600; vertical-align: 2px; letter-spacing: 0.02em; }
+  .tag.ver { color: #ffb9ab; background: #3a1a1c; }
+  .tag.v-love { color: #c8f0d2; background: #1d4a2b; }
+  .tag.v-keep { color: #cfe0f5; background: #213a5c; }
+  .tag.v-work { color: #f7deb0; background: #5a3e12; }
+  .tag.v-none { color: #b9b0a7; background: #2a2428; font-weight: 500; }
+  .tag.v-rev { color: #f7deb0; background: transparent; border: 1px solid #5a3e12; font-weight: 500; }
+  .tool .blurb { color: var(--dim); font-size: 13px; }
+  .err { color: #ff8a7a; font-size: 12px; }
+  .params { margin-top: 8px; display: grid; gap: 7px; cursor: default; }
+  .prm { position: relative; font-size: 12px; color: var(--dim); }
+  .prm .top { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 6px; align-items: center; }
+  .prm .name { color: var(--fg); min-width: 0; line-height: 1.2; }
+  .prm .info { padding: 0 6px; font-size: 11px; line-height: 16px; border-radius: 50%; color: var(--dim); font-style: italic; font-family: Georgia, serif; }
+  .prm .row { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; align-items: center; margin-top: 3px; }
+  .prm.plain { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name sel' 'slider slider'; gap: 1px 6px; align-items: center; }
+  .prm.plain .name { grid-area: name; } .prm.plain select { grid-area: sel; } .prm.plain input { grid-area: slider; }
+  .prm.plain .name { color: var(--dim); }
+  .prm input { width: 100%; accent-color: var(--on); margin: 0; }
+  .prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; max-width: 124px; }
+  .prm canvas { display: block; width: 40px; height: 26px; border-radius: 3px; background: #0a080a; }
+  .prm canvas.live { background: #241b20; box-shadow: 0 0 0 1px #3a2c31; }
+  .prm .hint { display: none; color: #cbbfb4; font-size: 12px; line-height: 1.4; padding: 4px 0 0 46px; }
+  .prm.open .hint { display: block; }
+  @media (hover: hover) {
+    .prm:not(.open):hover .hint { display: block; position: absolute; z-index: 5; left: 46px; right: 0; bottom: 100%; margin-bottom: 4px;
+      padding: 6px 8px; background: #241b20; border: 1px solid #3a2c31; border-radius: 5px; box-shadow: 0 4px 14px #000a; }
+  }
+  .rate { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+  .rate button { padding: 2px 8px; font-size: 12px; color: var(--dim); }
+  .rate button.picked { color: var(--fg); border-color: var(--on); background: #2a1418; }
+  /* Combinations: the "combines with N" pill on a member's card opens (hover, or tap) its partners, each with "try together". */
+  .tool { position: relative; }
+  .cmbw { display: inline-block; margin-left: 6px; vertical-align: 1px; }
+  .cmb { padding: 1px 8px 1px 3px; font-size: 11px; line-height: 16px; border-radius: 9px; color: #d9c7f0; background: #2a2038; border-color: #4a3a60; font-weight: 500; }
+  .cmb i { display: inline-block; width: 15px; height: 15px; line-height: 13px; margin-right: 4px; border: 1px solid #8f78b4; border-radius: 50%; text-align: center; font-family: Georgia, serif; font-size: 10.5px; }
+  .cmbpop { visibility: hidden; opacity: 0; transition: visibility 0s 0.25s, opacity 0.12s 0.13s; position: absolute; z-index: 9; left: 6px; right: 6px; top: 32px; /* top: set under the pill on open */
+    max-height: min(360px, 60vh); overflow-y: auto; cursor: default; font-weight: 400; padding: 4px 10px; background: #1a1422; border: 1px solid #4a3a60;
+    border-radius: 6px; box-shadow: 0 8px 22px #000c; }
+  .cmbw.open .cmbpop { visibility: visible; opacity: 1; transition-delay: 0s; }
+  @media (hover: hover) { .cmbw:hover .cmbpop { visibility: visible; opacity: 1; transition-delay: 0s; } }
+  .cmbrow { padding: 8px 0; border-top: 1px solid #2e2538; font-size: 12.5px; line-height: 1.45; color: #cbbfb4; }
+  .cmbrow:first-child { border-top: 0; }
+  .cmbrow .who { color: var(--fg); font-weight: 600; margin-bottom: 2px; }
+  .cmbrow .who .now { color: #c8f0d2; font-weight: 500; font-size: 11px; margin-left: 6px; }
+  .cmbrow .when, .cmbrow .sets, .cmbrow .tip { color: var(--dim); font-size: 12px; margin-top: 3px; }
+  .cmbrow .sets { color: #d9c7f0; }
+  .cmbrow button { margin-top: 6px; padding: 3px 10px; font-size: 12px; border-color: #6a5390; background: #2a2038; }
+  .cmbrow button:hover { border-color: #a58bd0; }
+  details.combos { margin: 0 0 12px; border: 1px solid #3a2e48; border-radius: 6px; background: #120f17; }
+  details.combos > summary { cursor: pointer; padding: 8px 11px; color: #d9c7f0; font-size: 13px; }
+  details.combos > summary b { font-weight: 600; }
+  details.combos .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 0 18px; padding: 0 11px 6px; }
+  details.combos .cmbrow:first-child { border-top: 1px solid #2e2538; }
+  .onnow button.undo { border-color: #6a5390; background: #2a2038; padding-right: 9px; }
+  .tool.hl { box-shadow: 0 0 0 2px #e9e2da55; transition: box-shadow 0.2s; }
+  /* The widgets now playing, under the track: click one to jump to its card, × to switch it off. */
+  .onnow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--dim); margin: -6px 0 10px; min-height: 24px; }
+  .onnow button { padding: 2px 4px 2px 9px; font-size: 12px; border-color: var(--on); background: #1d1013; display: inline-flex; gap: 4px; align-items: center; }
+  .onnow button i { font-style: normal; color: var(--dim); padding: 0 4px; border-radius: 4px; }
+  .onnow button i:hover { color: var(--fg); background: #3a1a1c; }
+  /* Tags (lab/tags.json): feel and instrument chips under a card's name; a click adds the word to the filter bar. */
+  .chips { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0 4px; }
+  .chip { padding: 0 7px; font-size: 10.5px; line-height: 16px; border-radius: 8px; font-weight: 500; }
+  .chip.feel { color: #e6d3bd; background: #221a16; border-color: #3d3027; }
+  .chip.inst { color: #bfd6e8; background: #141d26; border-color: #2a3a4a; }
+  .chip.picked { border-color: #e9e2da; color: #fff; background: #3a2a2a; }
+  .chip.inst.picked { background: #22384c; }
+  .filt { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 6px; background: #100d10; }
+  .filt > summary { cursor: pointer; padding: 7px 11px; font-size: 13px; color: var(--fg); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .filt > summary::before { content: '▸'; color: var(--dim); }
+  .filt[open] > summary::before { content: '▾'; }
+  .filt > summary .dim { color: var(--dim); }
+  .filt > summary button { padding: 1px 8px; font-size: 12px; }
+  .filt .rows { padding: 2px 11px 8px; display: grid; gap: 5px; }
+  .filt .row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px; align-items: baseline; font-size: 12px; }
+  .filt .row > span { color: var(--dim); }
+  .filt .row > div { display: flex; flex-wrap: wrap; gap: 3px; }
+  .filt .chip { font-size: 11.5px; line-height: 18px; }
+  @media (max-width: 560px) { .filt .row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+  /* A card's layer (lab/layer-ui.js): what it listens to, where it is seen, how it comes and goes. Under the knobs. */
+  .lyr { margin-top: 8px; font-size: 12px; color: var(--dim); cursor: default; min-width: 0; }
+  .lyr [hidden] { display: none !important; }
+  .lyr-d > summary { cursor: pointer; list-style: none; display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+  .lyr-d > summary::-webkit-details-marker { display: none; }
+  .lyr-d > summary::before { content: '▸'; color: var(--dim); width: 8px; flex: none; }
+  .lyr-d[open] > summary::before { content: '▾'; }
+  .lyr-d > summary .lyr-k { flex: none; }
+  .lyr-sum { color: #cbbfb4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .lyr.set .lyr-sum { color: #f0c2b4; }
+  .lyr-row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 6px; align-items: center; margin-top: 5px; }
+  .lyr-k { color: var(--dim); }
+  .lyr select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11.5px; min-width: 0; max-width: 100%; }
+  .lyr button { padding: 2px 9px; font-size: 11.5px; }
+  .lyr-seg { display: inline-flex; }
+  .lyr-seg button { border-radius: 0; margin-left: -1px; }
+  .lyr-seg button:first-child { border-radius: 5px 0 0 5px; margin-left: 0; } .lyr-seg button:last-child { border-radius: 0 5px 5px 0; }
+  .lyr button[aria-pressed="true"] { background: #2a1418; border-color: var(--on); color: var(--fg); position: relative; }
+  .lyr-regc, .lyr-int, .lyr-amtc { display: flex; flex-wrap: wrap; gap: 5px 6px; align-items: center; min-width: 0; }
+  .lyr-fea { display: inline-flex; gap: 4px; align-items: center; flex: 1 1 80px; min-width: 80px; }
+  .lyr input[type="range"] { width: 100%; accent-color: var(--on); margin: 0; }
+  .lyr-amtc input { flex: 1 1 90px; min-width: 80px; }
+  .lyr-say { flex: 1 1 100%; color: #cbbfb4; }
+  .lyr-note { margin: 5px 0 0; color: #cbbfb4; font-size: 11.5px; line-height: 1.4; }
+  /* Tuning without scrolling. Landscape windows 900 px wide or more (html.side, set by the script below): the stage
+     (canvas, transport, track) is a column that stays put on the left while the cards scroll beside it. Upright screens
+     (phones, tablets): the stage sticks to the top and the cards scroll under it. Smaller landscape windows keep the plain
+     stack. Automated browsers (shot.mjs's 1280×900) only get the side layout from 1300 px, so their stills of #c come out
+     as wide as before. The canvas's pixels (1280×720) never depend on any of this: only its CSS size. */
+  html.side main { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 40vw, 820px); grid-template-rows: auto 1fr;
+    grid-template-areas: 'head cards' 'deck cards'; gap: 0 18px; align-items: start; }
+  html.side main > header { grid-area: head; } html.side .deck { grid-area: deck; } html.side .cards { grid-area: cards; }
+  html.side .deck { position: sticky; top: 0; padding-top: 10px; max-height: 100vh; overflow-y: auto; scrollbar-width: thin; }
+  /* As wide as the column, but never so tall that the transport falls off a short window. */
+  html.side .stage { width: min(100%, calc((100vh - 230px) * 16 / 9)); }
+  html.side .tools { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+  @media (max-width: 1299px) and (orientation: portrait) {
+    .deck { position: sticky; top: 0; z-index: 10; background: var(--bg); margin: 0 -16px; padding: 8px 16px 0; box-shadow: 0 8px 12px -10px #000; }
+    .deck .bar, .deck .onnow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-top: 8px; }
+    .deck .bar > *, .deck .onnow > * { flex: none; white-space: nowrap; }
+    /* The song picker sits right after Play, not off the edge of the sideways-scrolling bar. */
+    .deck #play { order: -2; } .deck .bar select { order: -1; margin-left: 0 !important; max-width: 52vw !important; }
+    .deck .onnow { margin: -6px 0 6px; }
+    .deck .track { margin-bottom: 12px; }
+    .tool { scroll-margin-top: calc(var(--deck-h, 0px) + 8px); }
+  }
+</style>
+<script>
+// html.side: the side-by-side layout (see the CSS above). Set before the first paint and kept up as the window changes.
+{ const mq = matchMedia(navigator.webdriver ? '(min-width: 1300px)' : '(min-width: 1300px), (min-width: 900px) and (orientation: landscape)');
+  const set = () => document.documentElement.classList.toggle('side', mq.matches); set(); mq.addEventListener('change', set); }
+</script>
+</head>
+<body>
+<main>
+  <header>
+  <h1>Widget lab: switch widgets on and off, mix them, judge them</h1>
+  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that widget. Throwaway sketches, not app code.</p>
+  </header>
+  <div class="deck" id="deck">
+  <div class="stage"><canvas id="c" width="1280" height="720"></canvas></div>
+  <div class="bar">
+    <button id="play">▶ Play</button>
+    <span id="moments" style="display:contents"></span>
+    <span class="time" id="time">0:00</span>
+    <button id="export" title="Copies your ratings and slider settings so you can paste them to Claude">Copy ratings + settings</button>
+    <select id="songs" title="Song" style="margin-left:auto;background:#1b171b;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 8px;font:inherit;max-width:100%"></select>
+  </div>
+  <div class="track" id="track"><div class="head" id="head"></div></div>
+  <div class="onnow" id="onnow"></div>
+  </div>
+  <div class="cards">
+  <details class="filt" id="filt" hidden></details>
+  <details class="combos" id="combos" hidden></details>
+  <p class="legend">
+    <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
+    <b>louder</b> = the keys are struck harder ·
+    <b>faster</b> = more notes per second ·
+    <b>higher notes</b> = the top note climbs ·
+    <b>more bass</b> = more weight in the low notes ·
+    <b>fuller chords</b> = more notes sounding at once.
+    <span class="how">“louder → more” turns the knob up as the music gets louder; “louder → less” turns it down.
+    The two small pictures at the ends of a slider show what left and right do; the lit one by its name shows where it is now, moving with the music. Hover or tap <i>i</i> for a sentence about it.</span>
+  </p>
+  <p class="missing" id="missing"></p>
+  <div class="tools" id="tools"></div>
+  </div>
+</main>
+<audio id="a" preload="auto"></audio>
+<script>
+// Songs: ?song=b5 switches. Moments carry the Prelude's mood names, which some tools read (e.g. how many shapes spawn).
+const SONGS = {
+  prelude: { title: 'Rachmaninoff: Prelude in C♯ minor', audio: 'prelude.mp3', notes: 'notes.js', dur: 232.1,
+    moments: [[0, 'dread', 'Dread'], [83, 'agitato', 'Agitato'], [124, 'casket', 'The casket'], [176, 'return', 'Return'], [208, 'agitato']] },
+  // pack: lab/pack-<id>.js (npm run lab-notes -- <id>, git-ignored) sets window.PACK = { tracks, beats, loudness }: the
+  // instrument tracks a layer can listen to. Without the file every part falls back to all the notes.
+  b5: { title: 'Beethoven: Symphony No. 5, I', audio: 'beethoven5.mp3', notes: 'notes-b5.js', pack: 'pack-beethoven5.js', dur: 424.8,
+    // My guesses from the note density; the hard stops at 1:20 and 2:40 are the motto's fermatas.
+    moments: [[0, 'casket', 'Fate knocks'], [20, 'agitato'], [80, 'casket', 'Repeat'], [100, 'agitato'], [160, 'casket', 'Development'], [180, 'agitato'],
+      [258, 'return', 'Oboe’s lament'], [275, 'agitato', 'Recapitulation'], [340, 'casket', 'Coda']] },
+  // The three below come from the studio's packs (npm run ingest): notes-<id>.js is the pack's notes, the moments my
+  // reading of its sections, loudness and harmony against the score.
+  'chopin-nocturne-48-1': { title: 'Chopin: Nocturne in C minor, Op. 48 No. 1', audio: 'chopin-nocturne-48-1.mp3', notes: 'notes-chopin-nocturne-48-1.js', dur: 381.6,
+    // Lento lament; its climax ~1:42; the C major chorale (poco più lento) at 2:04, broken by octaves; the lament returns
+    // doppio movimento at 3:21 over hammering triplets; it dies away from 5:26 (the file rings out to silence after 6:00).
+    moments: [[0, 'dread', 'Lento'], [100, 'agitato'], [124, 'casket', 'The chorale'], [186, 'agitato', 'Octaves'],
+      [201, 'return', 'Doppio movimento'], [326, 'dread', 'Fading']] },
+  'chopin-winter-wind': { title: 'Chopin: Étude Op. 25 No. 11, Winter Wind', audio: 'chopin-winter-wind.mp3', notes: 'notes-chopin-winter-wind.js', dur: 248.9,
+    // Four bars of lento, then the storm of right-hand runs; far keys from ~1:42; A minor again ~2:42; the closing chords
+    // and the last run up end the étude at 3:44. After 3:51 the file holds something else (quiet E-flat bells): not the étude.
+    moments: [[0, 'dread', 'Lento'], [20, 'agitato', 'The storm'], [102, 'dread', 'Far keys'], [162, 'agitato', 'A minor again'],
+      [216, 'casket', 'Last chords'], [231, 'return']] },
+  'vivaldi-winter': { title: 'Vivaldi: Winter (all three movements)', audio: 'vivaldi-winter.mp3', notes: 'notes-vivaldi-winter.js', pack: 'pack-vivaldi-winter.js', dur: 566.1,
+    // Strings, not piano: the piano transcriber misses whole passages (the third movement's solo violin on ice, 5:55-6:27).
+    // I Allegro non molto 0:00-3:30 (shivering, the horrid wind, stamping feet, chattering teeth), II Largo 3:30 (rain),
+    // III Allegro 5:48 (walking on ice; the warm south wind in its lento ~8:08; all the winds at war from 8:40).
+    moments: [[0, 'dread', 'Shivering'], [36, 'agitato', 'The wind'], [66, 'casket'], [180, 'agitato', 'Chattering teeth'],
+      [210, 'return', 'Largo: rain'], [348, 'dread', 'On the ice'], [400, 'agitato'], [488, 'return'], [520, 'casket', 'The winds at war']] },
+};
+const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
+const SONG = SONGS[SONG_ID];
+// ?render=1 (lab/render.mjs): no audio, no rAF loop, our default knobs, seeded randomness; the page exposes
+// renderSeek(t) and renderStep(dt) and draws frames on demand, through the same step() the live loop uses.
+const RENDER = new URLSearchParams(location.search).has('render');
+const RENDER_HZ = Number(new URLSearchParams(location.search).get('hz')) || 60;   // live frames per song second to imitate
+// A tool that draws after the others (pixelsort queues a microtask) would never run inside the renderer's synchronous
+// steps, so in render mode queueMicrotask collects the callbacks and step() runs them at its end; workers are off, so
+// such a tool reads the screen itself (synchronously, deterministically).
+const RENDER_POST = [];
+if (RENDER) {
+  window.queueMicrotask = (fn) => { RENDER_POST.push(fn); };
+  window.Worker = undefined;
+  let seed = 1;
+  window.reseed = (n) => { seed = (n >>> 0) || 1; };
+  Math.random = () => { seed = (seed + 0x6D2B79F5) >>> 0; let z = seed; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+}
+if (!RENDER) document.getElementById('a').src = SONG.audio;
+document.write(`<script src="${SONG.notes}"><\/script>`);
+</script>
+<script src="combos.js"></script>
+<!-- Layers (listen to a part, sit in a region, follow an intensity curve): the same files the studio evaluates, written
+     once (lab/layers/, plan 2026-10-31 §2). Each puts its part on window.WA_LAYERS. File-name order, as the studio's. -->
+<script src="layers/automation.js"></script>
+<script src="layers/lines.js"></script>
+<script src="layers/persist.js"></script>
+<script src="layers/region.js"></script>
+<script src="layers/slot.js"></script>
+<!-- The cards' layer controls and the place overlay on the stage (the studio evaluates the same region-ui.js). -->
+<script src="region-ui.js"></script>
+<script src="layer-ui.js"></script>
+<script>
+// Tools register themselves: TOOLS.push({ id, name, blurb, tag?, on?, params?, reset(ctx), onChord(ch, ctx), frame(ctx) }).
+window.TOOLS = [];
+
+/* Knob pictures. A param may carry `icon(g, v, w, h)`: draw what the knob does at v (0..1 along the slider) on a w×h
+   canvas context (CSS pixels; the harness handles the screen's pixel density, clears it, and sets fill/stroke to ICON.ink,
+   lineWidth 1.5, round caps). The harness draws it at v=0 and v=1 at the slider's ends, and a live one by the name.
+   ICON holds helpers so most icons are one line, e.g. icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * 12, ICON.red).
+   Anything random must use ICON.rng(seed) so the picture doesn't jitter as it redraws. */
+window.ICON = (() => {
+  const I = {
+    ink: '#e9e2da', dim: '#6d635b', red: '#c43a2c', gold: '#e0b04a', blue: '#4f86c6', green: '#5aa36f', violet: '#9a6bd0',
+    /** Seeded random: const r = ICON.rng(3); r() → 0..1, same sequence every redraw. */
+    rng(seed = 1) { let s = (seed * 2654435761) >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); },
+    /** Mix two '#rrggbb' colours: t=0 → a, t=1 → b. */
+    lerp(a, b, t) { const p = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16); return `rgb(${[0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t)).join(',')})`; },
+    dot(g, x, y, r, col = I.ink) { g.fillStyle = col; g.beginPath(); g.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); g.fill(); },
+    ring(g, x, y, r, col = I.ink, lw = 1.5) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); g.stroke(); },
+    square(g, x, y, s, col = I.ink, rot = 0) { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = col; g.fillRect(-s / 2, -s / 2, s, s); g.restore(); },
+    rect(g, x, y, w, h, col = I.ink) { g.fillStyle = col; g.fillRect(x, y, w, h); },
+    line(g, x1, y1, x2, y2, col = I.ink, lw = 1.5) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); },
+    arrow(g, x1, y1, x2, y2, col = I.ink, lw = 1.5) {
+      I.line(g, x1, y1, x2, y2, col, lw); const a = Math.atan2(y2 - y1, x2 - x1), k = 3 + lw * 1.5;
+      g.fillStyle = col; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 - k * Math.cos(a - 0.5), y2 - k * Math.sin(a - 0.5)); g.lineTo(x2 - k * Math.cos(a + 0.5), y2 - k * Math.sin(a + 0.5)); g.fill();
+    },
+    /** n parallel lines across the box ('h' horizontal or 'v' vertical). */
+    lines(g, n, w, h, { dir = 'h', col = I.ink, lw = 1.2, pad = 3 } = {}) {
+      n = Math.max(0, Math.round(n));
+      for (let i = 0; i < n; i++) { const f = n === 1 ? 0.5 : i / (n - 1);
+        if (dir === 'h') { const y = pad + f * (h - 2 * pad); I.line(g, pad, y, w - pad, y, col, lw); } else { const x = pad + f * (w - 2 * pad); I.line(g, x, pad, x, h - pad, col, lw); } }
+    },
+    /** n scattered dots (seeded), radius r. */
+    dots(g, n, w, h, { seed = 7, r = 1.4, col = I.ink, pad = 3 } = {}) { const R = I.rng(seed); for (let i = 0; i < Math.round(n); i++) I.dot(g, pad + R() * (w - 2 * pad), pad + R() * (h - 2 * pad), r, col); },
+    /** A sine across the box: amp 0..1 of the half-height, `cycles` waves. */
+    wave(g, w, h, amp = 0.6, cycles = 2, col = I.ink, lw = 1.5) {
+      g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+      for (let x = 2; x <= w - 2; x++) { const y = h / 2 - Math.sin(((x - 2) / (w - 4)) * cycles * Math.PI * 2) * amp * (h / 2 - 2); x === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
+      g.stroke();
+    },
+    /** Run draw() under a blur of px pixels: ICON.blur(g, v * 3, () => ICON.square(g, w / 2, h / 2, 10)). */
+    blur(g, px, draw) { g.save(); g.filter = px > 0.05 ? `blur(${px.toFixed(2)}px)` : 'none'; draw(); g.restore(); },
+    /** Run draw() at an opacity 0..1. */
+    alpha(g, a, draw) { g.save(); g.globalAlpha = Math.max(0, Math.min(1, a)); draw(); g.restore(); },
+    /** Colour swatches side by side across the box. */
+    palette(g, colours, w, h, pad = 3) { const n = colours.length, sw = (w - 2 * pad) / n; colours.forEach((c, i) => I.rect(g, pad + i * sw, pad, Math.ceil(sw), h - 2 * pad, c)); },
+    /** A pie slice filled to frac (0..1) from 12 o'clock: amounts, durations. */
+    pie(g, x, y, r, frac, col = I.ink) {
+      I.ring(g, x, y, r, I.dim, 1); if (frac <= 0) return;
+      g.fillStyle = col; g.beginPath(); g.moveTo(x, y); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, frac)); g.closePath(); g.fill();
+    },
+    /** How long things last: a row of shapes from bright (left) fading to nothing; life 0..1 = how far along the row they stay visible. */
+    fade(g, w, h, life, col = I.ink, shape = 'square') {
+      const n = 5, step = (w - 4) / n;
+      for (let i = 0; i < n; i++) { const f = i / (n - 1), a = Math.max(0, 1 - f / Math.max(0.04, life));
+        if (a > 0) I.alpha(g, a, () => I.shape(g, shape, 2 + step * (i + 0.5), h / 2, Math.min(step - 1.5, h - 6), col)); }
+    },
+    /** Ghost copies around draw(), offset by up to amt pixels: shake, jitter. */
+    shake(g, amt, draw) { const R = I.rng(5); for (let i = 0; i < 3; i++) { g.save(); g.globalAlpha = amt > 0.2 ? 0.35 : 0; g.translate((R() - 0.5) * 2 * amt, (R() - 0.5) * 2 * amt); draw(); g.restore(); } draw(); },
+    /** A mini piano keyboard; keys between from and to (0..1 across the keyboard) lit in col. */
+    keys(g, w, h, from = 0, to = 1, col = I.red) {
+      const n = 10, kw = (w - 2) / n;
+      for (let i = 0; i < n; i++) { const f = (i + 0.5) / n; I.rect(g, 1 + i * kw, 2, kw - 1, h - 4, f >= from && f <= to ? col : '#cfc6bc'); }
+      for (const i of [0, 1, 3, 4, 5, 7, 8]) I.rect(g, 1 + (i + 0.62) * kw, 2, kw * 0.7, (h - 4) * 0.58, '#151214');
+    },
+    /** A dot with a tail behind it, tail length 0..1 of the box: trails, smears, memory. */
+    trail(g, len, w, h, col = I.ink) {
+      const x = w - 5, y = h / 2, L = len * (w - 10);
+      for (let i = 10; i > 0; i--) I.alpha(g, (1 - i / 10) * 0.8, () => I.dot(g, x - (L * i) / 10, y + Math.sin(i * 0.6) * 2, 1.3 + (1 - i / 10) * 1.2, col));
+      I.dot(g, x, y, 2.6, col);
+    },
+    /** A short word or symbol centred in the box. */
+    glyph(g, text, w, h, col = I.ink, px = 11) { g.fillStyle = col; g.font = `600 ${px}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 0.5); },
+    /** One named shape centred at x,y, size s: 'dot', 'ring', 'square', 'diamond', 'triangle', 'oval', 'line', 'tick', 'cross', 'star'. */
+    shape(g, name, x, y, s, col = I.ink) {
+      const r = s / 2;
+      switch (name) {
+        case 'dot': return I.dot(g, x, y, r, col);
+        case 'ring': return I.ring(g, x, y, r * 0.85, col);
+        case 'diamond': return I.square(g, x, y, s * 0.72, col, Math.PI / 4);
+        case 'triangle': g.fillStyle = col; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.9, y + r * 0.7); g.lineTo(x - r * 0.9, y + r * 0.7); g.fill(); return;
+        case 'oval': g.fillStyle = col; g.beginPath(); g.ellipse(x, y, r, r * 0.55, 0, 0, Math.PI * 2); g.fill(); return;
+        case 'line': return I.line(g, x - r, y, x + r, y, col);
+        case 'tick': return I.line(g, x, y - r, x, y + r, col);
+        case 'cross': I.line(g, x - r * 0.75, y - r * 0.75, x + r * 0.75, y + r * 0.75, col); return I.line(g, x - r * 0.75, y + r * 0.75, x + r * 0.75, y - r * 0.75, col);
+        case 'star': g.fillStyle = col; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r * 0.45 : r; g.lineTo(x + q * Math.cos(a), y + q * Math.sin(a)); } g.fill(); return;
+        default: return I.square(g, x, y, s, col);
+      }
+    },
+    /** The fallback for a knob without an icon: a bar filled to v. */
+    gauge(g, v, w, h) { I.rect(g, 3, h / 2 - 3, w - 6, 6, '#2c2428'); I.rect(g, 3, h / 2 - 3, (w - 6) * v, 6, I.dim); },
+  };
+  /* Ready-made icons for common knob kinds (each returns an icon function): icon: ICON.of.size('dot', ICON.gold). */
+  I.of = {
+    size: (shape = 'square', col) => (g, v, w, h) => I.shape(g, shape, w / 2, h / 2, 3 + v * (h - 5), col),
+    count: (max = 12, col) => (g, v, w, h) => I.dots(g, 1 + v * (max - 1), w, h, { col }),
+    blur: (shape = 'square', col) => (g, v, w, h) => I.blur(g, v * 3, () => I.shape(g, shape, w / 2, h / 2, h - 8, col)),
+    time: (col) => (g, v, w, h) => I.fade(g, w, h, 0.12 + v * 0.88, col),
+    speed: (col) => (g, v, w, h) => I.trail(g, 0.1 + v * 0.9, w, h, col),
+    lines: (max = 8, col) => (g, v, w, h) => I.lines(g, 1 + v * (max - 1), w, h, { col }),
+    choice: (shapes, col) => (g, v, w, h) => I.shape(g, shapes[Math.round(v * (shapes.length - 1))], w / 2, h / 2, h - 6, col),
+    colour: (a, b) => (g, v, w, h) => I.rect(g, 3, 3, w - 6, h - 6, I.lerp(a, b, v)),
+  };
+  return I;
+})();
+
+// The widgets, in load and draw order (cards sort by it too): tonight's new ones, then (re)worked ones, then the rest. A missing or broken file only
+// leaves a note: Vite answers a missing file with its HTML page, so each file is fetched and checked before it runs.
+const TOOL_IDS = ['timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
+  'matisse', 'kusama', 'ikeda', 'horizon',
+  'harmonograph', 'hilma', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
+  'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
+  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
+const LOAD_NOTES = { missing: [], broken: [] };
+const TOOL_SRC = {};   // id → the widget file's text: a layer instance that listens to a part runs its own copy
+async function loadTools() {
+  const texts = await Promise.all(TOOL_IDS.map(async (id) => {
+    try { const r = await fetch(`tools/${id}.js`, { cache: 'no-store' }); return r.ok && /javascript/.test(r.headers.get('content-type') || '') ? await r.text() : null; }
+    catch { return null; }
+  }));
+  TOOL_IDS.forEach((id, i) => {
+    if (texts[i] == null) return LOAD_NOTES.missing.push(id);
+    TOOL_SRC[id] = texts[i];
+    try { (0, eval)(`${texts[i]}\n//# sourceURL=${new URL(`tools/${id}.js`, location.href)}`); }
+    catch (e) { LOAD_NOTES.broken.push(`${id} (${e.message})`); console.warn('tool', id, 'did not load:', e); }
+  });
+}
+/** The song's pack file (SONGS[…].pack): window.PACK = { tracks, beats, loudness }. It is git-ignored, so it may be
+    missing: then PACK stays undefined and a layer listening to an instrument hears all the notes. */
+async function loadPack() {
+  if (!SONG.pack) return;
+  try {
+    const r = await fetch(SONG.pack, { cache: 'no-store' });
+    if (!r.ok || !/javascript/.test(r.headers.get('content-type') || '')) return;
+    (0, eval)(`${await r.text()}\n//# sourceURL=${new URL(SONG.pack, location.href)}`);
+  } catch (e) { console.warn('pack', SONG.pack, 'did not load:', e); }
+}
+/** The widgets' tags (lab/tags.json) and their words (lab/tag-words.json), for the chips and the filter bar. Not in
+    render mode: the cards there are never seen. Missing or broken files leave the cards without chips. */
+let TAGS = null, WORDS = null;
+async function loadTags() {
+  if (RENDER) return;
+  const get = async (f) => { try { const r = await fetch(f, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch { return null; } };
+  [TAGS, WORDS] = await Promise.all([get('tags.json'), get('tag-words.json')]);
+  if (!TAGS || typeof TAGS !== 'object' || !WORDS?.feel || !WORDS?.instruments) TAGS = WORDS = null;
+}
+</script>
+<script>
+const W = 1280, H = 720, DUR = SONG.dur;
+const fmt0 = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+document.getElementById('moments').innerHTML = SONG.moments.filter((m) => m[2]).map(([t, , label]) => `<button data-t="${t}">${label} (${fmt0(t)})</button>`).join('');
+document.getElementById('songs').innerHTML = Object.entries(SONGS).map(([id, s]) => `<option value="${id}"${id === SONG_ID ? ' selected' : ''}>${s.title}</option>`).join('');
+// A new song reloads the page: what's on and the card you were at come along (this tab only), so you keep tuning there.
+const cardsTop = () => (document.documentElement.classList.contains('side') ? 0 : Math.max(0, document.getElementById('deck').getBoundingClientRect().bottom));
+document.getElementById('songs').onchange = (e) => {
+  try {
+    const top = cardsTop(), card = [...document.querySelectorAll('.tool')].find((d) => d.getBoundingClientRect().bottom > top + 40);
+    sessionStorage.setItem('wa-carry', JSON.stringify({ on: [...active], card: card?.dataset.id, dy: card ? card.getBoundingClientRect().top - top : 0 }));
+  } catch {}
+  location.search = WA_LAYER_UI.filterSearch(`?song=${encodeURIComponent(e.target.value)}`, FILTER);   // the filter comes along
+};
+const c = document.getElementById('c'), g = c.getContext('2d');
+const audio = document.getElementById('a');
+
+// Chords: notes whose onsets fall within 40 ms of each other are one attack.
+const CHORDS = [];
+for (const [s, e, m, v] of NOTES) {
+  const last = CHORDS[CHORDS.length - 1];
+  if (last && s - last.t < 0.04) { last.notes.push({ m, v, d: e - s }); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m); }
+  else CHORDS.push({ t: s, notes: [{ m, v, d: e - s }], vel: v, lo: m, hi: m });
+}
+const MOMENTS = SONG.moments;
+
+/** The notes behind ctx.sounding() and ctx.top(): NOTES, or a part's while an instance that listens to it is called. */
+const SND = { notes: NOTES };
+/** What every tool gets each frame. */
+const ctx = {
+  g, W, H, canvas: c,
+  t: 0,          // song seconds (audio clock)
+  dt: 0,         // song seconds since last frame; 0 when paused (freeze!)
+  now: 0,        // wall seconds (only for things that should keep moving while paused: nothing should)
+  moment: 'dread',
+  level: 0,      // 0..1 smoothed loudness from recent attack velocities
+  rate: 0,       // attacks per second, smoothed
+  rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
+  /** Notes sounding at song time t: [{ m, v, start, end }]. While a layer instance that hears a part is called, its
+      part's (SND.notes; the shared lines.js soundingAt, as the studio's). */
+  sounding() {
+    if (SND.notes !== NOTES) return WA_LAYERS.soundingAt(SND.notes, ctx.t);
+    const out = []; for (let i = lo(ctx.t - 8); i < NOTES.length && NOTES[i][0] <= ctx.t; i++) { const [s, e, m, v] = NOTES[i]; if (e > ctx.t) out.push({ m, v, start: s, end: e }); } return out;
+  },
+  /** Highest note sounding now, or null. */
+  top() { let b = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
+  /** MIDI → 0..1 (piano range 21..108). */
+  pitch01: (m) => Math.max(0, Math.min(1, (m - 21) / 87)),
+};
+function lo(t) { let a = 0, b = NOTES.length; while (a < b) { const k = (a + b) >> 1; if (NOTES[k][0] < t) a = k + 1; else b = k; } return a; }
+
+// ?only=flee,squares picks the tools (for the shot script); otherwise the ones marked `on`.
+const only = new URLSearchParams(location.search).get('only');
+const active = new Set(only ? only.split(',') : []);
+const errors = {};
+const RATES = ['love it', 'keep', 'needs work', 'drop'];
+let ratings = {}; try { if (!RENDER) ratings = JSON.parse(localStorage.getItem('wa-ratings') || '{}'); } catch {}
+// The user's verdicts so far (lab/ratings.md), with the version they judged. A tool whose tag has moved on since is "revised".
+const VERDICTS = {
+  casket: { v: 'love', on: 'building into the app', note: 'built into the app' },
+  squares: { v: 'love', on: 'v2' },
+  rorschach: { v: 'love', on: 'v2', note: 'keep our defaults' },
+  kandinsky: { v: 'love', on: 'v2', note: 'a complete visualization by itself' },
+  flee: { v: 'love', on: 'v3' },
+  current: { v: 'love', on: 'v3' },
+  strings: { v: 'love', on: 'v2', note: 'accepted the defaults' },
+  murmuration: { v: 'love', on: 'v3', note: 'your favourite' },
+  marbling: { v: 'love', on: 'v2', note: 'extremely high potential' },
+  miro: { v: 'love', on: 'new' },
+  delaunay: { v: 'love', on: 'new' },
+  lewitt: { v: 'love', on: 'new' },
+  kusama: { v: 'love', on: 'new' },
+  ikeda: { v: 'love', on: 'new' },
+  horizon: { v: 'love', on: 'new' },
+  score: { v: 'love', on: 'new' },
+  boogie: { v: 'love', on: 'new' },
+  riley: { v: 'love', on: 'v2' },
+  blocks: { v: 'love', on: 'v2' },
+  brush: { v: 'love', on: 'v2' },
+  halftone: { v: 'love', on: 'new' },
+  fields: { v: 'keep', on: 'v2', note: 'a good building block' },
+  fischinger: { v: 'keep', on: 'new' },
+  mclaren: { v: 'keep', on: 'new' },
+  lenlye: { v: 'keep', on: 'new' },
+  klee: { v: 'keep', on: 'new' },
+  ridges: { v: 'keep', on: 'new' },
+  kline: { v: 'keep', on: 'new' },
+  cells: { v: 'keep', on: 'new' },
+  nebula: { v: 'keep', on: 'new' },
+  pixelsort: { v: 'keep', on: 'new', note: 'already combines with other widgets in a very cool way' },
+  mandala: { v: 'keep', on: 'new' },
+  fifths: { v: 'keep', on: 'new' },
+  matisse: { v: 'needs work', on: 'new' },
+  harmonograph: { v: 'needs work', on: 'new' },
+  hilma: { v: 'needs work', on: 'new' },
+};
+const VCLASS = { love: 'v-love', keep: 'v-keep', 'needs work': 'v-work' };
+const isRevised = (tool) => VERDICTS[tool.id] && (tool.tag ?? '') !== VERDICTS[tool.id].on;
+const sortKey = (tool) => (!VERDICTS[tool.id] || isRevised(tool) ? 0 : 1000) + (TOOL_IDS.includes(tool.id) ? TOOL_IDS.indexOf(tool.id) : 999);
+
+// Parameters: a tool lists params [{ key, label, min, max, step?, value, drive?, hint?, icon? }] and reads ctx.p('key') each
+// frame. The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
+// Stored values stay '+level' etc. so saved settings keep loading; only the words shown changed.
+const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
+  ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
+  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less']];
+let PST = {}; try { if (!RENDER) PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
+const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
+// Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
+const BROWSER = /Edg\//.test(navigator.userAgent) ? 'edge' : /Electron|Claude/.test(navigator.userAgent) ? 'claude-pane' : 'chrome';
+let syncT = 0;
+// Headless browsers (shot.mjs, test scripts) never sync: they'd overwrite the user's saved entry with defaults.
+const sync = () => { if (RENDER || /HeadlessChrome/.test(navigator.userAgent)) return; clearTimeout(syncT); syncT = setTimeout(() => fetch('http://localhost:5174/save', { method: 'POST', body: JSON.stringify({ browser: BROWSER, ratings, params: PST, layers: layerList() }) }).catch(() => {}), 300); };
+const saveP = () => { if (RENDER) return; try { localStorage.setItem('wa-params', JSON.stringify(PST)); } catch {} sync(); };
+/* Layers (plan 2026-10-31 §11): LAYERS[id] = { listen?, region?, intensity? } in the show's field shapes (listen: 'all',
+   a track id, 'family:<f>' or a line; region: { mode, shape, x, y, w, h, … }; intensity: pivots [{ t, v, shape?, bend? }]
+   from a preset). Kept in localStorage 'wa-layers' (this lab's own key), posted with the ratings, copied as `layers`.
+   Render mode reads ?layers= instead: a JSON list of { widget, listen?, region?, intensity? }. */
+let LAYERS = {}; try { if (!RENDER) LAYERS = JSON.parse(localStorage.getItem('wa-layers') || '{}'); } catch {}
+if (!LAYERS || typeof LAYERS !== 'object' || Array.isArray(LAYERS)) LAYERS = {};
+const RENDER_LAYERS = (() => {
+  if (!RENDER) return null;
+  try {
+    const l = JSON.parse(new URLSearchParams(location.search).get('layers') || '[]');
+    if (Array.isArray(l) && l.every((x) => x && typeof x.widget === 'string')) return l;
+  } catch {}
+  window.renderFailed = 'layers= is a JSON list of { widget, listen?, region?, intensity? }'; return [];
+})();
+/** The layer entries as the show's list: [{ widget, listen?, region?, intensity? }], in TOOL_IDS order. */
+const layerList = () => RENDER_LAYERS ?? TOOL_IDS.filter((id) => LAYERS[id] && typeof LAYERS[id] === 'object').map((id) => ({ widget: id, ...LAYERS[id] }));
+const saveL = () => { if (RENDER) return; try { localStorage.setItem('wa-layers', JSON.stringify(LAYERS)); } catch {} sync(); };
+ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
+ctx.p = (key) => {
+  const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
+  const s = pst(tool, q); let v = s.base;
+  if (s.drive) v += (s.drive[0] === '+' ? 1 : -1) * s.depth * (q.max - q.min) * (ctx.feat[s.drive.slice(1)] - (s.drive.endsWith('pitch') ? 0.5 : 0));
+  return Math.max(q.min, Math.min(q.max, v));
+};
+const safe = (tool, fn, ...a) => { ctx.tool = tool; try { tool[fn]?.(...a); } catch (e) { if (!errors[tool.id]) { errors[tool.id] = String(e); render(); console.error(tool.id, e); } } };
+
+// Knob pictures: drawIcon paints a param's icon (or the gauge fallback) at v; a broken icon falls back instead of breaking the card.
+const IW = 40, IH = 26;
+function drawIcon(cv, q, v) {
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(IW * dpr)) { cv.width = Math.round(IW * dpr); cv.height = Math.round(IH * dpr); }
+  const ig = cv.getContext('2d'), paint = (fn) => {
+    ig.setTransform(dpr, 0, 0, dpr, 0, 0); ig.clearRect(0, 0, IW, IH); ig.save();
+    ig.fillStyle = ig.strokeStyle = ICON.ink; ig.lineWidth = 1.5; ig.lineCap = 'round'; ig.lineJoin = 'round';
+    try { fn(ig, Math.max(0, Math.min(1, v)), IW, IH); return true; } catch (e) { return false; } finally { ig.restore(); }
+  };
+  if (!(typeof q.icon === 'function' && paint(q.icon))) paint(ICON.gauge);
+}
+const norm = (q, x) => (q.max > q.min ? (x - q.min) / (q.max - q.min) : 0);
+let LIVE = []; // [{ tool, q, cv }] live icons on the page, redrawn as sliders move and (while playing) as the music drives them
+function drawLive(item) { const keep = ctx.tool; ctx.tool = item.tool; try { drawIcon(item.cv, item.q, norm(item.q, ctx.p(item.q.key))); } finally { ctx.tool = keep; } }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+function verdictTag(tool) {
+  const vd = VERDICTS[tool.id];
+  if (!vd) return '<span class="tag v-none">not judged yet</span>';
+  const tip = esc(`You said: ${vd.v} (on ${vd.on})${vd.note ? `: ${vd.note}` : ''}`);
+  return isRevised(tool) ? `<span class="tag v-rev" title="${tip}">reworked · was “${esc(vd.v)}”</span>`
+    : `<span class="tag ${VCLASS[vd.v] || 'v-none'}" title="${tip}">you: ${esc(vd.v)}</span>`;
+}
+function paramHTML(tool, q) {
+  const st = pst(tool, q), label = esc(q.label ?? q.key);
+  const select = `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
+  const slider = `<input type="range" data-k="${esc(q.key)}" aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}">`;
+  // Older tools' knobs (no picture, no hint) keep the compact one-line row.
+  if (!q.icon && !q.hint) return `<div class="prm plain" data-p="${esc(q.key)}"><span class="name">${label}</span>${slider}${select}</div>`;
+  return `<div class="prm" data-p="${esc(q.key)}">
+    <div class="top"><canvas class="live" data-i="live"></canvas><span class="name">${label}</span>${q.hint ? '<button class="info" data-info aria-label="what is this?">i</button>' : '<span></span>'}${select}</div>
+    <div class="row"><canvas data-i="0"></canvas>${slider}<canvas data-i="1"></canvas></div>
+    ${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}</div>`;
+}
+
+function render() {
+  const box = document.getElementById('tools'); box.innerHTML = ''; LIVE = [];
+  const list = [...TOOLS].sort((a, b) => sortKey(a) - sortKey(b));
+  for (const tool of list) {
+    const d = document.createElement('div'); d.className = 'tool' + (active.has(tool.id) ? ' on' : ''); d.dataset.id = tool.id;
+    let params = '';
+    try { params = Array.isArray(tool.params) && tool.params.length ? `<div class="params">${tool.params.map((q) => paramHTML(tool, q)).join('')}</div>` : ''; }
+    catch (e) { errors[tool.id] ??= `knobs: ${e}`; }
+    const chips = TAGS ? WA_LAYER_UI.chipsHTML(TAGS[tool.id], WORDS, FILTER) : '';
+    d.innerHTML = `<b>${esc(tool.name)}${tool.tag ? `<span class="tag ver">${esc(tool.tag)}</span>` : ''}${verdictTag(tool)}${comboPill(tool)}</b>${chips ? `<div class="chips">${chips}</div>` : ''}<span class="blurb">${tool.blurb ?? ''}</span>${errors[tool.id] ? `<div class="err">${esc(errors[tool.id])}</div>` : ''}`
+      + params + (RENDER ? '' : '<div class="lyr"></div>') + `<div class="rate">${RATES.map((r) => `<button data-r="${r}" class="${ratings[tool.id] === r ? 'picked' : ''}">${r}</button>`).join('')}</div>`;
+    d.hidden = !!TAGS && !WA_LAYER_UI.matches(TAGS[tool.id], FILTER);
+    // Knobs: touching anything in the knob area never toggles the tool. Nor does the combinations pill or its list.
+    d.querySelector('.params')?.addEventListener('click', (ev) => ev.stopPropagation());
+    wireCombos(d.querySelector('.cmbw'));
+    // A chip adds its word to the filter (or takes it out); the layer controls (lab/layer-ui.js) look after themselves.
+    d.querySelector('.chips')?.addEventListener('click', (ev) => { ev.stopPropagation(); const b = ev.target.closest('.chip'); if (b) toggleFilter(b.dataset.feel ? 'feel' : 'inst', b.dataset.feel || b.dataset.inst); });
+    const lyr = d.querySelector('.lyr');
+    if (lyr) WA_LAYER_UI.mount(lyr, tool.id, { song: labSong(), name: tool.name, get: () => labLayers.get(tool.id), set: (e) => labLayers.set(tool.id, e),
+      now: () => audio.currentTime, isOn: () => active.has(tool.id), stage: c.parentElement, canvas: c });
+    d.querySelectorAll('.prm').forEach((row) => {
+      const q = tool.params.find((x) => String(x.key) === row.dataset.p); if (!q) return;
+      const [live, i0, i1] = ['live', '0', '1'].map((k) => row.querySelector(`canvas[data-i="${k}"]`));
+      const item = { tool, q, cv: live };
+      if (live) { drawIcon(i0, q, 0); drawIcon(i1, q, 1); LIVE.push(item); drawLive(item); }
+      row.querySelector('[data-info]')?.addEventListener('click', () => row.classList.toggle('open'));
+      row.querySelectorAll('[data-k]').forEach((el) => {
+        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
+      });
+    });
+    d.onclick = (ev) => {
+      const r = ev.target.dataset?.r;
+      if (r) { ratings[tool.id] = ratings[tool.id] === r ? undefined : r; try { localStorage.setItem('wa-ratings', JSON.stringify(ratings)); } catch {} sync(); render(); return; }
+      active.has(tool.id) ? active.delete(tool.id) : (active.add(tool.id), resetWidget(tool)); render();
+    };
+    box.append(d);
+  }
+  renderOnNow();
+  renderCombos();
+  renderFilter();
+}
+
+/** What a card's layer controls know of the song: its notes, the pack's tracks, beats and loudness, its moments. */
+const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, moments: SONG.moments, dur: DUR });
+
+/* The filter bar over the cards: feel words by axis and instruments by family (lab/tag-words.json). A card shows when
+   its tags have every word picked (AND). Kept in the URL: ?feel=dark,liquid&inst=cello. It only hides cards: what is
+   on stays on. */
+const FILTER = WA_LAYER_UI.parseFilter(location.search);
+let filterOpen = false;   // the summary names what is picked; the rows open on a click
+function toggleFilter(kind, w) {
+  const l = FILTER[kind], i = l.indexOf(w);
+  if (i >= 0) l.splice(i, 1); else l.push(w);
+  applyFilter();
+}
+function applyFilter() {
+  try { history.replaceState(null, '', location.pathname + WA_LAYER_UI.filterSearch(location.search, FILTER) + location.hash); } catch {}
+  document.querySelectorAll('#tools .tool').forEach((d) => {
+    d.hidden = !!TAGS && !WA_LAYER_UI.matches(TAGS[d.dataset.id], FILTER);
+    d.querySelectorAll('.chip').forEach((b) => b.classList.toggle('picked', b.dataset.feel ? FILTER.feel.includes(b.dataset.feel) : FILTER.inst.includes(b.dataset.inst)));
+  });
+  renderFilter();
+}
+function renderFilter() {
+  const box = document.getElementById('filt');
+  box.hidden = !TAGS; if (!TAGS) return;
+  const picked = [...FILTER.feel, ...FILTER.inst], shown = TOOLS.filter((t) => WA_LAYER_UI.matches(TAGS[t.id], FILTER)).length;
+  const chip = (kind, w) => `<button type="button" class="chip ${kind}${FILTER[kind].includes(w) ? ' picked' : ''}" data-${kind}="${esc(w)}"${kind === 'inst' ? ` title="${esc(WORDS.instruments[w]?.label ?? w)}"` : ` title="${esc(Object.values(WORDS.feel).find((a) => a[w])?.[w]?.looks ?? '')}"`}>${esc(w)}</button>`;
+  box.innerHTML = `<summary><b>Filter</b>${picked.length
+    ? `<span>${picked.map((w) => esc(w)).join(' + ')}</span><span class="dim">${shown ? `${shown} of ${TOOLS.length} widgets have ${picked.length > 1 ? 'all of these' : 'it'}` : `no widget has all of these: take one out`}</span><button type="button" data-clear>clear</button>`
+    : `<span class="dim">by feel and instrument (the chips on each card)</span>`}</summary>`
+    + `<div class="rows">${WA_LAYER_UI.filterRows(WORDS).map((r) => `<div class="row"><span>${esc(r.label)}</span><div>${r.words.map((w) => chip(r.kind, w)).join('')}</div></div>`).join('')}</div>`;
+  box.open = filterOpen;
+  box.ontoggle = () => { filterOpen = box.open; };
+  box.querySelector('[data-clear]')?.addEventListener('click', (ev) => { ev.preventDefault(); FILTER.feel.length = 0; FILTER.inst.length = 0; applyFilter(); });
+  box.querySelector('.rows').onclick = (ev) => { const b = ev.target.closest('.chip'); if (b) toggleFilter(b.dataset.feel ? 'feel' : 'inst', b.dataset.feel || b.dataset.inst); };
+}
+
+/* Combinations (lab/combos.js): widgets that do more together. A member's card carries a "combines with N" pill whose
+   list (hover, or tap on a phone) names the partners, what you see, and a "try together" button; the same rows sit in
+   the Combinations list above the cards. Only combinations whose widgets all loaded are shown. */
+const COMBOS = (Array.isArray(window.COMBOS) ? window.COMBOS : []).filter((c) => Array.isArray(c?.ids) && c.ids.length > 1);
+const toolOf = (id) => TOOLS.find((t) => t.id === id);
+const liveCombos = () => COMBOS.map((c, k) => ({ c, k })).filter(({ c }) => c.ids.every(toolOf));
+const comboOn = (c) => c.ids.every((id) => active.has(id));
+/** What "try together" sets, in words: "Graphic score: night or paper → 0 (left end)". */
+function comboSets(c) {
+  const out = [];
+  for (const [id, knobs] of Object.entries(c.knobs || {})) for (const [key, v] of Object.entries(knobs)) {
+    const tool = toolOf(id), q = tool?.params?.find((x) => x.key === key); if (!q) continue;
+    out.push(`${tool.name}: ${q.label ?? key} → ${v}${v <= q.min ? ' (left end)' : v >= q.max ? ' (right end)' : ''}`);
+  }
+  return out;
+}
+function comboRow({ c, k }, from) {
+  const others = c.ids.filter((id) => id !== from).map((id) => esc(toolOf(id).name));
+  const sets = comboSets(c), at = c.at?.[SONG_ID];
+  return `<div class="cmbrow"><div class="who">${from ? 'with ' : ''}${others.join(' + ')}${comboOn(c) ? '<span class="now">on now</span>' : ''}</div>
+    <div>${esc(c.blurb)}</div>${c.when ? `<div class="when">Best: ${esc(c.when)}.</div>` : ''}
+    ${sets.length ? `<div class="sets">Try together sets ${esc(sets.join('; '))}.</div>` : ''}${c.tip ? `<div class="tip">${esc(c.tip)}</div>` : ''}
+    <button data-try="${k}" title="Plays just these widgets${at != null ? `, from ${fmt0(at)}` : ''}; your other widgets switch off (undo is under the track)">▶ try together${at != null ? ` at ${fmt0(at)}` : ''}</button></div>`;
+}
+function comboPill(tool) {
+  const mine = liveCombos().filter(({ c }) => c.ids.includes(tool.id));
+  if (!mine.length) return '';
+  const n = new Set(mine.flatMap(({ c }) => c.ids)).size - 1;
+  return `<span class="cmbw"><button class="cmb" aria-expanded="false" title="Widgets this one does more with"><i>i</i>combines with ${n}</button>`
+    + `<span class="cmbpop" role="dialog" aria-label="${esc(tool.name)}: combinations">${mine.map((x) => comboRow(x, tool.id)).join('')}</span></span>`;
+}
+/** Pill and rows: tap toggles the list (hover opens it too, where there is hover); nothing in it toggles the card. */
+function wireCombos(w) {
+  if (!w) return;
+  // The list opens just under the pill, wherever the card's title wrapped it.
+  const btn = w.querySelector('.cmb'), pop = w.querySelector('.cmbpop');
+  const place = () => { pop.style.top = `${btn.offsetTop + btn.offsetHeight + 4}px`; };
+  w.addEventListener('mouseenter', place);
+  w.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest('[data-try]'); if (b) { tryCombo(Number(b.dataset.try)); return; }
+    if (ev.target.closest('.cmb')) { place(); const open = !w.classList.contains('open'); document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); w.classList.toggle('open', open); w.querySelector('.cmb').setAttribute('aria-expanded', String(open)); }
+  });
+}
+document.addEventListener('click', (ev) => { if (!ev.target.closest?.('.cmbw')) document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); });
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open')); });
+function renderCombos() {
+  const box = document.getElementById('combos'), list = liveCombos();
+  box.hidden = !list.length; if (!list.length) return;
+  box.innerHTML = `<summary><b>Combinations</b>: ${list.length} mixes that do more than their widgets side by side (each card in one has a <i>combines with</i> pill)</summary>`
+    + `<div class="list">${list.map((x) => comboRow(x, null)).join('')}</div>`;
+  box.querySelectorAll('[data-try]').forEach((b) => (b.onclick = () => tryCombo(Number(b.dataset.try))));
+}
+/** Plays just this combination: its widgets on (fresh), the others off, its knob values set, and from its best moment in
+    this song if it has one. What was on and the knobs it changed are kept, for "undo" under the track. */
+let comboUndo = null;
+function tryCombo(k) {
+  const c = COMBOS[k]; if (!c || !c.ids.every(toolOf)) return;
+  const undo = { on: [...active], knobs: [], name: c.ids.map((id) => toolOf(id).name).join(' + ') };
+  for (const [id, knobs] of Object.entries(c.knobs || {})) for (const [key, v] of Object.entries(knobs)) {
+    const tool = toolOf(id), q = tool.params?.find((x) => x.key === key); if (!q) continue;
+    const st = pst(tool, q); undo.knobs.push([tool, q, st.base]);
+    st.base = Math.max(q.min, Math.min(q.max, Number(v)));
+  }
+  comboUndo = undo;
+  if (undo.knobs.length) saveP();
+  active.clear();
+  for (const id of c.ids) { active.add(id); resetWidget(toolOf(id)); }
+  document.querySelectorAll('.cmbw.open').forEach((o) => o.classList.remove('open'));
+  render();
+  const at = c.at?.[SONG_ID];
+  if (at != null) seek(at); else if (audio.paused) audio.play();
+}
+function undoCombo() {
+  const u = comboUndo; comboUndo = null; if (!u) return;
+  for (const [tool, q, base] of u.knobs) pst(tool, q).base = base;
+  if (u.knobs.length) saveP();
+  active.clear(); for (const id of u.on) { active.add(id); const t = toolOf(id); if (t) resetWidget(t); }
+  render();
+}
+
+/** The chips under the track: what's playing now. A name jumps to its card (lit for a moment), × switches it off. */
+function renderOnNow() {
+  const on = TOOLS.filter((t) => active.has(t.id)), el = document.getElementById('onnow');
+  el.innerHTML = on.length ? 'On:' + on.map((t) => `<button data-go="${esc(t.id)}" title="Jump to its knobs">${esc(t.name)}<i data-off title="Switch it off">×</i></button>`).join('')
+    : 'Nothing on: click a card to switch a widget on.';
+  if (comboUndo) {
+    el.insertAdjacentHTML('beforeend', `<button class="undo" data-undo title="Back to what was on before trying ${esc(comboUndo.name)}${comboUndo.knobs.length ? ', and the knobs it set' : ''}">↺ undo try</button>`);
+    el.querySelector('[data-undo]').onclick = undoCombo;
+  }
+  el.querySelectorAll('[data-go]').forEach((b) => (b.onclick = (ev) => {
+    const tool = TOOLS.find((t) => t.id === b.dataset.go), card = document.querySelector(`.tool[data-id="${CSS.escape(b.dataset.go)}"]`);
+    if (ev.target.dataset.off !== undefined) { active.delete(tool.id); render(); return; }
+    if (!card) return;
+    if (card.hidden) { FILTER.feel.length = 0; FILTER.inst.length = 0; applyFilter(); }   // the filter had hidden it
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.add('hl'); setTimeout(() => card.classList.remove('hl'), 1200);
+  }));
+}
+// Upright screens: cards jumped to land just under the sticky stage, not behind it.
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--deck-h', `${Math.ceil(e.target.offsetHeight)}px`)).observe(document.getElementById('deck'));
+
+/* Layer instances (plan 2026-10-31 §6 and §11), as the studio's WidgetRuntime keeps them, so both draw the same picture.
+   An entry that listens to a part is its own instance, keyed widget@listen: a second copy of the widget evaluated with
+   the part's NOTES (behind a window whose NOTES is the part) and its CHORDS, with its own pulse. An entry with a curve
+   makes the widget itself keep its own pulse. INST: key → { key, tool, base, inst: the shared InstanceState }, in load
+   order. LAYER_RUN: widget id → its slots { key, layer }, drawn in the card's place. A widget without an entry, or with
+   one that changes nothing, is not in LAYER_RUN: step() draws it with today's statements. */
+const INST = new Map();
+let LAYER_RUN = new Map();
+let STEP_T = 0, DRAWN_PREV = new Set();   // the last step's time and the instances it drew (an own one missing comes back cold)
+const SONG_NOTES = () => ({ notes: NOTES, tracks: window.PACK?.tracks });
+const layerKey = (l) => (l.listen === undefined || l.listen === 'all' ? l.widget : `${l.widget}@${l.listen}`);
+/** window, except NOTES: the part's notes; functions bound to the real window (src/widgets/instantiate.ts). */
+const windowWithNotes = (notes) => new Proxy(window, { get(_, p) { if (p === 'NOTES') return notes; const v = window[p]; return typeof v === 'function' ? v.bind(window) : v; } });
+/** A second copy of a widget, as instantiate.ts runs one: routed, with the part's CHORDS and a window over its notes. */
+function instantiate(id, notes, chords) {
+  const tools = [], src = `${TOOL_SRC[id]}\n//# sourceURL=lab/tools/${id}.js`;
+  if (notes) new Function('TOOLS', 'ICON', 'CHORDS', 'window', src)(tools, ICON, chords, windowWithNotes(notes));
+  else new Function('TOOLS', 'ICON', 'CHORDS', src)(tools, ICON, CHORDS);
+  const mine = tools.filter((t) => t && t.id === id);
+  if (tools.length !== 1 || mine.length !== 1) throw new Error(`lab/tools/${id}.js must push exactly one tool with id '${id}'`);
+  return mine[0];
+}
+/** The instances the entries need, in TOOL_IDS order then entry order (driver.ts labLayerSpecs and WidgetRuntime.load):
+    a new key is instantiated once; one already there only takes `own`. Returns the keys made now. */
+function applyLayers(list) {
+  const made = [], L = WA_LAYERS;
+  for (const id of TOOL_IDS) for (const l of list) {
+    if (l.widget !== id) continue;
+    const key = layerKey(l), listen = key === id ? undefined : l.listen, own = listen !== undefined || !!l.intensity?.length;
+    const have = INST.get(key);
+    if (have) { setOwn(have.inst, own || have.inst.routed); continue; }
+    const base = TOOLS.find((t) => t.id === id);
+    if (key === id) {
+      // The widget itself (WidgetRuntime keeps an instance for every widget): own when its entry has a curve.
+      if (!base) continue;
+      const inst = newInst(key, id, NOTES, CHORDS, false, false); L.coldInstance(inst, STEP_T); setOwn(inst, own);
+      INST.set(key, { key, tool: base, base: true, inst }); made.push(key); continue;
+    }
+    if (TOOL_SRC[id] == null || !base) { errors[key] = `no widget ${id}`; continue; }
+    let notes = NOTES, routed = false;
+    const heard = L.listenNotes(SONG_NOTES(), listen);
+    if (heard.heard !== 'all') { notes = heard.notes; routed = true; }   // a part the song lacks: all notes, unrouted
+    const chords = routed ? L.groupChords(notes) : CHORDS;
+    try {
+      const tool = instantiate(id, routed ? notes : null, chords);
+      const inst = newInst(key, id, notes, chords, true, routed); L.coldInstance(inst, STEP_T);
+      INST.set(key, { key, tool, base: false, inst }); made.push(key);
+    } catch (e) { errors[key] = `load: ${e.message}`; console.warn('layer', key, 'did not load:', e); }
+  }
+  LAYER_RUN = new Map();
+  for (const l of list) {
+    const key = layerKey(l), it = INST.get(key), layer = {};
+    if (l.intensity?.length) layer.pivots = l.intensity;
+    if (l.region) layer.region = l.region;
+    const slot = { key, it, layer: layer.pivots || layer.region ? layer : undefined };
+    if (key !== l.widget && !it) continue;   // it did not load
+    LAYER_RUN.set(l.widget, [...(LAYER_RUN.get(l.widget) ?? []), slot]);
+  }
+  // A widget whose only entry changes nothing draws as today.
+  for (const [id, slots] of LAYER_RUN) if (slots.length === 1 && slots[0].key === id && !slots[0].layer && !slots[0].it?.inst.own) LAYER_RUN.delete(id);
+  return made;
+}
+function newInst(key, widget, notes, chords, own, routed) {
+  return { key, widget, salt: WA_LAYERS.fnv32(key), notes, chords, ci: 0, pulse: { level: 0, rate: 0 }, feat: WA_LAYERS.newFeatures(),
+    own, routed, persist: WA_LAYERS.PERSIST[widget] ?? 'redraw', win: null };
+}
+/** An instance that starts keeping its own pulse takes the global one as it is now (WidgetRuntime.setOwn). */
+function setOwn(inst, own) {
+  if (own && !inst.own) { inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; Object.assign(inst.feat, ctx.feat); }
+  inst.own = own;
+}
+/** safe() for an instance: an own one's pulse, features and notes are in ctx for the call, the global ones back after.
+    x: the ctx the widget gets (the shared one, or a windowed instance's view of it). */
+function callInst(it, fn, x, ch) {
+  const inst = it.inst, swap = inst.own, level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = SND.notes;
+  if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; SND.notes = inst.notes; }
+  try { if (fn === 'onChord') safe(it.tool, 'onChord', ch, x); else safe(it.tool, fn, x); }
+  finally { if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; SND.notes = notes; } }
+}
+/** What lab/layers/slot.js's drawLayered draws through (src/widgets/layers.ts LayerHost), at 1280×720. */
+const makeCanvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+let LAYER_SCRATCH = null;
+const labHost = {
+  ctx, g, canvas: c, S: 1,
+  // labHost.ctx, not ctx: a windowed call runs with it set to the instance's window view (slot.js).
+  call: (inst, fn, ch) => callInst(INST.get(inst.key), fn, labHost.ctx, ch),
+  scratch: () => (LAYER_SCRATCH ??= makeCanvas(W, H)),
+  windowOf: (inst) => {
+    if (!inst.win) { const win = makeCanvas(W, H), wg = win.getContext('2d'); wg.fillStyle = '#000'; wg.fillRect(0, 0, W, H); inst.win = win; }
+    return inst.win;
+  },
+  make: makeCanvas,
+  error: (inst, e) => { const id = INST.get(inst.key)?.tool.id ?? inst.widget; if (!errors[id]) { errors[id] = String(e); render(); console.error(inst.key, e); } },
+};
+/** One layered slot of an active widget: today's statements (through its instance) for an entry that changes nothing
+    beside another entry of the widget, else drawLayered. */
+function drawSlot(s, fired, t, dt, drawn) {
+  const it = s.it;
+  if (!it) return;   // every entry of a loaded widget has its instance (applyLayers)
+  drawn.add(it.key);
+  if (!s.layer && !it.inst.own) {
+    for (const ch of fired) callInst(it, 'onChord', ctx, ch);
+    g.save(); callInst(it, 'frame', ctx); g.restore();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
+    return;
+  }
+  if (it.inst.own && !DRAWN_PREV.has(it.key)) WA_LAYERS.coldInstance(it.inst, STEP_T);   // back after an absence
+  WA_LAYERS.drawLayered(labHost, { inst: it.inst, receiving: true, weight: 1, layer: s.layer ?? {}, fired, lastT: STEP_T, t, dt });
+}
+/** A widget restarted (its card switched on): its reset, and its layer instances' with their windows cleared. */
+function resetWidget(tool) {
+  safe(tool, 'reset', ctx);
+  for (const it of INST.values()) {
+    if (it.inst.widget !== tool.id || it.base) continue;
+    if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win);
+    callInst(it, 'reset', ctx);
+  }
+}
+/** The layer entries for the cards (T22): get(id) → the entry or undefined; set(id, entry | null) stores it, loads
+    what it needs and restarts what it made. */
+window.labLayers = {
+  get: (id) => LAYERS[id],
+  set(id, entry) {
+    if (entry) LAYERS[id] = entry; else delete LAYERS[id];
+    saveL();
+    for (const key of applyLayers(layerList())) { const it = INST.get(key); if (!it.base) callInst(it, 'reset', ctx); }
+  },
+};
+
+let ci = 0, lastT = 0, liveT = 0;
+function reset(t) {
+  lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
+  ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  // Every layer instance starts cold at t, its window black (WidgetRuntime.reset).
+  for (const it of INST.values()) { WA_LAYERS.coldInstance(it.inst, t); if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win); }
+  for (const tool of TOOLS) safe(tool, 'reset', ctx);
+  for (const it of INST.values()) if (!it.base) callInst(it, 'reset', ctx);
+  STEP_T = t; DRAWN_PREV = new Set();
+}
+function seek(t) { audio.currentTime = t; reset(t); if (audio.paused) audio.play(); }
+
+function frame() {
+  requestAnimationFrame(frame);
+  const t = audio.currentTime;
+  document.getElementById('time').textContent = `${fmt(t)} / ${fmt(DUR)}`;
+  document.getElementById('head').style.left = `${(t / DUR) * 100}%`;
+  if (Math.abs(t - lastT) > 0.5) reset(t);
+  ctx.now = performance.now() / 1000;
+  const dt = audio.paused ? 0 : Math.min(0.05, Math.max(0, t - lastT));
+  ctx.t = t; ctx.dt = dt; lastT = t;
+  if (dt === 0) return; // silence/pause freezes the picture
+  step(t, dt);
+  // Live knob pictures follow the music ~8 times a second, for knobs that follow something.
+  if (ctx.now - liveT > 0.12) { liveT = ctx.now; for (const it of LIVE) if (pst(it.tool, it.q).drive) drawLive(it); }
+}
+/** One picture: song time is now t, dt song seconds after the last one. Fires the chords crossed, updates the features,
+    fades the background and draws every active tool. The live loop and the renderer both draw through this. */
+function step(t, dt) {
+  ctx.t = t; ctx.dt = dt;
+  let m = MOMENTS[0][1]; for (const [s, n] of MOMENTS) if (t >= s) m = n; ctx.moment = m;
+  ctx.level *= Math.pow(0.5, ctx.dt / 0.8); ctx.rate *= Math.pow(0.5, ctx.dt / 1.0);
+  const fired = [];
+  while (ci < CHORDS.length && CHORDS[ci].t <= t) { const ch = CHORDS[ci++]; fired.push(ch); ctx.level = Math.max(ctx.level, ch.vel / 115); ctx.rate += 1 / 1.44; }
+  { const snd = ctx.sounding(), f = ctx.feat, k = 1 - Math.pow(0.5, ctx.dt / 0.25);
+    let top = null, bass = 0; for (const n of snd) { if (!top || n.m > top.m) top = n; if (n.m < 50) bass += n.v / 127; }
+    f.level = ctx.level; f.rate = Math.min(1, ctx.rate / 8);
+    f.pitch += ((top ? ctx.pitch01(top.m) : f.pitch) - f.pitch) * k; f.bass += (Math.min(1, bass / 2) - f.bass) * k; f.density += (Math.min(1, snd.length / 10) - f.density) * k; }
+  // Shared background: fade toward black. A tool may paint its own on top.
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, W, H);
+  // An 8-bit fade sticks at ~4/255 and leaves grey ghosts: a light colour-burn takes the last few levels to black.
+  g.globalCompositeOperation = 'color-burn'; g.fillStyle = 'rgb(252,252,252)'; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'source-over';
+  const drawn = new Set();
+  for (const tool of TOOLS) {
+    if (!active.has(tool.id)) continue;
+    // A widget with layer entries draws as those instances, in its place, through the shared slot.js.
+    const lay = LAYER_RUN.get(tool.id);
+    if (lay) { for (const s of lay) drawSlot(s, fired, t, dt, drawn); continue; }
+    for (const ch of fired) safe(tool, 'onChord', ch, ctx);
+    g.save(); safe(tool, 'frame', ctx); g.restore();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
+  }
+  DRAWN_PREV = drawn; STEP_T = t;
+  while (RENDER_POST.length) { try { RENDER_POST.shift()(); } catch (e) { console.warn(e); } }
+}
+// The renderer's controls (?render=1). renderSeek(t): everything back to song time t, as a seek does, with the features
+// and the random seed reset too (a tool keeping state its reset() skips, like the casket's melt phase, still carries it). renderStep(dt): song time moves
+// on by exactly dt, drawn as the live lab would on a RENDER_HZ screen (in steps of at most 1/RENDER_HZ s); every chord
+// whose time was crossed fires. Returns the song time reached.
+if (RENDER) {
+  window.renderSeek = (t, seed = 1) => {
+    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 });
+    ctx.now = 0; reset(t); return t;
+  };
+  window.renderStep = (dt) => {
+    const n = Math.max(1, Math.ceil(dt * RENDER_HZ - 1e-6)), t0 = lastT;
+    for (let i = 1; i <= n; i++) { const t = t0 + (dt * i) / n; const d = t - lastT; lastT = t; ctx.now += d; step(t, d); }
+    return lastT;
+  };
+  /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
+  window.renderTo = (t) => window.renderStep(t - lastT);
+}
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+document.getElementById('play').onclick = () => (audio.paused ? audio.play() : audio.pause());
+audio.onplay = () => (document.getElementById('play').textContent = '❚❚ Pause');
+audio.onpause = () => (document.getElementById('play').textContent = '▶ Play');
+document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
+document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
+document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
+Promise.all([loadTools(), loadPack(), loadTags()]).then(() => {
+  applyLayers(layerList());
+  if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
+  let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}
+  if (carry?.on) { for (const id of carry.on) if (TOOLS.some((t) => t.id === id)) active.add(id); }
+  else if (!only) for (const tool of TOOLS) if (tool.on) active.add(tool.id);
+  const notes = [];
+  if (LOAD_NOTES.missing.length) notes.push(`Not written yet: ${LOAD_NOTES.missing.join(', ')}.`);
+  if (LOAD_NOTES.broken.length) notes.push(`Could not load: ${LOAD_NOTES.broken.join('; ')}.`);
+  document.getElementById('missing').textContent = notes.join(' ');
+  render();
+  const back = carry?.card && document.querySelector(`.tool[data-id="${CSS.escape(carry.card)}"]`);
+  // Twice: on a phone the stage only sticks (and gets shorter, the title gone) once the page has scrolled.
+  if (back) for (let i = 0; i < 2; i++) scrollBy(0, back.getBoundingClientRect().top - cardsTop() - (carry.dy || 0));
+  if (RENDER) { window.renderErrors = errors; window.renderTools = TOOLS.filter((t) => active.has(t.id)).map((t) => ({ id: t.id, name: t.name })); window.renderReady = true; return; }
+  reset(audio.currentTime); frame(); sync(); // sends what this browser already has as soon as the page opens
+});
+</script>
+</body>
+</html>

@@ -1,14 +1,26 @@
 /**
- * Owns the Web Audio graph: plays the demo, your files or listens to the mic,
- * and exposes analysis frames.
+ * Owns the Web Audio graph: plays the demo, the character studies, your files or
+ * listens to the mic, and exposes analysis frames.
  *
- *   demo / file ──► bus ──► analyser
- *                    └────► volume ──► speakers
- *                    └────► recorder tap
- *   mic ──────────► analyser (not to the speakers: no feedback howl)
+ *   demo / study / file / input ──► bus ──► PCM tap (analysis)
+ *                                    └────► volume ──► speakers
+ *                                    └────► recorder tap
+ *   mic ──────────────────────────► PCM tap, recorder (not to the speakers: no feedback howl)
+ *
+ * Analysis runs on our own PCM → FFT → Features → Descriptors chain (offline.ts),
+ * in fixed 60 Hz hops of audio, so it matches `analyzeOffline` exactly.
+ *
+ * Studies play like the demo (source 'demo'); `study` says which one and which loop.
+ * A file is also decoded whole while it plays (`onTrackDecoded`), for its fingerprint.
+ * `songTime` is where in the song the sound you hear right now is.
  */
+import type { Descriptors, PcmSource } from '../character/types';
+import type { StudyId } from '../stage/types';
 import { DemoGroove } from './demo';
-import { FeatureExtractor, type Features } from './features';
+import type { FeatureExtractor, Features } from './features';
+import { AnalysisChain } from './offline';
+import { PcmTap, type PcmBackend } from './pcm';
+import { STUDIES, type Playable, type StudyPlayer, type StudyScore } from './studies';
 
 export type SourceKind = 'none' | 'demo' | 'file' | 'mic';
 
@@ -22,18 +34,50 @@ export interface PlayerState {
   trackCount: number;
 }
 
-const FFT_SIZE = 4096;
+export interface EngineOptions {
+  /** false forces the AnalyserNode fallback for the PCM tap (testing). */
+  worklet?: boolean;
+}
+
+/** A whole track, decoded and mixed down to mono. */
+export interface DecodedTrack {
+  file: File;
+  mono: Float32Array;
+  sampleRate: number;
+}
+
+export interface StudyState {
+  id: StudyId;
+  seed: number;
+  /** The loop sounding now (0 = the first, composed from `seed`; later loops are re-seeded). */
+  loop: number;
+  /** Song seconds where that loop began. */
+  loopStart: number;
+  score: StudyScore;
+}
 
 export class AudioEngine {
   readonly ctx: AudioContext;
-  readonly extractor = new FeatureExtractor();
+  readonly chain = new AnalysisChain();
+  readonly extractor: FeatureExtractor = this.chain.extractor;
   /** Audio for the recorder. */
   readonly recordTap: MediaStreamAudioDestinationNode;
+  /**
+   * Connect other sound sources here (e.g. the MIDI key synth): they are heard
+   * (through the volume), recorded and analysed. Don't also connect them to the
+   * destination, or they play twice.
+   */
+  readonly input: GainNode;
 
-  private analyser: AnalyserNode;
+  private tap: PcmTap;
   private bus: GainNode;
   private volume: GainNode;
   private demo: DemoGroove;
+  /** What plays while the source is 'demo': the groove or a study. */
+  private playable: Playable;
+  /** One player per study (each owns a reverb rig); replaced when asked for another seed. */
+  private studies = new Map<StudyId, StudyPlayer>();
+  private studyId: StudyId | null = null;
   private audioEl: HTMLAudioElement;
   private mediaSource: MediaElementAudioSourceNode;
   private micStream: MediaStream | null = null;
@@ -41,26 +85,28 @@ export class AudioEngine {
   private tracks: File[] = [];
   private trackIndex = 0;
   private objectUrl: string | null = null;
-  private freqDb: Float32Array<ArrayBuffer>;
-  private mags: Float32Array;
-  private wave: Float32Array<ArrayBuffer>;
   private listeners = new Set<() => void>();
+  private decodedListeners = new Set<(t: DecodedTrack) => void>();
+  /** Bumped on every track load and source switch, so a slow decode of a track we have left is dropped. */
+  private decodeGen = 0;
 
   source: SourceKind = 'none';
 
-  constructor() {
+  constructor(opts: EngineOptions = {}) {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = FFT_SIZE;
-    this.analyser.smoothingTimeConstant = 0.55;
+    this.tap = new PcmTap(this.ctx, { worklet: opts.worklet });
+    void this.tap.ready.then((b) => console.info(`[audio] PCM tap: ${b}${this.tap.workletError ? ` (${this.tap.workletError})` : ''}`));
     this.bus = this.ctx.createGain();
+    this.input = this.ctx.createGain();
+    this.input.connect(this.bus);
     this.volume = this.ctx.createGain();
     this.recordTap = this.ctx.createMediaStreamDestination();
-    this.bus.connect(this.analyser);
+    this.bus.connect(this.tap.input);
     this.bus.connect(this.volume).connect(this.ctx.destination);
     this.bus.connect(this.recordTap);
 
     this.demo = new DemoGroove(this.ctx, this.bus);
+    this.playable = this.demo;
     this.audioEl = new Audio();
     this.audioEl.crossOrigin = 'anonymous';
     this.mediaSource = this.ctx.createMediaElementSource(this.audioEl);
@@ -69,15 +115,41 @@ export class AudioEngine {
     for (const ev of ['play', 'pause', 'loadedmetadata', 'durationchange']) {
       this.audioEl.addEventListener(ev, () => this.emit());
     }
+  }
 
-    this.freqDb = new Float32Array(this.analyser.frequencyBinCount);
-    this.mags = new Float32Array(this.analyser.frequencyBinCount);
-    this.wave = new Float32Array(1024);
+  /** The mono PCM being analysed (what you hear, or the mic). Stable for the engine's life. */
+  get pcm(): PcmSource {
+    return this.tap;
+  }
+
+  /** Which PCM backend is live: 'worklet', or the 'analyser' fallback. */
+  get pcmBackend(): PcmBackend {
+    return this.tap.backend;
+  }
+
+  /** Resolves once the PCM tap has settled on a backend. */
+  get pcmReady(): Promise<PcmBackend> {
+    return this.tap.ready;
+  }
+
+  /** The latest medium-timescale descriptors (updated by `analyze()`). */
+  get descriptors(): Descriptors {
+    return this.chain.descriptors;
   }
 
   onChange(fn: () => void) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /**
+   * Called once per loaded file with the whole track decoded (mono mix-down, at the
+   * context's rate). Decoding runs alongside playback, so the music starts at once;
+   * a file left (another track, or the demo / mic) before its decode finishes is never reported.
+   */
+  onTrackDecoded(fn: (t: DecodedTrack) => void) {
+    this.decodedListeners.add(fn);
+    return () => this.decodedListeners.delete(fn);
   }
 
   private emit() {
@@ -88,17 +160,51 @@ export class AudioEngine {
     const s = this.source;
     return {
       source: s,
-      playing: s === 'demo' ? this.demo.playing : s === 'file' ? !this.audioEl.paused : s === 'mic',
+      playing: s === 'demo' ? this.playable.playing : s === 'file' ? !this.audioEl.paused : s === 'mic',
       title:
-        s === 'demo' ? this.demo.title
+        s === 'demo' ? this.playable.title
         : s === 'file' ? prettyName(this.tracks[this.trackIndex]?.name ?? '')
         : s === 'mic' ? 'Listening to the room'
         : '',
-      position: s === 'demo' ? this.demo.position : s === 'file' ? this.audioEl.currentTime : 0,
+      position: s === 'demo' ? this.playable.position : s === 'file' ? this.audioEl.currentTime : 0,
       duration: s === 'file' && isFinite(this.audioEl.duration) ? this.audioEl.duration : 0,
       trackIndex: this.trackIndex,
       trackCount: s === 'file' ? this.tracks.length : 0,
     };
+  }
+
+  /** Seconds from the graph to your ears: what you hear now left the graph this long ago. */
+  get outputLatency(): number {
+    const fin = (v: number | undefined) => (v !== undefined && Number.isFinite(v) && v > 0 ? v : 0);
+    return fin(this.ctx.outputLatency) + fin(this.ctx.baseLatency);
+  }
+
+  /**
+   * Song seconds of the sound you hear now: the source's position minus the output
+   * latency. Holds still while paused, jumps on a seek. For the mic it is the audio
+   * clock (it only ever moves forward); with nothing playing, 0.
+   */
+  get songTime(): number {
+    const s = this.source;
+    const pos =
+      s === 'file' ? this.audioEl.currentTime
+      : s === 'demo' ? this.playable.position
+      : s === 'mic' ? this.ctx.currentTime
+      : 0;
+    return Math.max(0, pos - this.outputLatency);
+  }
+
+  /** The study playing (source 'demo'), with the loop sounding now; null for anything else. */
+  get study(): StudyState | null {
+    if (this.source !== 'demo' || !this.studyId) return null;
+    const p = this.playable as StudyPlayer;
+    const pass = p.passAt(this.songTime);
+    return { id: this.studyId, seed: p.seed, loop: pass.loop, loopStart: pass.start, score: pass.score };
+  }
+
+  /** The file playing (source 'file'); null for any other source. */
+  get currentFile(): File | null {
+    return this.source === 'file' ? this.tracks[this.trackIndex] ?? null : null;
   }
 
   get trackNames() {
@@ -109,8 +215,10 @@ export class AudioEngine {
     if (this.ctx.state !== 'running') await this.ctx.resume();
   }
 
+  /** Stops every source; also drops a decode in flight (it is for a track we are leaving). */
   private stopAll() {
-    this.demo.stop();
+    this.decodeGen++;
+    this.playable.stop();
     this.audioEl.pause();
     if (this.micStream) {
       for (const t of this.micStream.getTracks()) t.stop();
@@ -124,7 +232,32 @@ export class AudioEngine {
     await this.resume();
     this.stopAll();
     this.source = 'demo';
+    this.playable = this.demo;
+    this.studyId = null;
     this.demo.start();
+    this.emit();
+  }
+
+  /**
+   * Plays a character study from its start. `opts.seed` pins the first loop's score
+   * (a scripted performance asks for the seed its script was composed from); without
+   * it, the study's own seed. Pause/play restarts it, like the demo.
+   */
+  async playStudy(id: StudyId, opts: { seed?: number } = {}) {
+    const def = STUDIES.find((s) => s.id === id);
+    if (!def) throw new Error(`Unknown study: ${id}`);
+    await this.resume();
+    this.stopAll();
+    const seed = opts.seed ?? def.seed;
+    let player = this.studies.get(id);
+    if (!player || player.seed !== seed) {
+      player = def.create(this.ctx, this.bus, { seed });
+      this.studies.set(id, player);
+    }
+    this.source = 'demo';
+    this.playable = player;
+    this.studyId = id;
+    player.start();
     this.emit();
   }
 
@@ -144,8 +277,10 @@ export class AudioEngine {
   private async loadTrack(i: number) {
     if (!this.tracks.length) return;
     this.trackIndex = (i + this.tracks.length) % this.tracks.length;
+    const file = this.tracks[this.trackIndex];
+    const gen = ++this.decodeGen;
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-    this.objectUrl = URL.createObjectURL(this.tracks[this.trackIndex]);
+    this.objectUrl = URL.createObjectURL(file);
     this.audioEl.src = this.objectUrl;
     try {
       await this.audioEl.play();
@@ -153,6 +288,27 @@ export class AudioEngine {
       console.warn('Could not play track', e);
     }
     this.emit();
+    if (this.decodedListeners.size) void this.decode(file, gen);
+  }
+
+  /** Decodes the whole file (from its own copy of the bytes) and hands the mono mix-down to the listeners. */
+  private async decode(file: File, gen: number) {
+    try {
+      const bytes = await file.arrayBuffer(); // a fresh copy: decodeAudioData detaches it
+      if (gen !== this.decodeGen) return;
+      const buf = await this.ctx.decodeAudioData(bytes);
+      if (gen !== this.decodeGen) return;
+      const mono = new Float32Array(buf.length);
+      for (let c = 0; c < buf.numberOfChannels; c++) {
+        const ch = buf.getChannelData(c);
+        for (let i = 0; i < mono.length; i++) mono[i] += ch[i];
+      }
+      if (buf.numberOfChannels > 1) for (let i = 0; i < mono.length; i++) mono[i] /= buf.numberOfChannels;
+      const track: DecodedTrack = { file, mono, sampleRate: buf.sampleRate };
+      for (const fn of this.decodedListeners) fn(track);
+    } catch (e) {
+      console.warn(`Could not decode ${file.name}`, e);
+    }
   }
 
   async playMic(): Promise<boolean> {
@@ -168,7 +324,7 @@ export class AudioEngine {
     this.stopAll();
     this.micStream = stream;
     this.micNode = this.ctx.createMediaStreamSource(stream);
-    this.micNode.connect(this.analyser);
+    this.micNode.connect(this.tap.input);
     this.micNode.connect(this.recordTap);
     this.source = 'mic';
     this.emit();
@@ -178,8 +334,8 @@ export class AudioEngine {
   async togglePlay() {
     await this.resume();
     if (this.source === 'demo') {
-      if (this.demo.playing) this.demo.stop();
-      else this.demo.start();
+      if (this.playable.playing) this.playable.stop();
+      else this.playable.start();
     } else if (this.source === 'file') {
       if (this.audioEl.paused) await this.audioEl.play();
       else this.audioEl.pause();
@@ -211,21 +367,18 @@ export class AudioEngine {
     this.volume.gain.setTargetAtTime(v * v, this.ctx.currentTime, 0.02);
   }
 
-  /** Reads the analyser and returns this frame's musical features. */
+  /**
+   * Analyses the audio that arrived since the last call (0..n hops of 1/60 s)
+   * and returns this frame's musical features. Call once per animation frame.
+   */
   analyze(): Features {
-    this.analyser.getFloatFrequencyData(this.freqDb);
-    for (let i = 0; i < this.freqDb.length; i++) {
-      const db = this.freqDb[i];
-      this.mags[i] = isFinite(db) ? 10 ** (db / 20) : 0;
-    }
-    this.analyser.getFloatTimeDomainData(this.wave);
-    return this.extractor.update({
-      magnitudes: this.mags,
-      waveform: this.wave,
-      sampleRate: this.ctx.sampleRate,
-      fftSize: FFT_SIZE,
-      time: performance.now() / 1000,
-    });
+    const hops = this.chain.step(this.tap);
+    const f = this.chain.features;
+    // Onsets are one-frame events: report one if any hop had one, and never twice.
+    f.onset = hops > 0 && this.chain.onsetInStep;
+    // Scenes animate on wall-clock time (the audio clock stops while suspended).
+    f.time = performance.now() / 1000;
+    return f;
   }
 }
 

@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "id": "rach-prelude-recording",
+  "song": "rach-prelude-recording",
+  "title": "Rachmaninoff: Prelude in C♯ minor",
+  "composer": {
+    "by": "claude",
+    "at": "2026-10-31T07:31:28.000Z"
+  },
+  "sections": [
+    {
+      "start": 0,
+      "end": 12.4,
+      "label": "The bells",
+      "layers": [
+        {
+          "widget": "squares",
+          "knobs": {
+            "size": 1.5
+          }
+        }
+      ]
+    },
+    {
+      "start": 12.4,
+      "end": 84.45,
+      "label": "Dread",
+      "layers": [
+        {
+          "widget": "rorschach"
+        },
+        {
+          "widget": "squares",
+          "knobs": {
+            "size": 1.5
+          }
+        }
+      ]
+    },
+    {
+      "start": 84.45,
+      "end": 115.9,
+      "label": "Agitato",
+      "fade": 4,
+      "layers": [
+        {
+          "widget": "squares",
+          "listen": "bassline"
+        },
+        {
+          "widget": "flee",
+          "knobs": {
+            "mix": 0.15
+          }
+        }
+      ]
+    },
+    {
+      "start": 115.9,
+      "end": 125.8,
+      "label": "The crescendo",
+      "fade": 2,
+      "layers": [
+        {
+          "widget": "squares",
+          "listen": "bassline"
+        },
+        {
+          "widget": "flee",
+          "knobs": {
+            "mix": 0.15
+          }
+        },
+        {
+          "widget": "casket",
+          "knobs": {
+            "melt": 3,
+            "drips": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "start": 125.8,
+      "end": 178.65,
+      "label": "The casket",
+      "fade": 1,
+      "layers": [
+        {
+          "widget": "rorschach",
+          "knobs": {
+            "spatter": 2
+          }
+        },
+        {
+          "widget": "squares",
+          "knobs": {
+            "size": 1.5
+          }
+        },
+        {
+          "widget": "casket",
+          "knobs": {
+            "melt": 3,
+            "drips": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "start": 178.65,
+      "end": 208.5,
+      "label": "Return",
+      "fade": 8,
+      "layers": [
+        {
+          "widget": "murmuration",
+          "knobs": {
+            "strike": 0.85,
+            "hold": 3
+          }
+        }
+      ]
+    },
+    {
+      "start": 208.5,
+      "end": 232.107,
+      "label": "Afterword",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "current"
+        }
+      ]
+    }
+  ]
+}

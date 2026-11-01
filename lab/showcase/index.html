@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget showcase</title>
+<style>
+  :root { --bg: #0d0c0c; --card: #171515; --line: #2a2626; --text: #ece6e1; --dim: #9d948d;
+          --love: #e0475b; --keep: #d9a441; --work: #6aa3d8; --rev: #b08ad8; --new: #7a726c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .intro { color: var(--dim); margin: 0 0 24px; max-width: 70ch; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; }
+  figure.reel { margin-bottom: 28px; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 4px; }
+  .head b { font-size: 16px; }
+  .n { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+  .love { color: var(--love); } .keep { color: var(--keep); } .work { color: var(--work); } .rev { color: var(--rev); } .new { color: var(--new); }
+  .watch { color: var(--dim); font-size: 13.5px; margin: 0 0 8px; }
+  video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Widget showcase</h1>
+  <p class="intro">Each widget on its own over the same five passages (Rachmaninoff: dread, agitato, the casket; Beethoven 5:
+    fate knocks, the coda), 76 s each, rendered frame by frame in exact sync with the recordings, at our default knobs.
+    The showreels are 6 s of each: the first 30, then the 14 new ones from round 6. The nearly black stretch from about 0:52 to 1:01 is the held note after the opening knocks (nothing new is played), not a fault.</p>
+
+  <figure class="reel">
+    <div class="head"><b>Showreel</b><span class="n">all 30 widgets, 6 s each</span></div>
+    <video controls preload="metadata" src="00-showreel.mp4"></video>
+  </figure>
+
+  <figure class="reel">
+    <div class="head"><b>Showreel, round 6</b><span class="n">the 14 new widgets (31–44), 6 s each</span><span class="tag new">new in round 6 · not judged yet</span></div>
+    <video controls preload="metadata" src="00-showreel-round6.mp4"></video>
+  </figure>
+
+  <div class="grid" id="grid"></div>
+</main>
+<script>
+  // [file, name, verdict class, verdict text, what to watch for]
+  const V = [
+    ['01-squares', 'Dread squares', 'love', 'love (v2)', 'Low notes land as big blurred dark-red squares and fade in about 1.4 s. Sparse by design.'],
+    ['02-flee', 'Skittish shapes', 'love', 'love (v3)', 'High notes freeze, tremble, then bolt into streaks; bass hits rise from below; loud chords scatter the flock.'],
+    ['03-current', 'The current', 'love', 'love (v3)', 'The melody steers the white-gold thread; chords pour dye that the water spreads.'],
+    ['04-strings', 'Woven threads', 'love', 'love (v2, defaults accepted)', 'Consonant notes lean together, clashes knot up; chords braid the threads and send kinks along them.'],
+    ['05-murmuration', 'Murmuration', 'rev', 'reworked · was “needs work” (your favourite)', 'v3: a loud chord re-forms the flock into that chord’s own figure on a clock face, so the re-forming is now musical. Does it read?'],
+    ['06-rorschach', 'Rorschach ink', 'love', 'love (v2, our defaults)', 'Low notes soak out into mirrored blots, high notes fling specks, the fullest chords splatter.'],
+    ['07-kandinsky', 'Kandinsky', 'rev', 'reworked · was “love++”', 'v2: no more red squares (that is Dread squares), a notch smaller and quieter. Check it kept what you loved.'],
+    ['08-fields', 'Colour fields', 'rev', 'reworked · was “keep”', 'v2: the chord sets the hue, loudness sets the light; a band of the new colour washes in on each chord change.'],
+    ['09-marbling', 'Marbling', 'rev', 'reworked · was “needs work”', 'v2, for “doesn’t respond correctly to the sound”: louder = bigger drop, higher = brighter ink landing higher.'],
+    ['10-brush', 'Calligraphy', 'new', 'not judged yet', 'One brush stroke per phrase, following the top notes; strong chords add a red slash, a pause a red ensō.'],
+    ['11-blocks', 'Glitch blocks', 'new', 'not judged yet', 'Attacks tear blocks out of place and they snap back in steps; big chords tear a mosaic and flash an inverted band.'],
+    ['12-riley', 'Op art', 'new', 'not judged yet', 'A Bridget Riley stripe field: bass swells lenses, the melody ripples it, chords kink it into chevrons.'],
+    ['13-halftone', 'Halftone', 'new', 'not judged yet', 'Two dot screens: low notes send big slow red swells, high notes small fast pale ripples.'],
+    ['14-fifths', 'Harmonic web', 'new', 'not judged yet', 'Each attack strings a polygon between the sounding notes on a circle of fifths; old chords sink into a web.'],
+    ['15-suprematism', 'Suprematism', 'new', 'not judged yet', 'Malevich planes: bass slams black bars, chords add red and ochre blocks, loud passages tilt the whole composition.'],
+    ['16-contours', 'Contours', 'new', 'not judged yet', 'Notes raise warm hills or sink cool pits on a mirrored contour map.'],
+    ['17-tunnel', 'Tunnel', 'new', 'not judged yet', 'Notes drop outlines at the far end of a zoom tunnel; busier playing speeds the fall, big chords surge forward.'],
+    ['18-scribble', 'Scribble', 'new', 'not judged yet', 'One nervous pen per register; loops coil tight in dense passages and open into arcs when it is soft.'],
+    ['19-pointillism', 'Pointillism', 'new', 'not judged yet', 'Every note dabs a burst of dots coloured by its distance from the home key; the harmony paints regions.'],
+    ['20-harmonograph', 'Harmonograph', 'new', 'not judged yet', 'A pendulum pen tuned to the chord: an octave or fifth draws a simple figure, a clash a dense knot.'],
+    ['21-hilma', 'Hilma af Klint', 'new', 'new, not judged', 'Pastel geometry: major chords open petals, minor chords curl into spirals, the bass swells the split disc.'],
+    ['22-kline', 'Kline', 'new', 'new, not judged', 'Every big chord strikes one huge black bar on bone white; wide chords long, low chords flat, high chords upright.'],
+    ['23-score', 'Graphic score', 'new', 'new, not judged', 'The music writes its own drifting abstract score: heights, beams, stems and blocks.'],
+    ['24-boogie', 'Boogie woogie', 'new', 'new, not judged', 'Mondrian’s grid: notes drop blocks at pitch × harmony crossings, and every attack makes them hop along the lanes.'],
+    ['25-cells', 'Cells', 'new', 'new, not judged', 'One coloured cell per note, a new row per chord, coloured by the harmony; new notes split cells off.'],
+    ['26-nebula', 'Nebula', 'new', 'new, not judged', 'Glowing grains orbit and stream between the notes; chords throw them outward.'],
+    ['27-pixelsort', 'Pixel sort', 'new', 'new, not judged', 'Chords grab strips and sort them into pixel streaks: bass smears down, high notes up. Made to mix over others.'],
+    ['28-mandala', 'Mandala', 'new', 'new, not judged', 'A radial bloom: fuller chords make more copies; it turns with the tempo and breathes with loudness.'],
+    ['29-martin', 'Agnes Martin', 'new', 'new, not judged', 'Pale washed bands under a pencil grid. Deliberately quiet: made for the chorale, it nearly ignores loud music.'],
+    ['30-casket', 'The casket', 'love', 'love (built into the app)', 'The picture melts, paint drips from the top, big chords slash cuts. For reference.'],
+    ['31-fischinger', 'Fischinger', 'new', 'new in round 6 · not judged yet', 'Every note swoops a coloured disc, ring or bar in from the deep blue; each chord calls a formation (row, arch, ring, V, spiral...), the same chord always the same figure, and every attack makes the whole company hop toward you.'],
+    ['32-mclaren', 'McLaren', 'new', 'new in round 6 · not judged yet', 'After Synchromy: every note prints bars into a tall panel (deep notes a few thick rungs, high notes a fine comb, loud notes reach wider) that echo into the next panels; busy music splits the screen into more panels.'],
+    ['33-lenlye', 'Len Lye', 'new', 'new in round 6 · not judged yet', 'White scratches on black film that boil frame by frame: wriggling pillars for the bass, zigzags and coils in the middle, sparks on top; loud chords burst into a spinning jagged star.'],
+    ['34-whitney', 'Whitney', 'new', 'new in round 6 · not judged yet', 'Hundreds of dots, each turning a little faster than the one inside it: the chord sets the rosette (a fifth 2 arms, a fourth 3, a third 4 or 5); notes stir the dots and they settle into the new figure.'],
+    ['35-klee', 'Klee', 'new', 'new in round 6 · not judged yet', 'A tile mosaic: each voice paints along its own row in its own glaze, rising and falling with its pitch; where voices cross, the colours mix, and held notes deepen.'],
+    ['36-miro', 'Miró', 'new', 'new in round 6 · not judged yet', 'The melody draws one thin black line over a pale sheet: short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents.'],
+    ['37-delaunay', 'Delaunay', 'new', 'new in round 6 · not judged yet', 'Three discs of coloured rings (bass, middle, treble): each note lights its ring at its own clock position with the opposite colour beside it, and the ring jumps and swells outward.'],
+    ['38-albers', 'Albers', 'new', 'new in round 6 · not judged yet', 'Homage to the Square: nested flat squares coloured by the chord (major glows inward, minor sinks); a new chord re-tints slowly from the middle out; loud attacks push the squares off-centre. Covers widgets drawn before it.'],
+    ['39-lewitt', 'LeWitt', 'new', 'new in round 6 · not judged yet', 'Each note is a point on a pale wall and each attack carries out a rule in coloured pencil (lines from the corners, arcs, squares...); the lines pile up, and a new section starts a fresh wall with the next rule.'],
+    ['40-ridges', 'Ridges', 'new', 'new in round 6 · not judged yet', 'After the Unknown Pleasures cover: white ridgelines on black, each a slice of the keyboard; every note raises a peak as tall as it is loud, the front line is now and older lines roll away behind it.'],
+    ['41-matisse', 'Matisse', 'new', 'new in round 6 · not judged yet', 'Cut paper: each note lays a flat gouache piece (low notes big dark algae, middle coils, high small bright stars); chords lift and move pieces, a loud deep chord can slide in a new coloured ground.'],
+    ['42-kusama', 'Kusama', 'new', 'new in round 6 · not judged yet', 'One flat colour with dots in its partner colour: each note starts a colony at its pitch that spreads while held, full chords lay an infinity net, and the harmony picks the colour pair, flooding it in as one huge dot.'],
+    ['43-ikeda', 'Ikeda', 'new', 'new in round 6 · not judged yet', 'Black and white data: each note is a barcode that strobes on the attack, settles on its note-name row and wears away bar by bar; glyph rows stream and a one-pixel score scrolls past a playhead.'],
+    ['44-horizon', 'Horizon', 'new', 'new in round 6 · not judged yet', 'A Sugimoto seascape: a soft horizon between a grey sky and a long-exposure sea; the harmony tints it very faintly and each note sends a shimmer along the line. Meant to look almost still; made to sit under other widgets.'],
+  ];
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  document.getElementById('grid').innerHTML = V.map(([f, name, cls, verdict, watch]) => `
+    <figure>
+      <div class="head"><span class="n">${f.slice(0, 2)}</span><b>${esc(name)}</b><span class="tag ${cls}">${esc(verdict)}</span></div>
+      <p class="watch">${esc(watch)}</p>
+      <video controls preload="metadata" src="${f}.mp4"></video>
+    </figure>`).join('');
+</script>
+</body>
+</html>

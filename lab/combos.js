@@ -1,0 +1,92 @@
+// Widget combinations that do something none of their widgets does alone. Each one was shot together and alone on the
+// same passages, and the stills were looked at before it went in here (round 7). The lab shows them under the (i) on each
+// member's card and in the "Combinations" list above the cards; docs/COMPOSING-SHOWS.md lists them for show composing.
+//
+//   ids:   the widgets, by id. The lab draws them in TOOL_IDS order (lab/index.html) and they were judged that way
+//          (marbling under blocks, riley under fifths, miro under rorschach); a show lists them as layers bottom → top
+//          in that order (docs/COMPOSING-SHOWS.md, "Combinations"). Pixel sort, time slice, fold and stella act on the
+//          finished picture after every other widget, wherever they sit.
+//   blurb: one plain sentence, what you see.
+//   knobs: { widgetId: { knobKey: value } } that "try together" sets. Only values that were shot or that the combination
+//          needs; everything else stays at your own settings.
+//   tip:   knob ideas nobody has shot yet, as plain text (never applied).
+//   at:    where it shows best, in song seconds per song id; "try together" jumps there when the current song has one.
+//   when:  one short phrase, where it works and where it doesn't.
+window.COMBOS = [
+  { ids: ['kusama', 'pixelsort'],
+    blurb: 'When Kusama changes colour, pixel sort drags strips of the old colours across the new picture, so the dots look like a print torn on every loud chord.',
+    tip: 'Pixel sort: how wide each smear about 1.6 and how far it smears about 1.0, for wide sheets instead of hairlines.',
+    at: { prelude: 124, b5: 343 }, when: 'loud chords; quiet bars look like plain Kusama' },
+  { ids: ['pixelsort', 'score'],
+    blurb: 'On every heavy chord pixel sort grabs the score’s stems, beams and dots and drags them sideways into rust-and-black melts that drip down the page, and the page heals once the chord ends.',
+    tip: 'Pixel sort: its own colour about 0.3, so the score’s black ink leads the melt.',
+    at: { prelude: 124, b5: 20 }, when: 'slow, heavy chords; nearly invisible elsewhere' },
+  { ids: ['blocks', 'ikeda', 'pixelsort'],
+    blurb: 'Glitch blocks tears Ikeda’s barcodes and data rows into sliding strips on every loud attack and they snap back into clean rows: one data machine failing in time with the music; pixel sort melts the torn codes into white drips.',
+    tip: 'Blocks + Ikeda carry it; pixel sort is an optional third layer. Blocks: how many tears about 0.8 for less haze in quiet bars. Pixel sort: its own colour about 0.3 for white drips.',
+    at: { prelude: 88, b5: 343 }, when: 'loud, percussive passages' },
+  { ids: ['blocks', 'squares', 'strings'],
+    blurb: 'On loud chords Glitch blocks tears the woven threads and the dread squares into sliding red and white slabs that settle back in steps while the weave keeps moving underneath.',
+    tip: 'Blocks + threads carry most of it; the squares are mostly a dark red ground for the tears.',
+    at: { prelude: 124, b5: 343 }, when: 'loud chords; only a slice or two in soft bars' },
+  { ids: ['blocks', 'marbling'],
+    blurb: 'Glitch blocks cuts the marbled rings into sliding bands on every attack, so the slow combed ink gets hard digital cuts that heal back into the curves.',
+    tip: 'Marbling: drop size about 1.3, so there is more marble on screen to tear.',
+    at: { prelude: 124, b5: 343 }, when: 'the casket and the agitato; side by side in quiet bars' },
+  { ids: ['marbling', 'pixelsort'],
+    blurb: 'Each strong chord tears a wide strip of the marble sideways into combed stripes of its own reds and bone, running past the edge of the drop into the black while the rings keep spreading.',
+    tip: 'Pixel sort: its own colour about 0.2 (the stripes keep the marble’s colours) and how wide each smear about 1.5.',
+    at: { prelude: 132 }, when: 'the Prelude’s loud passages; pixel sort barely fires in Beethoven' },
+  { ids: ['brush', 'casket', 'strings'],
+    blurb: 'The casket melts ink and threads together: every brush stroke grows stepped drips beneath it, the woven threads hang down in stepped curtains, and big chords shear a cut through both.',
+    tip: 'Casket: drips about 0.25 and melt about 1.5, so dense passages stay crisp. Threads: how much they sway about 30.',
+    at: { prelude: 88, b5: 20 }, when: 'medium-density passages; crowded at the Prelude’s climax' },
+  { ids: ['casket', 'murmuration'],
+    blurb: 'The casket melts the flock itself: on loud chords the chord figure weeps down in stepped red and white columns and the slashes cut straight across it.',
+    tip: 'Casket: drips about 0.3, so the melted figure is the main event.',
+    at: { b5: 343, prelude: 88 }, when: 'loud, chordal passages; adds little in quiet ones' },
+  { ids: ['casket', 'kandinsky', 'pixelsort'],
+    blurb: 'The casket melts every one of Kandinsky’s lines and shapes into dripping fringes, and pixel sort pulls the melted shapes and the drips into sheets of blue, gold and red.',
+    at: { prelude: 133, b5: 28 }, when: 'loud passages; calm melt fringes elsewhere' },
+  { ids: ['pixelsort', 'riley'],
+    blurb: 'On loud chords pixel sort tears Riley’s black-and-white stripes into sliding grey and white bars, a clean digital glitch cutting through the op art.',
+    tip: 'Pixel sort: how wide each smear about 1.5 and how far it smears about 1.0, to tear more often. Keep Riley black and white.',
+    at: { prelude: 124 }, when: 'loud, wide chords only' },
+  { ids: ['brush', 'score', 'squares'],
+    blurb: 'On a night page the music splits into three voices: pale chalk notation writes every note, a thick bone brushstroke traces the melody, dark red slabs weigh down the bass, and red slashes cut the score at the big chords.',
+    knobs: { score: { paper: 0 } },
+    tip: 'Needs the score at night: on bone paper the brush’s melody stroke disappears.',
+    at: { prelude: 88, 'chopin-nocturne-48-1': 203 }, when: 'everywhere; dense but legible at climaxes' },
+  { ids: ['miro', 'rorschach'],
+    blurb: 'On Miró’s cream sheet Rorschach’s glow turns into a real sepia inkblot: the left hand grows as one folded brown blot in the middle while Miró’s coloured constellation sings across it.',
+    tip: 'Rorschach: blot size about 0.7 and ink colour all the way left. Miró: how long the sky stays about 11, so crowded passages don’t turn brown.',
+    at: { b5: 20, prelude: 88 }, when: 'everywhere; can get brownish when loud and crowded' },
+  { ids: ['horizon', 'murmuration', 'pixelsort'],
+    blurb: 'On loud chords pixel sort sorts the calm sea itself: the bright horizon tears sideways into a long grey band, and wherever the flock is crossing its red figure smears into that band or drips into the water.',
+    knobs: { pixelsort: { own: 0.1 } },
+    tip: 'Pixel sort’s own colour at 0.1 (shot): at its default its amber chips muddy the grey sea.',
+    at: { prelude: 124 }, when: 'loud, chordal passages; horizon and flock as before in quiet ones' },
+  { ids: ['brush', 'fields'],
+    blurb: 'The melody is brushed in bone-white ink, with red slashes on the big chords, over Rothko colour fields that change with the harmony: a calligraphy line on a painting that keeps recolouring underneath.',
+    knobs: { fields: { home: -0.6, chords: 0.5 } },
+    tip: 'Home colour −0.6 and chords 0.5 (shot): the fields stay violet and blue, where the red slashes stand out; at the defaults the casket turns them red and orange and the slashes sink in.',
+    at: { b5: 343, prelude: 88 }, when: 'everywhere, as long as the fields stay cool' },
+  { ids: ['fifths', 'riley'],
+    blurb: 'Riley’s stripes become a stencil: on loud chords the harmonic web’s coloured chord shape glows through only the black bands, its bright outline drawn across both.',
+    tip: 'A stronger harmonic-web fill should show the stencil in middle-loud bars too.',
+    at: { prelude: 124, b5: 20 }, when: 'loud chordal passages; a Riley solo in quiet bars' },
+  // Tonight's three new widgets are made to stack; their builders shot these pairs (they are not judged yet).
+  { ids: ['riley', 'timeslice'],
+    blurb: 'Time slice rebuilds Riley strip by strip from different moments of the last second and a half, so the waves break into staircases of cut stripes and each note cuts a sharp band of the present through them.',
+    tip: 'Time slice: which way it slices on rings turns Riley’s oval into a target.',
+    at: { prelude: 84, b5: 28 }, when: 'everywhere Riley moves' },
+  { ids: ['fold', 'marbling'],
+    blurb: 'Fold mirrors the marble across a line that turns with the bass, so every drop becomes a symmetrical Rorschach marble.',
+    at: { prelude: 98, b5: 278 }, when: 'everywhere' },
+  { ids: ['fold', 'kusama'],
+    blurb: 'Fold mirrors Kusama’s dots and nets into a twin colony, and loud chords fold it fourfold for a moment.',
+    at: { b5: 278, prelude: 98 }, when: 'everywhere; the gold seam vanishes on the yellow ground' },
+  { ids: ['score', 'squares', 'stella'],
+    blurb: 'Stella frames the score and its dark red slabs with concentric stripes, one more on every attack, dark on the paper and light on black.',
+    at: { prelude: 90 }, when: 'busy passages pile up stripes; slow ones leave a lone frame' },
+];

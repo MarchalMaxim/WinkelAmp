@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "basalt",
+  "title": "Character study — Basalt",
+  "duration": 89.098,
+  "notes": "Composed from compose(3), score time. The motif A–B♭–A in fff triple octaves (0:00.15, 0:01.6, 0:03.1) and the low D (0:06.5); a una corda chorale over a bass sinking chromatically (0:12.4–0:42); blunt chords gathering weight (0:43) and holding back on E7 (0:50.6); the motif returns fff in massive chords (0:52.1, the climax) with the lowest A tolling between them, the last D minor chord at 1:09; the motif once more, far away (1:16.5), and the low D one last time (1:21.3). Abyss: deep indigo, huge slow orbs and tides; the monolith scene opens the show and returns with the motif.",
+  "match": { "kind": "study", "study": "basalt", "seed": 3 },
+  "scenes": {
+    "monolith": {
+      "look": { "palette": ["#020208", "#12123a", "#4646dc", "#c8c8ff"], "trails": 0.8, "warp": 0.2, "glow": 0.5 },
+      "elements": [
+        { "id": "depth", "type": "bass", "params": { "style": "orbs", "intensity": 0.95, "size": 0.95, "region": "bottom" } },
+        { "id": "murk", "type": "fluid", "params": { "intensity": 0.5 } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.4, "color": "#2c2c8a" } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.6, "size": 0.6 } }
+      ]
+    },
+    "chorale": {
+      "look": { "palette": ["#020306", "#141a30", "#46507a", "#b4bcdc"], "trails": 0.75, "warp": 0.12, "glow": 0.35 },
+      "elements": [
+        { "id": "depth", "type": "bass", "params": { "style": "tides", "intensity": 0.6, "size": 0.75, "region": "bottom" } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.35, "color": "#2e3a66" } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.6, "size": 0.4 } },
+        { "id": "motes", "type": "sparks", "params": { "style": "dust", "intensity": 0.3, "size": 0.2 } }
+      ]
+    },
+    "weight": {
+      "look": { "palette": ["#020208", "#1a1440", "#5a46c8", "#d2c8ff"], "trails": 0.65, "warp": 0.2, "glow": 0.45 },
+      "elements": [
+        { "id": "depth", "type": "bass", "params": { "style": "orbs", "intensity": 0.8, "size": 0.8, "region": "bottom" } },
+        { "id": "murk", "type": "fluid", "params": { "intensity": 0.55 } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.4, "color": "#3a2c8a" } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.65, "size": 0.5 } }
+      ]
+    },
+    "distant": {
+      "look": { "palette": ["#010205", "#0e1228", "#3a4270", "#a8b0d8"], "trails": 0.9, "warp": 0.15, "glow": 0.3 },
+      "elements": [
+        { "id": "tune", "type": "melody", "params": { "style": "beads", "intensity": 0.6, "size": 0.35, "region": "top" } },
+        { "id": "motes", "type": "sparks", "params": { "style": "dust", "intensity": 0.25, "size": 0.15 } },
+        { "id": "depth", "type": "bass", "params": { "style": "tides", "intensity": 0.45, "size": 0.7, "region": "bottom" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "monolith", "transition": { "kind": "cut" } },
+    { "at": 0.15, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.5 } },
+    { "at": 1.59, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.5 } },
+    { "at": 3.1, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.55 } },
+    { "at": 6.51, "accent": { "kind": "swell", "color": "#4646dc", "strength": 0.6 } },
+    { "at": 12.4, "scene": "chorale", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 42.99, "scene": "weight", "transition": { "kind": "blend", "duration": 1 } },
+    { "at": 43.1, "ramp": { "target": "look.glow", "to": 0.75, "duration": 7.5 } },
+    { "at": 50.6, "accent": { "kind": "swell", "strength": 0.5 } },
+    { "at": 52.11, "scene": "monolith", "transition": { "kind": "cut" } },
+    { "at": 52.11, "accent": { "kind": "flash", "color": "#e0e0ff", "strength": 1 } },
+    { "at": 52.11, "ramp": { "target": "look.glow", "to": 0.85, "duration": 1.5 } },
+    { "at": 57.45, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.6 } },
+    { "at": 62.99, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.6 } },
+    { "at": 69.02, "accent": { "kind": "shock", "color": "#c8c8ff", "strength": 0.85 } },
+    { "at": 70, "ramp": { "target": "look.glow", "to": 0.35, "duration": 6 } },
+    { "at": 76.47, "scene": "distant", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 81.31, "accent": { "kind": "swell", "color": "#3a4270", "strength": 0.35 } },
+    { "at": 82, "ramp": { "target": "look.glow", "to": 0.12, "duration": 7 } }
+  ]
+}

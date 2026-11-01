@@ -12,7 +12,11 @@ export interface Frame {
   f: Features;
   m: Motion;
   palette: PaletteDef;
+  /** Wall seconds since the last frame: only for what the user paints (pointer and key ink). */
   dt: number;
+  /** Music seconds since the last frame (0 in silence): every motion of a scene runs on this. */
+  musicDt: number;
+  /** Music time (MusicClock.time). */
   t: number;
   /** Where the user is pressing, in layer coordinates (folded into the first mirror wedge). */
   pointer: { x: number; y: number; down: boolean };

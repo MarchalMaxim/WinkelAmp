@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinkelAmp render</title>
+<style>
+  html, body { margin: 0; background: #000; }
+  #c { display: block; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; margin: auto; }
+</style>
+</head>
+<body>
+<!-- Frames drawn on demand (renderSeek / renderTo), for the fidelity test and the offline renderer. -->
+<canvas id="c" width="1280" height="720"></canvas>
+<script type="module" src="/src/studio/render-page.ts"></script>
+</body>
+</html>

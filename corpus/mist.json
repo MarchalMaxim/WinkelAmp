@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "mist",
+  "title": "Character study — Mist",
+  "duration": 83,
+  "notes": "Composed from compose(11), score time. Eleven soft D♭-major pad chords, one every 7.2 s (0:00.3, 0:07.5 … 1:12.3), dissolving into each other; a distant flute floats above from the second chord, the harmony wanders through G♭ and A♭ (0:29.1 the D♭/F turn), comes home to D♭ at 0:57.9 and settles at rest at 1:12.3. No beat, no climax: the bloom follows the chords, a hazy fluid, the melody thread on the pad's top line; the fog scene returns with the home chord, its only accent a gentle swell.",
+  "match": { "kind": "study", "study": "mist", "seed": 11 },
+  "scenes": {
+    "fog": {
+      "look": { "palette": ["#03060c", "#1d3346", "#96d7eb", "#f2fbff"], "trails": 0.85, "warp": 0.5, "glow": 0.5 },
+      "elements": [
+        { "id": "haze", "type": "fluid", "params": { "intensity": 0.5 } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "aurora", "intensity": 0.45 } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.55, "size": 0.3 } }
+      ]
+    },
+    "drift": {
+      "look": { "palette": ["#06050a", "#352a3e", "#e8c4c0", "#fff8f2"], "trails": 0.9, "warp": 0.55, "glow": 0.5 },
+      "elements": [
+        { "id": "haze", "type": "fluid", "params": { "intensity": 0.45 } },
+        { "id": "harmony", "type": "bloom", "params": { "style": "fields", "intensity": 0.45 } },
+        { "id": "tune", "type": "melody", "params": { "style": "ribbon", "intensity": 0.55, "size": 0.3 } },
+        { "id": "air", "type": "sparks", "params": { "style": "dust", "intensity": 0.3, "size": 0.15, "region": "top" } }
+      ]
+    }
+  },
+  "timeline": [
+    { "at": 0, "scene": "fog", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 7.5, "enter": { "id": "air", "type": "sparks", "params": { "style": "dust", "intensity": 0.3, "size": 0.15, "region": "top" } }, "fade": 2 },
+    { "at": 29.1, "scene": "drift", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 43.5, "ramp": { "target": "look.warp", "to": 0.7, "duration": 7 } },
+    { "at": 57.9, "scene": "fog", "transition": { "kind": "blend", "duration": 2 } },
+    { "at": 57.9, "accent": { "kind": "swell", "color": "#f2fbff", "strength": 0.4 } },
+    { "at": 72.3, "ramp": { "target": "look.trails", "to": 0.95, "duration": 6 } },
+    { "at": 72.3, "ramp": { "target": "look.glow", "to": 0.25, "duration": 10 } }
+  ]
+}

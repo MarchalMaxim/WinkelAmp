@@ -1,0 +1,25 @@
+/* The widget picker's tag filter and feel chips (widget-picker.ts). */
+.wp-filter { display: grid; gap: 8px; margin: 4px 0 2px; }
+.wp-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.wp-toggle { padding: 4px 10px; font-size: 12.5px; background: transparent; color: var(--dim); }
+.wp-toggle:hover:not(:disabled), .wp-toggle[aria-expanded="true"] { color: var(--fg); }
+.wp-suits { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--fg); }
+.wp-suits:has(input:disabled) { color: var(--dim); }
+.wp-suits input { accent-color: var(--on); margin: 0; }
+.wp-words { display: grid; gap: 6px; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+.wp-axis { display: grid; grid-template-columns: 6.4em minmax(0, 1fr); align-items: baseline; gap: 3px 8px; min-width: 0; }
+.wp-axis-name { font: italic 12.5px/1.25 var(--serif); color: var(--dim); }
+.wp-head { font: 600 12px/1.2 var(--sans); color: var(--fg); }
+.wp-head + .wp-axis { margin-top: -2px; }
+.wp-head.inst { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.wp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.wp-chip { padding: 2px 8px; font-size: 12px; line-height: 1.4; border-radius: 10px; background: #1b171b; color: #cfc6bc; }
+.wp-chip.on { background: #3a1a1c; border-color: var(--on); color: #fff3ee; }
+.wp-active { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; margin: 0 !important; font-size: 12.5px; color: var(--dim); }
+.wp-active .link { font-size: 12.5px; }
+.wp-none { font-size: 13px; margin: 10px 0 !important; }
+.wp-tags { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 4px; margin-top: 3px; }
+.wp-tag { padding: 1px 6px; font-size: 11px; line-height: 1.4; border-radius: 9px; background: #1d181c; color: #a99f95; }
+.wp-tag.on { background: #3a1a1c; color: #fff3ee; }
+.wp-insts { font-size: 11px; color: var(--dim); margin-left: 2px; }
+.wp-insts .on { color: var(--fg); font-weight: 600; }
