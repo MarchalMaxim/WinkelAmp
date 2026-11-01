@@ -15,7 +15,7 @@
     S = c.width / x.W; sg.drawImage(c, 0, 0);
   }
   let drips = [], scars = [], shake = 0, time = 0;
-  let meltAge = 9, phase = 0, lastHit = -Infinity, lastHeard = -Infinity, song = null;   // v2: the impulse
+  let meltAge = 9, phase = 0, lastHit = -Infinity, lastHeard = -Infinity, song = null, held = null, hg = null;   // v2: the impulse
   const MELT_LONG = 1.1, MELT_KICK = 2.6;     // how long one melt runs (s), and its opening speed against the old steady melt
   const ALONE = 2;                            // an attack this long (s) after the one before it stands alone: it always lands
   // What this instance hears (CHORDS: a part's or a note picker's own, when it is routed): its velocities in order, and
@@ -44,6 +44,10 @@
     const n = Math.round(x.p('drips') * s * (1 - keep) * (8 + 2 * Math.min(6, ch.notes.length)));
     for (let i = 0; i < n; i++) drips.push({ x: x.rnd(0, x.W), y: x.rnd(-140, -10), w: x.rnd(6, 26) * Math.max(ch.vel, 90) / 100, v: x.rnd(200, 420), red: Math.random() < 0.7, k: s });
     cut(x, Math.max(ch.vel, 100), s);
+    // The struck picture, cut, held to melt away over the live one: on a widget that repaints itself every frame (Rorschach)
+    // a shift of the canvas lasts one frame, so without it the strike would hardly show.
+    if (!held || held.width !== snap.width || held.height !== snap.height) { held = document.createElement('canvas'); held.width = snap.width; held.height = snap.height; hg = held.getContext('2d'); }
+    hg.drawImage(x.canvas, 0, 0);
   }
   const SCAR = '#ebf0aa', RED = '#a0141a', OLIVE = '#969628';
   function cut(x, vel, s) {
@@ -137,8 +141,8 @@
       const g = x.g; time += x.dt;
       const keep = x.p('keep'), s = 0.1 + 0.9 * x.p('presence');
       // The steady melt (keep) and a strike's: fast at the attack, spent after MELT_LONG. At rest nothing is copied at all.
-      let melt = x.p('melt') * s * keep;
-      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * s * (1 - keep) * MELT_KICK * u * u; meltAge += x.dt; }
+      let melt = x.p('melt') * s * keep, ghost = 0;
+      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * s * (1 - keep) * MELT_KICK * u * u; ghost = 0.95 * s * (1 - keep) * u * u; meltAge += x.dt; }
       if (melt > 0 || keep >= 1) {
         grab(x);
         for (let i = 0; i < x.W; i += 10) {
@@ -147,6 +151,13 @@
         }
       }
       if (shake > 0.3 && x.dt > 0) { g.translate(x.rnd(-shake, shake), x.rnd(-shake, shake)); shake *= Math.pow(0.86, x.dt * 60); }   // per song-second, so it decays the same on any screen
+      if (ghost > 0 && held) {
+        // how far each column has run by now (the steady melt's own column shape), and the held picture letting go
+        const u = Math.min(1, meltAge / MELT_LONG), run = x.p('melt') * s * (1 - keep) * MELT_KICK * 60 * MELT_LONG / 3 * (1 - Math.pow(1 - u, 3));
+        g.globalAlpha = ghost;
+        for (let i = 0; i < x.W; i += 20) g.drawImage(held, i * S, 0, 20 * S, x.H * S, i, run * (1 + Math.sin(i * 0.037 + phase) * 0.5 + Math.sin(i * 0.11 + phase * 1.7) * 0.5), 20, x.H);
+        g.globalAlpha = 1;
+      }
       for (const d of drips) {
         d.y += d.v * x.dt; d.v *= 1 + 0.6 * x.dt;
         g.fillStyle = d.red ? `rgba(120,8,10,${0.85 * d.k})` : `rgba(150,160,40,${0.7 * d.k})`;
