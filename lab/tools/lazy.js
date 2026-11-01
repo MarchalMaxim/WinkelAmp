@@ -219,9 +219,29 @@
       nx[s] = dy / d; ny[s] = -dx / d;
     }
   }
-  // Drawn as runs of round strokes, one run per width: their union stays clean and smooth however tightly a limb bends.
-  function body(g, l, grow) {
-    const n = SAMPLES - 1, Q = 1.5; let s = 0;
+  // A limb bent gently is one filled outline, which is cheap. One bent tighter than its own thickness would break an
+  // outline, so it is drawn as runs of round strokes, one run per width: dearer, but only limbs that are up ever need it.
+  function bentTight(l) {
+    for (let s = 1; s < SAMPLES; s++) {
+      const ds = Math.hypot(l.sx[s] - l.sx[s - 1], l.sy[s] - l.sy[s - 1]), turn = Math.abs(nx[s] * ny[s - 1] - ny[s] * nx[s - 1]);
+      if (turn * (l.sw[s] + 3) > ds * 0.9) return true;
+    }
+    return false;
+  }
+  let fatNow = 1;
+  function body(g, l, grow, tight, col) {
+    const n = SAMPLES - 1;
+    if (!tight) {
+      g.fillStyle = col; g.beginPath();
+      for (let s = 0; s <= n; s++) { const r = l.sw[s] + grow, X = l.sx[s] + nx[s] * r, Y = l.sy[s] + ny[s] * r; if (s) g.lineTo(X, Y); else g.moveTo(X, Y); }
+      const ae = Math.atan2(ny[n], nx[n]); g.arc(l.sx[n], l.sy[n], l.sw[n] + grow, ae, ae + Math.PI, false);
+      for (let s = n; s >= 0; s--) { const r = l.sw[s] + grow; g.lineTo(l.sx[s] - nx[s] * r, l.sy[s] - ny[s] * r); }
+      const a0 = Math.atan2(-ny[0], -nx[0]); g.arc(l.sx[0], l.sy[0], l.sw[0] + grow, a0, a0 + Math.PI, false);
+      g.closePath(); g.fill();
+      return;
+    }
+    g.strokeStyle = col;
+    const Q = 1.2 + 0.8 * Math.max(1, l.w * fatNow / 60); let s = 0;
     while (s < n) {
       const q = Math.round(l.sw[s] / Q); let e = s + 1;
       while (e < n && Math.round(l.sw[e] / Q) === q) e++;
@@ -245,7 +265,7 @@
   }
 
   function picture(g, x, pal, yawn) {
-    const W = x.W, H = x.H, fat = x.p('fat');
+    const W = x.W, H = x.H, fat = x.p('fat'); fatNow = fat;
     const [ground, bottle, moss, pea, acid] = pal;
     g.globalAlpha = 1; g.fillStyle = css(ground); g.fillRect(0, 0, W, H);
     g.lineCap = 'round'; g.lineJoin = 'round';
@@ -253,8 +273,9 @@
       const l = order[o];
       sample(l, fat, yawn); normals(l);
       const c = l.f > 0.5 ? mix(moss, bottle, (l.f - 0.5) * 2) : mix(pea, moss, l.f * 2);
-      g.strokeStyle = css(c, 0.5); body(g, l, 2.5);
-      g.strokeStyle = css(c); body(g, l, 0);
+      const tight = bentTight(l);
+      body(g, l, 2.5, tight, css(c, 0.5));
+      body(g, l, 0, tight, css(c));
       const rankUp = order.length > 1 ? o / (order.length - 1) : 1;
       if (rankUp > 0.6 && l.hl > 0.02) {
         g.globalAlpha = (0.12 + 0.38 * (rankUp - 0.6) / 0.4) * l.hl * (1 - 0.75 * l.f); g.strokeStyle = css(acid); g.lineWidth = 2.2; highlight(g, l); g.globalAlpha = 1;
@@ -288,7 +309,7 @@
       { key: 'fat', label: 'how fat the limbs are', min: 0.5, max: 1.7, value: 1,
         hint: 'How thick the limbs are. Left: slim. Right: huge, overlapping everything.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 6, 1.5 + 9 * v, '#7c9a2f') },
-      { key: 'limbs', label: 'how many limbs', min: 4, max: 18, step: 1, value: 12,
+      { key: 'limbs', label: 'how many limbs', min: 4, max: 15, step: 1, value: 12,
         hint: 'How many limbs lie in the heap. Left: a few. Right: a big heap.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5); for (let i = 0; i < n; i++) ICON.line(g, 4 + (i % 2) * 6, h - 4 - i * 3.4, w - 4 - ((i + 1) % 2) * 6, h - 5 - i * 3.4, i % 2 ? '#7c9a2f' : '#4f6b22', 2.6); } },
       { key: 'green', label: 'which green', min: 0, max: 1, value: 0.5,
