@@ -103,6 +103,14 @@ values:
 - **A line** worked out from the notes, on every song, piano too: `melody` (the top line), `bassline`, `inner`,
   `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
 
+**A widget's usual note type.** Some widgets have one in `lab/tags.json` (`noteType`; the widget list below prints it as
+**Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`. When the studio places such a widget,
+it sets `listen` to that type, but only if the section holds enough of it: at least 3 attacks, one per 10 s on average,
+and half the section within reach of one. Otherwise the layer plays on all notes. The layer panel says in words what the
+layer hears and has one click to switch between the usual type and all notes. A usual type is a default, not a rule: a
+show file you write by hand sets `listen` itself, and shows already saved are untouched. Grace notes go through the
+note picker (`picks:<id>`), not a rule.
+
 A layer listening to a part is its own *instance*: `strings` and `strings@melody` can sit in one section (say woven
 threads on the melody over the same widget on the bass line) and draw independently; each instance appears once per
 section. Removing `listen` gives the plain widget back with its state.

@@ -1,5 +1,23 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-02: note types (branch `claude/note-types`, not merged)
+
+Spec `docs/superpowers/specs/2026-11-01-note-types-design.md`, plan `docs/superpowers/plans/2026-11-01-note-types.md`.
+**Pushed on its own branch; merging is the user's call.** The user asked for widgets that answer only some kinds of
+note, chosen by default when placed.
+
+- **Five new values of `listen`**: `chords`, `runs`, `trills`, `long`, `repeats` (rules in `lab/layers/lines.js`,
+  `WA.NOTE_TYPES`; one implementation for the lab, studio and Node). A song with none of a kind warns and the layer
+  hears nothing.
+- **Grace notes are not offered**: the best rule fires as often on a piece with none as on one with them. Real ones go
+  through the note picker. This was the builder's call, with the numbers in the spec.
+- **A usual note type per widget** (`noteType` in `lab/tags.json`, `src/widgets/tags.ts`): placing the widget in the
+  studio sets `listen` to it if the section has enough of it (`placedListen` in `src/studio/ui/layer-controls.ts`);
+  the panel says what it hears and one click switches. Shipped: stella repeats, pixelsort chords, martin long, flee
+  runs. Trills are nobody's default. **Not yet judged by eye**: the four were chosen from reading the code.
+- Shows saved before this are unchanged. Checks: `tests/note-types.test.ts`, `tests/layer-controls.test.ts`,
+  `tests/tags.test.ts`; no browser run was done.
+
 ## 2026-11-01: instruments, places, intensity lanes, tags and the HD master
 
 Build of `docs/superpowers/specs/2026-10-31-instruments-regions-automation-hd-design.md` along
