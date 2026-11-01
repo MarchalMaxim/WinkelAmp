@@ -74,6 +74,22 @@ describe('npm run check-show', () => {
     expect(written.sections[0].layers[0]).toEqual({ widget: 'squares', knobs: { nonsense: 1 } });
   }, 60_000);
 
+  it('warns about a listen naming a track or family the song lacks (the pack\'s tracks), not one it has', () => {
+    mkdirSync(join(songs, 'band'), { recursive: true });
+    writeFileSync(join(songs, 'band', 'pack.json'), JSON.stringify({ duration: 100, tracks: { violin: {}, cello: {} } }));
+    const f = join(tmp, 'band.json');
+    writeFileSync(f, JSON.stringify({ version: 2, id: 'band', song: 'band', sections: [
+      { start: 0, end: 50, layers: [{ widget: 'squares', listen: 'horn' }, { widget: 'kandinsky', listen: 'violin' }] },
+      { start: 50, end: 100, layers: [{ widget: 'squares', listen: 'family:brass' }, { widget: 'kandinsky', listen: 'family:strings' }] },
+    ] }));
+    const r = check([f]);
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/warning sections\[0\]\.layers\[0\]\.listen: this song has no horn: it plays on all notes/);
+    expect(r.out).toMatch(/warning sections\[1\]\.layers\[0\]\.listen: this song has no brass track: it plays on all notes/);
+    expect(r.out).not.toMatch(/layers\[1\]\.listen/);
+    expect(r.out).toMatch(/band\.json: ok, 2 warnings/);
+  }, 60_000);
+
   it('exits 1 on a file that is not JSON', () => {
     const f = join(tmp, 'broken.json');
     writeFileSync(f, '{ nope');

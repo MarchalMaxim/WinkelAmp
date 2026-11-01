@@ -24,7 +24,7 @@ import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
-import { basename, extname, join, resolve } from 'node:path';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import type { Connect, Plugin } from 'vite';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
@@ -124,13 +124,28 @@ export interface RenderChild {
   on(e: 'close', fn: (code: number | null) => void): unknown;
   on(e: 'error', fn: (err: Error) => void): unknown;
   kill(): boolean;
+  /** The IPC channel (the real child has one): a { cancel: true } message lets render-show clean up and exit. */
+  send?(message: unknown): boolean;
+  connected?: boolean;
+  pid?: number;
 }
 /** Starts `node scripts/render-show.mjs <args>` with these extra environment variables (tests pass a fake). */
 export type RenderSpawner = (args: string[], env: Record<string, string>) => RenderChild;
 
 const RENDER_SHOW = join(REPO, 'scripts', 'render-show.mjs');
 const spawnRenderShow: RenderSpawner = (args, env) =>
-  spawn(process.execPath, [RENDER_SHOW, ...args], { cwd: REPO, env: { ...process.env, ...env }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  spawn(process.execPath, [RENDER_SHOW, ...args], { cwd: REPO, env: { ...process.env, ...env }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+
+/** Stops a render child at once with everything it started (Chrome, ffmpeg): on Windows a plain kill ends only the
+    node process, so the whole tree goes (taskkill /T /F), its temp folder left for the job to remove. */
+function killTree(c: RenderChild): void {
+  if (process.platform === 'win32' && c.pid) {
+    const k = spawn('taskkill', ['/T', '/F', '/PID', String(c.pid)], { windowsHide: true, stdio: 'ignore' });
+    k.on('error', () => c.kill());
+  } else c.kill();
+}
+/** How long a cancelled render-show gets to clean up before its tree is killed. */
+const CANCEL_GRACE_MS = 20_000;
 
 /** Every running render child of this process, so a closing dev server stops them. */
 const children = new Set<RenderChild>();
@@ -147,7 +162,7 @@ const unclock = (t: string): number => { const [m, s] = t.split(':').map(Number)
  */
 export function renderLine(line: string): {
   frames?: { done: number; n: number }; left?: number; total?: number; phase?: 'share';
-  file?: { kind: 'master' | 'share' | 'sheet'; path: string };
+  file?: { kind: 'master' | 'share' | 'sheet'; path: string }; work?: string;
 } {
   const l = line.trim();
   let m = /^\d+:\d\d of \d+:\d\d: (\d+)\/(\d+) frames .*about (\d+:\d\d) left$/.exec(l);
@@ -157,6 +172,8 @@ export function renderLine(line: string): {
   if (l.startsWith('share copy:')) return { phase: 'share' };
   m = /^(master|share|sheet) → (.+?)(?: \([^()]*\))?$/.exec(l);
   if (m) return { file: { kind: m[1] as 'master' | 'share' | 'sheet', path: m[2] } };
+  m = /^work folder → (.+)$/.exec(l);
+  if (m) return { work: m[1] };
   return {};
 }
 
@@ -169,6 +186,8 @@ interface RenderJob {
   fromEta: boolean;
   /** The temp folder of the show sent as the body. */
   tmp: string | null;
+  /** render-show's own temp folder (its `work folder →` line), removed here when it did not finish. */
+  work: string | null;
 }
 
 const viewOf = (j: RenderJob, now = Date.now()): RenderJobView => ({
@@ -217,19 +236,21 @@ function renderJobs(dirs: { songs: string; shows: string }, spawnRender: RenderS
     const child = spawnRender(args, { WINKELAMP_SONGS: dirs.songs, WINKELAMP_SHOWS: dirs.shows });
     const job: RenderJob = {
       view: { id: `${Date.now().toString(36)}-${++count}`, show: id, state: 'running', progress: 0, message: 'starting render-show' },
-      child, started: Date.now(), endsAt: null, fromEta: false, tmp,
+      child, started: Date.now(), endsAt: null, fromEta: false, tmp, work: null,
     };
     jobs.set(job.view.id, job); latest = job; children.add(child);
     const read = (raw: string) => {
       const line = raw.replace(/\r$/, '').trim();
       if (!line) return;
-      job.view.message = line;
       const r = renderLine(line), now = Date.now();
+      if (!r.work) job.view.message = line;   // the temp folder is the job's business, not the user's
       if (r.frames) job.view.progress = r.frames.n ? Math.min(1, r.frames.done / r.frames.n) : 0;
       if (r.left !== undefined && !job.fromEta) job.endsAt = now + r.left * 1000;
       if (r.total !== undefined) { job.endsAt = job.started + r.total * 1000; job.fromEta = true; }
       if (r.phase === 'share') job.view.progress = 1;
       if (r.file) (job.view.files ??= []).push(r.file.path);
+      // only a folder render-show makes (mkdtemp in the system temp folder) is ever removed
+      if (r.work && basename(r.work).startsWith('wa-render-show-') && resolve(dirname(r.work)) === resolve(tmpdir())) job.work = r.work;
     };
     for (const s of [child.stdout, child.stderr]) {
       if (!s) continue;
@@ -247,6 +268,11 @@ function renderJobs(dirs: { songs: string; shows: string }, spawnRender: RenderS
     const end = (state: 'done' | 'failed', message?: string) => {
       children.delete(child);
       if (job.tmp) { rmSync(job.tmp, { recursive: true, force: true }); job.tmp = null; }
+      // A render that did not finish (cancelled, killed, failed) may have left its partial video behind.
+      if (job.work && (job.view.state !== 'running' || state !== 'done')) {
+        try { rmSync(job.work, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* still locked: the OS's temp cleanup */ }
+        job.work = null;
+      }
       if (job.view.state !== 'running') return;   // cancelled, or an error came before the close
       job.view.state = state;
       if (state === 'done') job.view.progress = 1;
@@ -259,7 +285,17 @@ function renderJobs(dirs: { songs: string; shows: string }, spawnRender: RenderS
   };
 
   const cancel = (j: RenderJob): RenderJobView => {
-    if (j.view.state === 'running') { j.view.state = 'cancelled'; j.view.message = 'cancelled'; j.child.kill(); }
+    if (j.view.state !== 'running') return viewOf(j);
+    j.view.state = 'cancelled'; j.view.message = 'cancelled';
+    const c = j.child;
+    let asked = false;
+    if (typeof c.send === 'function' && c.connected !== false) { try { asked = c.send({ cancel: true }); } catch { asked = false; } }
+    if (!asked) killTree(c);
+    else {
+      // render-show closes Chrome and ffmpeg and removes its temp folder; if it hangs, the whole tree goes
+      const t = setTimeout(() => { if (children.has(c)) killTree(c); }, CANCEL_GRACE_MS);
+      t.unref?.();
+    }
     return viewOf(j);
   };
 
@@ -367,8 +403,9 @@ export function apiMiddleware(dirs: { songs: string; shows: string }, o: ApiOpti
       }
       if (parts.length === 2 && method === 'PUT') {
         const show = parseJson(await readBody(req, MAX_JSON)) as Show;
-        const duration = readPack(songs, typeof show?.song === 'string' && isSlug(show.song) ? show.song : id).pack?.duration;
-        const { errors } = validateShow(show, { duration: typeof duration === 'number' ? duration : undefined, widgets: widgets() });
+        const sp = readPack(songs, typeof show?.song === 'string' && isSlug(show.song) ? show.song : id).pack, duration = sp?.duration;
+        const { errors } = validateShow(show, { duration: typeof duration === 'number' ? duration : undefined, widgets: widgets(),
+          tracks: sp ? Object.keys(sp.tracks ?? {}) : undefined });
         if (!errors.length && show.id !== id) errors.push({ path: 'id', message: `the show says id '${show.id}' but is saved as '${id}'` });
         if (errors.length) return send(res, 400, { errors });
         writeAtomic(file, canonicalShow(show));
@@ -402,7 +439,7 @@ export function studioApi(dirs: { songs?: string; shows?: string } = {}): Plugin
       const d = { songs: dirs.songs ?? songsDir(), shows: dirs.shows ?? showsDir() };
       server.middlewares.use(apiMiddleware(d));
       // A render job does not outlive its dev server.
-      server.httpServer?.once('close', () => { for (const c of children) c.kill(); });
+      server.httpServer?.once('close', () => { for (const c of children) killTree(c); });
       mkdirSync(d.shows, { recursive: true });
       server.watcher.add(d.shows);
       const changed = (file: string) => {

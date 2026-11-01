@@ -1,5 +1,149 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-01: instruments, places, intensity lanes, tags and the HD master
+
+Build of `docs/superpowers/specs/2026-10-31-instruments-regions-automation-hd-design.md` along
+`docs/superpowers/plans/2026-10-31-instruments-regions-automation-hd.md` (T1–T24, about 55 commits on
+`claude/ambitious-project-continuation-ff6d7f`). **Nothing is merged into `claude/wizardly-franklin-ttaqyo`: that is
+the user's call.**
+
+### What it is now
+
+- **A layer listens to one part.** Ensemble recordings are ingested with YourMT3+ as well as the piano model: one note
+  track per instrument (Beethoven's Fifth: violins, violas, cellos, a string section, horns, oboe, clarinet, bassoon,
+  piano, plucked), estimated velocities, and all-notes that fill the piano model's gaps. Every song, piano too, has six
+  lines worked out from the notes (melody, bass line, inner voices, low, high, accents). A layer that listens gets
+  only that part's attacks, pulse and sounding notes; `strings@melody` and `strings@bassline` are two instances in one
+  section.
+- **A layer is seen in a place.** A small copy (`window`, the default for every widget: it draws alone and the whole
+  picture is fitted into the shape) or a mask (`spot`: it draws full size on the shared picture, seen only through the
+  shape, right for the readers that cut or smear what is below). Rect or ellipse,
+  turned, soft-edged, placed by dragging handles on the stage; a moved place glides over the section's fade.
+- **A layer follows an intensity curve**, drawn in lanes under the timeline like DJ automation (pivots, linear, ease,
+  hold, bends; presets: fade in or out, swell, pulse every beat or bar, gate on loudness, while its part plays).
+  Lower intensity means fewer attacks (a fixed, deterministic share), a fainter picture (corrected per widget class so
+  half looks like half) and a calmer pulse.
+- **Widgets have synesthetic tags** (`lab/tags.json`: feel words, suited instruments, a stack role; `lab/tag-words.json`
+  says what each word looks and sounds like). The picker filters by them and by "suits this song"; the auto-composer
+  reads the description's feel words and routes an accent to the instrument it suits.
+- **Shows are version 2** when they use any of this; v1 files still load and save in their own form.
+- **The HD master.** `render-show` draws the show supersampled (2560×1440, widgets still in 1280×720 units behind a
+  context proxy), 60 fps, lossless to x264 crf 13 BT.709, plus a 1080p30 share copy at about 15 MB a minute and a
+  contact sheet. The studio's Export menu starts the same render on this computer, with progress and time left.
+- **The lab** runs the same layer code: each card chooses what it listens to, its place and an intensity preset; tags
+  are chips with a filter.
+
+### Where things are
+
+| Piece | Where |
+|---|---|
+| The new maths, written once | `lab/layers/{automation,lines,persist,region,slot}.js` (curves, presets, thinning, lines, the pulse, visibility classes, masks, spot and window); the studio and Node evaluate the same text through `src/widgets/layers.ts`, `layers-source.ts`, `scripts/node/layers.ts` |
+| YourMT3+ | installed outside the repo by `npm run setup-ymt3` (`%LOCALAPPDATA%/WinkelAmp/ymt3`, venv `C:/Users/maxim/.venvs/wa-mt`, `WINKELAMP_YMT3`); runner `scripts/ears/ymt3.py`; basic-pitch fallback `scripts/ears/bp.py` (venv `wa-bp`, `WINKELAMP_PY_BP`) |
+| Pack v2 | `src/studio/pack/{pack,build,tracks,instruments}.ts`; ingest `scripts/ingest.ts` (`--notes auto` and its fallback rows); `npm run describe-song` lists the tracks, `npm run pianoroll` draws them |
+| Show v2 | `src/studio/show/{show,edit,schedule,conductor}.ts` (listen, region, intensity; instance keys; pivots across splits, merges and boundary drags) |
+| The runtime | `src/widgets/runtime.ts` (instances, routing, own pulses, regions), `src/widgets/hd-context.ts` (supersampling) |
+| The studio UI | `src/studio/ui/layer-controls.ts` (listens to, where, intensity presets), `region-overlay.ts` + `lab/region-ui.js` (handles on the stage), `lanes.ts` (intensity lanes), `widget-picker.ts` (tags), `record.ts` (recorder presets, Render HD master) |
+| The HD render | `scripts/render-show.mjs`, `scripts/lib/encode.mjs`; the studio's job API in `scripts/studio-api.ts` |
+| Tags | `lab/tags.json`, `lab/tag-words.json`, `src/widgets/tags.ts`; printed per widget in `docs/COMPOSING-SHOWS.md` |
+| Shows | `shows/{rach-prelude-recording,beethoven5,chopin-winter-wind,vivaldi-winter}.json` (the first three route layers to the melody, the bass line and Beethoven's violins; Vivaldi gives each instrument its own widget) |
+| HD masters and share copies | `renders/<id>.mp4`, `renders/<id>-share.mp4`, `renders/<id>-phone.mp4` (under 30 MB), `renders/<id>-sheet.png`; last night's 720p renders moved to `renders/720p-2026-10-31/` (all local, git-ignored) |
+
+### What was checked (T24)
+
+- `npm test` (74 files, 949 tests), `npm run typecheck`, `npm run build`, `npm run widget-docs -- --check`,
+  `npm run check-show` (the four shows ok).
+- `npm run fidelity` (full, layer cases included): 742/742 comparisons pass, 739 pixel-identical. Scale 1 is untouched.
+- `npm run runtime-check` 14/14 (seek invariance, instances, routing, curves; spot and window at scale 1 and 2; check 9
+  now covers timeslice in a spot too), `studio-check` 33/33, `layers-check` 20/20, `overlay-check` 27/27,
+  `lanes-check` 15/15, `record-check` 11/11, `hd-check` no QUARTER and no ERROR at 2× (harmonograph within its recorded
+  allowance, scribble SOFT as before).
+- The studio end to end in headless Chrome (own server, temp songs and shows): Beethoven open, flee in the Closing set
+  to listen to the violins (the menu lists the ten tracks with their note counts, two families and the six lines), a
+  spotlight placed and dragged on the stage, an intensity lane drawn with four clicks and a pivot dragged, Ctrl+S (a
+  version 2 show with listen, region and intensity), then Export → Render HD master from the playhead (15 s in 68 s:
+  2560×1440 60 fps, the share copy 3.8 MB). The stills and the master's frames show flee's red streaks only inside the
+  ellipse, over Kandinsky.
+- Review Focus by hand: an old v1 show (Winter Wind and the Prelude as they were before T20) opens, plays and saves as
+  version 1, identical but for the composer stamp a user's save writes (and the final newline the hand-written Prelude
+  lacked); `strings@melody` over `strings@bassline` both load routed and feel different pitches (0.59 and 0.13); a
+  256-pivot gate lane drags at about 10 ms a pointer move, one Ctrl+Z undoes the drag, and a click past 256 adds nothing;
+  ingest with `WINKELAMP_YMT3=C:/nope WINKELAMP_PY_BP=C:/nope/python.exe` (into a temp songs folder) writes a valid v2
+  pack with the fallback warnings, and the ears `/health` names both missing tools with their reasons.
+- Fixed in this review:
+  - a spotted time slice drew its threads outside its region (its put-back at the next fade): a spot's queued pass now
+    runs clipped to the region's footprint;
+  - harmonograph's 2× fade gap is a recorded `hd-check` allowance, with the reasons, printed on every run;
+  - a lane click past 256 pivots silently dropped the last pivot; a merge of two full curves dropped the second; a
+    region glide from 170° to −170° spun 340°;
+  - `render-show` posted each frame as a Blob, and busy 2× frames (Winter Wind's horizon, 4–5 MB PNGs) made a POST fail
+    after 100–150 frames: it now posts the bytes;
+  - T1's contract files had never been committed (the later tasks' commits depended on them); they are now.
+
+### Fixed after the final review (2026-11-01), and checked again
+
+- A time slice moved from the whole screen or a mask into a small copy (window) pasted its window's picture over the
+  whole stage at every step (its put-back hook stayed on the shared canvas): the put-back now acts only on the canvas
+  it was kept from. Runtime-check 9 covers stage → window and spot → window for it (0 copies on the stage, the stage
+  outside the box byte-equal to a run windowed from the start); red before the fix, green after.
+- `check-show`, `render-show`, the studio's save route and the studio pass the song's tracks to the validator, so a
+  listen naming a track the song lacks gets its warning (`this song has no horn: it plays on all notes`) there too.
+- Arrow-key nudges of a pivot are one undo step per press, no longer merged across pivots (lanes-check).
+- Cancelling an HD render asks render-show (over an IPC channel) to close Chrome, ffmpeg and its server and remove its
+  temp folder; after 20 s, or without the channel, the whole process tree is killed and the job removes the folder.
+  Checked for real through the API: cancelled at frame 60 of 3600, the folder gone, no ffmpeg left.
+- `labLayerSpecs` and `labLayers` have unit tests (`tests/driver-layers.test.ts`); runtime-check's scale-2 software
+  pass takes a fresh browser per widget and retries a crashed run once; layers-check takes its picker words from
+  `lab/tags.json` (the user's retagging had dropped rorschach's "liquid").
+- The docs say Small copy (window, the default for every widget) and Mask (spot).
+- Checked: `npm test` (75 files, 960 tests), typecheck, build, `widget-docs --check`, `check-show` (four shows ok),
+  `runtime-check` 14/14, `studio-check` 33/33, `layers-check` 20/20, `overlay-check` 27/27, `lanes-check` 16/16,
+  `record-check` 11/11, `hd-check` no QUARTER and no ERROR at 2× (scribble SOFT as before; timeslice at 3× moved
+  0.087 and 0.095 against 0.1), `fidelity` 724/724 (721 identical; fewer cases than before since Hilma was dropped).
+
+### What was measured
+
+- **YourMT3+** (MoE, on the GPU): Beethoven 7:05 in 80 s (piano share 0.049, ensemble, 8024 notes in ten tracks),
+  Vivaldi's Winter 9:26 in 97 s (0.078, ensemble), the Prelude 3:52 in 18–21 s (piano share 1.0), Winter Wind 4:09 in
+  30 s (1.0), the Nocturne 6:22 in 37 s (1.0). Piano recordings keep the piano model's notes exactly.
+- **Ingest stage times**: Beethoven (piano notes from the lab's file) 101 s in all: YourMT3+ 93 s, analysis 7 s;
+  Vivaldi 203 s: the piano model 82 s, YourMT3+ 110 s, analysis 10 s.
+- **Determinism**: Winter Wind 0–4 s rendered twice gives identical frame md5s (240 of 240), on the stretch that failed
+  with the old Blob transport.
+- **The transport** (T9, Beethoven at 2×): drawing alone 583 ms a frame; PNG through toBlob and POST 627 ms; raw RGBA
+  POSTed 1146 ms; base64 through `page.evaluate` 885 ms. PNG it is.
+- **HD seconds per video second** (2×, 60 fps, with other checks running alongside): the Prelude 3.28 (3:52 in
+  14:47, the ETA said 16:52, 12 % off), Beethoven 3.86 (7:05 in 30:58, the ETA said 40:41: 24 % off, as the full
+  runtime-check and hd-check ran beside it for most of it), Winter Wind 10.35 (4:09 in 45:38 with nothing else running: its horizon is the costliest widget at 2×; the ETA said 54:40, 17 % off).
+- **Sizes**: masters 400.7 MB (Prelude), 1005.9 MB (Beethoven), 1016.3 MB (Winter Wind); share copies 57.9 MB, 106.7 MB,
+  62.6 MB (15.0 MB a minute each); phone copies (1280×720, 28 MB budget) 27.8 MB, 27.9 MB, 27.9 MB.
+- **Persist classes** (`npm run persist-probe`, in `lab/layers/persist.js`): 14 widgets keep their strokes (kandinsky,
+  rorschach, squares, flee, current, strings, murmuration, casket, blocks, tunnel, pointillism, suprematism, hilma,
+  nebula); the other 31 repaint their picture and take the corrected visibility curve.
+- **Six layers** (four regions, two curves) in the studio, Prelude 120–140 s, headless Chrome on the GPU:
+  `runtime.step` p50 3.0 ms, p95 4.9 ms, max 12.6 ms (software canvas: p95 5.2 ms); the same six without regions or
+  curves p95 4.3 ms. Headless Chrome paces its frames at 30 Hz (33 ms) even for the plain six, so the frame rate itself
+  could not be measured there (T15's 41.7 ms p95 was most likely that pacing).
+
+### Known limits and what is not verified
+
+- **Six layers with four regions at 60 fps live is not verified**: the work per step fits easily (p95 under 5 ms of
+  the 16.7 ms), but headless Chrome only paces at 30 Hz, and the GPU's share of the compositing is not in that number.
+  Play it in the studio to see. The HD render is not affected (it draws frame by frame).
+- **A spotted time slice's put-back is full strength**: its kept picture comes back at the next fade before the spot's
+  feather and intensity apply, so in a soft edge or under a low curve its threads show at full strength for a frame.
+  Use a hard edge, or the window, for a time slice that must stay faint.
+- **Harmonograph at 2×**: faint old trails linger a little longer than at 1× (8-bit colour-burn floors); the same
+  figure, sharper.
+- **Share copies are over 30 MB for songs longer than two minutes** at the spec's 15 MB a minute; the `-phone.mp4`
+  copies (720p, 28 MB) were made for WhatsApp on a phone. `--share-mb-per-min 7` gives a smaller share copy directly.
+- **Beethoven looks busier in the gaps**: its all-notes are now the piano model plus YourMT3's gap fill (spec
+  [confirm] 4), so the development's murmuration has visibly more strokes than in last night's render (3:00).
+- **Instrument labels are what YourMT3+ heard**: no first and second violins; "String section" is string sound it could
+  not split; tracks of a few dozen notes (horn 44, plucked 52) are guesses.
+- Not verified: the HD master and the share copy played on a phone or sent through WhatsApp; a real user's
+  hand on the overlay and lanes (all drags were Playwright's mouse); YourMT3+ on a recording with voice or brass
+  solos; the six-layer frame rate in a visible Chrome window.
+
 ## 2026-10-31: the studio (the lab becomes the product)
 
 Overnight build of `docs/superpowers/specs/2026-10-31-lab-first-studio-design.md` along

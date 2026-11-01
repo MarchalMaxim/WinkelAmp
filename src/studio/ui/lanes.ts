@@ -171,6 +171,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   let views: LaneView[] = [], builtKey = '', drag: Drag | null = null, gesture = 0, raf = 0, now = 0;
   let hover: { lane: number; target: Target } | null = null;
   let selected: { section: number; layer: number; index: number } | null = null;
+  /** The arrow-key nudge in progress: one undo step per pivot from the first press until the key is let go (a held
+      key's repeats are one step; another pivot, a key-up or leaving the lane starts a new one). */
+  let nudge: { at: string; group: string } | null = null;
   let menu: HTMLElement | null = null;
   const ticksFor = new Map<string, Chord[]>();
 
@@ -574,11 +577,15 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
         e.preventDefault();
         const piv = fresh(pc), p = piv[s.index], step = (e.shiftKey ? 0.1 : 0.01) * (e.key === 'ArrowUp' ? 1 : -1);
         p.v = Math.round(clamp(p.v + step, 0, 1) * 1000) / 1000;
-        commit(pc, piv, `intensity:${pc.section}:${pc.layer}:key`);
+        const at = `${pc.section}:${pc.layer}:${s.index}`;
+        if (!nudge || nudge.at !== at) nudge = { at, group: `intensity:${at}:key:${++gesture}` };
+        commit(pc, piv, nudge.group);
         showTip(v, geo(v).x(p.t), `${stamp(p.t)} · ${pct(p.v)}`);
       }
       if (e.key === 'Escape') { selected = null; hideTip(); draw(); }
     });
+    cv.addEventListener('keyup', (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') nudge = null; });
+    cv.addEventListener('blur', () => { nudge = null; });
   };
 
   // ---- menus ----

@@ -53,14 +53,17 @@ export const partWords = (l: Listen): string => listenLabel(l).toLowerCase().rep
     place; in a window they read only their own picture. */
 export const READERS: readonly string[] = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
 
-/** A new region: a centred ellipse half the stage's size with a soft edge; a spotlight for the readers, else a window. */
-export function defaultRegion(widget: string): Region {
-  return { mode: READERS.includes(widget) ? 'spot' : 'window', shape: 'ellipse', x: 0.5, y: 0.5, w: 0.5, h: 0.5, feather: 0.25 };
+/** A new region: a small copy of the whole widget (a window, the user's "place": the widget plays within its edges),
+    a centred soft-edged box 40 % of the stage, the whole picture contained in it however the box is stretched. The
+    readers too: in a window they cut only their own picture. A spotlight (a mask over the full-size widget) is chosen
+    by hand. `widget` stays in the signature for callers that place by widget. */
+export function defaultRegion(_widget: string): Region {
+  return { mode: 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.4, h: 0.4, feather: 0.2, fit: 'contain' };
 }
 
 /** Where a layer is seen, in a few words ('' for the whole screen). */
 export function describePlace(r: Region | undefined): string {
-  return !r ? '' : r.mode === 'spot' ? 'in a spotlight' : 'in a window';
+  return !r ? '' : r.mode === 'spot' ? 'as a mask' : 'as a small copy';
 }
 
 /** The pivots of a preset, or null when it does not apply. */
@@ -129,7 +132,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     <section class="lc-part">
       <h4>Where</h4>
       <div class="lc-seg" role="group" aria-label="Where it is seen">
-        <button type="button" data-mode="">Whole screen</button><button type="button" data-mode="spot">Spotlight</button><button type="button" data-mode="window">Window</button>
+        <button type="button" data-mode="">Whole screen</button><button type="button" data-mode="window" title="The whole widget, shrunk into a box you place">Small copy</button><button type="button" data-mode="spot" title="The full-size widget, seen only through a shape">Mask</button>
       </div>
       <p class="lc-say small"></p>
       <div class="lc-region">
@@ -140,7 +143,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
         <label class="lc-check lc-win"><input type="checkbox" data-blend> Lets the layers below through</label>
         <button type="button" class="link" data-reset>Reset place</button>
       </div>
-      ${reader ? '<p class="lc-hint small">This widget cuts into the picture below it: in a window it cuts only its own picture.</p>' : ''}
+      ${reader ? '<p class="lc-hint small">This widget cuts into the picture below it: as a small copy it cuts only its own picture.</p>' : ''}
     </section>
     <section class="lc-part">
       <h4>Intensity</h4>
@@ -225,7 +228,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     if (r?.mode === mode) return;
     const base: Region = r ?? d.memory.get(d.memoryKey()) ?? defaultRegion(d.widget);
     const next: Region = { ...base, mode };
-    if (mode === 'spot') { delete next.blend; delete next.fit; }
+    if (mode === 'spot') { delete next.blend; delete next.fit; } else if (!next.fit) next.fit = 'contain';
     place(next, group('place'));
   }));
   shape.addEventListener('change', () => { const r = region(); if (r) place({ ...r, shape: shape.value as Region['shape'] }, group('place')); });
@@ -263,8 +266,8 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     drawSpark(listen, span);
     box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.mode || undefined) === r?.mode)));
     $<HTMLElement>('.lc-say').textContent = !r ? 'Seen across the whole picture, as in the lab.'
-      : r.mode === 'spot' ? 'Seen only through the shape, where it already draws. Drag its handles on the stage to place it.'
-      : 'The whole widget, shrunk into the shape. Drag its handles on the stage to place it.';
+      : r.mode === 'spot' ? 'A mask: the full-size widget, seen only through the shape. Drag its handles on the stage to place it.'
+      : 'A small copy of the whole widget, playing inside the box. Drag the box on the stage to move it, its handles to size it.';
     $<HTMLElement>('.lc-region').hidden = !r;
     box.querySelectorAll<HTMLElement>('.lc-win').forEach((x) => { x.hidden = r?.mode !== 'window'; });
     if (r) {

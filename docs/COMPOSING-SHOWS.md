@@ -42,13 +42,13 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 }
 ```
 
-- `version` is 1. `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
+- `version` is 1, or 2 when a layer uses `listen`, `region` or `intensity` (below). `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
   single dashes). One show per song: `id` = `song`. `title` and `composer` (`auto` | `claude` | `user`, with a time)
   are optional; write `"by": "claude"`.
 - `sections` are sorted, start at 0, end at the song's length (±0.5 s) and join without gaps or overlaps (±0.05 s).
   A section under 1 s draws a warning. Times are seconds; they are stored to the millisecond.
 - `layers` run **bottom → top**: each widget draws over the ones before it. At most 6 (a warning past that; 2–3 is
-  usual). A widget appears once per section.
+  usual). A widget appears once per section (once per part it listens to: see `listen`).
 - `knobs` (optional) maps a knob key to its base value (a number), or to the lab's full setting
   `{ "base": 96, "drive": "-level", "depth": 0.4 }` (what the lab's "Copy settings" gives). A drive moves the knob with
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
@@ -72,6 +72,116 @@ section after a loud one inherits its last strokes, fading. Use `fade: 0` for a 
 (5–8 s) where the music dissolves. `fade: 0` cuts only the widgets leaving at that boundary: a widget still fading out
 from an earlier boundary finishes its own fade under the new stack, so for a clean hard change keep the section
 before it longer than its own fade (or give it a short one). Seeking in the studio starts clean at the section under the playhead.
+
+## Listening, places and intensity (version 2)
+
+A layer can do three more things. Any one of them makes the file `"version": 2` (`check-show --fix` and the studio's
+save write the version for you; a show that uses none stays version 1, byte for byte).
+
+### `listen`: what the layer hears
+
+```json
+{ "widget": "strings", "listen": "violin" }
+```
+
+The layer gets attacks, a pulse and sounding notes from one part only, so its driven knobs follow that part. The
+values:
+
+- `"all"` (the same as leaving it out): every note, as before.
+- **A track** the recording has: `piano`, `violin`, `viola`, `cello`, `contrabass`, `strings` (a section the
+  transcriber could not split), `horn`, `oboe`, `clarinet`, `bassoon`, … `npm run describe-song -- <id>` lists the
+  tracks the song really has and where each one plays. Ensemble recordings get tracks from YourMT3+; piano recordings
+  have none.
+- **A family**: `family:strings`, `family:winds`, `family:brass`, `family:keys`, `family:plucked`,
+  `family:percussion`, `family:voice` (the union of that family's tracks).
+- **A line** worked out from the notes, on every song, piano too: `melody` (the top line), `bassline`, `inner`,
+  `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
+
+A layer listening to a part is its own *instance*: `strings` and `strings@melody` can sit in one section (say woven
+threads on the melody over the same widget on the bass line) and draw independently; each instance appears once per
+section. Removing `listen` gives the plain widget back with its state.
+
+**Honest instrument labels.** Name a track only when `describe-song` lists it. A track the song lacks is a warning
+(`this song has no horn: it plays on all notes`) and the layer plays on all notes. The labels are what the transcriber
+heard: "Violins" is YourMT3+'s violin track (it does not separate firsts from seconds), "String section" is string
+sound it could not split, and short tracks (a few dozen notes) are guesses. In a section label or a commit, say "the
+violins' line" rather than "the first violins".
+
+### `region`: where the layer is seen
+
+```json
+{ "widget": "casket", "region": { "mode": "spot", "shape": "ellipse", "x": 0.5, "y": 0.45, "w": 0.5, "h": 0.6, "feather": 0.25 } }
+```
+
+`x`, `y` are the centre and `w`, `h` the size, as fractions of the picture; `rot` turns it (degrees); `feather` 0..1
+softens the edge (default 0.25; 0 is a hard edge); `shape` is `rect` or `ellipse`.
+
+- **`spot`** (the studio's **Mask**): the widget draws on the shared picture as always, full size, and is seen only
+  through the shape. Use it for the
+  **readers**, the widgets that cut, smear or re-time what is below them (casket, pixel sort, tunnel, glitch blocks,
+  fold, time slice): in a spot they still work on the whole stack under them, only inside the shape.
+- **`window`** (the studio's **Small copy**): the widget draws alone on its own canvas (with the same fade), and that
+  whole picture is fitted into the
+  shape (`fit`: `cover` crops, `contain` letterboxes, `stretch`) and laid over the stack (`blend`: `over`, or
+  `lighten` to keep the brighter of the two). A reader in a window only cuts its own picture, which is usually empty:
+  the studio says so.
+
+The studio's and the lab's default for a new place is a small copy for every widget, the readers included: a window,
+a centred rectangle 40 % of the stage (`w` and `h` 0.4), `feather` 0.2, `fit` `contain`. Switch a reader to the mask
+to let it cut the stack below.
+When a continuing layer's region moves between sections, it glides over the new section's fade.
+
+### `intensity`: how much of the layer there is, over time
+
+```json
+{ "widget": "squares", "intensity": [{ "t": 120, "v": 0 }, { "t": 124, "v": 1, "shape": "hold" }, { "t": 131.5, "v": 1 }, { "t": 133, "v": 0.2 }] }
+```
+
+Pivots in **song seconds** inside the section (they do not move when a boundary does), sorted, `v` from 0 to 1. Each
+segment takes the `shape` of the pivot that starts it: straight (default; `bend` −1..1 curves it), `ease` (slow, fast,
+slow) or `hold` (a step at the next pivot). Before the first pivot and after the last the value holds. At most 256
+pivots per layer per section.
+
+What a value below 1 does, all at once and always the same way (no randomness, so playing, seeking and the render
+agree):
+
+- **fewer attacks**: at 0.5 the layer hears a fixed half of the attacks, at 0.2 a fifth, at 0 none: it is
+  intermittently active, not dimmed;
+- **fainter**: it is pasted at a weight that shows that fraction of it (a widget that repaints its picture each frame
+  is corrected so 0.5 looks like half, not like nearly nothing);
+- **a calmer pulse**: its own level and rate follow only the attacks that reached it, so knobs driven by `+level` or
+  `+rate` settle down too.
+
+The widget keeps running at 0, so it comes back in its own state. A layer leaving at a boundary fades from the value
+its curve had there.
+
+The presets (in the studio's layer panel and the lab's cards; they write ordinary pivots you can then edit):
+
+- **Fade in** over N seconds from the section's start; **Fade out** over the last N seconds.
+- **Swell**: up to full in the middle of the section, then back (eased).
+- **Pulse** every N beats or 4-beat bars: full on the beat, falling away over half the period (made coarser if it
+  would need more than 256 pivots).
+- **Gate on loudness**: open where the recording is louder than a threshold (default: its 60th percentile there),
+  shut between, with short ramps.
+- **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
+
+In the studio the curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),
+drag a segment to bend it, right-click for its shape, double-click to delete.
+
+## Picking widgets by their tags
+
+Every widget has tags in `lab/tags.json`, printed under each widget below as **Feel**, **Suits** and **Role**:
+
+- **Feel** words are synesthetic (icy, warm, heavy, airy, liquid, stabbing, panic, longing…); `lab/tag-words.json` says
+  for each what it looks like and what music it sounds like, with synonyms (cold → icy, fiery → burning).
+- **Suits** names instruments it goes well with (violin, cello, piano, timpani, tutti…).
+- **Role** is where it sits in a stack: `under` and `ground` go first, `base` fills the picture, `accent` moves over a
+  base, `top` works on what is below.
+
+To pick: take the feel words of the user's description (or of the music: describe-song's character words map to them
+through `fit`), keep the widgets whose Feel shares them, prefer those whose Suits names a track the song has, then build
+the stack bottom → top by Role. The studio's widget picker filters the same way (feel chips, instruments, "suits this
+song"), and the auto-composer reads the description's feel words and routes an accent to the instrument it suits.
 
 ## The user's taste
 
@@ -246,7 +356,7 @@ The last four use this round's new widgets (time slice, fold, stella), which the
 
 _Generated by `npm run widget-docs` from `lab/tools/*.js`, the verdicts in `lab/index.html` and the tags in `lab/tags.json`; do not edit by hand._
 
-_Feel: synesthetic feel words (`lab/tag-words.json` says what each looks and sounds like). Suits: instruments that go well with it. Role: where it sits in a stack: **under** paints first and never darkens what is on top; **ground** paints its own canvas, so it goes first; **base** fills the picture but lets others show; **accent** moves over a base; **top** works on whatever is below it._
+_Feel: synesthetic feel words (`lab/tag-words.json` says what each looks and sounds like). Suits: instruments that go well with it. Role: where it sits in a stack: **under** paints first and never darkens what is on top; **ground** paints its own canvas, so it goes first; **base** fills the picture but lets others show; **texture** is a fine ornament over the others, never the main picture (like the hairs on an arm); **lead** is the main character the eye follows, a melody (murmuration), the low chords (rorschach) or every note (ikeda); **accent** moves over a base; **top** works on whatever is below it; **standalone** is not a layer at all but a whole show by itself, enough to carry a song alone (marbling)._
 
 ### Loved
 
@@ -310,7 +420,7 @@ Feel: vivid, grainy, playful, marching · Suits: piano, plucked · Role: ground
 
 After Ryoji Ikeda: black and white data. Every note is a barcode at its key (the same note always gives the same code, louder is wider) that strobes across the screen on the attack, settles on the row of its note name (every C on one row, every G on another) and erodes bar by bar; rows of glyphs stream the notes, a one-pixel score scrolls past a playhead, and loud attacks slam hairlines across the screen.
 
-Feel: icy, flickering, brittle, marching · Suits: harpsichord, piano · Role: ground
+Feel: precise, binary, cryptic, flickering, icy · Suits: harpsichord, piano · Role: lead
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -366,7 +476,7 @@ Feel: playful, marching, vivid, warm · Suits: piano, plucked, clarinet · Role:
 
 A flock that carries the mood: a dark knot that throbs on low tolls, a ribbon tracing the melody, jittery shards when agitated. Now a loud chord re-forms it, on the attack, into <b>that chord’s own figure</b>: its notes sit on a clock face (C at the top, then clockwise C♯, D … B) and the flock draws the shape they make, a spoke pointing at the bass. Major chords are straight-edged, minor ones curl into stars, two notes make a lens, one note a clock hand. Same chord, same figure.
 
-Feel: flowing, whirling, dread, skittish · Suits: strings, cello · Role: base
+Feel: unison, mysterious, twitchy, grainy · Suits: violin, voice, flute · Role: lead
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -380,7 +490,7 @@ Feel: flowing, whirling, dread, skittish · Suits: strings, cello · Role: base
 
 Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.
 
-Feel: liquid, flowing, swelling, warm · Suits: piano, strings · Role: ground
+Feel: liquid, flowing, swelling, warm · Suits: piano, strings · Role: standalone
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -406,9 +516,9 @@ Feel: vivid, playful, triumphant, heavy · Suits: tutti, trumpet, cello · Role:
 
 #### `rorschach`: Rorschach ink (keep our defaults)
 
-Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. Five knobs now, all starting at the defaults you loved.
+Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. New in v3: a <b>how present</b> knob, to tone it right down: fainter ink, a still page, and only the hardest bass attacks drop ink.
 
-Feel: liquid, dark, dread, heavy · Suits: cello, contrabass, bassoon · Role: base
+Feel: dark, violent, alien, tentacled · Suits: piano, contrabass, timpani · Role: lead
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -417,6 +527,7 @@ Feel: liquid, dark, dread, heavy · Suits: cello, contrabass, bassoon · Role: b
 | `size` | blot size | 0.3..2.5 | 1 | fixed | How far each drop of ink spreads. Left: small spots. Right: big blots. |
 | `spatter` | spatter | 0..3 | 1 | louder → more | How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters. |
 | `fade` | how long the ink stays | 1..13 | 9 | louder → less | How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint ink on a still page, and only the hardest bass attacks drop it. Right: every low note blooms at full strength (as before). |
 
 #### `squares`: Dread squares
 
@@ -464,7 +575,7 @@ Feel: flowing, liquid, silky, glowing, serene · Suits: violin, flute, strings �
 
 Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Five knobs now, all starting at the defaults you accepted.
 
-Feel: silky, longing, swelling, warm, stabbing · Suits: violin, plucked, cello · Role: base
+Feel: skittish, anxious, twitchy, fibrous · Suits: violin, plucked · Role: texture
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
@@ -618,17 +729,18 @@ Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
 
 #### `kline`: Kline
 
-After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and in time they are painted over. New in v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
+After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
 
-Feel: heavy, stabbing, brittle, triumphant · Suits: trombone, timpani, tutti · Role: ground
+Feel: stabbing, rough, violent, smeared · Suits: trombone, timpani, tutti · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `thresh` | which chords strike | 0.5..0.97 | 0.8 | fixed | How much a chord must stand out to strike a big bar; every other chord leaves a small mark. Left: many chords strike bars. Right: only the very biggest. |
 | `weight` | how heavy | 0.35..1.9 | 1 | fixed | How thick the bars and marks are. Left: thin, wiry strokes. Right: huge, heavy beams. |
-| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks stay before they are painted over. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
+| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
 | `order` | loose or rigid | 0..1 | 0.7 | faster → less | How strictly the bars are built. Left: free, flung strokes at any angle. Right: rigid girders, level beams and upright posts that meet at joints. By default it loosens up when the music gets busy. |
 | `ground` | black or bone | 0..1 | 1 | fixed | The colours. Left: black bars on a bone-white ground. Right: bone-white bars on black. |
+| `colour` | what colour | 0..3 | 0 | fixed | The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone. |
 
 #### `cells`: Cells
 
@@ -743,20 +855,6 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 | `damp` | how fast it winds inward | 0.02..0.6 | 0.2 | fixed | How quickly the line spirals in toward the centre between notes. Left: it keeps swinging wide, loops stacked on loops. Right: it curls into the middle in a few turns. |
 | `push` | how hard notes push the pen | 0..1.5 | 0.8 | fixed | What each note does to the pen. Left: nothing, the line just winds down. Right: every note flings the pen back out and leaves a thick bright knot in the line. |
 | `stay` | how long the lines stay | 0.3..8 | 4.5 | fixed | How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other. |
-
-#### `hilma`: Hilma af Klint
-
-Spiritual geometry after Hilma af Klint, in soft pastels on a deep ground: the bass swells the split disc, major chords open a ring of petals and minor chords curl them into spirals. New in v2: every note lands on the figure. The petals or spirals at that note’s place spring out, a seed flies to an orbit as high as the note, and each attack clicks the figure round with the melody.
-
-Feel: serene, swelling, pale, glowing · Suits: voice, plucked · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `disc` | disc size from the bass | 0..1.6 | 1 | fixed | How strongly the low notes grow the disc in the middle. Left: a small, steady disc. Right: heavy bass fills the centre. |
-| `life` | how long the seeds and rings stay | 1..10 | 4.5 | faster → less | How long each note’s seed and each chord’s ring stay on their orbits. Left: they flash and go. Right: they pile up into a field of stars. |
-| `petals` | how many petals | 4..12 | 8 | fixed | How many petals open on major chords (minor chords curl half as many spirals). Left: a simple four-leaf cross. Right: a dense twelve-petal flower. |
-| `twins` | twin forms on the melody | 0..1 | 0.6 | fixed | How many and how big the mirrored pairs are that melody notes leave on both sides. Left: none, just the centre figure. Right: large pairs in the wings. |
-| `turn` | how far each note turns it | 0..1 | 0.4 | faster → more | How far each note clicks the figure round (forward when the melody climbs, back when it falls). Left: still, like a painting. Right: every note swings it. |
 
 ### Not judged yet
 

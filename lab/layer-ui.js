@@ -64,10 +64,10 @@
     return has(TRACKS, l) ? TRACKS[l][1] : String(l);
   }
 
-  /** A new region (the studio's defaultRegion): a centred ellipse half the stage's size with a soft edge; a spotlight
-      for the readers, else a window. mode: the one the user chose, when given. */
+  /** A new region (the studio's defaultRegion): a small copy of the whole widget, a centred soft-edged box 40 % of the
+      stage with the picture contained in it. mode: the one the user chose, when given. */
   function defaultRegion(widget, mode) {
-    return { mode: mode || (READERS.indexOf(widget) >= 0 ? 'spot' : 'window'), shape: 'ellipse', x: 0.5, y: 0.5, w: 0.5, h: 0.5, feather: 0.25 };
+    return { mode: mode || 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.4, h: 0.4, feather: 0.2, fit: 'contain' };
   }
 
   /** A loudness threshold for the gate (the studio's gateDefault): the span's 60th percentile, to 0.05, in 0.1..0.9. */
@@ -221,7 +221,7 @@
         var c = editing && cards[editing], e = c && c.get();
         if (!e || !e.region) return '';
         var say = [c.name || editing];
-        if (READERS.indexOf(editing) >= 0 && e.region.mode === 'window') say.push('in a window, it cuts only its own picture');
+        if (READERS.indexOf(editing) >= 0 && e.region.mode === 'window') say.push('as a small copy, it cuts only its own picture');
         if (!c.isOn()) say.push('switched off: click its card to see it here');
         return say.join(': ') + (say.length > 1 ? '.' : '');
       },
@@ -247,8 +247,8 @@
     el.innerHTML = '<details class="lyr-d"><summary><span class="lyr-k">layer</span> <span class="lyr-sum"></span></summary>'
       + '<div class="lyr-row"><span class="lyr-k">listens to</span><select data-listen aria-label="What this widget listens to"></select></div>'
       + '<div class="lyr-row"><span class="lyr-k">place</span><span class="lyr-seg" role="group" aria-label="Where it is seen">'
-      + '<button type="button" data-mode="">whole</button><button type="button" data-mode="spot" title="Seen only through a shape, in its place">spot</button>'
-      + '<button type="button" data-mode="window" title="The whole widget, shrunk into a shape">window</button></span></div>'
+      + '<button type="button" data-mode="">whole</button><button type="button" data-mode="window" title="The whole widget, shrunk into a box you place">small copy</button>'
+      + '<button type="button" data-mode="spot" title="The full-size widget, seen only through a shape">mask</button></span></div>'
       + '<div class="lyr-row lyr-reg"><span class="lyr-k"></span><span class="lyr-regc"><select data-shape aria-label="Shape"><option value="ellipse">ellipse</option><option value="rect">rectangle</option></select>'
       + '<label class="lyr-fea" title="Edge softness"><span>soft</span><input type="range" data-feather min="0" max="1" step="0.05" aria-label="Edge softness"></label>'
       + '<button type="button" data-edit title="Move, size and turn it on the stage">on the stage</button></span></div>'
@@ -332,6 +332,7 @@
         }
         var r = e.region || B.mem[toolId] || defaultRegion(toolId, mode);
         r = Object.assign({}, r, { mode: mode });
+        if (mode === 'window' && !r.fit) r.fit = 'contain';
         commit({ listen: e.listen, region: r, intensity: e.intensity });
         ensureOverlay(o); openOverlay(toolId);
       });
@@ -373,7 +374,7 @@
       }
       // What the card does now, in words: the summary line and, where it matters, a note.
       var bits = [listenLabel(e.listen)];
-      bits.push(!r ? 'whole screen' : r.mode === 'spot' ? 'spotlight' : 'window');
+      bits.push(!r ? 'whole screen' : r.mode === 'spot' ? 'mask' : 'small copy');
       bits.push(kind === 'always' ? 'always full' : kind === 'custom' ? 'its own curve' : PRESETS[kind].label.toLowerCase());
       sum.textContent = bits.join(' · ');
       el.classList.toggle('set', !!tidyEntry(o.get()));
@@ -382,7 +383,7 @@
       if (c && c.song && c.song !== song.id) say2.push('This curve was made on another song: move its slider to make it again for this one.');
       else if (c && c.scope === 'moment') say2.push('Over ' + (c.label || 'the moment') + ' (' + fmt(c.start) + '–' + fmt(c.end) + '); full the rest of the song.');
       if (kind === 'custom') say2.push('A curve of ' + e.intensity.length + ' points from elsewhere: pick a preset to replace it.');
-      if (reader && r && r.mode === 'window') say2.push('In a window it cuts only its own picture.');
+      if (reader && r && r.mode === 'window') say2.push('As a small copy it cuts only its own picture.');
       if ((r || c || (e.listen && e.listen !== 'all')) && !isOn()) say2.push('Switched off: click the card to hear it.');
       note.textContent = say2.join(' ');
       note.hidden = !say2.length;

@@ -22,9 +22,16 @@ class FakeChild extends EventEmitter implements RenderChild {
   out(text: string | Buffer): void { this.stdout.emit('data', text); }
   err(text: string): void { this.stderr.emit('data', text); }
 }
+/** The real child's IPC channel: what the job sends it. */
+class IpcChild extends FakeChild {
+  sent: unknown[] = [];
+  connected = true;
+  send(m: unknown): boolean { this.sent.push(m); return true; }
+}
+let ipc = false;
 const spawned: { args: string[]; env: Record<string, string>; child: FakeChild }[] = [];
 const mw = apiMiddleware({ songs, shows }, {
-  spawnRender: (args, env) => { const child = new FakeChild(); spawned.push({ args, env, child }); return child; },
+  spawnRender: (args, env) => { const child = ipc ? new IpcChild() : new FakeChild(); spawned.push({ args, env, child }); return child; },
 });
 
 interface Res { status: number; body: Buffer }
@@ -58,6 +65,7 @@ describe('render-show lines (the shapes render-show keeps for this job)', () => 
     expect(renderLine('sheet → /r/demo-sheet.png')).toEqual({ file: { kind: 'sheet', path: '/r/demo-sheet.png' } });
     expect(renderLine('share copy: 1920×1080, 30 fps, 1872 kbit/s + AAC 128k (15 MB a minute), two passes')).toEqual({ phase: 'share' });
     expect(renderLine('warning  sections[0]: something')).toEqual({});
+    expect(renderLine('work folder → C:\\Temp\\wa-render-show-ab12')).toEqual({ work: 'C:\\Temp\\wa-render-show-ab12' });
   });
 });
 
@@ -178,5 +186,27 @@ describe('the HD render job (plan §10)', () => {
     spawned[3].child.emit('error', new Error('spawn node ENOENT'));
     await tick();
     expect(json(await call('GET', `/api/render/jobs/${id}`))).toMatchObject({ state: 'failed', message: 'spawn node ENOENT' });
+  });
+
+  it('a cancel asks render-show over its IPC channel to clean up (no kill), and the job removes its work folder once it closes', async () => {
+    ipc = true;
+    try {
+      const r = await call('POST', '/api/render/demo');
+      const id = (json(r).job as RenderJobView).id, c = spawned[spawned.length - 1].child as IpcChild;
+      const work = mkdtempSync(join(tmpdir(), 'wa-render-show-'));
+      writeFileSync(join(work, 'video.mp4'), 'partial');
+      const elsewhere = join(tmp, 'wa-render-show-not-temp'); mkdirSync(elsewhere);
+      c.out(`work folder → ${elsewhere}\n`);   // not in the system temp folder: never taken
+      c.out(`work folder → ${work}\n`);
+      expect((await call('DELETE', `/api/render/jobs/${id}`)).status).toBe(200);
+      expect(c.sent).toEqual([{ cancel: true }]);
+      expect(c.killed).toBe(false);
+      expect((json(await call('GET', `/api/render/jobs/${id}`)) as RenderJobView).state).toBe('cancelled');
+      c.emit('close', 1);
+      await tick();
+      expect(existsSync(work)).toBe(false);
+      expect(existsSync(elsewhere)).toBe(true);
+      expect((json(await call('GET', `/api/render/jobs/${id}`)) as RenderJobView).state).toBe('cancelled');
+    } finally { ipc = false; }
   });
 });

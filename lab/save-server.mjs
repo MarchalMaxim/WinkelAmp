@@ -18,9 +18,11 @@ createServer((req, res) => {
       // One entry per browser, so ratings from Chrome and from Claude's pane don't overwrite each other.
       const all = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
       const key = j.browser || 'unknown', old = all[key];
-      // A fresh or test browser posts empty ratings: never let that wipe real ones.
-      const empty = !j.ratings || !Object.values(j.ratings).some(Boolean);
-      all[key] = { at: new Date().toISOString(), ratings: empty && old?.ratings ? old.ratings : j.ratings, params: j.params };
+      // Merge widget by widget: a fresh browser, or the same Chrome on another port (another origin, so its own nearly
+      // empty localStorage, e.g. a second lab), posts only what it has, and must never wipe ratings made elsewhere.
+      // A rating set here wins; one left empty here keeps the saved one.
+      const set = Object.fromEntries(Object.entries(j.ratings || {}).filter(([, v]) => v));
+      all[key] = { at: new Date().toISOString(), ratings: { ...(old?.ratings || {}), ...set }, params: { ...(old?.params || {}), ...(j.params || {}) } };
       writeFileSync(FILE, JSON.stringify(all, null, 1));
       res.end('ok');
     } catch (e) { res.statusCode = 400; res.end(String(e)); }

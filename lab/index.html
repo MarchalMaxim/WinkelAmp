@@ -225,6 +225,19 @@ const SONGS = {
     // III Allegro 5:48 (walking on ice; the warm south wind in its lento ~8:08; all the winds at war from 8:40).
     moments: [[0, 'dread', 'Shivering'], [36, 'agitato', 'The wind'], [66, 'casket'], [180, 'agitato', 'Chattering teeth'],
       [210, 'return', 'Largo: rain'], [348, 'dread', 'On the ice'], [400, 'agitato'], [488, 'return'], [520, 'casket', 'The winds at war']] },
+  // Out of distribution for tagging: brutal off-beat orchestra, then a heavy march. Moments are my reading of the
+  // packs' sections and loudness, not checked against the scores. YourMT3 hears little brass in either (horn 41 notes).
+  'rite-sacrificial-dance': { title: 'Stravinsky: The Rite of Spring, Sacrificial Dance', audio: 'rite-sacrificial-dance.mp3', notes: 'notes-rite-sacrificial-dance.js', pack: 'pack-rite-sacrificial-dance.js', dur: 298.2,
+    moments: [[0, 'agitato', 'Spasms'], [30, 'dread', 'Lull'], [53, 'agitato'], [100, 'dread'], [110, 'casket', 'The full orchestra'], [264, 'casket', 'The last chord']] },
+  'prokofiev-knights': { title: 'Prokofiev: Romeo and Juliet, Dance of the Knights', audio: 'prokofiev-knights.mp3', notes: 'notes-prokofiev-knights.js', pack: 'pack-prokofiev-knights.js', dur: 325.3,
+    moments: [[0, 'casket', 'The knights'], [104, 'return', 'Quieter'], [190, 'dread', 'Hushed'], [285, 'casket', 'The knights return']] },
+  // Two more piano songs for tagging (the piano model's notes: coverage 98% and 100%). Moments are my reading of the
+  // packs' sections and loudness. Liebesleid's beat finder found only 24 beats: a rubato waltz, so it has no beat grid.
+  'rach-concerto-2': { title: 'Rachmaninoff: Piano Concerto No. 2, I. Moderato', audio: 'rach-concerto-2.mp3', notes: 'notes-rach-concerto-2.js', pack: 'pack-rach-concerto-2.js', dur: 706.0,
+    moments: [[0, 'dread', 'The bells'], [30, 'agitato', 'First theme'], [124, 'return', 'Second theme'], [216, 'agitato', 'Development'],
+      [343, 'casket', 'The march'], [449, 'return'], [574, 'dread', 'Hushed'], [675, 'agitato', 'Coda']] },
+  liebesleid: { title: 'Kreisler, arr. Rachmaninoff: Liebesleid', audio: 'liebesleid.mp3', notes: 'notes-liebesleid.js', pack: 'pack-liebesleid.js', dur: 296.1,
+    moments: [[0, 'dread', 'Waltz'], [87, 'return', 'Middle'], [137, 'agitato', 'Fuller'], [194, 'dread', 'Waltz again'], [265, 'casket', 'Last bars']] },
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
@@ -366,7 +379,7 @@ window.ICON = (() => {
 // leaves a note: Vite answers a missing file with its HTML page, so each file is fetched and checked before it runs.
 const TOOL_IDS = ['timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
   'matisse', 'kusama', 'ikeda', 'horizon',
-  'harmonograph', 'hilma', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
+  'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
   'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
 const LOAD_NOTES = { missing: [], broken: [] };
@@ -497,7 +510,6 @@ const VERDICTS = {
   fifths: { v: 'keep', on: 'new' },
   matisse: { v: 'needs work', on: 'new' },
   harmonograph: { v: 'needs work', on: 'new' },
-  hilma: { v: 'needs work', on: 'new' },
 };
 const VCLASS = { love: 'v-love', keep: 'v-keep', 'needs work': 'v-work' };
 const isRevised = (tool) => VERDICTS[tool.id] && (tool.tag ?? '') !== VERDICTS[tool.id].on;

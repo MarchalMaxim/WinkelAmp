@@ -67,14 +67,17 @@
   // picture as the others left it (before it drew) and puts that back just before the next shared fade: the others
   // then always draw on their own picture, and it only ever re-times what they drew. The hook watches for the harness's
   // fade (a full-screen rgba(0,0,0,0.12) fill) and acts once after each of its own frames, so it is inert when it is off.
-  let clean = null, cg = null, armed = false;
+  // The put-back belongs to the canvas it was kept from (`owner`): the hook stays on every context it was given (the
+  // stage's and a window's are the same size), so after a move from the stage to a window (or back) the other
+  // canvas's fade passes through untouched, and the window's picture never goes over the whole stage.
+  let clean = null, cg = null, armed = false, owner = null;
   const ME = Symbol('timeslice');
   function hook(g) {
     if (g[ME]) return;
     const fill = g.fillRect;
     g[ME] = true;
     g.fillRect = function (a, b, c, d) {
-      if (armed && a === 0 && b === 0 && c === this.canvas.width && d === this.canvas.height && this.fillStyle === 'rgba(0, 0, 0, 0.12)') {   // the fade, at the real size and transform
+      if (armed && this.canvas === owner && a === 0 && b === 0 && c === this.canvas.width && d === this.canvas.height && this.fillStyle === 'rgba(0, 0, 0, 0.12)') {   // the fade, at the real size and transform
         armed = false;
         const op = this.globalCompositeOperation, al = this.globalAlpha;
         this.globalCompositeOperation = 'copy'; this.globalAlpha = 1; this.drawImage(clean, 0, 0);
@@ -85,7 +88,7 @@
   }
   function keep(x) {
     if (!clean) { clean = document.createElement('canvas'); clean.width = x.canvas.width; clean.height = x.canvas.height; cg = clean.getContext('2d'); }
-    cg.globalCompositeOperation = 'copy'; cg.drawImage(x.canvas, 0, 0); armed = true;
+    cg.globalCompositeOperation = 'copy'; cg.drawImage(x.canvas, 0, 0); owner = x.canvas; armed = true;
   }
 
   let nowP = 0.5, cuts = [], stretch = 0, calm = 1, quiet = 0, range = 0, queued = false, pending = [];
@@ -237,7 +240,7 @@
           for (let i = 0; i < 8; i++) ICON.alpha(g, 1 - i / 9, () => ICON.rect(g, 4 + (L * i) / 8, 9 + i * 0.6, L / 8 + 0.6, 8, i ? IRED : IAMB));
         } },
     ],
-    reset() { armed = false; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
+    reset() { armed = false; owner = null; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
     onChord(ch) { pending.push(ch); if (pending.length > 8) pending.shift(); },
     frame(x) {
       // knobs are read here (they only resolve while the harness is running this widget), then used after the others drew

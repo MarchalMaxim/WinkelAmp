@@ -144,7 +144,9 @@ a new way to export.
    - **Window**: the whole widget, scaled into the shape, like picture-in-picture.
 
    **[user]** for regions; **[builder, confirm]** for the default mode: window, except spot for the canvas readers
-   (casket, pixelsort, tunnel, blocks, fold, timeslice).
+   (casket, pixelsort, tunnel, blocks, fold, timeslice). **Answered by the user (2026-11-01, 0a66d5c):** a window for
+   every widget, the readers included, a centred soft rectangle 40 % of the stage, fit contain; the studio and lab
+   call the modes Small copy (window) and Mask (spot).
 3. **`intensity`: an automation lane per layer.**
    - It is a line graph from 0 to 1 over time, with pivots, drawn under the studio's timeline, as in DJ software.
    - Presets create pivots: fade in, fade out, swell, pulse every N beats or bars, gate on loudness, and while its
@@ -549,7 +551,8 @@ The shared code follows `design.md` (§2):
 
 1. **Intensity's meaning:** fewer attacks heard, plus corrected opacity, plus a calmer pulse (Decisions 4). The
    alternative is softer attacks instead of fewer.
-2. **The default region mode:** window, except spot for the canvas readers.
+2. **The default region mode:** answered by the user (0a66d5c): a window (Small copy) for every widget, the readers
+   included; the spot is the Mask.
 3. **Dropping demucs and the AST tagger** now that YourMT3+ gives real instrument notes. Basic-pitch stays only as the
    fallback.
 4. **Ensemble songs' all-notes become a hybrid** of the piano model and YourMT3's gap-fill. Re-ingesting Beethoven

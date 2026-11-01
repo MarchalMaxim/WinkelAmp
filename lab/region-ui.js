@@ -36,7 +36,7 @@
   var FEATHER_GAP = 11;                         // CSS px: the feather handle stays this far inside the right edge
   var HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
   var CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'];
-  var MODE_WORDS = { spot: 'Spotlight', window: 'Window' };
+  var MODE_WORDS = { spot: 'Mask', window: 'Small copy' };
 
   var CSS = [
     '.wa-rg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1;outline:none}',

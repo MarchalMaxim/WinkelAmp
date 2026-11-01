@@ -37,11 +37,74 @@ you loved. Then:
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
   the show from it ([docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md), `npm run check-show`).
 - **F** full screen, **H** hides the controls.
+- **Each layer** can also *listen to* one part (a track of the recording such as Violins or Cellos, a family, or a
+  line worked out from the notes: melody, bass line, inner voices, low, high, accents), be seen only in a **place**
+  (a small copy of the widget, or a mask over the full-size picture, that you drag, turn and soften on the stage), and follow an **intensity** curve drawn in a lane
+  under the timeline like DJ automation (presets: fade in or out, swell, pulse every beat or bar, gate on loudness,
+  while its part plays). Lower intensity means fewer attacks, a fainter picture and a calmer pulse.
+  [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md) explains all three.
+- **Add a widget** filters the collection by feel words (icy, liquid, stabbing…), by instrument, and by what suits
+  this song's instruments.
 - **Export → Record video** records the show to an MP4 (H.264 + AAC) while the song plays through once, from the
-  start or from the playhead; the song's end saves it to your downloads. *For sharing* is about 9 MB a minute
-  (WhatsApp-sized), *High quality* about 40; both 720p at 30 fps. Keep the tab in front: hiding it pauses the recording.
-  For an exact, smooth HD video made frame by frame (faster than the song itself), run
-  `npm run render-show -- <song>` → `renders/<song>.mp4`.
+  start or from the playhead; the song's end saves it to your downloads. *For sharing* is 1.9 Mbit/s (about 15 MB a
+  minute), *High quality* 8 Mbit/s (about 61); both 720p at 30 fps. Keep the tab in front: hiding it pauses the
+  recording.
+- **Export → Render HD master** (dev server only) draws the show frame by frame on this computer, from the start or
+  from the playhead, with a progress bar and the time left: a 2560×1440 60 fps master plus a share copy in
+  `renders/`. The same from a terminal: `npm run render-show -- <song>` (below).
+
+### The HD master and the share copy
+
+```bash
+npm run render-show -- <show id | shows/x.json> [--scale 2] [--fps 60] [--from s] [--to s] [--no-share] [--share-mb-per-min 15]
+```
+
+- **The master** (`renders/<id>.mp4`): the show supersampled (drawn at 2× in 1280×720 units, so every line is sharp),
+  2560×1440 at 60 fps, x264 crf 13, BT.709 with its colour tags, and the recording's sound sample for sample (AAC
+  320k). Frames leave the page losslessly, and the same show gives the same frames every time. It takes 3 to 10 s per
+  second of video on this machine at 2×, depending on the widgets (horizon is the costliest), so a 4-minute song takes
+  15 to 45 minutes; the ETA printed at the start samples the song's drawing cost first. `--scale 1 --fps 30 --crf 18 --no-share` gives the old quick 720p kind.
+- **The share copy** (`renders/<id>-share.mp4`): made from the master, 1920×1080 at 30 fps, two-pass x264 at about
+  15 MB a minute (1.87 Mbit/s + AAC 128k). **Send it in WhatsApp as a *document*** (attach → Document), not as a
+  video, or WhatsApp squeezes it again. For a smaller file pass `--share-mb-per-min 7`.
+- **The contact sheet** (`renders/<id>-sheet.png`): one frame every 10 s, to look at before sending.
+
+### Instrument tracks: YourMT3+ (optional)
+
+Piano recordings need only the piano model. For ensembles (a symphony, a concerto) the ingest also runs
+[YourMT3+](https://huggingface.co/spaces/mimbres/YourMT3), which writes one note track per instrument it hears
+(violins, violas, cellos, horns, oboe…); those become the parts a layer can listen to, and fill the piano model's
+gaps. It is installed **outside the repo** and never vendored:
+
+1. Download the Hugging Face Space `mimbres/YourMT3` (with git-lfs, for its checkpoints) somewhere.
+2. Make a Python 3.11 venv from `scripts/ears/requirements-ymt3.txt` (default `C:/Users/maxim/.venvs/wa-mt`; torch
+   with CUDA).
+3. `npm run setup-ymt3 -- --from <the Space folder> [--python <venv python>] [--dir <install>]` copies the model code
+   and the MoE checkpoint (sha256-checked) to `%LOCALAPPDATA%/WinkelAmp/ymt3`, probes it, and writes `ymt3.json` there.
+   `WINKELAMP_YMT3` points at another install (its folder or its `ymt3.json`).
+
+The YourMT3 code is Apache-2.0 (its source headers); check the Space's model card for the checkpoints' terms before
+sharing anything made from them. Without YourMT3 nothing fails: an ensemble falls back to basic-pitch for the gaps
+(`WINKELAMP_PY_BP`, default the venv `C:/Users/maxim/.venvs/wa-bp`), then to the piano model alone, with a warning in
+the pack, in `npm run ears`'s `/health` and in the studio's words.
+
+### Ingest
+
+```bash
+npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid|ymt3|bp|approx|<notes file>]
+                  [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp] [--force] [--progress json]
+```
+
+- `--notes auto` (the default) runs the piano model and YourMT3+, calls the recording *piano* or *ensemble* from
+  YourMT3's piano share, and for an ensemble fills the piano model's gaps with YourMT3's notes and writes the
+  instrument tracks. Anything missing falls back a row, with a warning; `auto` never fails for a missing transcriber.
+- `gpu`, `hybrid`, `ymt3`, `bp` insist on those transcribers (exit 3 without them); `approx` uses the analysis only; a
+  notes file is used as is.
+- `--kind piano|ensemble` overrides the call; `--piano-notes` uses a notes file as the piano model's notes;
+  `--redo` re-runs one transcriber instead of reading its cache (each is cached in the song's folder by the audio's
+  sha1); `--progress json` prints machine-readable progress (the ears server uses it).
+- `npm run describe-song -- <id>` then lists the tracks and where each instrument plays; `npm run pianoroll` draws
+  piano rolls of them.
 
 ### Have Claude compose a show
 
@@ -183,12 +246,21 @@ npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes gpu|approx|<fil
 npm run check-show [-- <file>…] [--fix]     # validate shows/*.json
 npm run describe-song -- <id>               # a song pack in words, for composing its show
 npm run widget-docs [-- --check]            # regenerate (or check) the widget list in docs/COMPOSING-SHOWS.md
-npm run render-show -- <show id | file> [--from s] [--to s] [--out renders/<id>.mp4] [--fps 30] [--crf 18] [--framemd5 f]
-                       # a show as an HD video, frame by frame, with the recording's sound (a song without a show:
-                       #   the one the studio composes); about 0.4 s per video second
+npm run render-show -- <show id | file> [--scale 2] [--fps 60] [--from s] [--to s] [--out renders/<id>.mp4] [--no-share]
+                       # the HD master (2560×1440 at 60 fps), its WhatsApp share copy and a contact sheet, frame by frame
+                       #   with the recording's sound (a song without a show: the one the studio composes)
+npm run setup-ymt3 -- --from <Space folder>  # installs YourMT3+ outside the repo (see above)
+npm run lab-notes -- <id>                    # the lab's pack file for a song (lab/pack-<id>.js: tracks, beats, loudness)
+npm run pianoroll -- <id> --out <png> [--by track]   # a piano roll of a song, coloured by track, class or line
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
+npm run layers-check   # the layer panel: listens to, where, intensity presets, the widget picker's filters
+npm run overlay-check  # the region overlay on the stage: drags, Shift, Alt, rotation, feather, undo, never in the picture
+npm run lanes-check    # the intensity lanes: add, drag, bend, shapes, presets, undo, save
+npm run runtime-check  # instances, routing, intensity and regions in the runtime: seek invariance, spot and window
+npm run hd-check       # each widget at 2x is the same picture as at 1x, only sharper (crops in renders/look/hd)
+npm run persist-probe  # measures which widgets repaint their picture (the intensity's visibility classes)
 npm run record-check [-- --song <id> --seconds 60]   # records in the studio's Export and reads the MP4 Chrome wrote
-npm run fidelity       # the studio draws the lab's pixels, widget by widget (local: needs the lab's notes files)
+npm run fidelity       # the studio draws the lab's pixels, widget by widget and with layers (local: needs the lab's notes files)
 npm test               # unit tests
 npm run build          # type-check + production build into dist/
 npm run study -- <file> [--id <slug>]       # a study pack for composing
@@ -208,8 +280,8 @@ GitHub Actions).
 
 ## Ideas for next steps
 
-- The studio: shows for more of the repertoire (the transcriber is a piano model: orchestral recordings get fewer,
-  rougher notes); 1080p exports (a dozen widgets draw at a fixed 1280×720); a phone-friendly way to share a show
-  without a video
+- The studio: shows for more of the repertoire, now that ensembles get instrument tracks; six layers with regions
+  at 60 fps in a visible window are not measured yet (the work per step fits; the HD render is not affected); a phone-friendly way to share a show without a
+  video
 - The old app: share a look as a link; gentler defaults when the system asks for reduced motion; audio from other tabs
   via screen-share capture (Spotify and similar services don't expose raw audio to web pages)

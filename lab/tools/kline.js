@@ -1,22 +1,31 @@
 // Kline: after Franz Kline. Big chords strike huge black bars and girders onto a bone-white ground (or bone on black: the default since v2, the colours the user picked).
 // One stroke per big attack: its length from the chord's span, its angle from its register (low = lying beam,
 // high = standing post), its weight from how hard it is struck; soft strikes leave drier, broken bristle edges.
-// Strokes are painted over in time, leaving grey ghosts; quiet music leaves the canvas almost empty.
+// Strokes soak slowly back into the ground, leaving grey ghosts; quiet music leaves the canvas almost empty.
 // v2: "big" is judged against the music around a chord too (a forte after a piano passage, a chord breaking a silence),
 // and every other chord lays one short brush mark: the marks chain into a broken, cornering line (a leap turns a corner,
 // the melody nudges it up and down), staccato gives stubs, held notes longer strokes, loud ones wet slabs, soft ones dry
 // wire. Older bars grey as new ones land, and the scratched streaks in the paint are bunched and tapered.
+// v3 (the user: the paint-over brush seemed to answer the music, but only replayed an attack from `stay` seconds back):
+// nothing moves unless the music moves it. Bars and marks fade without motion and with no sudden start, so no moment of
+// it reads as a beat; a bar is painted over (the brush sweeps) only at the instant a new bar lands and pushes it out.
+// And a colour knob: ink, blood red, yellow or blue.
 (() => {
   const DEG = Math.PI / 180;
   const BONE = '#e7dfcc', BONE_INK = '#ece4d2', BLACK = '#0d0b0a', NIGHT = '#100e0d';
+  // the colour knob: ink (black on bone, bone on black), then blood red, yellow and blue, each a shade for either ground
+  const INKS = [[BLACK, BONE_INK], ['#a3121a', '#c8141e'], ['#c99a06', '#f2c418'], ['#1c3a9e', '#3d63d6']];
+  const WIPE = 0.3;   // seconds a pushed-out bar takes to be painted over, starting on the new bar's attack
   const MAX_LIVE = 6, MAX_MARKS = 44;
   let strokes = [], marks = [], chain = null, localV = null;
-  let lastChordT = -99, lastStrikeT = -99, ground = [null, null], pool = [null, null], pctTable = null;
+  let lastChordT = -99, lastStrikeT = -99, ground = [null, null], pool = {}, pctTable = null;
 
   // Seeded random, so a stroke can be re-rendered identically in the other colour.
   const rng = (seed) => { let s = (seed * 2654435761) >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, k) => a + (b - a) * k;
+  const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const inkOf = (x) => clamp(Math.round(x.p('colour')), 0, INKS.length - 1);
 
   // How big a chord is compared with the rest of this piece: the share of the song's chords that are softer (0..1).
   function buildPct() {
@@ -100,7 +109,7 @@
     }
     return { cv, pad, cy, w: cw, h: ch, k };
   }
-  const sprite = (s, mode) => (s.sp[mode] ??= renderStroke(s, mode ? BONE_INK : BLACK));
+  const sprite = (s, mode, ink = 0) => (s.sp[mode * 8 + ink] ??= renderStroke(s, INKS[ink][mode]));
   // the overpainting: a ground-coloured dry stroke dragged along the bar, a little wider, so streaks of the bar show through
   const cover = (s, mode) => (s.cv[mode] ??= renderStroke({ L: s.L + s.T * 0.3, T: s.T * 1.12, dry: 0.72 + s.dry * 0.2, seed: s.seed + 7, taper: 0.06 }, mode ? NIGHT : BONE, 0.5));
   // the bar's own shape in the ground colour (a cheap copy of its sprite): laid under a greyed bar, so the grey stays
@@ -130,11 +139,11 @@
   // The small marks: a dozen short brush strokes rendered once per colour (fixed seeds), then drawn rotated and scaled.
   // Index = thickness class (0 thin .. 3 thick) * 3 + wetness (0 dry .. 2 loaded).
   const MARK_L = 170, MARK_T = [8, 15, 24, 36], MARK_DRY = [0.88, 0.58, 0.3];
-  function makePool(mode) {
+  function makePool(mode, ink) {
     const out = [];
     for (let i = 0; i < 12; i++) {
       const T = MARK_T[(i / 3) | 0], dry = MARK_DRY[i % 3];
-      const sp = renderStroke({ L: MARK_L, T, dry, seed: 901 + i * 37, taper: 0.1 + (i % 2) * 0.08 }, mode ? BONE_INK : BLACK);
+      const sp = renderStroke({ L: MARK_L, T, dry, seed: 901 + i * 37, taper: 0.1 + (i % 2) * 0.08 }, INKS[ink][mode]);
       sp.T = T; out.push(sp);
     }
     return out;
@@ -257,16 +266,16 @@
       }
     }
     const fa = ang * DEG;
-    const s = { x: sx, y: sy, ang, L, T, dry, seed, taper: 0.05 + R() * 0.2, sp: [null, null], cv: [null, null], un: [null, null], parent: !!parent,
+    const s = { x: sx, y: sy, ang, L, T, dry, seed, taper: 0.05 + R() * 0.2, sp: {}, cv: [null, null], un: [null, null], parent: !!parent,
       mx: sx + Math.cos(fa) * L / 2, my: sy + Math.sin(fa) * L / 2, age: -delay, dur: 0.06 + L / (3200 + 4000 * velN), q: 0, dim: 0, a: 1 };
-    sprite(s, x.p('ground') >= 0.5 ? 1 : 0);
+    sprite(s, x.p('ground') >= 0.5 ? 1 : 0, inkOf(x));
     strokes.push(s);
     return s;
   }
 
   TOOLS.push({
-    id: 'kline', name: 'Kline', tag: 'v2',
-    blurb: 'After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and in time they are painted over. New in v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.',
+    id: 'kline', name: 'Kline', tag: 'v3',
+    blurb: 'After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.',
     params: [
       { key: 'thresh', label: 'which chords strike', min: 0.5, max: 0.97, value: 0.8,
         hint: 'How much a chord must stand out to strike a big bar; every other chord leaves a small mark. Left: many chords strike bars. Right: only the very biggest.',
@@ -279,7 +288,7 @@
         hint: 'How thick the bars and marks are. Left: thin, wiry strokes. Right: huge, heavy beams.',
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, BONE); const t = 1.5 + v * 13; ICON.rect(g, 5, h / 2 - t / 2, w - 10, t, BLACK); } },
       { key: 'stay', label: 'how long they stay', min: 1.2, max: 24, value: 4, drive: '+level',
-        hint: 'How long the bars and marks stay before they are painted over. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear.',
+        hint: 'How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear.',
         icon: (g, v, w, h) => {
           ICON.rect(g, 2, 2, w - 4, h - 4, BONE); const life = 0.12 + v * 0.88, n = 4, sw = (w - 8) / n;
           for (let i = 0; i < n; i++) { const a = Math.max(0, 1 - (i / (n - 1)) / life); if (a > 0) ICON.alpha(g, a, () => ICON.rect(g, 4 + i * sw + 1, 6, sw - 3, h - 12, BLACK)); }
@@ -299,6 +308,11 @@
         icon: (g, v, w, h) => { const m = v >= 0.5; ICON.rect(g, 2, 2, w - 4, h - 4, m ? NIGHT : BONE);
           g.save(); g.translate(w / 2, h / 2); g.rotate(-0.35); ICON.rect(g, -13, -3.5, 26, 7, m ? BONE_INK : BLACK); g.restore();
           if (m) { g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); } } },
+      { key: 'colour', label: 'what colour', min: 0, max: 3, step: 1, value: 0,
+        hint: 'The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone.',
+        icon: (g, v, w, h) => { const i = clamp(Math.round(v), 0, 3); ICON.rect(g, 2, 2, w - 4, h - 4, NIGHT);
+          g.save(); g.translate(w / 2, h / 2); g.rotate(-0.35); ICON.rect(g, -13, -3.5, 26, 7, INKS[i][1]); g.restore();
+          g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); } },
     ],
     reset() { strokes = []; marks = []; chain = null; localV = null; lastChordT = -99; lastStrikeT = -99; },
     onChord(ch, x) {
@@ -317,21 +331,21 @@
       for (const k of strokes) k.dim = Math.min(0.3, k.dim + 0.1);   // the older bars sink back, greyer
       const s = strike(ch, x, loud);
       if (ch.notes.length >= 5 && x.p('order') > 0.45 && Math.random() < 0.6) strike(ch, x, loud, 0.07, s);
-      // too many: the oldest begin to be painted over
-      const live = strokes.filter((k) => k.q < 0.55);
-      for (let i = 0; i < live.length - MAX_LIVE; i++) { live[i].q = Math.max(live[i].q, 0.55); live[i].rush = true; }
+      // too many: the oldest are painted over now, on this attack (the only time a brush moves over an old bar)
+      const live = strokes.filter((k) => k.wipe == null && k.q < 1);
+      for (let i = 0; i < live.length - MAX_LIVE; i++) live[i].wipe = 0;
     },
     frame(x) {
-      const g = x.g, mode = x.p('ground') >= 0.5 ? 1 : 0, life = x.p('stay'), dt = x.dt;
+      const g = x.g, mode = x.p('ground') >= 0.5 ? 1 : 0, ink = inkOf(x), life = x.p('stay'), dt = x.dt;
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
       g.drawImage(ground[mode] ??= makeGround(mode, x.W, x.H), 0, 0);
-      const P = (pool[mode] ??= makePool(mode));
-      // small marks: full for a moment, then painted over to a faint grey ghost that lingers, then gone
+      const P = (pool[mode * 8 + ink] ??= makePool(mode, ink));
+      // small marks: fade without motion, smoothly from soon after they land, to a faint grey ghost that lingers, then gone
       const mLife = life * 0.3;
       const drawMark = (m) => {
         const sp = P[m.v], sx = m.L / MARK_L, sy = m.T / sp.T;
         const reveal = 1 - Math.pow(1 - Math.min(1, m.age / m.dur), 2), sw = sp.pad + (MARK_L + sp.pad) * reveal;
-        g.globalAlpha = m.q < 1 ? 1 : m.q < 1.2 ? lerp(1, 0.22, (m.q - 1) / 0.2) : m.q < 2.2 ? 0.22 : Math.max(0, 0.22 * (1 - (m.q - 2.2) / 0.4));
+        g.globalAlpha = m.q < 1 ? 1 - 0.78 * smooth(0.1, 1, m.q) : 0.22 * (1 - smooth(1, 2.6, m.q));
         if (g.globalAlpha <= 0.01) return;
         g.save(); g.translate(m.x, m.y); g.rotate(m.ang * DEG); g.scale(sx, sy);
         g.drawImage(sp.cv, 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h);
@@ -339,33 +353,37 @@
       };
       for (const m of marks) { m.age += dt; m.q += dt / (m.q < 1 ? mLife : 1.4); }
       for (const m of marks) if (m.q >= 1) drawMark(m);   // the ghosts lie under the bars
-      // get one overpainting brush ready ahead of time (at most one per frame, to keep frames short)
-      const due = strokes.find((s) => s.q > 0.35 && !s.cv[mode]); if (due) cover(due, mode);
+      // get one overpainting brush ready ahead of time (at most one per frame, to keep frames short), oldest bar first:
+      // the next one a strike would push out
+      const due = strokes.find((s) => s.q < 1 && !s.cv[mode]); if (due) cover(due, mode);
       // likewise one ground-coloured underlay per frame for the bars going grey (a strike greys all the older ones at once)
       const dueU = strokes.find((s) => s.a < 0.995 && !s.un[mode]); if (dueU) under(dueU, mode);
       for (const s of strokes) {
         s.age += dt; if (s.age <= 0) continue;
-        s.q += dt / (s.rush ? Math.min(life, 2.5) : life);   // pushed out by newer bars: painted over briskly
+        s.q += dt / life;
+        if (s.wipe != null) s.wipe += dt / WIPE;
         s.a += (1 - s.dim - s.a) * (1 - Math.exp(-dt / 0.4));
-        // full; then a ground-coloured brush drags along it (painting it over, streaks still showing); then the rest fades
-        const sp = sprite(s, mode), reveal = 1 - Math.pow(1 - Math.min(1, s.age / s.dur), 2.2);
+        // it soaks away without moving; or, pushed out by a new bar, a ground-coloured brush drags along it on that bar's
+        // attack (painting it over, streaks still showing) and the streaks soak away
+        const sp = sprite(s, mode, ink), reveal = 1 - Math.pow(1 - Math.min(1, s.age / s.dur), 2.2);
         const sw = sp.pad + (s.L + sp.pad) * reveal;
         g.save(); g.translate(s.x, s.y); g.rotate(s.ang * DEG);
-        const fade = s.q < 1 ? 1 : Math.max(0, 1 - (s.q - 1) / 0.3);
+        const fade = (1 - smooth(0.25, 1, s.q)) * (s.wipe == null ? 1 : 1 - smooth(1, 4, s.wipe));
         if (fade > 0 && s.a < 0.995 && s.un[mode]) { g.globalAlpha = fade; g.drawImage(under(s, mode), 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h); }
         g.globalAlpha = s.a * fade;
         if (g.globalAlpha > 0) g.drawImage(sp.cv, 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h);
-        if (s.q > 0.55) {
-          // the cover slides in tail first, so its dry, streaky end is the brush's front edge
-          const k = Math.min(1, (s.q - 0.55) / 0.4), cp = cover(s, mode), full = cp.w, vis = full * (1 - Math.pow(1 - k, 1.7));
-          g.globalAlpha = s.q < 1.3 ? 1 : Math.max(0, 1 - (s.q - 1.3) / 0.2);
+        if (s.wipe != null) {
+          // the cover slides in tail first, so its dry, streaky end is the brush's front edge; once the bar under it has
+          // soaked away it fades too
+          const k = Math.min(1, s.wipe), cp = cover(s, mode), full = cp.w, vis = full * (1 - Math.pow(1 - k, 1.7));
+          g.globalAlpha = 1 - smooth(4, 5, s.wipe);
           if (vis > 1) g.drawImage(cp.cv, (full - vis) * cp.k, 0, vis * cp.k, cp.h * cp.k, -cp.pad - s.T * 0.15, -cp.cy, vis, cp.h);
         }
         g.restore();
       }
       for (const m of marks) if (m.q < 1) drawMark(m);
       g.globalAlpha = 1;
-      strokes = strokes.filter((s) => s.q < 1.5);
+      strokes = strokes.filter((s) => (s.wipe == null ? s.q < 1 : s.wipe < 5));
       marks = marks.filter((m) => m.q < 2.6);
     },
   });

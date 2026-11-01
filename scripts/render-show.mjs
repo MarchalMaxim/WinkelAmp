@@ -30,7 +30,9 @@
 // The ETA covers the frames (the master encodes alongside), the sound and the two share passes (estimated per video
 // second). It comes after the first 10 s of drawing; a render longer than 30 s scales that pace by samples of the
 // song's drawing cost taken first in a page of their own (--eta-probes K, 0 for none). Progress lines, `ETA …`, `done: …` and the closing `master →`,
-// `share →` and `sheet →` lines are read by the studio's export job: keep their shape.
+// `share →` and `sheet →` lines are read by the studio's export job: keep their shape. Started by that job (an IPC
+// channel), a { cancel: true } message stops it cleanly: Chrome, ffmpeg and the server closed and the temp folder (with
+// the partial video) removed, then exit 130 (on Windows a kill would skip all of that).
 // Videos carry the user's recordings: renders/ stays out of git. Needs ffmpeg on the PATH and Chrome.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -81,8 +83,11 @@ if (SHARE) shareVideoKbps(MB_PER_MIN);   // throws on a budget the sound alone w
 if (spawnSync('ffmpeg', ['-version']).status !== 0) { console.error('render-show needs ffmpeg on the PATH'); process.exit(1); }
 
 const clock = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+/** Every ffmpeg still running, so a cancel or an error stops them. */
+const procs = new Set();
 const run = (cmd, args, { stdin = false } = {}) => {
   const p = spawn(cmd, args, { stdio: [stdin ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
+  procs.add(p); p.on('close', () => procs.delete(p));
   let err = '';
   p.stderr.on('data', (d) => { err = (err + d).slice(-4000); });
   const done = new Promise((res, rej) => {
@@ -126,7 +131,23 @@ const frameSink = {
 };
 
 const vite = await createServer({ root: ROOT, logLevel: 'error', plugins: [frameSink], server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
-let browser = null, tmp = null, code = 0;
+let browser = null, tmp = null, code = 0, cleaning = null, cancelled = false;
+/** Chrome, the encoders and the server closed, the temp folder removed (unless --keep); once, whoever asks first. */
+const cleanup = () => (cleaning ??= (async () => {
+  try { if (browser) await browser.close(); } catch { /* already gone */ }
+  browser = null;
+  for (const p of procs) if (p.exitCode === null) p.kill();
+  try { await vite.close(); } catch { /* already closed */ }
+  // a killed ffmpeg lets go of its partial video a moment later
+  if (tmp && !opts.keep) rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  else if (tmp) console.log(`kept ${tmp}`);
+})());
+process.on('message', (m) => {
+  if (!m || !m.cancel || cancelled) return;
+  cancelled = true;
+  console.log('render-show: cancelled');
+  cleanup().catch((e) => console.error(`render-show: cleaning up: ${e.message ?? e}`)).finally(() => process.exit(130));
+});
 try {
   const { validateShow } = await vite.ssrLoadModule('/src/studio/show/show.ts');
   const { composeShow } = await vite.ssrLoadModule('/src/studio/compose/compose.ts');
@@ -162,7 +183,7 @@ try {
     from = 'composed';
   } else throw new Error(`no show ${arg}: not a file, not in ${showsDir()}, and no song pack ${arg} in ${songs}`);
   const pack = readPack(show.song);
-  const v = validateShow(show, { duration: pack.duration, widgets });
+  const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}) });
   for (const w of v.warnings) console.log(`warning  ${w.path}: ${w.message}`);
   if (v.errors.length) {
     for (const e of v.errors) console.error(`error  ${e.path}: ${e.message}`);
@@ -181,6 +202,7 @@ try {
   const shareOut = `${stem}-share.mp4`, sheetOut = `${stem}-sheet.png`;
   mkdirSync(path.dirname(out), { recursive: true });
   tmp = mkdtempSync(path.join(tmpdir(), 'wa-render-show-'));
+  console.log(`work folder → ${tmp}`);   // the export job removes it if this process is killed before its cleanup
   const W = 1280 * SCALE, H = 720 * SCALE;
   console.log(`${show.title ?? pack.title} (${from === 'composed' ? (opts.compose ? 'composed for the song (--compose)' : 'composed for the song: no shows/' + show.id + '.json') : `${show.sections.length} sections`}): `
     + `${clock(start)}–${clock(end)}, ${n} frames of ${W}×${H} at ${FPS} fps (${HZ} Hz steps, scale ${SCALE}) → ${out}`);
@@ -365,13 +387,9 @@ try {
   if (errs.length) { console.log('widgets that stopped (the rest of the picture went on):'); for (const [id, e] of errs) console.log(`  ${id}: ${e}`); }
   if (pageErrors.length) { console.error(`page errors:\n  ${[...new Set(pageErrors)].join('\n  ')}`); code = 1; }
 } catch (e) {
-  console.error(`render-show: ${e.message ?? e}`);
-  code = 1;
+  if (cancelled) code = 130;   // what a cancel's closing does to the page: not an error
+  else { console.error(`render-show: ${e.message ?? e}`); code = 1; }
 } finally {
-  if (browser) await browser.close();
-  if (sink.ff && sink.ff.p.exitCode === null) sink.ff.p.kill();
-  await vite.close();
-  if (tmp && !opts.keep) rmSync(tmp, { recursive: true, force: true });
-  else if (tmp) console.log(`kept ${tmp}`);
+  await cleanup();
 }
 process.exit(code);

@@ -49,7 +49,11 @@ for (const file of files) {
   const song = x && typeof x === 'object' ? (x as { song?: unknown }).song : undefined;
   const pack = isSlug(song) ? join(songsDir(), song, 'pack.json') : null;
   if (pack && existsSync(pack)) {
-    try { c.duration = (JSON.parse(readFileSync(pack, 'utf8')) as { duration: number }).duration; } catch { /* a broken pack: no end check */ }
+    try {
+      const p = JSON.parse(readFileSync(pack, 'utf8')) as { duration: number; tracks?: Record<string, unknown> };
+      c.duration = p.duration;
+      c.tracks = Object.keys(p.tracks ?? {});   // a listen naming a track this song lacks is a warning
+    } catch { /* a broken pack: no end or track checks */ }
   }
   let { errors, warnings } = validateShow(x, c);
   if (fix && (errors.length || warnings.length) && x && typeof x === 'object' && Array.isArray((x as Show).sections)) {

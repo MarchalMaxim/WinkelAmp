@@ -1,7 +1,8 @@
 // The layer panel in a real browser (plan 2026-10-31 T16): the 30 s fixture song given a fake violin track, a show
 // with kandinsky and strings. Checks that choosing Melody saves listen: 'melody' and Ctrl+Z removes it; that "Pulse
 // every 1 bar" writes pivots 4 beats apart in one undo step; that Window, then a changed shape, then "Reset place"
-// gives defaultRegion; that the picker's dark + liquid filter keeps rorschach (and drops kandinsky), and "suits this
+// gives defaultRegion; that the picker's filter by two of rorschach's feel words (lab/tags.json, one of them not
+// kandinsky's) keeps rorschach and drops kandinsky, and "suits this
 // song" keeps strings; that nothing overflows at phone width; and no page errors. Screenshots go to
 // renders/look/T16/{panel-listen,panel-where,panel-intensity,picker-filter}{,-phone}.png.
 //
@@ -30,6 +31,11 @@ const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, port
 } });
 const { page, errors, vite, dirs: { songs, shows } } = st;
 const { defaultRegion } = await vite.ssrLoadModule('/src/studio/ui/layer-controls.ts');
+// Two feel words of rorschach: one kandinsky lacks first, then another of rorschach's.
+const TAGS = JSON.parse(readFileSync(path.join(ROOT, 'lab/tags.json'), 'utf8'));
+const feelOf = (id) => (TAGS.tags ?? TAGS)[id]?.feel ?? [];
+const rf = feelOf('rorschach'), only = rf.filter((w) => !feelOf('kandinsky').includes(w));
+const FEEL = only.length && rf.length >= 2 ? [only[0], rf.find((w) => w !== only[0])] : ['dark', 'liquid'];
 
 const show = () => page.evaluate(() => window.__studio.store.state.show);
 const blur = () => page.evaluate(() => document.activeElement?.blur());
@@ -147,13 +153,13 @@ try {
     }
     await shot(`panel-intensity${sfx}`, '.layer.open .lc-part:nth-of-type(3)');
 
-    // The picker: dark + liquid keeps rorschach; suits this song keeps strings.
+    // The picker: two of rorschach's feel words (from lab/tags.json, which the user keeps retagging; one of them not
+    // kandinsky's) keep rorschach and drop kandinsky; suits this song keeps strings.
     await page.click('[data-act="add"]');
     await page.click('.wp-toggle');
-    await page.click('.wp-chip[data-feel="dark"]');
-    await page.click('.wp-chip[data-feel="liquid"]');
+    for (const w of FEEL) await page.click(`.wp-chip[data-feel="${w}"]`);
     const listed = await page.$$eval('.picker .pick', (bs) => bs.map((b) => b.dataset.id));
-    if (!phone) check('the dark + liquid filter keeps rorschach, not kandinsky', listed.includes('rorschach') && !listed.includes('kandinsky'), listed.join(','));
+    if (!phone) check(`the ${FEEL.join(' + ')} filter keeps rorschach, not kandinsky`, listed.includes('rorschach') && !listed.includes('kandinsky'), listed.join(','));
     await shot(`picker-filter${sfx}`, '.picker');
     await shot(`picker-filter-list${sfx}`, '.picker section');
     await page.click('[data-clear]');
@@ -181,7 +187,7 @@ try {
     await page.waitForSelector('.layer.open[data-k="2"] .lc');
     await page.click('.layer.open [data-mode="window"]');
     const hint = await page.locator('.layer.open .lc-hint').textContent().catch(() => '');
-    if (!phone) check('casket in a window says it cuts only its own picture', /in a window it cuts only its own picture/.test(hint ?? ''), hint ?? '');
+    if (!phone) check('casket as a small copy says it cuts only its own picture', /as a small copy it cuts only its own picture/.test(hint ?? ''), hint ?? '');
     await shot(`panel-where-reader${sfx}`, '.layer.open .lc-part:nth-of-type(2)');
   }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));

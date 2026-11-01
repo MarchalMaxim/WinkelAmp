@@ -17,8 +17,8 @@ describe('loadCatalogue (every lab/tools file in node:vm)', () => {
 
   it('keeps the lab order (TOOL_IDS first)', () => {
     const ids = [...widgets.keys()];
-    expect(ids.indexOf('harmonograph')).toBeLessThan(ids.indexOf('hilma'));
-    expect(ids.indexOf('hilma')).toBeLessThan(ids.indexOf('kline'));
+    expect(ids.indexOf('harmonograph')).toBeLessThan(ids.indexOf('kline'));
+    expect(ids.indexOf('kline')).toBeLessThan(ids.indexOf('score'));
     expect(ids.indexOf('kandinsky')).toBeLessThan(ids.indexOf('casket'));
   });
 

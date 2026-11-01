@@ -118,3 +118,8 @@ The user rated the morning round (5) and the pioneers round (6) together. Versio
 | whitney, albers | DROP | new |
 | ripples, moire, shatter, lightning | DROP | earlier rounds |
 | suprematism, contours, tunnel, scribble, pointillism, agnes martin | not judged yet | |
+
+## 2026-11-01, the tagging aside
+- DROP: hilma af klint (moved to `tools/dropped/`): "I don't even like it at all."
+- Retagged from the user's own words: woven threads (strings), kline, murmuration, rorschach (see `tags.json`).
+- Reworked: kline v3 (fades without motion, a colour knob), rorschach v3 (a how-present knob).

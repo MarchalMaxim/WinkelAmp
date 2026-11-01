@@ -40,11 +40,10 @@ describe('listenOptions', () => {
 });
 
 describe('defaultRegion', () => {
-  it('a centred soft ellipse: a spot for the canvas readers, else a window', () => {
-    expect(defaultRegion('casket').mode).toBe('spot');
-    expect(defaultRegion('kandinsky').mode).toBe('window');
-    for (const id of READERS) expect(defaultRegion(id).mode).toBe('spot');
-    expect(defaultRegion('kandinsky')).toEqual({ mode: 'window', shape: 'ellipse', x: 0.5, y: 0.5, w: 0.5, h: 0.5, feather: 0.25 });
+  it('a small copy of the whole widget: a centred soft box, the picture contained, for every widget', () => {
+    for (const id of ['kandinsky', 'casket', ...READERS]) {
+      expect(defaultRegion(id)).toEqual({ mode: 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.4, h: 0.4, feather: 0.2, fit: 'contain' });
+    }
     expect(defaultRegion('a')).not.toBe(defaultRegion('a'));   // a fresh object each time
   });
 
@@ -56,8 +55,8 @@ describe('defaultRegion', () => {
 
   it('says the place in words', () => {
     expect(describePlace(undefined)).toBe('');
-    expect(describePlace(defaultRegion('casket'))).toBe('in a spotlight');
-    expect(describePlace(defaultRegion('kandinsky'))).toBe('in a window');
+    expect(describePlace({ ...defaultRegion('casket'), mode: 'spot' })).toBe('as a mask');
+    expect(describePlace(defaultRegion('kandinsky'))).toBe('as a small copy');
   });
 });
 
@@ -138,17 +137,17 @@ describe('filterWidgets', () => {
   });
 
   it('feel words: AND across the chosen words', () => {
-    const ids = filterWidgets(metas, { ...none, feel: ['dark', 'liquid'] }, words).map((m) => m.id);
+    const ids = filterWidgets(metas, { ...none, feel: ['dark', 'alien'] }, words).map((m) => m.id);
     expect(ids).toContain('rorschach');
     expect(ids).not.toContain('kandinsky');
-    for (const id of ids) expect(tags[id].feel).toEqual(expect.arrayContaining(['dark', 'liquid']));
+    for (const id of ids) expect(tags[id].feel).toEqual(expect.arrayContaining(['dark', 'alien']));
   });
 
   it('instrument words: AND too, combined with feel', () => {
-    const ids = filterWidgets(metas, { ...none, instruments: ['cello', 'bassoon'] }, words).map((m) => m.id);
+    const ids = filterWidgets(metas, { ...none, instruments: ['contrabass', 'timpani'] }, words).map((m) => m.id);
     expect(ids).toContain('rorschach');
-    for (const id of ids) expect(tags[id].instruments).toEqual(expect.arrayContaining(['cello', 'bassoon']));
-    expect(filterWidgets(metas, { feel: ['vivid'], instruments: ['cello', 'bassoon'], tracks: null }, words)).toEqual([]);
+    for (const id of ids) expect(tags[id].instruments).toEqual(expect.arrayContaining(['contrabass', 'timpani']));
+    expect(filterWidgets(metas, { feel: ['vivid'], instruments: ['contrabass', 'timpani'], tracks: null }, words)).toEqual([]);
   });
 
   it('suits this song: one of its instruments maps to one of the tracks (a family word to any track of it)', () => {
