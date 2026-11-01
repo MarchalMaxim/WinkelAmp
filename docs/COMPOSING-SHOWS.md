@@ -406,7 +406,7 @@ Feel: vivid, playful, triumphant, heavy · Suits: tutti, trumpet, cello · Role:
 
 #### `rorschach`: Rorschach ink (keep our defaults)
 
-Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. Five knobs now, all starting at the defaults you loved.
+Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. New in v3: a <b>how present</b> knob, to tone it right down: fainter ink, a still page, and only the hardest bass attacks drop ink.
 
 Feel: liquid, dark, dread, heavy · Suits: cello, contrabass, bassoon · Role: base
 
@@ -417,6 +417,7 @@ Feel: liquid, dark, dread, heavy · Suits: cello, contrabass, bassoon · Role: b
 | `size` | blot size | 0.3..2.5 | 1 | fixed | How far each drop of ink spreads. Left: small spots. Right: big blots. |
 | `spatter` | spatter | 0..3 | 1 | louder → more | How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters. |
 | `fade` | how long the ink stays | 1..13 | 9 | louder → less | How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint ink on a still page, and only the hardest bass attacks drop it. Right: every low note blooms at full strength (as before). |
 
 #### `squares`: Dread squares
 
