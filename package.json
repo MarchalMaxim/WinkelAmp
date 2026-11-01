@@ -25,6 +25,7 @@
     "record-check": "node scripts/record-check.mjs",
     "render-show": "node scripts/render-show.mjs",
     "setup-ymt3": "tsx scripts/setup-ymt3.ts",
+    "setup-muscriptor": "tsx scripts/setup-muscriptor.ts",
     "pianoroll": "node scripts/pianoroll.mjs",
     "hd-check": "node scripts/hd-check.mjs",
     "persist-probe": "node scripts/persist-probe.mjs",
