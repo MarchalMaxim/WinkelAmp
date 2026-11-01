@@ -1,11 +1,12 @@
 // Picks in a real browser (note picker plan T1 step 4): render pages at scale 1 and 2, with the real widgets, the real
 // songs and the real runtime. A widget on a set of picks is given exactly groupChords(picks), played through and after a
-// seek; no widget errors; two runs draw the same picture; track notes that are not in pack.notes fire at their own times.
+// seek; no widget errors; two runs draw the same picture; track notes that are not in pack.notes fire at their own times;
+// a widget's pass "after the others" reads the picks too: the same picks draw the same picture on two songs.
 //
 //   npm run picks-check [-- --headed] [--keep] [--shots <dir>]
 //
-// --shots writes stills there: Pointillism on Winter Wind at 20, 25 and 30 s, on every note against on 12 picks, and just
-// after the loudest and the softest pick. Local only: needs system Chrome, songs/chopin-winter-wind and songs/vivaldi-winter.
+// --shots writes stills there: Pointillism on Winter Wind at 20, 25 and 30 s, on every note against on 12 picks, just
+// after the loudest and the softest pick, and timeslice in a rest between picks. Local only: needs system Chrome, songs/chopin-winter-wind and songs/vivaldi-winter.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { checker, openStudio } from '../lib/studio-session.mjs';
@@ -18,6 +19,13 @@ const { check, finish } = checker();
 
 const WIND = 'chopin-winter-wind', WINTER = 'vivaldi-winter', KEY = 'pointillism@picks:p1';
 const FROM = 18, EVERY = 1.2, N = 12;
+/** The same picks for two songs, with a rest from 19.5 to 20.5 s. */
+const SHARED = [[18.1, 18.3, 60, 40], [19.3, 19.5, 64, 90], [20.5, 20.7, 67, 60], [21.7, 21.9, 72, 110], [22.9, 23.1, 60, 30], [24.1, 24.3, 64, 80], [25.3, 25.5, 67, 50], [26.5, 26.7, 72, 100]];
+const QUEUERS = ['timeslice', 'fold', 'pixelsort', 'stella'];
+const REGIONS = {
+  spot: { mode: 'spot', shape: 'ellipse', x: 0.45, y: 0.5, w: 0.55, h: 0.6, feather: 0.3 },
+  window: { mode: 'window', shape: 'rect', x: 0.55, y: 0.45, w: 0.5, h: 0.55, rot: 20, feather: 0.2, blend: 'over', fit: 'cover' },
+};
 
 /** Twelve notes by rule, as a hand would choose them: the loudest in each window of 1.2 s from 18 s, every third the
     softest, so the set has both loud and soft ones. */
@@ -46,7 +54,12 @@ const st = await openStudio({ songs: [WIND, WINTER], port: 5401, headed: HEADED,
   winter = notInPack(packs[WINTER]);
   const on = { widget: 'pointillism', listen: 'picks:p1' }, squares = { widget: 'squares' };
   const windShow = (id, layers) => ({ version: 2, id, song: WIND, sections: [{ start: 0, end: D, layers }], picks: { p1: { notes: wind } } });
+  /** A layer on SHARED, on both songs: `<name>-wind` and `<name>-winter`. */
+  const onBoth = (name, layer) => Object.fromEntries([[WIND, D, 'wind'], [WINTER, W, 'winter']].map(([song, end, tag]) => [`${name}-${tag}`,
+    { version: 2, id: `${name}-${tag}`, song, sections: [{ start: 0, end: 100, layers: [{ ...layer, listen: 'picks:p1' }] }, { start: 100, end, layers: [] }], picks: { p1: { notes: SHARED } } }]));
   return {
+    ...Object.assign({}, ...QUEUERS.map((widget) => onBoth(widget, { widget }))),
+    ...Object.assign({}, ...Object.entries(REGIONS).map(([mode, region]) => onBoth(`timeslice-${mode}`, { widget: 'timeslice', region }))),
     // The same set across a boundary, under a plain widget.
     [WIND]: { version: 2, id: WIND, song: WIND, sections: [
       { start: 0, end: 22, layers: [squares, on] }, { start: 22, end: D, layers: [squares, on] },
@@ -125,6 +138,22 @@ try {
   check('Winter: no widget errors', Object.keys(await widgetErrors(wp)).length === 0);
   await wp.close();
 
+  /** The picture a show draws at t, played from 17 s, and its errors. */
+  const drawn = async (show, t) => {
+    const p = await open(show);
+    const h = await p.evaluate((t) => { window.renderSeek(17, 1); window.renderTo(t); return window.renderFrameHash(); }, t);
+    const e = await widgetErrors(p);
+    await p.close();
+    return { h, e };
+  };
+  for (const name of [...QUEUERS, ...Object.keys(REGIONS).map((mode) => `timeslice-${mode}`)]) {
+    const [a, again, b] = [await drawn(`${name}-wind`, 28), await drawn(`${name}-wind`, 28), await drawn(`${name}-winter`, 28)];
+    check(`${name}: the same picks draw the same picture on two songs`, a.h === b.h && a.h === again.h, `${a.h} ${again.h} ${b.h}`);
+    check(`${name}: no widget errors`, !Object.keys({ ...a.e, ...b.e }).length, JSON.stringify({ ...a.e, ...b.e }));
+  }
+  const rest = [await drawn('timeslice-wind', 20.4), await drawn('timeslice-winter', 20.4)];
+  check('timeslice in a rest between picks: the same on two songs', rest[0].h === rest[1].h, `${rest[0].h} ${rest[1].h}`);
+
   if (SHOTS) {
     const still = async (show, t, name) => {
       const p = await open(show);
@@ -138,6 +167,10 @@ try {
     await still('wind-picks', loud.t + 0.1, 'picks-loudest');
     await still('wind-picks', soft.t + 0.1, 'picks-softest');
     await still(WIND, 25, 'with-squares-25');
+    const atRest = await open('timeslice-wind');
+    await atRest.evaluate(() => { window.renderSeek(17, 1); window.renderTo(20.4); });
+    await atRest.screenshot({ path: path.join(SHOTS, 'timeslice-rest-20.4.png') });
+    await atRest.close();
   }
   check('no page errors', errors.length === 0, errors.join('; '));
 } catch (e) {

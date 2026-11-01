@@ -76,7 +76,7 @@ T2 builds on T1, one after the other.
   `src/studio/ui/api.ts`, `scripts/lib/studio-session.mjs`, `scripts/render-show.mjs`, `scripts/fidelity.mjs`,
   `scripts/checks/runtime-layers-check.mjs`, `scripts/studio-check.mjs`, `package.json`, `docs/COMPOSING-SHOWS.md`.
 - Create: `src/studio/show/melody.ts`, `scripts/checks/picks-check.mjs`.
-- Tests: `tests/picks-show.test.ts`, `tests/picks-edit.test.ts`, `tests/picks-runtime.test.ts`, `tests/melody.test.ts`;
+- Tests: `tests/picks-show.test.ts`, `tests/picks-edit.test.ts`, `tests/picks-runtime.test.ts`, `tests/melody-marks.test.ts` (`tests/melody.test.ts` is already the audio melody tracker's);
   add to `tests/layers-lines.test.ts`, `tests/studio-api.test.ts`, `tests/check-show.test.ts`.
 
 **Signatures:**
@@ -151,7 +151,8 @@ export const melodiesDir = (): string;
     numbers to 4 decimals. The not-a-part message names `picks:<id>`.
 - `edit.ts` (every result validates from a valid show):
   - `placePicks`: `repairPickNotes`; none left → the input itself. Set `nextPicksId`; a layer `{ widget, listen }` on top of
-    every section from `sectionAt(first start)` to `sectionAt(last start)`.
+    every section from `sectionAt(first start)` to `sectionAt(last start + 50 ms)` (the design's builder's call: a live step
+    carrying the last pick over a boundary must not lose it).
   - `updatePicks`: unknown id, no notes or no change → the input itself. Sections in the new span keep their layer at its
     place (a new widget rewrites it and drops its knobs); sections outside lose it; new ones get it on top, with `knobs`
     and `region` copied from the nearest layer of the set, its knobs only if the widget stayed.
@@ -225,7 +226,7 @@ export const melodiesDir = (): string;
   `tests/layers-lines.test.ts`: `listenNotes({ notes, picks: { p1: { notes: two } } }, 'picks:p1')` → those, `heard
   'picks:p1'`; `'picks:p9'` → `[]`, `heard 'picks:p9'`; with no `picks` at all the same.
 
-  `tests/melody.test.ts`: `canonicalMelody` stable and one note a line; `validateMelody` rows; `matchMarks`: 49 ms matched,
+  `tests/melody-marks.test.ts`: `canonicalMelody` stable and one note a line; `validateMelody` rows; `matchMarks`: 49 ms matched,
   51 ms not, another pitch not, the same track preferred over a nearer other track, one note taken once, the unmatched
   listed in order.
 
@@ -265,6 +266,10 @@ export const melodiesDir = (): string;
   `scripts/checks/picker-check.mjs`, `tests/picker-logic.test.ts`.
 - Modify: `src/studio/ui/main.ts`, `player.ts`, `panel.ts`, `layer-controls.ts`, `lanes.ts`, `package.json`; add to
   `tests/layer-controls.test.ts`.
+
+**From T1's review:** a section boundary moved after placing can leave a pick outside every section using its set, so it
+stops firing with only `validateShow`'s `never heard` warning behind it. "Misses one" is on the design's failure list: the
+picker shows that warning on the set's row, and `picker-check` looks for it.
 
 **Signatures:**
 

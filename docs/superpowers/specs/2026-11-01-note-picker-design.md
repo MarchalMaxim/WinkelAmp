@@ -119,6 +119,8 @@ layer.listen = "picks:<id>"
 
 ## To watch when building
 
+- Builder's call: a set's span ends at the section holding the last pick's start + 50 ms (the longest live step), not its start. Otherwise a step carrying the pick over a boundary would lose it. The cost: a last pick within 50 ms of a boundary adds the next section, where the layer draws through without firing.
+- A widget on a set reads the set everywhere, its queued passes too (timeslice's threads, stella's two hops): the runtime wraps `queueMicrotask` for those instances only. A routed listen such as `@melody` still reads the song in a queued pass, which is what the lab draws; changing it would move lab parity.
 - A widget's own colour logic on sparse notes. Pointillism, for one, finds the home key from what it hears, so its colours will shift on few notes: look at it and report; don't rework widgets.
 - Widgets can't be disposed of: `pixelsort` starts a worker per instance, as any routed instance does today, so a reload or a preview leaves one idle until the page closes. Reported, not reworked.
 - Calls made by the author, not the user: studio only; melody file location; layers span first to last pick; picks as a new `listen`; the Suggest and Loudest helpers and tones kept from the mockup. The builder's calls are marked where they stand above.

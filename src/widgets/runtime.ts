@@ -48,6 +48,10 @@ export class WidgetRuntime implements RuntimeLike {
   private readonly tools = new Map<string, ToolDef>();
   private readonly insts = new Map<string, InstanceState>();
   private readonly order: string[] = [];
+  /** The instances on a set of picks: what they queue runs on their notes too (picksQueue). */
+  private readonly onPicks = new Set<string>();
+  /** The set an instance's load failed on, by key: another set tries again. */
+  private readonly failedOn = new Map<string, Note[]>();
   private readonly knobs: Record<string, KnobMap> = {};
   /** The instance being called (ctx.p reads its knobs) and the notes behind ctx.sounding() and ctx.top(). */
   private readonly cur: { key: string; notes: Note[] };
@@ -136,16 +140,18 @@ export class WidgetRuntime implements RuntimeLike {
       song has is routed: evaluated with its part's NOTES and CHORDS; a spec with notes (a set of picks) is routed on
       them, even on none. A key already loaded only takes the spec's `own` (a curve added in an edit), in place:
       re-evaluating would wipe its state. Except when its notes changed: widgets read them when they load, so an edited
-      set is evaluated again, cold at the last step and reset, its knobs kept (the Conductor won't send them again). A
-      failure is kept in errors[key]. */
+      set is evaluated again, cold at the last step and reset, its knobs kept (the Conductor won't send them again), even
+      when it failed to load on the old set. A failure is kept in errors[key]. */
   load(specs: readonly (string | InstanceSpec)[]): void {
     const L = this.layers;
     for (const x of specs) {
       const spec: InstanceSpec = typeof x === 'string' ? { key: x, widget: x } : x;
       const key = spec.key, have = this.insts.get(key);
-      const knobs = have && spec.notes && spec.notes !== have.notes ? this.knobs[key] : undefined;
-      if (have && !knobs) { this.setOwn(have, !!L && (!!spec.own || have.routed)); continue; }
-      if (have) this.forget(key);
+      const was = have ? have.notes : this.errors[key] ? this.failedOn.get(key) : undefined;
+      const edited = !!spec.notes && was !== undefined && spec.notes !== was;
+      if (have && !edited) { this.setOwn(have, !!L && (!!spec.own || have.routed)); continue; }
+      const knobs = edited ? this.knobs[key] : undefined;
+      if (have) this.forget(key); else if (edited) delete this.errors[key];
       if (this.tools.has(key) || this.errors[key]) continue;
       const src = this.lib.sources[spec.widget];
       if (src == null) { this.errors[key] = `no widget file lab/tools/${spec.widget}.js`; continue; }
@@ -159,6 +165,7 @@ export class WidgetRuntime implements RuntimeLike {
       try {
         const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes } : { icon: this.icon, chords: this.chords });
         this.tools.set(key, tool); this.order.push(key);
+        if (spec.notes) this.onPicks.add(key);
         this.knobs[key] = knobs ?? resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
         const inst: InstanceState = {
           key, widget: spec.widget, salt: L ? L.fnv32(key) : 0, notes, chords, ci: 0,
@@ -167,13 +174,16 @@ export class WidgetRuntime implements RuntimeLike {
         };
         this.insts.set(key, inst);
         L?.coldInstance(inst, this.stepT);
-        if (knobs) this.safe(key, 'reset', this.g, this.ctx);
-      } catch (e) { this.errors[key] = `load: ${e instanceof Error ? e.message : String(e)}`; }
+        if (edited) this.safe(key, 'reset', this.g, this.ctx);
+      } catch (e) {
+        this.errors[key] = `load: ${e instanceof Error ? e.message : String(e)}`;
+        if (spec.notes) this.failedOn.set(key, spec.notes);
+      }
     }
   }
   /** An instance as if never loaded (its set of picks changed), but for its knobs. */
   private forget(key: string): void {
-    this.tools.delete(key); this.insts.delete(key); this.winG.delete(key); delete this.errors[key];
+    this.tools.delete(key); this.insts.delete(key); this.winG.delete(key); delete this.errors[key]; this.onPicks.delete(key);
     this.order.splice(this.order.indexOf(key), 1);
   }
   /** Instance keys in load order. */
@@ -272,7 +282,8 @@ export class WidgetRuntime implements RuntimeLike {
   }
 
   /** The lab's safe(): ctx.tool set, the first error per instance kept, the step never stops. An own instance's pulse,
-      features and notes are in ctx for the call, and the global ones back after it. */
+      features and notes are in ctx for the call, and the global ones back after it. One on a set of picks has them for
+      what it queues as well. */
   private safe(key: string, fn: 'reset' | 'onChord' | 'frame', real: CanvasRenderingContext2D, ...a: unknown[]): void {
     const { ctx, cur } = this, tool = this.tools.get(key)!, inst = this.insts.get(key);
     ctx.tool = tool; cur.key = key;
@@ -280,8 +291,31 @@ export class WidgetRuntime implements RuntimeLike {
     const swap = inst !== undefined && inst.own;
     const level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = cur.notes;
     if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes; }
+    const G = globalThis, q0 = G.queueMicrotask, picks = swap && this.onPicks.has(key) && typeof q0 === 'function';
+    if (picks) G.queueMicrotask = this.picksQueue(key, inst, q0);
     try { const f = tool[fn] as ((...x: unknown[]) => void) | undefined; if (f != null) f.apply(tool, a); }   // tool[fn]?.(…a): `this` is the tool
     catch (e) { if (!this.errors[key]) { this.errors[key] = String(e); console.error(key, e); } }
+    if (picks) G.queueMicrotask = q0;
     if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; cur.notes = notes; }
+  }
+
+  /** queueMicrotask while an instance on a set of picks runs: a pass it queues ("after the others": timeslice's threads
+      and now line read x.sounding() there) runs on the instance's notes, pulse and features, or it would answer every
+      note of the song between picks; and so does what that pass queues (stella's two hops). On top of whatever is
+      installed (the render page's queue, a region's wrapQ), as those are on each other. Picks only: a routed listen
+      such as @melody keeps what the lab draws. */
+  private picksQueue(key: string, inst: InstanceState, prev: typeof queueMicrotask): typeof queueMicrotask {
+    const { ctx, cur } = this, G = globalThis, tool = this.tools.get(key)!;
+    const queue = (f: () => void) => prev.call(G, () => {
+      const was = { tool: ctx.tool, key: cur.key, level: ctx.level, rate: ctx.rate, feat: ctx.feat, notes: cur.notes }, q0 = G.queueMicrotask;
+      ctx.tool = tool; cur.key = key; ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes;
+      G.queueMicrotask = queue;
+      try { f(); }
+      finally {
+        G.queueMicrotask = q0;
+        ctx.tool = was.tool; cur.key = was.key; ctx.level = was.level; ctx.rate = was.rate; ctx.feat = was.feat; cur.notes = was.notes;
+      }
+    });
+    return queue;
   }
 }

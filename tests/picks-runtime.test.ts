@@ -24,7 +24,7 @@ function fakeCanvas(w = 1280, h = 720): HTMLCanvasElement {
 
 /** What the probes saw, in the global the widget source reads. */
 interface Log { heard: Record<string, [number, number, number][]>; resets: Record<string, number>; loaded: Record<string, [number, number]>;
-  frames: Record<string, { t: number; level: number; size: number | undefined }[]> }
+  frames: Record<string, { t: number; level: number; size: number | undefined }[]>; late: Record<string, { t: number; sounding: number; level: number }[]> }
 const log = (): Log => (globalThis as unknown as { __probe: Log }).__probe;
 
 const probe = (id: string) => `TOOLS.push({ id: '${id}', name: '${id}', params: [{ key: 'size', min: 0, max: 9, value: 1 }],
@@ -33,7 +33,17 @@ const probe = (id: string) => `TOOLS.push({ id: '${id}', name: '${id}', params: 
   onChord(ch) { (window.__probe.heard['${id}'] ??= []).push([ch.t, ch.vel, ch.notes.length]); },
   frame(x) { (window.__probe.frames['${id}'] ??= []).push({ t: x.t, level: x.level, size: x.p('size') }); },
 });`;
-const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other') };
+/** A widget with a pass "after the others", and one that queues again from it (stella's two hops): what they read. */
+const LATE = `TOOLS.push({ id: 'late', name: 'late',
+  frame(x) {
+    const seen = (hop) => (window.__probe.late[hop] ??= []).push({ t: x.t, sounding: x.sounding().length, level: x.level });
+    queueMicrotask(() => { seen('one'); queueMicrotask(() => seen('two')); });
+  },
+});`;
+/** Fails to load on a set of 5 notes. */
+const FUSSY = `if (window.NOTES.length === 5) throw new Error('not on five');
+${probe('fussy')}`;
+const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other'), late: LATE, fussy: FUSSY };
 const HARNESS: LabHarness = { toolIds: Object.keys(SOURCES), verdicts: {}, drives: [], iconSource: '{ ink: "#000", gauge() {} }' };
 const META: WidgetMeta = { id: 'x', name: 'x', blurb: '', tag: '', verdict: null, params: [{ key: 'size', min: 0, max: 9, value: 1 }] };
 
@@ -69,7 +79,7 @@ beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterAll(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-beforeEach(() => { vi.stubGlobal('__probe', { heard: {}, resets: {}, loaded: {}, frames: {} } satisfies Log); });
+beforeEach(() => { vi.stubGlobal('__probe', { heard: {}, resets: {}, loaded: {}, frames: {}, late: {} } satisfies Log); });
 
 describe('a widget on a set of picks', () => {
   it('answers exactly the picked attacks and none between; a plain one in the same show hears all', () => {
@@ -251,6 +261,63 @@ describe('a widget on a set of picks', () => {
     const specs = showInstances(show());
     expect(specs.find((s) => s.key === KEY)!.notes).toBe(PICKS);
     expect('notes' in specs.find((s) => s.key === 'plain')!).toBe(false);
+  });
+
+  describe('a queued pass', () => {
+    /** Plays with queueMicrotask routed to rt.post, as the render page does. */
+    const playLate = (layer: Show['sections'][number]['layers'][number]) => {
+      const { rt, c } = start({ ...show(), sections: [{ start: 0, end: 30, layers: [layer] }] });
+      const real = globalThis.queueMicrotask;
+      vi.stubGlobal('queueMicrotask', (f: () => void) => { rt.post.push(f); });
+      try { c.reset(0); play(c, 0, 5); }
+      finally { vi.stubGlobal('queueMicrotask', real); }
+      expect(rt.errors).toEqual({});
+      return rt;
+    };
+    const during = (hop: string, a: number, b: number) => log().late[hop].filter((x) => x.t >= a && x.t < b);
+
+    it('on a set of picks reads its notes, also when it queues again: no note sounds between picks, whatever the song plays', () => {
+      const rt = playLate({ widget: 'late', listen: 'picks:p1' });
+      for (const hop of ['one', 'two']) {
+        expect(during(hop, 2, 4).length).toBeGreaterThan(100);
+        expect(during(hop, 2, 4).every((x) => x.sounding === 0)).toBe(true);
+        expect(during(hop, 1.3, 1.45).every((x) => x.sounding === 1)).toBe(true);
+        expect(during(hop, 1.3, 1.45).every((x) => x.level > 0)).toBe(true);
+      }
+      expect(rt.ctx.sounding().length).toBe(1);   // the song's notes back: at 5 s it has one, the picks none
+    });
+
+    it('queueMicrotask is back as it was after each call', () => {
+      const real = globalThis.queueMicrotask, { c } = start({ ...show(), sections: [{ start: 0, end: 30, layers: [{ widget: 'late', listen: 'picks:p1' }] }] });
+      c.reset(0);
+      c.step(1 / 60, 1 / 60);
+      expect(globalThis.queueMicrotask).toBe(real);
+    });
+
+    it('on the song, as today: it reads the song', () => {
+      playLate({ widget: 'late' });
+      expect(during('one', 2, 4).some((x) => x.sounding > 0)).toBe(true);
+    });
+  });
+
+  it('a widget that failed to load on a set tries again on another, not on the same; its knobs kept', () => {
+    const s = (notes: Note[]): Show => ({ ...show(notes), sections: [{ start: 0, end: 30, layers: [{ widget: 'fussy', listen: 'picks:p1' }] }] });
+    const K = 'fussy@picks:p1', a = s(PICKS), { rt, c } = start(a);
+    expect(rt.errors[K]).toContain('not on five');
+    rt.setKnobs(K, { size: { base: 7, drive: '', depth: 0.5 } });
+    rt.load(showInstances(a));
+    expect(rt.tool(K)).toBeUndefined();
+    expect(rt.errors[K]).toContain('not on five');
+
+    const NEW: Note[] = [[3, 3.5, 60, 50], [5, 5.5, 62, 55]];
+    c.setShow(applyEdit(a, { kind: 'updatePicks', id: 'p1', widget: 'fussy', notes: NEW }));
+    expect(rt.errors[K]).toBeUndefined();
+    expect(log().loaded.fussy).toEqual([2, 2]);
+    expect(log().resets.fussy).toBeGreaterThan(0);
+    c.reset(0);
+    play(c, 0, 6);
+    expect(log().heard.fussy).toEqual(asHeard(NEW));
+    expect(log().frames.fussy.at(-1)!.size).toBe(7);
   });
 
   it('a set shared by two widgets: each hears it', () => {
