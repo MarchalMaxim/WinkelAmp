@@ -61,9 +61,9 @@ npm run render-show -- <show id | shows/x.json> [--scale 2] [--fps 60] [--from s
 
 - **The master** (`renders/<id>.mp4`): the show supersampled (drawn at 2× in 1280×720 units, so every line is sharp),
   2560×1440 at 60 fps, x264 crf 13, BT.709 with its colour tags, and the recording's sound sample for sample (AAC
-  320k). Frames leave the page losslessly, and the same show gives the same frames every time. It takes about 3 to 4 s
-  per second of video on this machine at 2× (a 4-minute song in about a quarter of an hour); the ETA printed at the
-  start samples the song's drawing cost first. `--scale 1 --fps 30 --crf 18 --no-share` gives the old quick 720p kind.
+  320k). Frames leave the page losslessly, and the same show gives the same frames every time. It takes 3 to 10 s per
+  second of video on this machine at 2×, depending on the widgets (horizon is the costliest), so a 4-minute song takes
+  15 to 45 minutes; the ETA printed at the start samples the song's drawing cost first. `--scale 1 --fps 30 --crf 18 --no-share` gives the old quick 720p kind.
 - **The share copy** (`renders/<id>-share.mp4`): made from the master, 1920×1080 at 30 fps, two-pass x264 at about
   15 MB a minute (1.87 Mbit/s + AAC 128k). **Send it in WhatsApp as a *document*** (attach → Document), not as a
   video, or WhatsApp squeezes it again. For a smaller file pass `--share-mb-per-min 7`.
@@ -281,7 +281,7 @@ GitHub Actions).
 ## Ideas for next steps
 
 - The studio: shows for more of the repertoire, now that ensembles get instrument tracks; six layers with regions
-  are heavy for live play at 60 fps (the HD render is not affected); a phone-friendly way to share a show without a
+  at 60 fps in a visible window are not measured yet (the work per step fits; the HD render is not affected); a phone-friendly way to share a show without a
   video
 - The old app: share a look as a link; gentler defaults when the system asks for reduced motion; audio from other tabs
   via screen-share capture (Spotify and similar services don't expose raw audio to web pages)

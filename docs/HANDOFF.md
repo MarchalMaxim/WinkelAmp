@@ -85,6 +85,8 @@ the user's call.**
   30 s (1.0), the Nocturne 6:22 in 37 s (1.0). Piano recordings keep the piano model's notes exactly.
 - **Ingest stage times**: Beethoven (piano notes from the lab's file) 101 s in all: YourMT3+ 93 s, analysis 7 s;
   Vivaldi 203 s: the piano model 82 s, YourMT3+ 110 s, analysis 10 s.
+- **Determinism**: Winter Wind 0–4 s rendered twice gives identical frame md5s (240 of 240), on the stretch that failed
+  with the old Blob transport.
 - **The transport** (T9, Beethoven at 2×): drawing alone 583 ms a frame; PNG through toBlob and POST 627 ms; raw RGBA
   POSTed 1146 ms; base64 through `page.evaluate` 885 ms. PNG it is.
 - **HD seconds per video second** (2×, 60 fps, with other checks running alongside): the Prelude 3.28 (3:52 in
@@ -98,7 +100,7 @@ the user's call.**
 - **Six layers** (four regions, two curves) in the studio, Prelude 120–140 s, headless Chrome on the GPU:
   `runtime.step` p50 3.0 ms, p95 4.9 ms, max 12.6 ms (software canvas: p95 5.2 ms); the same six without regions or
   curves p95 4.3 ms. Headless Chrome paces its frames at 30 Hz (33 ms) even for the plain six, so the frame rate itself
-  could not be measured there (T15's 41.7 ms p95 was that pacing).
+  could not be measured there (T15's 41.7 ms p95 was most likely that pacing).
 
 ### Known limits and what is not verified
 
