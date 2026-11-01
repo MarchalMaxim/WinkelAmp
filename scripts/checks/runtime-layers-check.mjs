@@ -13,8 +13,9 @@
 //   7. a window over the whole canvas (x .5, y .5, w 1, h 1, feather 0, rot 0, blend over, fit stretch) with the widget
 //      alone draws exactly what the widget draws without a region;
 //   8. a spot of the same box with feather 0 draws exactly what the widget draws without a region;
-//   9. stella (which hooks ctx.sounding for its put-back) on the stage, then in a window: its window picture never goes
-//      over the stage, which outside the box is what a run windowed from the start draws; and stella in a spot, with a
+//   9. stella (which hooks ctx.sounding for its put-back) and timeslice (which hooks the fade) on the stage (timeslice
+//      also in a spot), then in a window: its window picture never goes over the stage, which outside the box is what a
+//      run windowed from the start draws; and stella in a spot, with a
 //      layer above it: the stage outside the box is what the same stack draws without stella (its put-back never wipes
 //      what the layers above drew).
 //
@@ -178,8 +179,9 @@ if (!LOOK_ONLY) {
   const ids = ['strings', 'squares', 'kandinsky', 'rorschach', 'casket', 'blocks', 'pixelsort', 'stella', 'fold', 'timeslice'];
   const at = { seek: 122, marks: [123, 124.5, 126] };
   const gpu = page;
-  // A fresh software-canvas browser for each scale and every few widgets: one page through the thirty-odd scale-2 runs
-  // has crashed ('Target crashed') with memory to spare, while each run alone holds.
+  // A fresh software-canvas browser for each scale and every few widgets (every widget at scale 2): one page through the
+  // thirty-odd scale-2 runs has crashed ('Target crashed') with memory to spare, while each run alone holds; with other
+  // headless Chrome work running alongside, a crash can still come, so a crashed run is retried once in a fresh browser.
   let softBrowser = null, soft = null;
   const freshSoft = async () => {
     if (softBrowser) await softBrowser.close();
@@ -189,6 +191,15 @@ if (!LOOK_ONLY) {
     await soft.route(/localhost:517\d/, (r) => r.abort());
     soft.on('pageerror', (e) => pageErrors.push(e.message));
     page = soft;
+  };
+  /** run() on the software canvas; a crashed renderer gets a fresh browser and one more try (a second crash throws). */
+  const runSoft = async (params) => {
+    try { return await run(params, at); } catch (e) {
+      if (!/crash|closed/i.test(String(e))) throw e;
+      console.log(`  (${JSON.stringify(params)}: ${String(e).split(/\r?\n/)[0]}; retrying in a fresh browser)`);
+      await freshSoft();
+      return run(params, at);
+    }
   };
   /** The pixels at the last mark, the only read-back of the run. */
   const pixelsAt = async (params) => {
@@ -200,10 +211,10 @@ if (!LOOK_ONLY) {
   for (const scale of ONLY9 ? [] : ['1', '2']) {
     const wDiff = [], sDiff = [], errs = [];
     for (const [k, id] of ids.entries()) {
-      if (k % 3 === 0) await freshSoft();
-      const ref = await run({ only: id, scale }, at);
-      const w = await run({ layers: [{ widget: id, region: win }], scale }, at);
-      const sp = await run({ layers: [{ widget: id, region: spot }], scale }, at);
+      if (scale === '2' || k % 3 === 0) await freshSoft();
+      const ref = await runSoft({ only: id, scale });
+      const w = await runSoft({ layers: [{ widget: id, region: win }], scale });
+      const sp = await runSoft({ layers: [{ widget: id, region: spot }], scale });
       for (const [r, n] of [[ref, 'none'], [w, 'window'], [sp, 'spot']]) if (!noErrors(r)) errs.push(`${id} ${n}: ${JSON.stringify(r.errors)}`);
       if (!same(ref.hashes, w.hashes)) wDiff.push(`${id} (${ref.hashes[2]} vs ${w.hashes[2]})`);
       if (!same(ref.hashes, sp.hashes)) sDiff.push(`${id} (${ref.hashes[2]} vs ${sp.hashes[2]})`);
@@ -229,18 +240,21 @@ if (!LOOK_ONLY) {
   // 9. A widget that hooks ctx.sounding (stella's put-back) and draws on the stage, then in a window, never pastes its
   // window picture over the stage: during the window phases no 'copy' drawImage reaches the stage, and the stage
   // outside the box (2 px margin) is byte-equal to a run windowed from the start. Hand-built slots on the software
-  // canvas; with halftone above it (it calls ctx.sounding() in its frame, mid-step) and without.
+  // canvas; with halftone above it (it calls ctx.sounding() in its frame, mid-step) and without. Timeslice too (its
+  // put-back hooks the fade's fillRect on every context it is given), from the stage and from a spot into a window.
   await freshSoft();
   {
     const box = { mode: 'window', shape: 'rect', x: 0.25, y: 0.25, w: 0.3, h: 0.3, feather: 0, rot: 0, blend: 'over', fit: 'cover' };
     const cases = { 'window from 118': [[122, 'win']], 'stage 118–120, then window': [[120, 'stage'], [122, 'win']],
       'window, stage 119–120, window': [[119, 'win'], [120, 'stage'], [122, 'win']] };
+    const tsCases = { ...cases, 'spot 118–120, then window': [[120, 'spot'], [122, 'win']] };
     const bad = [];
-    for (const stack of [['kandinsky', 'stella'], ['kandinsky', 'stella', 'halftone']]) {
+    for (const [stack, who, all] of [[['kandinsky', 'stella'], 'stella', cases], [['kandinsky', 'stella', 'halftone'], 'stella', cases],
+      [['kandinsky', 'timeslice'], 'timeslice', tsCases], [['squares', 'timeslice', 'strings'], 'timeslice', tsCases]]) {
       let ref = null;
-      for (const [name, phases] of Object.entries(cases)) {
+      for (const [name, phases] of Object.entries(all)) {
         await open({ only: stack.join(',') });
-        const r = await page.evaluate(({ stack, phases, box }) => {
+        const r = await page.evaluate(({ stack, who, phases, box }) => {
           const rt = window.renderRuntime.rt, ctx = rt.ctx, stage = document.getElementById('c');
           let copies = 0, on = false;
           const di = CanvasRenderingContext2D.prototype.drawImage;
@@ -252,20 +266,22 @@ if (!LOOK_ONLY) {
             window.renderSeek(118, 1);
             let prev = 'win';
             for (const [end, mode] of phases) {
-              // The first window step after the stage puts back stella's last stage frame on the stage (a copy, rightly).
-              let first = mode === 'win' && prev === 'stage';
+              // The first window step after the stage (or a spot) puts back the widget's last stage frame on the stage
+              // (a copy, rightly).
+              let first = mode === 'win' && prev !== 'win';
               while (rt.lastT < end - 1e-9) {
                 const t = Math.min(end, rt.lastT + 1 / 60), d = t - rt.lastT;
                 rt.lastT = t; ctx.now += d;
                 on = mode === 'win' && !first; first = false;
-                rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === 'stella' && mode === 'win' ? { layer: { region: box } } : {}) })));
+                const region = mode === 'win' ? box : mode === 'spot' ? { ...box, mode: 'spot' } : null;
+                rt.step(t, d, stack.map((id) => ({ id, receiving: true, weight: 1, ...(id === who && region ? { layer: { region } } : {}) })));
               }
               prev = mode;
             }
             on = false;
           } finally { CanvasRenderingContext2D.prototype.drawImage = di; }
           return { copies, px: window.renderPixels(), errors: { ...window.renderErrors }, w: stage.width, h: stage.height };
-        }, { stack, phases, box });
+        }, { stack, who, phases, box });
         const px = Buffer.from(r.px, 'base64');
         if (Object.keys(r.errors).length) bad.push(`${stack.join('+')} ${name}: errors ${JSON.stringify(r.errors)}`);
         if (r.copies) bad.push(`${stack.join('+')} ${name}: ${r.copies} 'copy' drawImages on the stage`);
@@ -280,8 +296,8 @@ if (!LOOK_ONLY) {
         if (n) bad.push(`${stack.join('+')} ${name}: ${n} pixels outside the box differ from the run windowed from the start`);
       }
     }
-    check(!bad.length && pageErrors.length === 0, '9. stella on the stage, then in a window: no stage-wide put-back, the stage outside the box as if windowed from the start (software canvas; with and without halftone reading ctx.sounding mid-step)',
-      bad.join('; ') || 'kandinsky+stella, kandinsky+stella+halftone: 0 copies, outside equal');
+    check(!bad.length && pageErrors.length === 0, '9. stella and timeslice on the stage (timeslice also in a spot), then in a window: no stage-wide put-back, the stage outside the box as if windowed from the start (software canvas; stella with and without halftone reading ctx.sounding mid-step)',
+      bad.join('; ') || 'kandinsky+stella, kandinsky+stella+halftone, kandinsky+timeslice, squares+timeslice+strings: 0 copies, outside equal');
   }
   // 9, spot. Stella in a spot puts its pass back at the top of the next step, as without a region (its 'copy' on the
   // stage is right there), so it must keep and restore the whole stack: with strings or halftone above it, the stage
