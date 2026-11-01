@@ -4,6 +4,8 @@
 
 Build of `docs/superpowers/plans/2026-11-01-muscriptor-option.md` (T1–T4) on `claude/muscriptor-option`. **Nothing is
 merged, and the real packs change only when the README's overnight commands are run, or the studio's dialog is used.**
+The five songs were re-ingested only in this branch's worktree, whose `songs/` is ignored: merging carries no pack over, and
+the other worktrees keep the old ones until those commands are run there.
 
 ### What was added
 
@@ -24,8 +26,12 @@ merged, and the real packs change only when the README's overnight commands are 
 - Spring's Largo viola stays labelled violin from 262 s, where the viola lane has 1 note in 68 s (YourMT3+ had 84). The
   doubles the cleanup resolves (301 to 167 over the song) are elsewhere: 1 of them is in that stretch.
 - Winter 130–180 s: the solo line is split at A5, violin above and viola below, and 130–145 s stays without a violin note.
+- Importing Winter's overnight file thins the violin lane that `shows/vivaldi-winter.json` listens to: 960 to 790 notes at
+  0–100 s, 116 to 0 at 130–145 s (the first is at 145.28 s), 810 to 596 at 146–211 s. `check-show` cannot see this, as the
+  lane still exists: listen to the show before keeping the pack.
 - Beethoven: the string doubles rule gives C2 to the contrabass, so the cello is silent at 276.9–285 s, and the wind rule
-  empties the flute and clarinet at 210–225 s, where YourMT3+ does hear a flute. Both are real notes lost.
+  empties the flute at 210–225 s, where YourMT3+ does hear a flute, and leaves the clarinet 7 of its 24 notes there, none
+  after 215.2 s. Both are real notes lost.
 - Four Seasons: a quiet tremolo at 1075 s goes with the stuck chords, and 2090–2105 s holds a chord the model got stuck on,
   which YourMT3+ hears moving.
 - A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).

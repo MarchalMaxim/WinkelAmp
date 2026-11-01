@@ -91,7 +91,9 @@ the pack, in `npm run ears`'s `/health` and in the studio's words.
 ### Instrument tracks: MuScriptor large (an option for string pieces)
 
 YourMT3+ stays the default. For **string-led orchestral pieces** a song can take its instrument tracks from MuScriptor
-large instead, by choice. On big brass and percussion pieces the list can hurt, so listen before keeping it.
+large instead, by choice. On big brass and percussion pieces the list can hurt, and on a song that has a show the lanes its
+layers listen to can thin out (Winter's violin: 810 to 596 notes at 146–211 s, none at 130–145 s), which `check-show` cannot
+see. So listen before keeping it.
 
 ```bash
 npm run setup-muscriptor -- [--python <venv python>] [--dir <install>] [--download]
