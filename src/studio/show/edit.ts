@@ -303,9 +303,10 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
     case 'updatePicks': {
       const old = show.picks?.[e.id], notes = repairPickNotes(e.notes);
       if (!old || !notes.length || !e.widget) return show;
-      const sameWidget = S.every((s) => s.layers.every((l) => picksId(l.listen) !== e.id || l.widget === e.widget));
-      if (sameWidget && JSON.stringify(notes) === JSON.stringify(old.notes)) return show;
-      return withPicks(withSections(show, respanPicks(show, e.id, e.widget, picksSpan(show, notes))), { ...show.picks, [e.id]: { notes } });
+      // The sections count too: with the same notes, an update still spans a boundary that moved and places an unused set.
+      const sections = respanPicks(show, e.id, e.widget, picksSpan(show, notes));
+      if (JSON.stringify(notes) === JSON.stringify(old.notes) && JSON.stringify(sections) === JSON.stringify(S)) return show;
+      return withPicks(withSections(show, sections), { ...show.picks, [e.id]: { notes } });
     }
     case 'removePicks': {
       if (!show.picks?.[e.id]) return show;

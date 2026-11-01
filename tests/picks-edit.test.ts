@@ -112,7 +112,31 @@ describe('updatePicks', () => {
     expect(widgets(s)[1]).toEqual(['squares', 'pointillism@picks:p1', 'casket@picks:p2']);
   });
 
-  it('no change, an unknown id, or no notes is the input', () => {
+  it('the same notes span again: a moved boundary loses no pick, and an update is one undo', () => {
+    const s = edit(placed([note(12), note(18)]), { kind: 'moveBoundary', index: 2, t: 15 });
+    expect(widgets(s)).toEqual([['strings'], ['squares', 'pointillism@picks:p1'], ['casket']]);
+    expect(validateShow(s).warnings.filter((w) => /never heard/.test(w.message))).toHaveLength(1);
+    const st = store(s);
+    st.dispatch({ type: 'edit', edit: { kind: 'updatePicks', id: 'p1', widget: 'pointillism', notes: [note(12), note(18)] } });
+    const out = st.state.show!;
+    expect(widgets(out)).toEqual([['strings'], ['squares', 'pointillism@picks:p1'], ['casket', 'pointillism@picks:p1']]);
+    expect(validateShow(out).warnings.filter((w) => /never heard/.test(w.message))).toEqual([]);
+    st.dispatch({ type: 'undo' });
+    expect(st.state.show).toBe(s);
+  });
+
+  it('the same notes span again: a section the set no longer needs loses the layer', () => {
+    const s = edit(placed(), { kind: 'moveBoundary', index: 2, t: 26 });
+    const out = edit(s, { kind: 'updatePicks', id: 'p1', widget: 'pointillism', notes: AT_12_25 });
+    expect(widgets(out)).toEqual([['strings'], ['squares', 'pointillism@picks:p1'], ['casket']]);
+  });
+
+  it('the same notes place a set that is in no section', () => {
+    const s: Show = deepFreeze({ ...SHOW, picks: { p1: { notes: [note(12)] } } });
+    expect(widgets(edit(s, { kind: 'updatePicks', id: 'p1', widget: 'pointillism', notes: [note(12)] }))).toEqual([['strings'], ['squares', 'pointillism@picks:p1'], ['casket']]);
+  });
+
+  it('the same notes and widget on a span already right, an unknown id, or no notes is the input', () => {
     const s = dressed();
     expect(applyEdit(s, { kind: 'updatePicks', id: 'p1', widget: 'pointillism', notes: AT_12_25 })).toBe(s);
     expect(applyEdit(s, { kind: 'updatePicks', id: 'p9', widget: 'pointillism', notes: AT_5_12 })).toBe(s);

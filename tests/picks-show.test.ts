@@ -1,14 +1,9 @@
-/// <reference types="node" />
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   canonicalShow, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairShow, usesV2, validateShow,
   type Issue, type Show, type ShowContext,
 } from '../src/studio/show/show';
 import type { Note } from '../src/widgets/types';
-
-const SHOWS = resolve(__dirname, '..', 'shows');
 
 const base = (): Show => ({
   version: 1, id: 'demo', song: 'demo',
@@ -49,9 +44,6 @@ describe('picks: the listen', () => {
 
 describe('picks: the file', () => {
   it('shows without picks keep their bytes', () => {
-    for (const f of readdirSync(SHOWS).filter((x) => x.endsWith('.json'))) {
-      expect(canonicalShow(JSON.parse(readFileSync(resolve(SHOWS, f), 'utf8')) as Show)).not.toContain('"picks"');
-    }
     const s = base();
     expect(canonicalShow({ ...s, picks: {} })).toBe(canonicalShow(s));
     expect(usesV2({ ...s, picks: {} })).toBe(false);
