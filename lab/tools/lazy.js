@@ -1,11 +1,12 @@
-// Lazy: it can't be bothered. A heap of fat, limp green limbs lies sprawled on the floor. A note asks one to get up: the
-// free end twitches on the attack, hauls itself up a little, loses interest, hangs there and flops over onto its neighbours,
-// which sag under it and take seconds to recover. An attack that finds its limb busy (or that it simply ignores) gets a dull
-// chartreuse dimple, the least possible acknowledgement. Fast music makes it care less.
-// Each limb is a chain: its base pinned, its free end led along a path while it is up, the rest following by gravity,
-// heavy damping and length constraints, stepped in song seconds so nothing snaps at a low frame rate.
+// Lazy: it can't be bothered. Heavy, shapeless green masses lie slumped in a heap under stale air. Every attack goes through
+// the whole heap as a slow shudder it doesn't bother to answer: it dips, and one mass goes a dull sour colour. Now and then a
+// note asks one to get up: its loose end, thinning as it goes, hauls itself up a little, loses interest, hangs there and flops
+// over onto its neighbours, which sag under it and take seconds to recover. Fast music makes it care less.
+// Each mass is a chain: its base pinned, its free end led along a path while it is up, the rest following by gravity,
+// heavy damping and length constraints, stepped in song seconds so nothing snaps at a low frame rate. Its two edges swell
+// unevenly and independently and taper to nothing at both ends, so it stays a form and never becomes an object.
 (() => {
-  const PTS = 12, SUB = 4, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
+  const PTS = 12, SUB = 6, TAU = Math.PI * 2, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
   const [lay, lg] = mk(1280, 720);
   const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
@@ -18,11 +19,11 @@
     ['#5a5f14', '#4d8a22', '#88a51e', '#b4c92a', '#e8f55a'],
   ].map((row) => row.map(hex));
   const paletteAt = (v) => { const k = v < 0.5 ? 0 : 1, t = v < 0.5 ? v * 2 : v * 2 - 1; return GREENS[k].map((c, i) => mix(c, GREENS[k + 1][i], t)); };
-  // A fixed little generator, so the heap always starts as the same heap.
+  // A fixed little generator, so one song always starts with the same heap, and each song with its own.
   const seeded = (s) => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 
   let limbs = [], order = [], pend = [], marks = [], clock = 0, acc = 0, lastAttack = 0, gapUntil = 0, yawnT = -1, yawned = false, built = 0;
-  let vels = null, pitchLo = 36, pitchHi = 84;
+  let vels = null, pitchLo = 36, pitchHi = 84, pulses = [], heave = 0, flush = 0, stale = [], bedP = [0, 0, 0];
 
   // This song's own notes: how hard a velocity is among them, and which pitches it really spans.
   function learn() {
@@ -39,17 +40,26 @@
   }
 
   function build(n, W, Ht) {
-    const R = seeded(77); limbs = []; pend = []; marks = [];
+    let seed = 77; { const ns = window.NOTES || []; seed = (seed + ns.length * 31) >>> 0; for (let i = 0; i < Math.min(40, ns.length); i++) seed = (seed * 33 + ns[i][2]) >>> 0; }
+    const R = seeded(seed); limbs = []; pend = []; marks = []; pulses = [];
+    const edge = () => {
+      const f1 = 0.8 + R() * 0.9, f2 = 2 + R() * 1.6, f3 = 5 + R() * 4, p1 = R(), p2 = R(), p3 = R(), t = new Float32Array(SAMPLES);
+      for (let s = 0; s < SAMPLES; s++) { const u = s / (SAMPLES - 1); t[s] = Math.max(0.2, 0.92 + 0.6 * Math.sin(TAU * (f1 * u + p1)) + 0.2 * Math.sin(TAU * (f2 * u + p2)) + 0.035 * Math.sin(TAU * (f3 * u + p3))); }
+      return t;
+    };
+    bedP = [R() * TAU, R() * TAU, R() * TAU];
+    stale = [];
+    for (let i = 0; i < 3; i++) stale.push({ y: Ht * (0.36 - i * 0.11 + R() * 0.03), f1: 5 + R() * 5, f2: 11 + R() * 5, tone: R(), sp: (R() < 0.5 ? -1 : 1) * (1.5 + R() * 2.5), p1: R() * TAU, p2: R() * TAU, p3: R() * TAU });
     const slots = []; for (let i = 0; i < n; i++) slots.push((i + 0.5) / n);
     for (let i = n - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)), t = slots[i]; slots[i] = slots[j]; slots[j] = t; }
     for (let i = 0; i < n; i++) {
       const f = n > 1 ? 1 - i / (n - 1) : 0.5;                    // 1: the fattest, at the bottom; 0: thin, on top
-      const w = 66 + 86 * Math.pow(f, 1.1), L = (210 + 330 * f) * (0.85 + 0.3 * R());
+      const w = 58 + 84 * Math.pow(f, 1.1), L = (230 + 340 * f) * (0.85 + 0.3 * R());
       const bx = W * (0.5 + (slots[i] - 0.5) * (0.62 + 0.62 * f));
       const side = bx < W * 0.3 ? 1 : bx > W * 0.7 ? -1 : (R() < 0.5 ? -1 : 1);
       const bulge = 0.45 + R() * 1.1;
-      const l = { i, f, w, L, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], sag: new Float32Array(PTS), dim: new Float32Array(PTS),
-        sx: new Float32Array(SAMPLES), sy: new Float32Array(SAMPLES), sw: new Float32Array(SAMPLES) };
+      const l = { i, f, w, L, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], sag: new Float32Array(PTS), dim: new Float32Array(PTS), q: new Float32Array(PTS), fl: 0, na: edge(), nb: edge(),
+        sx: new Float32Array(SAMPLES), sy: new Float32Array(SAMPLES), st: new Float32Array(SAMPLES), sb: new Float32Array(SAMPLES), mx: new Float32Array(SAMPLES), my: new Float32Array(SAMPLES), mr: new Float32Array(SAMPLES) };
       pose(l);
       for (let k = 0; k < PTS; k++) { l.x.push(l.rx[k]); l.y.push(l.ry[k]); l.px.push(l.rx[k]); l.py.push(l.ry[k]); }
       limbs.push(l);
@@ -62,7 +72,7 @@
   function pose(l) {
     for (let k = 0; k < PTS; k++) {
       const u = k / (PTS - 1), X = l.bx + l.side * l.L * u, prof = 0.6 + 0.4 * Math.cos(Math.max(-1, Math.min(1, (X / l.W - 0.5 + l.cx) * 1.5)) * Math.PI);
-      l.rx[k] = X; l.ry[k] = l.Ht * (0.96 + l.off - (1 - l.f) * 0.4 * prof + (1 - 0.6 * l.f) * 0.045 * (2 * u - 1) * (2 * u - 1)) + l.A * Math.sin(X * l.fq + l.ph);
+      l.rx[k] = X; l.ry[k] = l.Ht * (0.96 + l.off - (1 - l.f) * 0.5 * prof + (1 - 0.6 * l.f) * 0.045 * (2 * u - 1) * (2 * u - 1)) + l.A * Math.sin(X * l.fq + l.ph);
     }
     l.by = l.ry[0];
     for (let k = 0; k < PTS - 1; k++) l.seg[k] = Math.hypot(l.rx[k + 1] - l.rx[k], l.ry[k + 1] - l.ry[k]);
@@ -90,7 +100,7 @@
     return true;
   }
 
-  // The least possible acknowledgement: on the top surface of whichever limb is uppermost under this pitch.
+  // The least possible acknowledgement: a sour smear soaking into whichever mass is uppermost under this pitch.
   function dimple(px, v01, x) {
     const rate = x.feat.rate;
     let best = null, idx = 0, top = 1e9;
@@ -104,7 +114,7 @@
     if (!best) return;
     best.dim[idx] = Math.min(14, best.dim[idx] + (4 + 10 * v01) * (1 - 0.45 * rate));
     if (marks.length > 22) marks.shift();
-    marks.push({ l: best, k: idx * SUB, age: 0, life: 0.55 - 0.25 * rate, r: (11 + 22 * v01) * (1 - 0.3 * rate) });
+    marks.push({ l: best, k: idx * SUB, age: 0, life: 0.6 - 0.25 * rate, r: (18 + 30 * v01) * (1 - 0.3 * rate) });
   }
 
   // It lands: every limb under it sags where it was hit, and the sag spreads slowly along them.
@@ -178,10 +188,14 @@
         const ka = c * 2 * wa / s, kb = c * 2 * wb / s;
         l.x[k] += dx * ka; l.y[k] += dy * ka; l.x[k + 1] -= dx * kb; l.y[k + 1] -= dy * kb;
       }
-      // no hairpins: fat things can't fold flat
+      // no hairpins and no coils: a heavy thing can't fold flat or curl over itself into a knot
       for (let k = 0; k < e - 1; k++) {
-        const dx = l.x[k + 2] - l.x[k], dy = l.y[k + 2] - l.y[k], d = Math.hypot(dx, dy) || 1, min = (l.seg[k] + l.seg[k + 1]) * 0.74;
+        const dx = l.x[k + 2] - l.x[k], dy = l.y[k + 2] - l.y[k], d = Math.hypot(dx, dy) || 1, min = (l.seg[k] + l.seg[k + 1]) * 0.86;
         if (d < min) { const c = (d - min) / d * 0.5, wa = k === 0 ? 0 : 1, wb = (led && k + 2 === e) ? 0 : 1, s = wa + wb; if (s) { l.x[k] += dx * c * 2 * wa / s; l.y[k] += dy * c * 2 * wa / s; l.x[k + 2] -= dx * c * 2 * wb / s; l.y[k + 2] -= dy * c * 2 * wb / s; } }
+      }
+      for (let k = 0; k < e - 3; k++) {
+        const dx = l.x[k + 4] - l.x[k], dy = l.y[k + 4] - l.y[k], d = Math.hypot(dx, dy) || 1, min = (l.seg[k] + l.seg[k + 1] + l.seg[k + 2] + l.seg[k + 3]) * 0.62;
+        if (d < min) { const c = (d - min) / d * 0.5, wa = k === 0 ? 0 : 1, wb = (led && k + 4 === e) ? 0 : 1, t = wa + wb; if (t) { l.x[k] += dx * c * 2 * wa / t; l.y[k] += dy * c * 2 * wa / t; l.x[k + 4] -= dx * c * 2 * wb / t; l.y[k + 4] -= dy * c * 2 * wb / t; } }
       }
     }
     // the sag spreads along the limb and recovers over seconds; a dimple is gone in a moment
@@ -194,19 +208,22 @@
     }
   }
 
-  // The chain drawn smooth, with its own swelling width, and the same limp base: never a head at either end.
+  // The chain drawn smooth. Two independent uneven edges, tapering to nothing at both ends; what is hauled up thins as it goes.
   function sample(l, fat, yawn) {
     const e = PTS - 1; let s = 0;
-    const X = (k) => l.x[Math.max(0, Math.min(e, k))], Y = (k) => { const q = Math.max(0, Math.min(e, k)); return l.y[q] + l.sag[q] + l.dim[q] * 0.5 - yawn * 12; };
+    const X = (k) => l.x[Math.max(0, Math.min(e, k))], Y = (k) => { const q = Math.max(0, Math.min(e, k)); return l.y[q] + l.sag[q] + l.q[q] + l.dim[q] * 0.5 - yawn * 12; };
+    const hl = l.hl === undefined ? 1 : l.hl;
     for (let k = 0; k < e; k++) {
       const x0 = X(k - 1), x1 = X(k), x2 = X(k + 1), x3 = X(k + 2), y0 = Y(k - 1), y1 = Y(k), y2 = Y(k + 1), y3 = Y(k + 2);
       for (let j = 0; j < (k === e - 1 ? SUB + 1 : SUB); j++) {
         const t = j / SUB, t2 = t * t, t3 = t2 * t;
         l.sx[s] = 0.5 * (2 * x1 + (x2 - x0) * t + (2 * x0 - 5 * x1 + 4 * x2 - x3) * t2 + (3 * x1 - x0 - 3 * x2 + x3) * t3);
         l.sy[s] = 0.5 * (2 * y1 + (y2 - y0) * t + (2 * y0 - 5 * y1 + 4 * y2 - y3) * t2 + (3 * y1 - y0 - 3 * y2 + y3) * t3);
-        const u = (k + t) / e, q1 = Math.min(e, k + 1), sg = l.sag[k] + (l.sag[q1] - l.sag[k]) * t, dm = l.dim[k] + (l.dim[q1] - l.dim[k]) * t;
-        const swell = 0.58 + 0.42 * Math.pow(Math.sin(Math.PI * Math.pow(u, l.bulge)), 0.8);
-        l.sw[s] = Math.max(6, 0.5 * l.w * fat * swell * (1 + sg * 0.006) * (1 + yawn * 0.12) - dm * 0.5);
+        const u = (k + t) / e, q1 = Math.min(e, k + 1), sg = l.sag[k] + (l.sag[q1] - l.sag[k]) * t, dm = l.dim[k] + (l.dim[q1] - l.dim[k]) * t, qq = l.q[k] + (l.q[q1] - l.q[k]) * t;
+        const env = Math.pow(Math.sin(Math.PI * Math.pow(u, l.bulge)), 0.42), thin = 1 - (1 - hl) * 0.5 * u;
+        const base = 0.5 * l.w * fat * env * thin * (1 + sg * 0.006 + qq * 0.012) * (1 + yawn * 0.12);
+        l.st[s] = Math.max(0, base * l.na[s] - dm * 0.5 * env);
+        l.sb[s] = Math.max(0, base * l.nb[s] - dm * 0.5 * env);
         s++;
       }
     }
@@ -217,79 +234,113 @@
     for (let s = 0; s <= n; s++) {
       const a = Math.max(0, s - 1), b = Math.min(n, s + 1), dx = l.sx[b] - l.sx[a], dy = l.sy[b] - l.sy[a], d = Math.hypot(dx, dy) || 1;
       nx[s] = dy / d; ny[s] = -dx / d;
+      const r = (l.st[s] + l.sb[s]) * 0.5, off = (l.st[s] - l.sb[s]) * 0.5;
+      l.mx[s] = l.sx[s] + nx[s] * off; l.my[s] = l.sy[s] + ny[s] * off; l.mr[s] = r;
     }
   }
-  // A limb bent gently is one filled outline, which is cheap. One bent tighter than its own thickness would break an
-  // outline, so it is drawn as runs of round strokes, one run per width: dearer, but only limbs that are up ever need it.
+  // What faces the floor bellies out and what faces up goes slack: everything in it hangs. Once per sampling.
+  function hang(l) {
+    for (let s = 0; s < SAMPLES; s++) { l.st[s] *= 1 + (ny[s] > 0 ? 0.42 : 0.26) * ny[s]; l.sb[s] *= 1 - (ny[s] < 0 ? 0.42 : 0.26) * ny[s]; }
+    normals(l);
+  }
+  // A mass bent gently is one filled outline, which is cheap. One bent tighter than its own thickness would turn an outline
+  // inside out, so it is filled as a run of slices, each wound the same way: the same edges, and no holes.
   function bentTight(l) {
     for (let s = 1; s < SAMPLES; s++) {
       const ds = Math.hypot(l.sx[s] - l.sx[s - 1], l.sy[s] - l.sy[s - 1]), turn = Math.abs(nx[s] * ny[s - 1] - ny[s] * nx[s - 1]);
-      if (turn * (l.sw[s] + 3) > ds * 0.9) return true;
+      if (turn * (Math.max(l.st[s], l.sb[s]) + 16) > ds * 0.9) return true;
     }
     return false;
   }
-  let fatNow = 1;
-  function body(g, l, grow, tight, col) {
-    const n = SAMPLES - 1;
-    if (!tight) {
-      g.fillStyle = col; g.beginPath();
-      for (let s = 0; s <= n; s++) { const r = l.sw[s] + grow, X = l.sx[s] + nx[s] * r, Y = l.sy[s] + ny[s] * r; if (s) g.lineTo(X, Y); else g.moveTo(X, Y); }
-      const ae = Math.atan2(ny[n], nx[n]); g.arc(l.sx[n], l.sy[n], l.sw[n] + grow, ae, ae + Math.PI, false);
-      for (let s = n; s >= 0; s--) { const r = l.sw[s] + grow; g.lineTo(l.sx[s] - nx[s] * r, l.sy[s] - ny[s] * r); }
-      const a0 = Math.atan2(-ny[0], -nx[0]); g.arc(l.sx[0], l.sy[0], l.sw[0] + grow, a0, a0 + Math.PI, false);
-      g.closePath(); g.fill();
-      return;
-    }
-    g.strokeStyle = col;
-    const Q = 1.2 + 0.8 * Math.max(1, l.w * fatNow / 60); let s = 0;
-    while (s < n) {
-      const q = Math.round(l.sw[s] / Q); let e = s + 1;
-      while (e < n && Math.round(l.sw[e] / Q) === q) e++;
-      g.beginPath(); g.moveTo(l.sx[s], l.sy[s]); for (let i = s + 1; i <= e; i++) g.lineTo(l.sx[i], l.sy[i]);
-      g.lineWidth = 2 * (q * Q + grow); g.stroke();
-      s = e;
+  function slices(g, l, a, b, ta, tb, grow) {
+    for (let s = a; s < b; s++) {
+      const r0 = ta(s) + grow, r1 = ta(s + 1) + grow, q0 = tb(s) + grow, q1 = tb(s + 1) + grow;
+      const x0 = l.sx[s] + nx[s] * r0, y0 = l.sy[s] + ny[s] * r0, x1 = l.sx[s + 1] + nx[s + 1] * r1, y1 = l.sy[s + 1] + ny[s + 1] * r1;
+      const x2 = l.sx[s + 1] - nx[s + 1] * q1, y2 = l.sy[s + 1] - ny[s + 1] * q1, x3 = l.sx[s] - nx[s] * q0, y3 = l.sy[s] - ny[s] * q0;
+      // two triangles, each wound the same way, so a slice twisted by a fold still leaves no hole
+      g.moveTo(x0, y0);
+      if ((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0) >= 0) { g.lineTo(x1, y1); g.lineTo(x2, y2); } else { g.lineTo(x2, y2); g.lineTo(x1, y1); }
+      g.closePath();
+      g.moveTo(x0, y0);
+      if ((x2 - x0) * (y3 - y0) - (x3 - x0) * (y2 - y0) >= 0) { g.lineTo(x2, y2); g.lineTo(x3, y3); } else { g.lineTo(x3, y3); g.lineTo(x2, y2); }
+      g.closePath();
     }
   }
-  function highlight(g, l) {
-    const n = SAMPLES - 1; let run = 0;
+  function body(g, l, grow, tight) {
+    const n = SAMPLES - 1;
     g.beginPath();
-    for (let s = 0; s <= n; s++) {
-      const up = ny[s] < 0 ? 1 : -1;
-      const ok = Math.abs(ny[s]) >= 0.6 && (!s || nx[s] * nx[s - 1] + ny[s] * ny[s - 1] >= 0.96);
-      if (!ok) { run = 0; continue; }
-      const r = l.sw[s] - 8, X = l.sx[s] + nx[s] * up * r, Y = l.sy[s] + ny[s] * up * r;
-      if (run) g.lineTo(X, Y); else g.moveTo(X, Y);
-      run++;
+    if (!tight) {
+      for (let s = 0; s <= n; s++) { const r = l.st[s] + grow * Math.min(1, l.mr[s] / 12), X = l.sx[s] + nx[s] * r, Y = l.sy[s] + ny[s] * r; if (s) g.lineTo(X, Y); else g.moveTo(X, Y); }
+      for (let s = n; s >= 0; s--) { const r = l.sb[s] + grow * Math.min(1, l.mr[s] / 12); g.lineTo(l.sx[s] - nx[s] * r, l.sy[s] - ny[s] * r); }
+    } else {
+      slices(g, l, 0, n, (s) => l.st[s], (s) => l.sb[s], grow);
     }
-    g.stroke();
+    g.fill();
+  }
+  // What the heap lies on and in: one dark low mound, so the masses are a heap and not a scatter.
+  function bed(g, x, col, sway) {
+    const W = x.W, H = x.H;
+    g.fillStyle = col; g.beginPath(); g.moveTo(0, H);
+    for (let i = 0; i <= 32; i++) {
+      const u = i / 32, top = H * (0.86 - 0.27 * Math.pow(Math.sin(Math.PI * u), 1.3) + 0.06 * Math.sin(u * 8 + bedP[0]) + 0.03 * Math.sin(u * 17 + bedP[1] + clock * 0.04));
+      g.lineTo(u * W, top + sway);
+    }
+    g.lineTo(W, H); g.closePath(); g.fill();
+  }
+  // Stale air: the top of the picture itself sags, in broad slack lobes barely apart from the ground, too idle to come down.
+  function air(g, x, pal, sway) {
+    const [ground, bottle, moss] = pal, W = x.W, H = x.H;
+    for (const a of stale) {
+      g.fillStyle = css(a.tone < 0.5 ? mix(ground, bottle, 0.12 + a.tone * 0.2) : mix(ground, moss, 0.06 + (a.tone - 0.5) * 0.14), 1 + 0.1 * flush);
+      g.beginPath(); g.moveTo(-10, -10);
+      for (let i = 0; i <= 48; i++) {
+        const u = i / 48, X = u * W, wob = Math.sin(u * a.f1 + a.p1 + clock * a.sp * 0.012), lobe = wob > 0 ? Math.pow(wob, 0.7) : -0.5 * Math.pow(-wob, 1.4);
+        g.lineTo(X, a.y + sway + H * (0.13 * lobe + 0.05 * Math.sin(u * a.f2 + a.p2 - clock * a.sp * 0.02) + 0.012 * Math.sin(u * 17 + a.p3)));
+      }
+      g.lineTo(W + 10, -10); g.closePath(); g.fill();
+    }
+  }
+
+  // Every attack passes through the heap: a slow wave out from its pitch, and a dip of the whole heap, thin masses most.
+  function shudder() {
+    for (const l of limbs) {
+      const up = 0.55 + 0.9 * (1 - l.f);
+      for (let k = 0; k < PTS; k++) {
+        let q = heave;
+        for (const p of pulses) { const d = (Math.abs(l.x[k] - p.x) - p.age * 620) / 210; if (d > -2.2 && d < 2.2) q += p.a * Math.exp(-p.age / 1.1 - d * d); }
+        l.q[k] = q * up;
+      }
+    }
   }
 
   function picture(g, x, pal, yawn) {
-    const W = x.W, H = x.H, fat = x.p('fat'); fatNow = fat;
+    const W = x.W, H = x.H, fat = x.p('fat');
     const [ground, bottle, moss, pea, acid] = pal;
     g.globalAlpha = 1; g.fillStyle = css(ground); g.fillRect(0, 0, W, H);
-    g.lineCap = 'round'; g.lineJoin = 'round';
+    air(g, x, pal, heave * 0.8);
+    bed(g, x, css(mix(bottle, ground, 0.62), 0.8), heave);
+    shudder();
     for (let o = 0; o < order.length; o++) {
       const l = order[o];
-      sample(l, fat, yawn); normals(l);
+      sample(l, fat, yawn); normals(l); hang(l);
       const c = l.f > 0.5 ? mix(moss, bottle, (l.f - 0.5) * 2) : mix(pea, moss, l.f * 2);
       const tight = bentTight(l);
-      body(g, l, 2.5, tight, css(c, 0.5));
-      body(g, l, 0, tight, css(c));
-      const rankUp = order.length > 1 ? o / (order.length - 1) : 1;
-      if (rankUp > 0.6 && l.hl > 0.02) {
-        g.globalAlpha = (0.12 + 0.38 * (rankUp - 0.6) / 0.4) * l.hl * (1 - 0.75 * l.f); g.strokeStyle = css(acid); g.lineWidth = 2.2; highlight(g, l); g.globalAlpha = 1;
-      }
+      // no outline and no shine: a soft dark bleed under it, so a mass only just parts from what it lies on
+      g.fillStyle = css(bottle, 0.5);
+      g.globalAlpha = 0.05; body(g, l, 24, tight);
+      g.globalAlpha = 0.05; body(g, l, 15, tight);
+      g.globalAlpha = 0.07; body(g, l, 7, tight);
+      g.globalAlpha = 0.93; g.fillStyle = css(mix(c, acid, 0.34 * l.fl), 1 + 0.08 * flush); body(g, l, 0, tight);
     }
-    // the dimple's mark: a dull lit stretch lying along the top edge, where it was prodded
-    g.strokeStyle = css(acid);
+    // the smear: a stretch of the mass itself goes sour, inside its own edges, widest in the middle of the stretch
+    g.fillStyle = css(acid);
     for (const m of marks) {
-      const l = m.l, f = Math.max(0, 1 - m.age / m.life), a = Math.max(0, m.k - 3), b = Math.min(SAMPLES - 1, m.k + 3);
+      const l = m.l, f = Math.max(0, 1 - m.age / m.life), half = Math.round(3 + m.r / 5), a = Math.max(0, m.k - half), b = Math.min(SAMPLES - 1, m.k + half);
+      const shape = (s) => Math.sin(Math.PI * (s - a + 0.5) / (b - a + 1));
       normals(l);
-      g.globalAlpha = 0.95 * f; g.lineWidth = 2 + m.r * 0.16 * f;
-      g.beginPath();
-      for (let s = a; s <= b; s++) { const up = ny[s] < 0 ? 1 : -1, r = l.sw[s] - 2, X = l.sx[s] + nx[s] * up * r, Y = l.sy[s] + ny[s] * up * r; if (s === a) g.moveTo(X, Y); else g.lineTo(X, Y); }
-      g.stroke();
+      g.globalAlpha = 0.34 * f; g.beginPath();
+      slices(g, l, a, b, (s) => l.st[s] * shape(s) * 0.92, (s) => l.sb[s] * shape(s) * 0.92, 0);
+      g.fill();
     }
     g.globalAlpha = 1;
   }
@@ -298,19 +349,19 @@
 
   TOOLS.push({
     id: 'lazy', name: 'Lazy', tag: 'new',
-    blurb: 'It can\'t be bothered. A heap of fat, limp green limbs: a note asks one to get up, it twitches, gets a third of the way, gives up and flops over onto the others. Fast music makes it care less: most attacks only get a dull little dimple.',
+    blurb: 'It can\'t be bothered. A heap of heavy, shapeless green masses: every attack goes through it as a slow shudder, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Fast music makes it care less.',
     params: [
       { key: 'lazy', label: 'how lazy it is', min: 0, max: 1, value: 0.5,
-        hint: 'How much it takes to get a limb moving. Left: gets up fairly readily. Right: takes forever and gives up early.',
+        hint: 'How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 15 - 12 * v, 3.5, '#7c9a2f') },
       { key: 'lift', label: 'how high it bothers to lift', min: 0.1, max: 1, value: 0.75,
-        hint: 'How far a limb gets before it gives up. Left: barely raises an end. Right: up to a third of the screen.',
+        hint: 'How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 1 + 15 * v, 3.5, '#7c9a2f') },
-      { key: 'fat', label: 'how fat the limbs are', min: 0.5, max: 1.7, value: 1,
-        hint: 'How thick the limbs are. Left: slim. Right: huge, overlapping everything.',
+      { key: 'fat', label: 'how fat the masses are', min: 0.5, max: 1.7, value: 1,
+        hint: 'How thick the masses are. Left: slim. Right: huge, overlapping everything.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 6, 1.5 + 9 * v, '#7c9a2f') },
-      { key: 'limbs', label: 'how many limbs', min: 4, max: 15, step: 1, value: 12,
-        hint: 'How many limbs lie in the heap. Left: a few. Right: a big heap.',
+      { key: 'limbs', label: 'how many masses', min: 4, max: 15, step: 1, value: 12,
+        hint: 'How many masses lie in the heap. Left: a few. Right: a big heap.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5); for (let i = 0; i < n; i++) ICON.line(g, 4 + (i % 2) * 6, h - 4 - i * 3.4, w - 4 - ((i + 1) % 2) * 6, h - 5 - i * 3.4, i % 2 ? '#7c9a2f' : '#4f6b22', 2.6); } },
       { key: 'green', label: 'which green', min: 0, max: 1, value: 0.5,
         hint: 'Which greens it lies in. Left: a dark pond. Right: sour acid.',
@@ -319,7 +370,7 @@
         hint: 'How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => limbIcon(g, w, h, 2 + 9 * v, 2 + 4 * v, '#7c9a2f')) },
     ],
-    reset(x) { vels = null; built = 0; limbs = []; order = []; pend = []; marks = []; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
+    reset(x) { vels = null; built = 0; limbs = []; order = []; pend = []; marks = []; pulses = []; stale = []; heave = 0; flush = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
     onChord(ch, x) {
       const n0 = Math.round(x.p('limbs'));
       if (built !== n0) build(n0, x.W, x.H);
@@ -327,6 +378,15 @@
       const pres = x.p('presence'), cut = (1 - pres) * 0.95, rate = x.feat.rate;
       const notes = ch.notes.slice().sort((a, b) => b.v - a.v);
       let asked = 0, dims = 0; const seen = new Set();
+      if (notes.length && rank(notes[0].v) >= cut) {
+        // the shudder, in this very frame, however little it cares
+        const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate) * (0.3 + 0.7 * pres);
+        const pr = Math.max(0, Math.min(1, (notes[0].m - pitchLo) / (pitchHi - pitchLo)));
+        if (pulses.length >= 6) pulses.shift();
+        pulses.push({ x: pr * x.W, a: 30 * a, age: 0 });
+        heave = Math.min(24, heave + 12 * a); flush = Math.min(1, flush + 0.7 * a);
+        const lm = limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))]; lm.fl = Math.min(1, lm.fl + 1.1 * a);
+      }
       for (const n of notes) {
         const v01 = rank(n.v);
         if (v01 < cut) continue;
@@ -350,6 +410,10 @@
         acc = Math.min(0.1, acc + dt);
         while (acc >= H_STEP) { acc -= H_STEP; clock += H_STEP; for (const l of limbs) advance(l, H_STEP, x); }
         for (const m of marks) m.age += dt;
+        for (const p of pulses) p.age += dt;
+        pulses = pulses.filter((p) => p.age < 3);
+        heave *= Math.exp(-dt / 0.4); flush *= Math.exp(-dt / 0.28);
+        for (const l of limbs) l.fl *= Math.exp(-dt / 0.45);
         marks = marks.filter((m) => m.age < m.life);
         // after a long quiet the whole heap swells and subsides, once
         if (yawnT >= 0) { yawnT += dt; if (yawnT > 8) yawnT = -1; }
