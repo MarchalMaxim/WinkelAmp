@@ -305,7 +305,8 @@
               "drive": "+level"
             },
             "cutAt": 118,
-            "shake": 0
+            "shake": 0,
+            "keep": 1
           },
           "intensity": [
             { "t": 522.063, "v": 0 },
