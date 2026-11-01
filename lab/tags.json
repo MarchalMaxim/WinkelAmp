@@ -23,7 +23,7 @@
   "lenlye": {"feel":["flickering","skittish","brittle","playful"],"instruments":["timpani","plucked"],"role":"ground"},
   "lewitt": {"feel":["pale","airy","marching","serene"],"instruments":["harpsichord","piano"],"role":"ground"},
   "mandala": {"feel":["whirling","glowing","swelling","vivid"],"instruments":["plucked","voice"],"role":"base"},
-  "marbling": {"feel":["liquid","flowing","swelling","warm"],"instruments":["piano","strings"],"role":"ground"},
+  "marbling": {"feel":["liquid","flowing","swelling","warm"],"instruments":["piano","strings"],"role":"standalone"},
   "martin": {"feel":["still","pale","serene","airy"],"instruments":["oboe","voice"],"role":"ground"},
   "matisse": {"feel":["vivid","playful","warm"],"instruments":["clarinet","trumpet"],"role":"ground"},
   "mclaren": {"feel":["marching","vivid","flickering","playful"],"instruments":["piano","harpsichord"],"role":"ground"},
