@@ -25,6 +25,17 @@
       "fade": 3,
       "layers": [
         {
+          "widget": "fischinger",
+          "listen": "melody",
+          "knobs": {
+            "presence": 0.4
+          },
+          "intensity": [
+            { "t": 31.462, "v": 0 },
+            { "t": 53.492, "v": 1 }
+          ]
+        },
+        {
           "widget": "fields"
         }
       ]
