@@ -67,11 +67,13 @@ ran in a real studio. T2's commit deletes the folder.
 
 ## Task 1: Note types in the shared layer code and show validation
 
-**Plan text complete enough to transcribe: yes.** Apply the patch; the text below is what it holds.
+**Plan text complete enough to transcribe: yes.** Apply the patch and make the one edit it cannot hold; the text below is what it
+holds.
 
 **Files:**
 - Modify: `lab/layers/lines.js`, `src/widgets/types.ts`, `src/widgets/tags.ts`, `src/widgets/layers.ts`, `src/studio/show/show.ts`,
-  `scripts/check-show.ts`, `scripts/render-show.mjs`, `docs/COMPOSING-SHOWS.md` (a bullet before "A line").
+  `scripts/check-show.ts`, `docs/COMPOSING-SHOWS.md` (a bullet before "A line"), and `scripts/render-show.mjs` by hand: that file is
+  CRLF and the patch folder is LF.
 - Create: `tests/note-types.test.ts`.
 
 **Signatures:**
@@ -124,6 +126,8 @@ if (WA.NOTE_TYPES.indexOf(listen) >= 0) return { notes: noteTypeOfSong(song, lis
 **Steps:**
 
 - [ ] Apply: `git apply docs/superpowers/plans/2026-11-01-note-types/t1.patch` (add `--3way` if the branch has moved).
+- [ ] With the Edit tool, which keeps the file's CRLF, in `scripts/render-show.mjs`: add `, noteTypes: loadLayers().noteTypeCounts(pack)` after
+  `tracks: Object.keys(pack.tracks ?? {})` in the `validateShow` call. `loadLayers` is already in scope there.
 - [ ] `npx vitest run tests/note-types.test.ts tests/layers-lines.test.ts tests/check-show.test.ts` → all pass.
 - [ ] `npm run typecheck` → clean. `npm run check-show` → all six shows ok.
 - [ ] **Commit** those files by path: `Lab: big chords, fast runs, trills, long ringing notes and repeated notes join what a layer can listen to; a song with none of a kind hears nothing and says so`.
