@@ -618,7 +618,7 @@ Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
 
 #### `kline`: Kline
 
-After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and in time they are painted over. New in v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
+After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
 
 Feel: heavy, stabbing, brittle, triumphant · Suits: trombone, timpani, tutti · Role: ground
 
@@ -626,9 +626,10 @@ Feel: heavy, stabbing, brittle, triumphant · Suits: trombone, timpani, tutti ·
 |---|---|---|---|---|---|
 | `thresh` | which chords strike | 0.5..0.97 | 0.8 | fixed | How much a chord must stand out to strike a big bar; every other chord leaves a small mark. Left: many chords strike bars. Right: only the very biggest. |
 | `weight` | how heavy | 0.35..1.9 | 1 | fixed | How thick the bars and marks are. Left: thin, wiry strokes. Right: huge, heavy beams. |
-| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks stay before they are painted over. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
+| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
 | `order` | loose or rigid | 0..1 | 0.7 | faster → less | How strictly the bars are built. Left: free, flung strokes at any angle. Right: rigid girders, level beams and upright posts that meet at joints. By default it loosens up when the music gets busy. |
 | `ground` | black or bone | 0..1 | 1 | fixed | The colours. Left: black bars on a bone-white ground. Right: bone-white bars on black. |
+| `colour` | what colour | 0..3 | 0 | fixed | The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone. |
 
 #### `cells`: Cells
 
