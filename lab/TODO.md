@@ -13,4 +13,4 @@ Not started. The user's words; wait for their go-ahead, as the machine can only 
 
 Widgets that answer only certain types of notes, like grace notes. The user: "let's have this as a 'default' option, so that we can easily apply these types of widgets to music and the default will be chosen. Makes it easier for the composer."
 
-A guess at the shape, to confirm: new note-type lines beside `melody` and `accents` (grace notes, trills, long notes, runs), and a widget that has a natural type gets it when placed, and can be changed. First check on an ornamented piece how many grace notes the transcription catches.
+**Being built** on `claude/note-types` (spec `docs/superpowers/specs/2026-11-01-note-types-design.md`, plan `docs/superpowers/plans/2026-11-01-note-types.md`). The transcription was checked first: big chords, fast runs, trills, long ringing notes and repeated notes hold up, and join what a layer can listen to. Grace notes do not: a rule fires as often on a piece with none, so real ones go through the note picker. A widget that has a natural type gets it when placed, and can be changed.
