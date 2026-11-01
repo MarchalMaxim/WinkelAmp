@@ -107,6 +107,20 @@ heard: "Violins" is YourMT3+'s violin track (it does not separate firsts from se
 sound it could not split, and short tracks (a few dozen notes) are guesses. In a section label or a commit, say "the
 violins' line" rather than "the first violins".
 
+A song's tracks may come from MuScriptor large instead (`describe-song` says, with its list). Its notes are cleaned, but
+these stay wrong, so trust the ear over the label there:
+
+- Winter 130–180 s keeps about 370 viola notes above MIDI 72 that are really the solo violin: only notes above A5 move.
+- Autumn's Adagio harpsichord stays labelled violin and viola. Its hunt theme, labelled piano, leaves the tracks instead
+  of joining the strings. These are label swaps no pass can see.
+- Spring's Largo viola stays mostly labelled violin from 262 s: only the doubled notes are resolved.
+- A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).
+- Autumn 420–430 s: after the stuck chord is collapsed, cello and contrabass held notes run on to the 430 s chunk edge
+  over audio fading to about −42 to −49 dB (the contrabass is held the whole 10 s).
+- Tremolo in a sounding stuck chunk loses its attacks: one held chord.
+- Lanes still move together a lot: 54 % of Four Seasons' notes share start and end with two other lanes, and its
+  contrabass is mostly the cello an octave down. Only string doubles outside a lane's core are dropped.
+
 ### `region`: where the layer is seen
 
 ```json
