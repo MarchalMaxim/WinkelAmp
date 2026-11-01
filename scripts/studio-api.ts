@@ -367,8 +367,9 @@ export function apiMiddleware(dirs: { songs: string; shows: string }, o: ApiOpti
       }
       if (parts.length === 2 && method === 'PUT') {
         const show = parseJson(await readBody(req, MAX_JSON)) as Show;
-        const duration = readPack(songs, typeof show?.song === 'string' && isSlug(show.song) ? show.song : id).pack?.duration;
-        const { errors } = validateShow(show, { duration: typeof duration === 'number' ? duration : undefined, widgets: widgets() });
+        const sp = readPack(songs, typeof show?.song === 'string' && isSlug(show.song) ? show.song : id).pack, duration = sp?.duration;
+        const { errors } = validateShow(show, { duration: typeof duration === 'number' ? duration : undefined, widgets: widgets(),
+          tracks: sp ? Object.keys(sp.tracks ?? {}) : undefined });
         if (!errors.length && show.id !== id) errors.push({ path: 'id', message: `the show says id '${show.id}' but is saved as '${id}'` });
         if (errors.length) return send(res, 400, { errors });
         writeAtomic(file, canonicalShow(show));

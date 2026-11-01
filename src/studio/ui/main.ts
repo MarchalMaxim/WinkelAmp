@@ -182,7 +182,7 @@ async function boot(): Promise<void> {
 
   // The show: the saved one, repaired if it must be, or one composed for the song now, from the widgets' tags, the
   // instruments the song has and the feel words of its description (if one was written).
-  const ctxShow = { duration: pack.duration, widgets: metas };
+  const ctxShow = { duration: pack.duration, widgets: metas, tracks: Object.keys(pack.tracks ?? {}) };
   const compose = async () => composeShow({ pack, widgets: metas, at: new Date().toISOString(),
     description: await api.description(pack.id).catch(() => ''), layers: studioLayers(), words: labTagWords() });
   let show: Show, origin: 'file' | 'auto' | 'repaired' = 'file';
