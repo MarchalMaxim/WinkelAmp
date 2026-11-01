@@ -120,6 +120,25 @@ try {
   p = await pivots();
   check('one Ctrl+Z straightens it again', p?.length === 2 && p[0].bend === undefined, JSON.stringify(p));
 
+  // Arrow keys nudge the selected pivot, one undo step per press (a held key's repeats are one), never merged with
+  // the presses on another pivot.
+  const v0 = p.map((x) => x.v);
+  await page.mouse.click(L.X(p[0].t), L.Y(p[0].v));
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+  await page.mouse.click(L.X(p[1].t), L.Y(p[1].v));
+  await page.keyboard.press('ArrowDown');
+  const nudged = (await pivots()).map((x) => x.v);
+  await page.keyboard.press('Control+z');
+  const u1 = (await pivots()).map((x) => x.v);
+  await page.keyboard.press('Control+z');
+  const u2 = (await pivots()).map((x) => x.v);
+  const near = (a, b) => Math.abs(a - b) < 0.0011;   // a nudge rounds v to 3 decimals
+  check('arrow nudges: each press is one undo step, the other pivot\'s press another',
+    near(nudged[0], v0[0] + 0.02) && near(nudged[1], v0[1] - 0.01) && near(u1[0], v0[0] + 0.02) && near(u1[1], v0[1]) && near(u2[0], v0[0] + 0.01) && near(u2[1], v0[1]),
+    JSON.stringify({ v0, nudged, u1, u2 }));
+  await page.keyboard.press('Control+z');
+  p = await pivots();
+
   // The presets menu: Pulse every bar writes pivots 4 beats apart (or the 0.5 s fallback grid without beats).
   await page.click('[data-presets]');
   await page.waitForSelector('.lane-menu');
