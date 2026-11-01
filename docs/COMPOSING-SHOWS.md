@@ -113,7 +113,13 @@ these stay wrong, so trust the ear over the label there:
 - Winter 130–180 s keeps about 370 viola notes above MIDI 72 that are really the solo violin: only notes above A5 move.
 - Autumn's Adagio harpsichord stays labelled violin and viola. Its hunt theme, labelled piano, leaves the tracks instead
   of joining the strings. These are label swaps no pass can see.
-- Spring's Largo viola stays mostly labelled violin from 262 s: only the doubled notes are resolved.
+- Spring's Largo viola stays labelled violin from 262 s, where the viola lane has 1 note in 68 s (YourMT3+ had 84). The
+  doubles the cleanup resolves (301 to 167 over the song) are elsewhere: 1 of them is in that stretch.
+- Winter 130–180 s: the solo line is split at A5, violin above and viola below, and 130–145 s stays without a violin note.
+- Beethoven: the string doubles rule gives C2 to the contrabass, so the cello is silent at 276.9–285 s, and the wind rule
+  empties the flute and clarinet at 210–225 s, where YourMT3+ does hear a flute. Both are real notes lost.
+- Four Seasons: a quiet tremolo at 1075 s goes with the stuck chords, and 2090–2105 s holds a chord the model got stuck on,
+  which YourMT3+ hears moving.
 - A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).
 - Autumn 420–430 s: after the stuck chord is collapsed, cello and contrabass held notes run on to the 430 s chunk edge
   over audio fading to about −42 to −49 dB (the contrabass is held the whole 10 s).
