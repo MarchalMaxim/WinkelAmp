@@ -1,5 +1,23 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-02: the note picker (branch `claude/note-picker`, not merged: the user's call)
+
+Built from `docs/superpowers/specs/2026-11-01-note-picker-design.md` along `docs/superpowers/plans/2026-11-01-note-picker.md`.
+A layer can answer hand-picked notes only, so a busy widget (Pointillism) stops drowning the melody.
+
+- **Studio:** "Pick notes" opens a roll of the song (instrument colours and legend, Suggest top line, tones, the real
+  recording); marks are per song in `melodies/<song>.json` (`GET|PUT /api/melodies/<song>`, folder `WINKELAMP_MELODIES`).
+  A popup picks N marks, previews through the real widget (a second runtime on its own canvas) and places the layer
+  across the sections from the first pick to the last. One undo per placement, update or removal.
+- **Show:** `show.picks = { p1: { notes: [[start,end,midi,velocity],…] } }` and `layer.listen = "picks:p1"`, a new kind
+  of listen; such a show is version 2. `validateShow`/`repairShow`/`applyEdit` keep it valid (a layer on a missing set is
+  an error and is dropped by `--fix`, never played on every note). Documented in `docs/COMPOSING-SHOWS.md`.
+- **Checks:** `npm run picks-check` and `npm run picker-check` (local, need Chrome and the Winter songs); unit tests
+  `tests/picker-logic`, `picks-*`, `melody-marks`.
+- **Not done / to know:** studio only (no lab UI); widgets can't be disposed, so a preview leaves an idle `pixelsort`
+  worker; Pointillism's colours shift on few notes (looked at, not reworked). `docs/mockups/knob-transitions/` is a
+  separate design awaiting the user.
+
 ## 2026-11-01: instruments, places, intensity lanes, tags and the HD master
 
 Build of `docs/superpowers/specs/2026-10-31-instruments-regions-automation-hd-design.md` along
