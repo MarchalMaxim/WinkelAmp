@@ -107,6 +107,28 @@
         "fit": {
           "low": 0.8
         }
+      },
+      "viscous": {
+        "looks": "Thick, slow liquid: heavy bulbs that stretch into long threads, with light through them.",
+        "sounds": "Thick, sticky sustain: legato in the low-middle register, a slurred phrase, a heavy pedal.",
+        "fit": {
+          "quiet": 0.4,
+          "dense": 0.3
+        }
+      },
+      "viney": {
+        "looks": "Thin stems that creep outward, fork and curl at their tips, and grow over the whole picture.",
+        "sounds": "Lines that keep growing: long phrases, counterpoint, voices branching from each other.",
+        "fit": {
+          "dense": 0.3
+        }
+      },
+      "withering": {
+        "looks": "Things drying out from old to young: lines thin, lose their colour and crumble.",
+        "sounds": "Music thinning out: dying falls, a phrase running out of breath.",
+        "fit": {
+          "quiet": 0.7
+        }
       }
     },
     "motion": {
@@ -181,6 +203,50 @@
         "fit": {
           "fast": 0.5
         }
+      },
+      "clumsy": {
+        "looks": "Things that hop, tip over and pile up, then rush to catch up; every attack knocks them into disorder again.",
+        "sounds": "Lumbering or tripping rhythm: off-beat accents, staccato bass, a dance that stumbles.",
+        "fit": {
+          "fast": 0.4,
+          "loud": 0.3
+        }
+      },
+      "gusty": {
+        "looks": "Blasts of force that burst from one place and shove everything aside, then drop away.",
+        "sounds": "Hard, bright attacks with a lot of air behind them: brass, fanfares, a sudden loud tutti.",
+        "fit": {
+          "loud": 1,
+          "dense": 0.3
+        }
+      },
+      "dual": {
+        "looks": "Two forms in two colours that reach for each other, touch and recoil.",
+        "sounds": "Two voices in dialogue: call and answer, bass against melody, consonance against clash.",
+        "fit": {}
+      },
+      "slow": {
+        "looks": "Long, unhurried movement: a change takes seconds and nothing ever startles.",
+        "sounds": "Slow tempo, long notes, plenty of time between attacks: lento, largo.",
+        "fit": {
+          "quiet": 0.6
+        }
+      },
+      "droopy": {
+        "looks": "Everything hangs and sags under its own weight, stretching down and never quite letting go.",
+        "sounds": "Falling lines: sighs, slow descents, dragged-out cadences.",
+        "fit": {
+          "quiet": 0.4,
+          "low": 0.2
+        }
+      },
+      "lazy": {
+        "looks": "Big things that can barely be bothered: they answer late and only halfway, then flop back.",
+        "sounds": "Low, drowsy, dragging music: a heavy pulse, long sighing phrases.",
+        "fit": {
+          "quiet": 0.5,
+          "low": 0.4
+        }
       }
     },
     "light and colour": {
@@ -224,6 +290,13 @@
         "looks": "On or off, black or white: no greys, no hue, no in-between.",
         "sounds": "Hard, clear attacks with silence between: staccato, a dry piano.",
         "fit": {}
+      },
+      "green": {
+        "looks": "Greens from moss to acid, damp and low-lit.",
+        "sounds": "Pastoral and drowsy: drones, soft winds, slow modal harmony.",
+        "fit": {
+          "quiet": 0.5
+        }
       }
     },
     "atmosphere": {
@@ -309,6 +382,33 @@
         "sounds": "Intricate and cool: dense figuration, counterpoint, a pattern to decode.",
         "fit": {
           "dense": 0.4
+        }
+      },
+      "royal": {
+        "looks": "Imperial purple and gold, one grand form that keeps its distance.",
+        "sounds": "Ceremonial and grand: dotted rhythms, slow processions, courtly dances.",
+        "fit": {
+          "loud": 0.4,
+          "dense": 0.3
+        }
+      },
+      "elegant": {
+        "looks": "One controlled long curve, thick and thin like fine lettering; every move eases in and out.",
+        "sounds": "Poised phrasing: minuets, ornaments placed just so, a waltz.",
+        "fit": {
+          "quiet": 0.3
+        }
+      },
+      "dismissive": {
+        "looks": "A slow turn away: whatever comes near is flicked aside, with no hurry.",
+        "sounds": "Cool cadences, phrases cut off with a shrug, soft answers to loud calls.",
+        "fit": {}
+      },
+      "comfortable": {
+        "looks": "Soft rounded forms nestled together in warm lamp-light, breathing slowly.",
+        "sounds": "A slow, warm lull: rocking accompaniment, consonant harmony, soft dynamics.",
+        "fit": {
+          "quiet": 1
         }
       }
     }
@@ -493,7 +593,8 @@
       "pairs": [
         "vivid",
         "triumphant",
-        "stabbing"
+        "stabbing",
+        "gusty"
       ],
       "tracks": [
         "trumpet"
@@ -638,6 +739,48 @@
     "logical": "precise",
     "textual": "cryptic",
     "flashy": "flickering",
-    "monochrome": "binary"
+    "monochrome": "binary",
+    "clumsiness": "clumsy",
+    "tumbling": "clumsy",
+    "hopping": "clumsy",
+    "awkward": "clumsy",
+    "blustery": "gusty",
+    "powerful": "gusty",
+    "power": "gusty",
+    "blast": "gusty",
+    "twin": "dual",
+    "duality": "dual",
+    "attract": "dual",
+    "repel": "dual",
+    "vines": "viney",
+    "vine": "viney",
+    "creeping": "viney",
+    "spreading": "viney",
+    "wilting": "withering",
+    "withers": "withering",
+    "dying": "withering",
+    "regal": "royal",
+    "majestic": "royal",
+    "stately": "royal",
+    "graceful": "elegant",
+    "poised": "elegant",
+    "haughty": "dismissive",
+    "disdainful": "dismissive",
+    "aloof": "dismissive",
+    "relaxing": "comfortable",
+    "relaxed": "comfortable",
+    "comfy": "comfortable",
+    "unhurried": "slow",
+    "leisurely": "slow",
+    "drooping": "droopy",
+    "sagging": "droopy",
+    "honey": "viscous",
+    "syrupy": "viscous",
+    "sticky": "viscous",
+    "lethargic": "lazy",
+    "sluggish": "lazy",
+    "drowsy": "lazy",
+    "verdant": "green",
+    "mossy": "green"
   }
 }

@@ -883,6 +883,86 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `clumsy`: Clumsy
+
+A crowd of mismatched shapes that hop, tumble and rush to keep up; every attack knocks them into disorder again.
+
+Feel: clumsy, playful, vivid, marching · Suits: bassoon, plucked, piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `gust`: Brass gust
+
+Wedges of brass force burst out and shove the air aside: gusts on every attack, full blasts on the loudest of the piece.
+
+Feel: gusty, triumphant, burning, vivid · Suits: trumpet, trombone, tutti · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `duet`: Duet
+
+Two forms in two colours, one round and one sharp: consonant attacks draw them together, dissonant ones throw them apart.
+
+Feel: dual, vivid, swelling, mysterious · Suits: piano, violin, cello · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `vine`: Vine
+
+Thin stems creep out, fork and curl on the notes, and wither from the oldest parts when the music thins out.
+
+Feel: viney, withering, fibrous, alien · Suits: strings, cello, viola · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `royal`: Royal
+
+One grand curve stands still while small marks come up to it, and with one unhurried gesture it sweeps them away.
+
+Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `comfort`: Comfort
+
+Big soft forms nestled in lamp-light, breathing slowly; a note is a gentle press that takes its time to come back.
+
+Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `honey`: Honey
+
+A thick gold mass sags under each note, stretches into long threads that will not let go, and coils slowly into a pool.
+
+Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
+#### `lazy`: Lazy
+
+A heap of fat, limp green limbs: a note asks one to get up, it gets a third of the way, gives up and flops over.
+
+Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing. Right: fully there. |
+
 #### `timeslice`: Time slice
 
 A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line. Turn <b>how present</b> down to dim it: fainter and calmer, and only the hardest attacks still cut.
