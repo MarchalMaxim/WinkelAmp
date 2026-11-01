@@ -244,7 +244,7 @@ button.poster-inner:hover .poster-play { border-color: var(--fg); }
 .badge { padding: 2px 7px; border-radius: 9px; background: #2a2428; color: #cfc6bc; font-size: 11px; }
 .badge.n-gpu, .badge.n-file { background: #1d3a26; color: #c8f0d2; }
 .badge.n-approx, .badge.n-merged { background: #4a3412; color: #f7deb0; }
-.badge.n-hybrid, .badge.n-ymt3, .badge.n-bp-hybrid { background: #1d3a26; color: #c8f0d2; }
+.badge.n-hybrid, .badge.n-ymt3, .badge.n-bp-hybrid, .badge.n-ms-hybrid { background: #1d3a26; color: #c8f0d2; }
 .badge.show-own { background: #213a5c; color: #cfe0f5; }
 /* Adding a recording: the picker, the progress, and the whole page as a drop zone. */
 .add-song { display: grid; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }

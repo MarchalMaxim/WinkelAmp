@@ -1,14 +1,18 @@
 /**
  * A recording → a song pack the studio plays: songs/<id>/{audio.<ext>, pack.json, notes.gpu.json, notes.ymt3.json,
- * notes.bp.json}.
+ * notes.bp.json, notes.muscriptor-<list key>.json}.
  *
  *   npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid|ymt3|bp|approx|<notes file>]
- *     [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp] [--force] [--progress json]
+ *     [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp|muscriptor] [--force] [--progress json]
+ *     [--instruments-model ymt3|muscriptor] [--instruments strings|baroque|classical|<list>] [--muscriptor-notes <file>]
  *
- * Three transcribers, each cached in the song's folder by the audio's sha1 (and its model, revision or settings):
+ * Three transcribers, and a fourth by choice, each cached in the song's folder by the audio's sha1 (and its model,
+ * revision or settings):
  * - the GPU piano model (scripts/ears/transcribe.py through WINKELAMP_PY, the venv or `python`): notes.gpu.json;
  * - YourMT3+ (scripts/ears/ymt3.py through ymt3.json, `npm run setup-ymt3`): instrument notes, notes.ymt3.json;
- * - basic-pitch (scripts/ears/bp.py through WINKELAMP_PY_BP or the wa-bp venv): the gap fill without YourMT3, notes.bp.json.
+ * - basic-pitch (scripts/ears/bp.py through WINKELAMP_PY_BP or the wa-bp venv): the gap fill without YourMT3, notes.bp.json;
+ * - MuScriptor large, only with --instruments-model muscriptor (scripts/ears/muscriptor.py through muscriptor.json,
+ *   `npm run setup-muscriptor`): raw rows per list, notes.muscriptor-<list key>.json. Its weights are non-commercial.
  *
  * --notes auto (the default) runs the piano model and YourMT3+, decides piano or ensemble (YourMT3's piano share, else
  * the piano model's coverage), and for an ensemble fills the piano model's gaps with YourMT3's notes and writes the
@@ -18,19 +22,35 @@
  * (a lab notes.js or a transcribe.py JSON). --piano-notes uses a notes file as the piano model's notes without
  * running it. --kind piano skips YourMT3 and basic-pitch. --redo re-runs a transcriber instead of reading its cache
  * (and rebuilds the pack). Sections, beats, loudness and chord changes come from the study analysis.
+ *
+ * --instruments-model muscriptor takes the instrument tracks from MuScriptor large instead of YourMT3+, which stays the
+ * default. It needs --instruments, a preset or a comma list of MuScriptor's names (without a list it hears Vivaldi's
+ * strings as guitars), means --kind ensemble, and goes with --notes auto or hybrid only. YourMT3+ runs as well, for the
+ * keyboard lane when the list has a keyboard and as the fallback. The analysis runs next, then the pass that repairs what
+ * MuScriptor gets wrong (clean-tracks.ts), then the keyboard lane, and buildPack reads the result in place of YourMT3's
+ * rows, with velocities estimated the same way. The cache holds the rows before that repair, so retuning it costs no GPU
+ * time. A pack is up to date for this option only if MuScriptor made it from the same list; without the option, any pack
+ * of the recording stays up to date. MuScriptor missing, failing, or stuck in a loop falls back to YourMT3+ with a warning
+ * in the pack, never an exit 3 (a stuck result stays cached, as greedy decoding repeats itself; --redo muscriptor runs it
+ * again). --muscriptor-notes <file> reads a saved run (an overnight notes.muscriptor-large.json or such a cache) instead
+ * of running the model, and writes the cache bound to this recording; it needs --instruments too, as the overnight files
+ * do not say their list.
  * Exit codes: 2 usage, 3 a transcriber that was asked for failed, 4 the audio cannot be decoded.
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { analyzeSong } from '../src/audio/song-analysis';
 import type { IngestProgress } from '../src/studio/ingest/ears-types';
-import { overallOf, stageWeights, type Stage } from '../src/studio/ingest/progress';
+import { etaWords, MS_YMT3_SHARE, overallOf, stageWeights, type Stage } from '../src/studio/ingest/progress';
 import { buildPack, WARN_NO_YMT3, type BuildInput } from '../src/studio/pack/build';
+import { cleanTracks, cleanWarning, frameDb } from '../src/studio/pack/clean-tracks';
+import { listKey, loopCheck, mapMsRows, mergeKeyboard, MS_IMPORT_PACKAGE, MS_MODEL, resolveInstruments } from '../src/studio/pack/muscriptor';
 import { parseNotesFile } from '../src/studio/pack/notes';
 import { PACK_VERSION, validatePack, type SongPack } from '../src/studio/pack/pack';
 import { cleanRows, onsetLevels, type Ymt3Row } from '../src/studio/pack/tracks';
 import type { Note } from '../src/widgets/types';
 import { decodeMono } from './node/decode';
+import { findMuscriptor, MS_SETUP_HINT, runMuscriptor, type MsDtype } from './node/muscriptor';
 import { isSlug, nameOf, sha1File, songsDir, writeJsonAtomic } from './node/pack-io';
 import { BP_HINT, BP_SETTINGS, findPython, findPythonBp, runBp, transcribe } from './node/python';
 import { findYmt3, runYmt3, SETUP_HINT } from './node/ymt3';
@@ -38,12 +58,13 @@ import { findYmt3, runYmt3, SETUP_HINT } from './node/ymt3';
 const SR = 44100;
 const MODES = ['auto', 'gpu', 'hybrid', 'ymt3', 'bp', 'approx'] as const;
 type Mode = (typeof MODES)[number] | 'file';
-const TOOLS = ['piano', 'ymt3', 'bp'] as const;
+const TOOLS = ['piano', 'ymt3', 'bp', 'muscriptor'] as const;
 type Tool = (typeof TOOLS)[number];
 /** What ymt3.py writes as its model (its cache keys on it, the revision and the sha1). */
 const YMT3_MODEL = 'yourmt3-moe';
 const USAGE = 'usage: npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid|ymt3|bp|approx|<notes file>] ' +
-  '[--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp] [--force] [--progress json]';
+  '[--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp|muscriptor] [--force] [--progress json] ' +
+  '[--instruments-model ymt3|muscriptor] [--instruments strings|baroque|classical|<list>] [--muscriptor-notes <file>]';
 const FALLBACK_HINT = 'pass --notes auto to fall back on what can run, or --notes approx for approximate notes from the analysis';
 
 class Exit extends Error {
@@ -57,7 +78,29 @@ let onFail: (() => void) | null = null;
 
 interface GpuCache { version: 1; sha1: string; size: number; mtimeMs: number; model: string; device: 'cuda' | 'cpu'; seconds: number; notes: { start: number; end: number; midi: number; vel: number }[] }
 interface Ymt3Cache { version: 1; sha1: string; model: string; revision: string; seconds: number; notes: Ymt3Row[] }
+/** `notes`: mapped to class names, before the cleanup. `package`: the install's version, so a good cache is never stale on the next run. */
+interface MsCache { version: 1; sha1: string; model: string; package: string; instruments: string[]; dtype: MsDtype; seconds: number; notes: Ymt3Row[] }
 interface BpCache { version: 1; sha1: string; model: string; settings: typeof BP_SETTINGS; seconds: number; notes: Note[] }
+
+const sameList = (a: readonly string[] | undefined, b: readonly string[]) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** A saved run (an overnight file or a cache), checked before anything slow starts. Its `instruments` says nothing of its list. */
+function readMsImport(path: string): Pick<MsCache, 'dtype' | 'seconds'> & { rows: Ymt3Row[] } {
+  const no = (why: string) => new Exit(2, `--muscriptor-notes ${path}: ${why}`);
+  if (!existsSync(path) || !statSync(path).isFile()) throw no('no such file');
+  let raw: { model?: unknown; dtype?: unknown; seconds?: unknown; notes?: unknown } | null;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf8')) as typeof raw;
+  } catch (e) {
+    throw no(`not JSON (${(e as Error).message})`);
+  }
+  if (!raw || !Array.isArray(raw.notes) || !raw.notes.length) throw no('it has no notes');
+  if (raw.model !== MS_MODEL) throw no(`it was made by ${JSON.stringify(raw.model)}, and only ${MS_MODEL} is tested`);
+  const { rows, unknown } = mapMsRows(raw.notes);
+  if (unknown.length) throw no(`unknown instrument ${unknown.join(', ')}`);
+  if (rows.length !== raw.notes.length) throw no(`${raw.notes.length - rows.length} of its ${raw.notes.length} rows are not [start, end, midi, velocity, instrument]`);
+  return { rows, dtype: raw.dtype === 'bfloat16' ? 'bfloat16' : 'float32', seconds: isNum(raw.seconds) ? raw.seconds : 0 };
+}
 
 function args(argv: string[]) {
   const flags = new Map<string, string | true>();
@@ -66,12 +109,12 @@ function args(argv: string[]) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--force') flags.set('force', true);
-    else if (['--id', '--title', '--notes', '--progress', '--piano-notes', '--kind', '--redo'].includes(a)) {
+    else if (['--id', '--title', '--notes', '--progress', '--piano-notes', '--kind', '--redo', '--instruments-model', '--instruments', '--muscriptor-notes'].includes(a)) {
       if (i + 1 >= argv.length) throw new Exit(2, `${a} needs a value\n${USAGE}`);
       const v = argv[++i];
       if (a === '--redo') {
         for (const t of v.split(',')) {
-          if (!(TOOLS as readonly string[]).includes(t)) throw new Exit(2, `--redo ${t}: not piano, ymt3 or bp`);
+          if (!(TOOLS as readonly string[]).includes(t)) throw new Exit(2, `--redo ${t}: not piano, ymt3, bp or muscriptor`);
           redo.add(t as Tool);
         }
       } else flags.set(a.slice(2), v);
@@ -96,11 +139,30 @@ function args(argv: string[]) {
   if (kindArg !== 'auto' && kindArg !== 'piano' && kindArg !== 'ensemble') throw new Exit(2, `--kind ${kindArg}: not auto, piano or ensemble`);
   const kind: 'piano' | 'ensemble' | undefined = kindArg === 'auto' ? undefined : kindArg;
   if (kind === 'piano' && (mode === 'hybrid' || mode === 'ymt3')) throw new Exit(2, `--kind piano skips YourMT3, which --notes ${mode} needs`);
+  // MuScriptor, by choice.
+  const modelArg = flags.get('instruments-model') as string | undefined;
+  if (modelArg !== undefined && modelArg !== 'ymt3' && modelArg !== 'muscriptor') throw new Exit(2, `--instruments-model ${modelArg}: not ymt3 or muscriptor`);
+  const msNotes = flags.get('muscriptor-notes') as string | undefined;
+  if (msNotes !== undefined && modelArg === 'ymt3') throw new Exit(2, '--muscriptor-notes goes with --instruments-model muscriptor, not ymt3');
+  const instruments = flags.get('instruments') as string | undefined;
+  let ms: { list: string[]; imported: ReturnType<typeof readMsImport> | null } | null = null;
+  if (modelArg === 'muscriptor' || msNotes !== undefined) {
+    if (instruments === undefined) throw new Exit(2, "MuScriptor needs --instruments <preset|list>: without a list it hears Vivaldi's strings as guitars, and a saved run does not say its list");
+    const r = resolveInstruments(instruments);
+    if ('why' in r) throw new Exit(2, `--instruments ${instruments}: ${r.why}`);
+    if (kind === 'piano') throw new Exit(2, '--kind piano does not go with --instruments-model muscriptor, which means an ensemble');
+    if (mode !== 'auto' && mode !== 'hybrid') throw new Exit(2, `--notes ${notesArg} does not go with --instruments-model muscriptor: only auto or hybrid`);
+    if (msNotes !== undefined && redo.has('muscriptor')) throw new Exit(2, '--redo muscriptor runs the model and --muscriptor-notes reads a saved run: pass one');
+    ms = { list: r.list, imported: msNotes === undefined ? null : readMsImport(msNotes) };
+  } else {
+    if (instruments !== undefined) throw new Exit(2, '--instruments goes with --instruments-model muscriptor');
+    if (redo.has('muscriptor')) throw new Exit(2, '--redo muscriptor goes with --instruments-model muscriptor');
+  }
   const progress = flags.get('progress');
   if (progress !== undefined && progress !== 'json') throw new Exit(2, `--progress ${String(progress)}: only json is supported`);
   return {
     file, id, title: (flags.get('title') as string | undefined) ?? named.title, mode, notesFile: mode === 'file' ? notesArg : null,
-    pianoNotes: pianoNotes ?? null, kind, redo, force: flags.has('force') || redo.size > 0, json: progress === 'json',
+    pianoNotes: pianoNotes ?? null, kind: ms ? 'ensemble' as const : kind, ms, redo, force: flags.has('force') || redo.size > 0, json: progress === 'json',
   };
 }
 
@@ -140,7 +202,7 @@ async function main(): Promise<void> {
   }
   if (old && !o.force) {
     if (old.version === PACK_VERSION && old.source?.sha1 === sha1 && validatePack(old).length === 0 &&
-      existsSync(join(dir, old.audio))) {
+      existsSync(join(dir, old.audio)) && (!o.ms || sameList(old.transcribers?.find((t) => t.name === 'muscriptor')?.instruments, o.ms.list))) {
       log(`${o.id}: up to date (${old.notesFrom} notes; --force rebuilds it, e.g. with other notes): ${packFile}`);
       report({ stage: 'done', progress: 1, overall: 1, message: 'up to date', id: o.id, warnings: old.quality.warnings });
       return;
@@ -163,7 +225,21 @@ async function main(): Promise<void> {
   if (!existsSync(dir)) onFail = () => rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
 
-  const weights = stageWeights({ transcribe: usePiano, instruments: useYmt3 || bpFallback || o.mode === 'bp' });
+  // MuScriptor's cache is read here: a real run (minutes to the others' seconds) weighs the progress differently.
+  const msFound = o.ms ? findMuscriptor() : null;
+  const msCacheFile = o.ms ? join(dir, `notes.muscriptor-${listKey(o.ms.list)}.json`) : '';
+  let msCache: MsCache | null = null;
+  if (o.ms && msFound && !o.ms.imported && !o.redo.has('muscriptor')) {
+    const c = readJson<MsCache>(msCacheFile);
+    // A cache made by another package is stale; without an install, the cache of this recording still serves.
+    if (c && c.version === 1 && c.sha1 === sha1 && c.model === MS_MODEL && sameList(c.instruments, o.ms.list) && Array.isArray(c.notes) && c.notes.every(okRow) &&
+      ('missing' in msFound || c.package === msFound.config.version)) msCache = c;
+  }
+  const long = !!o.ms && !o.ms.imported && !msCache && !!msFound && 'config' in msFound;
+  /** A fraction of what YourMT3+ does, as a fraction of the instruments stage. */
+  const ymt3Part = (f: number) => (long ? f * MS_YMT3_SHARE : f);
+
+  const weights = stageWeights({ transcribe: usePiano, instruments: useYmt3 || bpFallback || o.mode === 'bp', long });
   let overall = 0, lastPct = -1;
   const stage = (s: Stage, f: number, message: string) => {
     overall = Math.max(overall, overallOf(weights, s, f));
@@ -176,7 +252,7 @@ async function main(): Promise<void> {
   };
   let lapAt = t0;
   const lap = (what: string) => {
-    if (!o.json && process.stdout.isTTY) process.stdout.write('\r' + ' '.repeat(50) + '\r');
+    if (!o.json && process.stdout.isTTY) process.stdout.write('\r' + ' '.repeat(70) + '\r');
     const now = performance.now();
     log(`  ${what.padEnd(48)} ${((now - lapAt) / 1000).toFixed(1).padStart(6)} s  (at ${((now - t0) / 1000).toFixed(1)} s)`);
     lapAt = now;
@@ -266,7 +342,7 @@ async function main(): Promise<void> {
         ('missing' in found || c.revision === found.config.revision)) cache = c;
     }
     if (cache) {
-      stage('instruments', 0.5, 'instrument notes cached');
+      stage('instruments', ymt3Part(0.5), 'instrument notes cached');
       lap(`YourMT3+: cached (${cache.notes.length} notes)`);
     } else {
       let why: string | null = null;
@@ -274,10 +350,10 @@ async function main(): Promise<void> {
         why = found.missing;
         ymt3Missing = true;
       } else {
-        stage('instruments', 0, 'loading YourMT3+');
+        stage('instruments', ymt3Part(0), 'loading YourMT3+');
         const tmp = `${cacheFile}.${process.pid}.raw.json`;
         try {
-          await runYmt3(o.file, tmp, (f) => stage('instruments', f * 0.9, 'hearing the instruments'));
+          await runYmt3(o.file, tmp, (f) => stage('instruments', ymt3Part(f * 0.9), 'hearing the instruments'));
           const raw = JSON.parse(readFileSync(tmp, 'utf8')) as Partial<Ymt3Cache>;
           if (!Array.isArray(raw.notes) || !raw.notes.every(okRow)) throw new Error('its output has no notes array of [start, end, midi, vel, class]');
           cache = { version: 1, sha1, model: String(raw.model ?? YMT3_MODEL), revision: String(raw.revision ?? found.config.revision), seconds: Number(raw.seconds) || 0, notes: raw.notes };
@@ -297,9 +373,62 @@ async function main(): Promise<void> {
     if (cache) ymt3 = { rows: cache.notes, levels: onsetLevels(pcm, SR, cache.notes.map((r) => r[0])), model: cache.model, seconds: cache.seconds };
   }
 
+  // MuScriptor, after it. Any trouble is a warning and YourMT3's tracks, never an exit 3.
+  const msFellBack = (why: string) => {
+    msCache = null;
+    extra.push(`${why}: ${ymt3 ? 'the tracks come from YourMT3+' : 'no instrument tracks'}`);
+  };
+  if (o.ms && msFound) {
+    if (o.ms.imported) {
+      const { rows, dtype, seconds } = o.ms.imported;
+      const installed = 'config' in msFound ? msFound.config.version : MS_IMPORT_PACKAGE;
+      msCache = { version: 1, sha1, model: MS_MODEL, package: installed, instruments: o.ms.list, dtype, seconds, notes: rows };
+      writeJsonAtomic(msCacheFile, msCache);
+      stage('instruments', 0.9, 'MuScriptor notes imported');
+      lap(`MuScriptor: imported (${rows.length} notes)`);
+    } else if (msCache) {
+      stage('instruments', 0.9, 'MuScriptor notes cached');
+      lap(`MuScriptor: cached (${msCache.notes.length} notes)`);
+    } else if ('missing' in msFound) {
+      msFellBack(`MuScriptor is not set up (${MS_SETUP_HINT})`);
+      lap('MuScriptor: not set up');
+    } else {
+      stage('instruments', MS_YMT3_SHARE, 'loading MuScriptor (large)');
+      const tmp = `${msCacheFile}.${process.pid}.raw.json`;
+      const started = performance.now();
+      const part = (f: number) => MS_YMT3_SHARE + f * (1 - MS_YMT3_SHARE);
+      try {
+        await runMuscriptor(o.file, tmp, { instruments: o.ms.list }, (f, done, total) =>
+          stage('instruments', part(f), `MuScriptor: ${done} of ${total} chunks, ${etaWords(done, total, (performance.now() - started) / 1000)}`));
+        const raw = JSON.parse(readFileSync(tmp, 'utf8')) as { notes?: unknown; dtype?: unknown; seconds?: unknown };
+        if (!Array.isArray(raw.notes)) throw new Error('its output has no notes array');
+        const { rows, unknown } = mapMsRows(raw.notes);
+        if (unknown.length) throw new Error(`its output names an unknown instrument: ${unknown.join(', ')}`);
+        msCache = {
+          version: 1, sha1, model: MS_MODEL, package: msFound.config.version, instruments: o.ms.list,
+          dtype: raw.dtype === 'bfloat16' ? 'bfloat16' : 'float32', seconds: Number(raw.seconds) || 0, notes: rows,
+        };
+        writeJsonAtomic(msCacheFile, msCache);
+        lap(`MuScriptor large (${rows.length} notes, ${msCache.seconds.toFixed(1)} s, ${msCache.dtype})`);
+      } catch (e) {
+        msFellBack(`MuScriptor failed (${firstLine((e as Error).message)})`);
+        lap('MuScriptor: failed');
+      } finally {
+        rmSync(tmp, { force: true });
+      }
+    }
+    const made = msCache as MsCache | null;
+    if (made) {
+      const check = loopCheck(made.notes);
+      if (!check.ok) msFellBack(`MuScriptor's output looks stuck (${check.why})`);
+      else if (!cleanRows(made.notes).length) msFellBack('MuScriptor failed (it heard no notes)');
+    }
+  }
+  const msRaw = msCache as MsCache | null;
+
   let bp: BuildInput['bp'] = null;
   let bpWhy: string | null = null;
-  if (o.mode === 'bp' || (bpFallback && (!ymt3 || cleanRows(ymt3.rows).length === 0))) {
+  if (o.mode === 'bp' || (bpFallback && !msRaw && (!ymt3 || cleanRows(ymt3.rows).length === 0))) {
     const cacheFile = join(dir, 'notes.bp.json');
     let cache: BpCache | null = null;
     if (!o.redo.has('bp')) {
@@ -343,10 +472,24 @@ async function main(): Promise<void> {
   const analysis = analyzeSong(pcm, SR, (f) => stage('analyze', f, 'analysing'));
   lap(`analysis (${analysis.sections.length} sections, ${analysis.onsets.length} onsets)`);
 
+  // MuScriptor's rows go through the cleanup (it needs the analysis' onsets and the PCM's levels), then get their keyboard.
+  let muscriptor: BuildInput['muscriptor'] = null;
+  if (o.ms && msRaw) {
+    const cleaned = cleanTracks({ rows: msRaw.notes, duration: analysis.duration, levels: frameDb(pcm, SR), onsets: analysis.onsets.map((x) => x.t) });
+    const { rows, keyboard } = mergeKeyboard(cleaned.rows, ymt3?.rows ?? null, o.ms.list);
+    if (cleanRows(rows).length) {
+      muscriptor = { rows, levels: onsetLevels(pcm, SR, rows.map((r) => r[0])), model: msRaw.model, seconds: msRaw.seconds, instruments: o.ms.list, keyboard };
+      const said = cleanWarning(cleaned.report);
+      if (said) extra.push(said);
+      if (keyboard === 'muscriptor') extra.push("no keyboard lane from YourMT3+: the piano track is MuScriptor's, which barely finds a harpsichord");
+    } else msFellBack('MuScriptor failed (the cleanup left no notes)');
+    lap(`MuScriptor's notes cleaned (${cleaned.rows.length} of ${msRaw.notes.length} left)`);
+  }
+
   stage('write', 0, 'writing');
   const pack = buildPack({
     id: o.id, title: o.title, audio: audioName, source: { name: sourceName, bytes: st.size, sha1 },
-    analysis, notes, by: 'ingest', at: new Date().toISOString(), ymt3, bp, kind: o.kind,
+    analysis, notes, by: 'ingest', at: new Date().toISOString(), ymt3, bp, kind: o.kind, muscriptor,
     notesMode: o.mode === 'hybrid' || o.mode === 'bp' ? 'hybrid' : o.mode === 'ymt3' ? 'ymt3' : 'auto',
   });
   // Say why, where buildPack can only say what: a YourMT3+ that was not asked for is not "not set up", and a

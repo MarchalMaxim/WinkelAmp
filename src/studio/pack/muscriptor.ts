@@ -45,6 +45,11 @@ export const MS_CLASS: Readonly<Record<string, string>> = {
   drums: 'Drums',
 };
 
+/** What muscriptor.py writes as its model, and the only one a cache or an import may carry: only large is tested. */
+export const MS_MODEL = 'muscriptor-large';
+/** The package that made all five overnight files, which do not say: an import's when there is no install to ask. */
+export const MS_IMPORT_PACKAGE = '0.4.0';
+
 const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const MS_STRINGS = ['violin', 'viola', 'cello', 'contrabass'];
@@ -115,6 +120,20 @@ export function guessPreset(lanes: readonly string[]): MsPreset {
     return track !== null && TRACKS[track].family === 'winds';
   };
   return lanes.some(isWind) ? 'classical' : 'baroque';
+}
+
+/**
+ * MuScriptor's rows (cleaned) and the keyboard lane the list asks for. No keyboard in the list: the rows as they are, and
+ * null. With YourMT3+: its keyboard in place of MuScriptor's, which barely finds a harpsichord. Without: MuScriptor's own.
+ * Stable by (start, midi) when YourMT3's rows join; the input is never written to.
+ */
+export function mergeKeyboard(ms: readonly Ymt3Row[], ymt3: readonly Ymt3Row[] | null, list: readonly string[]):
+  { rows: Ymt3Row[]; keyboard: 'ymt3' | 'muscriptor' | null } {
+  if (!hasKeyboard(list)) return { rows: [...ms], keyboard: null };
+  if (!ymt3) return { rows: [...ms], keyboard: 'muscriptor' };
+  const isKeys = (r: Ymt3Row) => trackOf(r[4]) === 'piano';
+  const rows = [...ms.filter((r) => !isKeys(r)), ...ymt3.filter(isKeys)].sort((a, b) => a[0] - b[0] || a[2] - b[2]);
+  return { rows, keyboard: 'ymt3' };
 }
 
 /** Zero-length notes: Rite on medium is 0.49, every large run 0.000. This is the test with a real margin. */

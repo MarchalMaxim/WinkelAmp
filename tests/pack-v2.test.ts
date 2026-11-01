@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SongAnalysis } from '../src/audio/song-analysis';
 import { buildPack, WARN_NO_PIANO, WARN_NO_YMT3, WARN_PIANO_ONLY, type BuildInput } from '../src/studio/pack/build';
+import { mergeKeyboard } from '../src/studio/pack/muscriptor';
 import { PACK_VERSION, validatePack, type SongPack } from '../src/studio/pack/pack';
 import type { Ymt3Row } from '../src/studio/pack/tracks';
 import type { Note } from '../src/widgets/types';
@@ -233,5 +234,93 @@ describe('buildPack v2', () => {
     expect(p.notesFrom).toBe('hybrid');
     expect(Object.keys(p.tracks!).length).toBe(6);
     expect(validatePack(p)).toEqual([]);
+  });
+});
+
+describe('a pack with MuScriptor', () => {
+  const LIST = ['violin', 'cello', 'acoustic_piano'];
+  const ms = (rows: Ymt3Row[], keyboard: 'ymt3' | 'muscriptor' | null): NonNullable<BuildInput['muscriptor']> =>
+    ({ rows, levels: rows.map((_, i) => -40 + (i % 30)), model: 'muscriptor-large', seconds: 700, instruments: LIST, keyboard });
+  const strings = rowsOf((i) => ['Violin', 'Cello'][i % 2]);
+  const keys = rowsOf(() => 'Acoustic Piano', 20).map((r): Ymt3Row => [r[0] + 0.1, r[1] + 0.1, r[2], r[3], r[4]]);
+  const withMs = () => buildPack(base(a, {
+    notes: gpu(pianoHalf), kind: 'ensemble', muscriptor: ms([...strings, ...keys], 'ymt3'),
+    ymt3: ymt3([...rowsOf(() => 'Viola', 30), [5, 6, 40, 100, 'Drums']]),
+  }));
+
+  it("accepts ms-hybrid, Track.from and a transcriber's instruments", () => {
+    const p = withMs();
+    expect(p.notesFrom).toBe('ms-hybrid');
+    expect(p.tracks!.violin!.from).toBe('muscriptor');
+    expect(p.tracks!.piano!.from).toBe('ymt3');
+    expect(p.transcribers!.map((t) => t.name)).toEqual(['piano', 'ymt3', 'muscriptor']);
+    expect(p.transcribers![2].instruments).toEqual(LIST);
+    expect(validatePack(p)).toEqual([]);
+  });
+
+  // any: the point is to break the type.
+  const bad = (f: (p: any) => void, field: RegExp) => {
+    const p = withMs();
+    f(p);
+    expect(validatePack(p).join('\n')).toMatch(field);
+  };
+
+  it('rejects a wrong from, an unknown transcriber, a bad instruments list, naming the field', () => {
+    bad((p) => (p.tracks.violin.from = 'bp'), /tracks\.violin\.from/);
+    bad((p) => (p.transcribers[2].name = 'demucs'), /transcribers\[2\]/);
+    bad((p) => (p.transcribers[2].instruments = 'violin'), /transcribers\[2\]\.instruments/);
+    bad((p) => (p.transcribers[2].instruments = ['violin', 3]), /transcribers\[2\]\.instruments/);
+  });
+
+  it('buildPack without muscriptor stays as it was', () => {
+    const rows = rowsOf((i) => ['Violin', 'Cello', 'French Horn', 'Synth Pad'][i % 4]);
+    const p = buildPack(base(a, { notes: gpu(pianoHalf), ymt3: ymt3(rows) }));
+    expect(p.notesFrom).toBe('hybrid');
+    for (const t of Object.values(p.tracks!)) expect('from' in t!).toBe(false);
+    expect(p.transcribers![1]).toEqual({ name: 'ymt3', model: 'yourmt3-moe', seconds: 9, notes: 80 });
+    expect('instruments' in p.transcribers![1]).toBe(false);
+  });
+
+  it('buildPack with muscriptor counts YourMT3+ by its own rows', () => {
+    const t = withMs().transcribers!;
+    // YourMT3's own cleaned rows, drums out, and MuScriptor's own: not the keyboard lane it was merged with.
+    expect(t.find((x) => x.name === 'ymt3')!.notes).toBe(30);
+    expect(t.find((x) => x.name === 'muscriptor')!.notes).toBe(strings.length);
+    const own = buildPack(base(a, { notes: gpu(pianoHalf), kind: 'ensemble', muscriptor: ms([...strings, ...keys], 'muscriptor') }));
+    expect(own.transcribers!.find((x) => x.name === 'muscriptor')!.notes).toBe(strings.length + keys.length);
+    expect(own.tracks!.piano!.from).toBe('muscriptor');
+    expect(own.quality.warnings).not.toContain(WARN_NO_YMT3);
+  });
+
+  it('is ms-hybrid where it would be ymt3: no piano model', () => {
+    const p = buildPack(base(a, { notes: null, kind: 'ensemble', muscriptor: ms(strings, null) }));
+    expect(p.notesFrom).toBe('ms-hybrid');
+    expect(p.quality.warnings).toContain(WARN_NO_PIANO);
+    expect(validatePack(p)).toEqual([]);
+  });
+
+  describe('mergeKeyboard', () => {
+    const msRow: Ymt3Row = [1, 2, 76, 100, 'Violin'];
+    const msPiano: Ymt3Row = [1, 2, 84, 100, 'Acoustic Piano'];
+    const yPiano: Ymt3Row = [0.5, 2, 60, 100, 'Electric Piano'];
+    const yViolin: Ymt3Row = [1, 2, 70, 100, 'Violin'];
+
+    it('leaves the rows as they are with no keyboard in the list', () => {
+      expect(mergeKeyboard([msRow, msPiano], [yPiano, yViolin], ['violin'])).toEqual({ rows: [msRow, msPiano], keyboard: null });
+    });
+    it("swaps MuScriptor's keyboard for YourMT3+'s, and only that", () => {
+      const m = mergeKeyboard([msRow, msPiano], [yViolin, yPiano], ['violin', 'acoustic_piano']);
+      expect(m.keyboard).toBe('ymt3');
+      expect(m.rows).toEqual([yPiano, msRow]);
+    });
+    it("keeps MuScriptor's own without YourMT3+", () => {
+      expect(mergeKeyboard([msRow, msPiano], null, ['violin', 'electric_piano'])).toEqual({ rows: [msRow, msPiano], keyboard: 'muscriptor' });
+    });
+    it('never writes to its input', () => {
+      const rows = [msRow, msPiano], y = [yPiano];
+      mergeKeyboard(rows, y, ['acoustic_piano']);
+      expect(rows).toEqual([msRow, msPiano]);
+      expect(y).toEqual([yPiano]);
+    });
   });
 });

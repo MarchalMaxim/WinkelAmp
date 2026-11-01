@@ -63,6 +63,7 @@ const NOTES_WORDS: Record<SongPack['notesFrom'], string> = {
   hybrid: 'transcribed by the piano model, with YourMT3+ filling its gaps',
   ymt3: 'transcribed by YourMT3+, velocities estimated',
   'bp-hybrid': 'transcribed by the piano model, with basic-pitch filling its gaps',
+  'ms-hybrid': 'transcribed by the piano model, with MuScriptor filling its gaps',
 };
 
 export class Panel {
