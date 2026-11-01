@@ -7,13 +7,16 @@
   // Heat, cold to white-hot: bronze through brass, white kept for the thin needles. A sliver is painted in one bucket, so a
   // frame is a few fills. Painted with 'lighten', not 'lighter': under the harness's 12% fade an additive colour stacks about
   // 8x and clips to lemon, whereas lighten settles on the colour itself, so stacked brass stays brass and edges stay hard.
+  // Only the dim heats keep 'lighten', though: it is the costly mode, and a colour this bright settles the same under plain
+  // paint, a little more of a blast covering what lies under it. PLAIN_HEAT, PLAIN_AIR: from here up, plain paint.
   const HEAT = [[84, 42, 12], [128, 66, 16], [176, 98, 20], [214, 132, 26], [238, 162, 36], [248, 178, 50], [255, 204, 92], [255, 236, 160]]
     .map(([r, g, b], i) => `rgba(${r},${g},${b},${[0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.95][i]})`);
   // The air's dashes by speed: dull and nearly invisible at rest, hot when a blast has them.
   const AIR = [['rgba(74,50,34,0.3)', 1], ['rgba(150,98,44,0.3)', 1], ['rgba(206,134,36,0.42)', 1], ['rgba(238,164,40,0.55)', 1.1], ['rgba(250,178,48,0.65)', 1.35]];
+  const PLAIN_HEAT = 3, PLAIN_AIR = 2, AIR_THINS = 0.5;   // AIR_THINS: how many of the air's dashes a blast's own painting hides
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-  let wedges = [], fronts = [], dashes = [], vx = null, vy = null, ux = null, uy = null;
+  let painting = 0, wedges = [], fronts = [], dashes = [], vx = null, vy = null, ux = null, uy = null;
   let time = 0, sinceFull = 9, shoveX = 0, shoveY = 0, shoveVX = 0, shoveVY = 0;
   let attackVels = null, velsOf = null;
 
@@ -40,7 +43,7 @@
     const n = GW * GH; vx = new Float32Array(n); vy = new Float32Array(n); ux = new Float32Array(n); uy = new Float32Array(n);
   }
   function clearAll() {
-    wedges = []; fronts = []; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0;
+    painting = 0; wedges = []; fronts = []; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0;
     gridReady(); vx.fill(0); vy.fill(0);
     for (const d of dashes) { d.vx = 0; d.vy = 0; }
   }
@@ -221,7 +224,9 @@
       const lazy = (d) => Math.sin(d.y * 0.006 + time * 0.11) * 1.1 + Math.cos(d.x * 0.005 - time * 0.09) * 0.8 - 0.2 + (d.ph - 3.14) * 0.06;
       const want = Math.round(x.p('air') * 1000);
       airReady(x, want);
-      const paths = AIR.map(() => new Path2D());
+      // The long hot dashes were half the climax's raster cost and little of its force: while the slivers are covering the
+      // picture, up to half the dashes aren't drawn (their own fixed half, each still moving; last frame's painting decides).
+      const paths = AIR.map(() => new Path2D()), thin = AIR_THINS * clamp((painting / (W * H) - 0.05) / 0.1, 0, 1);
       for (let n = 0; n < want; n++) {
         const d = dashes[n];
         if (dt > 0) {
@@ -240,20 +245,22 @@
         const sp = Math.hypot(d.vx, d.vy), b = sp < 26 ? 0 : sp < 110 ? 1 : sp < 300 ? 2 : sp < 650 ? 3 : 4;
         const dir = sp > 22 ? Math.atan2(d.vy, d.vx) : lazy(d), len = (9 + Math.min(240, sp * sp / 1500)) * d.sz, c = Math.cos(dir), s = Math.sin(dir);
         const hook = clamp(d.curl * 0.1, -0.3, 0.3) * len * clamp(1 - sp / 500, 0, 1);
+        if (d.ph < 6.28 * thin) continue;
         const p = paths[b]; p.moveTo(d.x, d.y);
         p.quadraticCurveTo(d.x - c * len * 0.5 - s * hook, d.y - s * len * 0.5 + c * hook, d.x - c * len, d.y - s * len);
       }
       g.lineCap = 'round'; g.globalAlpha = bright;
-      AIR.forEach(([col, lw], i) => { g.strokeStyle = col; g.lineWidth = lw; g.stroke(paths[i]); });
+      AIR.forEach(([col, lw], i) => { g.globalCompositeOperation = i >= PLAIN_AIR ? 'source-over' : 'lighten'; g.strokeStyle = col; g.lineWidth = lw; g.stroke(paths[i]); });
 
       // The wedges, batched by heat. A strand runs to its front fast, burns while its note holds, then its back catches up.
-      const buckets = HEAT.map(() => new Path2D());
+      // In paths of eight strands: a smaller path is cheaper to fill.
+      const buckets = HEAT.map(() => []), inBucket = (i) => { const b = buckets[i]; if (!b.length || b.n >= 8) { b.push(new Path2D()); b.n = 0; } b.n++; return b[b.length - 1]; };
       // The front of a full blast: its needles run through the air, which the grid has already laid down behind them.
       for (const f of fronts) for (const q of f.rank) {
         const head = f.s - q.lag, back = head - q.len; if (head < 0 || back > f.end) continue;
         const o = q.o * (260 + head * 0.55), hx = f.mx + f.ax * head + f.nx * o, hy = f.my + f.ay * head + f.ny * o;
         const bx = f.mx + f.ax * back + f.nx * o, by = f.my + f.ay * back + f.ny * o, W2 = q.wd * clamp(1 - head / (f.end * 1.2), 0.3, 1);
-        const p = buckets[q.heat]; p.moveTo(hx, hy); p.lineTo(bx + f.nx * W2, by + f.ny * W2); p.lineTo(bx - f.nx * W2, by - f.ny * W2); p.closePath();
+        const p = inBucket(q.heat); p.moveTo(hx, hy); p.lineTo(bx + f.nx * W2, by + f.ny * W2); p.lineTo(bx - f.nx * W2, by - f.ny * W2); p.closePath();
       }
       // What keeps it from a flat field: newest first, once the slivers would cover about a fifth of the frame the older ones
       // thin out, then drop. It also caps what the climax costs to raster.
@@ -277,12 +284,12 @@
           if (painted > budget * 1.8 && q.wd > 2) continue;
           const scale = squeeze * (q.brief ? 1 - a / q.brief : 1);
           painted += Math.max(0, front - tail) * q.wd * scale * 1.2;
-          strand(buckets[clamp(q.wd > 4 ? Math.min(6, heat) : heat, 0, 7)], w, q, tail, front, a, buffet, scale);
+          strand(inBucket(clamp(q.wd > 4 ? Math.min(6, heat) : heat, 0, 7)), w, q, tail, front, a, buffet, scale);
         }
         if (!live && gone > 0) wedges.splice(i, 1);
       }
-      g.globalAlpha = bright;
-      buckets.forEach((p, i) => { g.fillStyle = HEAT[i]; g.fill(p); });
+      painting = painted; g.globalAlpha = bright;
+      buckets.forEach((b, i) => { g.globalCompositeOperation = i >= PLAIN_HEAT ? 'source-over' : 'lighten'; g.fillStyle = HEAT[i]; for (const p of b) g.fill(p); });
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     },
   });
