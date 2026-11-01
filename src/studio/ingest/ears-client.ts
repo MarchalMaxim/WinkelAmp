@@ -3,7 +3,8 @@
  * and follow the job. 127.0.0.1, not localhost: on Windows localhost can resolve to ::1 first, and ears binds IPv4.
  * `?ears=off` makes the studio act as if it were down, `?ears=<port>` looks for it on another port (checks).
  */
-import { CHECKING_TRANSCRIBER, type Job, type TranscriberStatus } from './ears-types';
+import { CHECKING_TRANSCRIBER, type Job, type ToolStatus, type TranscribeChoices, type TranscriberStatus } from './ears-types';
+import { redoQuery, type RedoChoice } from './transcribe-options';
 
 export const EARS_PORT = 5175;
 /** The upload's share of the progress the studio shows (the server's job is the rest). */
@@ -32,8 +33,19 @@ export async function probeEars(timeoutMs = 800): Promise<TranscriberStatus | nu
 }
 
 /** The server is up but still probing its transcriber (importing torch takes seconds): no verdict yet. */
-export function isChecking(t: TranscriberStatus | null | undefined): boolean {
+export function isChecking(t: TranscriberStatus | ToolStatus | null | undefined): boolean {
   return !!t && !t.ok && t.reason === CHECKING_TRANSCRIBER;
+}
+
+/** What a redo of this song can be, or null: no ears server, an older one without the question, or no such song. */
+export async function transcribeChoices(id: string, timeoutMs = 8000): Promise<TranscribeChoices | null> {
+  const base = earsUrl();
+  if (!base) return null;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${base}/songs/${encodeURIComponent(id)}/transcriptions`, { cache: 'no-store', signal: ctl.signal });
+    return r.ok ? ((await r.json()) as TranscribeChoices) : null;
+  } catch { return null; } finally { clearTimeout(timer); }
 }
 
 export interface SettleOptions {
@@ -121,7 +133,10 @@ export function ingestViaEars(file: File, onJob: (j: Job) => void): Promise<stri
   return start(`name=${encodeURIComponent(file.name)}`, file, onJob);
 }
 
-/** Ingests a song's own recording again (e.g. transcribed notes for an approximate pack); resolves with its id. */
-export function reingestViaEars(id: string, onJob: (j: Job) => void): Promise<string> {
-  return start(`id=${encodeURIComponent(id)}&redo=1`, null, onJob);
+/**
+ * Ingests a song's own recording again (e.g. transcribed notes for an approximate pack), with the transcriber chosen in
+ * the redo dialog if one was; resolves with its id.
+ */
+export function reingestViaEars(id: string, onJob: (j: Job) => void, choice?: RedoChoice): Promise<string> {
+  return start(choice ? redoQuery(id, choice) : `id=${encodeURIComponent(id)}&redo=1`, null, onJob);
 }

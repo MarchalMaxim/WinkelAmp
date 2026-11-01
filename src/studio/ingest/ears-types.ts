@@ -1,4 +1,5 @@
 // Types shared by the ingest CLI, the ears server and the studio (types only, browser-safe).
+import type { MsPreset } from '../pack/muscriptor';
 
 /**
  * One `--progress json` line of `npm run ingest`: progress is 0..1 within the stage; overall is 0..1 over the whole
@@ -20,8 +21,31 @@ export interface ToolStatus { ok: boolean; python: string | null; reason?: strin
 /** The reason /health gives while the ears server is still probing its transcriber (a pending answer, not a verdict). */
 export const CHECKING_TRANSCRIBER = 'checking the transcriber';
 
-/** GET /health of the ears server (api 2: the three tools; api 1 had the transcriber only). */
-export interface EarsHealth { ok: true; api: 2; transcriber: TranscriberStatus; ymt3: ToolStatus; bp: ToolStatus }
+/**
+ * GET /health of the ears server (api 2: the three tools; api 1 had the transcriber only). `muscriptor` is optional and
+ * api stays 2, because probeEars accepts only 1 or 2 and a bump would break a studio from another worktree.
+ */
+export interface EarsHealth { ok: true; api: 2; transcriber: TranscriberStatus; ymt3: ToolStatus; bp: ToolStatus; muscriptor?: ToolStatus }
+
+/** GET /songs/<id>/transcriptions: what a redo of this song can be. */
+export interface TranscribeChoices {
+  /** The song's length, s. */
+  duration: number;
+  /** Which transcriber made the current tracks; null when the song has none. */
+  tracksFrom: 'ymt3' | 'muscriptor' | null;
+  /** The list MuScriptor was given for the current tracks. */
+  instruments: string[] | null;
+  ymt3: ToolStatus;
+  muscriptor: ToolStatus;
+  /** notes.ymt3.json holds this recording. */
+  ymt3Saved: boolean;
+  /** MuScriptor's caches an ingest would read: notes.muscriptor-<8 hex>.json of this recording. */
+  saved: { key: string; instruments: string[]; notes: number; seconds: number }[];
+  /** notes.muscriptor-large.json, which can be imported instead of running the model. */
+  overnight: { lanes: string[]; notes: number; preset: MsPreset } | null;
+  /** A job for this song is queued or running: a Start follows it instead of starting another. */
+  running: boolean;
+}
 
 export interface Job {
   job: string;

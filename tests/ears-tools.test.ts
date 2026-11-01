@@ -31,6 +31,7 @@ describe('/health, api 2', () => {
       probe: async () => ({ ok: true, python: 'py', device: 'cuda' }),
       probeYmt3: async () => noYmt3,
       probeBp: async () => ({ ok: true, python: 'bp-py' }),
+      probeMuscriptor: async () => ({ ok: true, python: 'ms-py' }),
     });
     try {
       await new Promise((r) => setTimeout(r, 20));
@@ -39,6 +40,7 @@ describe('/health, api 2', () => {
         transcriber: { ok: true, python: 'py', device: 'cuda' },
         ymt3: noYmt3,
         bp: { ok: true, python: 'bp-py' },
+        muscriptor: { ok: true, python: 'ms-py' },
       });
     } finally { await ears.close(); }
   });

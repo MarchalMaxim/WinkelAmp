@@ -1,11 +1,15 @@
 /// <reference types="node" />
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startEars } from '../scripts/ears/server';
-import type { Job, TranscriberStatus } from '../src/studio/ingest/ears-types';
+import type { Job, TranscribeChoices, TranscriberStatus } from '../src/studio/ingest/ears-types';
+import { listKey, MS_MODEL, MS_PRESETS } from '../src/studio/pack/muscriptor';
+
+// No test may reach this machine's real MuScriptor (a probe imports torch): a server without a fake finds no config.
+process.env.WINKELAMP_MUSCRIPTOR = join(tmpdir(), 'wa-ears-no-muscriptor', 'muscriptor.json');
 
 // A stand-in for `node --import tsx scripts/ingest.ts …`: prints --progress json lines slowly (so the polls see each
 // state), then writes a pack whose source.sha1 is the input's and says FAKE_WARN in its done line; FAKE_MODE=boom
@@ -44,6 +48,7 @@ let base = '';
 beforeAll(async () => {
   ears = await startEars({
     port: 0, songs, maxBytes: 1024, probe: async () => status, probeYmt3: async () => ({ ok: true, python: 'py' }), probeBp: async () => ({ ok: true, python: 'py' }),
+    probeMuscriptor: async () => ({ ok: true, python: 'ms-py' }),
     runIngest: (args) => {
       const call = { args, start: Date.now(), end: 0 };
       calls.push(call);
@@ -161,6 +166,146 @@ describe('the ears server', () => {
     expect(args).toContain('--force');
     expect(has(args, ['--id', 'a'], ['--notes', 'auto'])).toBe(true);
     expect((await post('id=nope&redo=1', null)).status).toBe(404);
+  });
+
+  describe('choosing the transcriber', () => {
+    /** A finished song with this sha1, as the fake writes one, and its audio. */
+    const song = (id: string, pack: Record<string, unknown> = {}) => {
+      const dir = join(songs, id);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'audio.wav'), 'x');
+      writeFileSync(join(dir, 'pack.json'), JSON.stringify({ id, title: id, audio: 'audio.wav', duration: 720, source: { name: 'a.wav', sha1: 'abc' }, ...pack }));
+      return dir;
+    };
+    const redo = async (q: string) => {
+      const before = calls.length;
+      const r = await post(q, null);
+      expect(r.status).toBe(202);
+      const { job: j } = (await r.json()) as { job: string };
+      const end = (await follow(j)).pop()!;
+      return { end, runs: calls.slice(before).map((c) => c.args) };
+    };
+    const NIGHT = { model: MS_MODEL, instruments: { violin: 1 }, zeroLength: 0,
+      notes: [[1, 2, 60, null, 'cello'], [1, 2, 72, null, 'violin'], [2, 3, 60, null, 'acoustic_piano']] };
+
+    it('reports MuScriptor in /health and stays api 2', async () => {
+      const h = (await (await fetch(`${base}/health`)).json()) as { api: number; muscriptor: { ok: boolean; python: string } };
+      expect(h.api).toBe(2);
+      expect(h.muscriptor).toEqual({ ok: true, python: 'ms-py' });
+    });
+
+    it('passes the engine and list to ingest', async () => {
+      song('ms-a');
+      const { end, runs } = await redo('id=ms-a&redo=1&engine=muscriptor&instruments=baroque');
+      expect(end.state).toBe('done');
+      expect(has(runs[0], ['--instruments-model', 'muscriptor'], ['--instruments', 'baroque'], ['--id', 'ms-a'], ['--notes', 'auto'])).toBe(true);
+      expect(runs[0]).toContain('--force');
+      expect(runs[0]).not.toContain('--muscriptor-notes');
+    });
+
+    it('passes an own list as it understood it', async () => {
+      song('ms-own');
+      const { runs } = await redo(`id=ms-own&redo=1&engine=muscriptor&instruments=${encodeURIComponent('violin, viola')}`);
+      expect(has(runs[0], ['--instruments', 'violin,viola'])).toBe(true);
+    });
+
+    it('runs engine=ymt3 like a redo with no engine', async () => {
+      song('ms-y');
+      const { runs } = await redo('id=ms-y&redo=1&engine=ymt3');
+      expect(runs[0]).not.toContain('--instruments-model');
+      expect(runs[0]).not.toContain('--instruments');
+      expect(runs[0]).toContain('--force');
+    });
+
+    it('refuses MuScriptor without a usable list', async () => {
+      song('ms-b');
+      const before = calls.length;
+      const none = await post('id=ms-b&redo=1&engine=muscriptor', null);
+      expect(none.status).toBe(400);
+      expect(((await none.json()) as { error: string }).error).toMatch(/no instruments given/);
+      const bad = await post('id=ms-b&redo=1&engine=muscriptor&instruments=string_ensemble', null);
+      expect(bad.status).toBe(400);
+      expect(((await bad.json()) as { error: string }).error).toMatch(/string_ensemble/);
+      expect((await post('id=ms-b&redo=1&engine=gpu', null)).status).toBe(400);
+      expect((await post('id=ms-b&redo=1&engine=ymt3&overnight=1', null)).status).toBe(400);
+      expect(calls.length).toBe(before);
+    });
+
+    it('imports the overnight file with overnight=1', async () => {
+      const dir = song('ms-night');
+      const q = 'id=ms-night&redo=1&engine=muscriptor&instruments=baroque&overnight=1';
+      expect((await post(q, null)).status).toBe(404);
+      writeFileSync(join(dir, 'notes.muscriptor-large.json'), JSON.stringify(NIGHT));
+      const { runs } = await redo(q);
+      expect(has(runs[0], ['--muscriptor-notes', join(dir, 'notes.muscriptor-large.json')], ['--instruments', 'baroque'])).toBe(true);
+    });
+
+    it('refuses the overnight file with a list that lacks one of its lanes', async () => {
+      const dir = song('ms-lane');
+      writeFileSync(join(dir, 'notes.muscriptor-large.json'), JSON.stringify(NIGHT));
+      const before = calls.length;
+      const r = await post('id=ms-lane&redo=1&engine=muscriptor&instruments=strings&overnight=1', null);
+      expect(r.status).toBe(400);
+      expect(((await r.json()) as { error: string }).error).toMatch(/acoustic_piano/);
+      expect(calls.length).toBe(before);
+    });
+
+    it('does not carry the MuScriptor flags into the approximate retry', async () => {
+      song('ms-c');
+      mode = 'auto3';
+      try {
+        const { end, runs } = await redo('id=ms-c&redo=1&engine=muscriptor&instruments=strings');
+        expect(end.state).toBe('done');
+        expect(runs.map((a) => a[a.indexOf('--notes') + 1])).toEqual(['auto', 'approx']);
+        expect(runs[0]).toContain('--instruments-model');
+        for (const flag of ['--instruments-model', '--instruments', '--muscriptor-notes']) expect(runs[1]).not.toContain(flag);
+      } finally { mode = 'ok'; }
+    });
+
+    it('follows a busy song with its job, whatever is asked', async () => {
+      song('ms-d');
+      const one = (await (await post('id=ms-d&redo=1&engine=muscriptor&instruments=strings', null)).json()) as { job: string };
+      const two = (await (await post('id=ms-d&redo=1&engine=ymt3', null)).json()) as { job: string };
+      expect(two.job).toBe(one.job);
+      const busy = (await (await fetch(`${base}/songs/ms-d/transcriptions`)).json()) as TranscribeChoices;
+      expect(busy.running).toBe(true);
+      await follow(one.job);
+      expect(((await (await fetch(`${base}/songs/ms-d/transcriptions`)).json()) as TranscribeChoices).running).toBe(false);
+    });
+
+    it('lists the choices of a song', async () => {
+      const dir = song('ms-e', { tracks: { violin: {} }, transcribers: [{ name: 'muscriptor', model: MS_MODEL, seconds: 1, notes: 2, instruments: MS_PRESETS.baroque }] });
+      const cache = { version: 1, sha1: 'abc', model: MS_MODEL, package: '0.4.0', dtype: 'float32', seconds: 600, notes: [[1, 2, 60, 100, 'Violin']] };
+      const write = (list: string[], o: object = {}, key = listKey(list)) =>
+        writeFileSync(join(dir, `notes.muscriptor-${key}.json`), JSON.stringify({ ...cache, instruments: list, ...o }));
+      write(MS_PRESETS.baroque);
+      write(MS_PRESETS.strings, { sha1: 'another recording' });                 // of another recording
+      write(MS_PRESETS.classical, {}, '00000000');                              // its name is not its list
+      writeFileSync(join(dir, 'notes.muscriptor-large.json'), JSON.stringify(NIGHT));
+      writeFileSync(join(dir, 'notes.ymt3.json'), JSON.stringify({ version: 1, sha1: 'abc', notes: [] }));
+      const r = await fetch(`${base}/songs/ms-e/transcriptions`, { headers: { origin: 'http://localhost:5173' } });
+      expect(r.status).toBe(200);
+      expect(r.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
+      expect(await r.json()).toEqual({
+        duration: 720, tracksFrom: 'muscriptor', instruments: MS_PRESETS.baroque, ymt3: { ok: true, python: 'py' }, muscriptor: { ok: true, python: 'ms-py' },
+        ymt3Saved: true, saved: [{ key: listKey(MS_PRESETS.baroque), instruments: MS_PRESETS.baroque, notes: 1, seconds: 600 }],
+        overnight: { lanes: ['violin', 'cello', 'acoustic_piano'], notes: 3, preset: 'baroque' }, running: false,
+      } satisfies TranscribeChoices);
+    });
+
+    it('says what a song without any of it has', async () => {
+      const dir = song('ms-f', { tracks: {} });
+      writeFileSync(join(dir, 'notes.ymt3.json'), JSON.stringify({ version: 1, sha1: 'another recording', notes: [] }));
+      expect(await (await fetch(`${base}/songs/ms-f/transcriptions`)).json()).toMatchObject({ tracksFrom: null, instruments: null, ymt3Saved: false, saved: [], overnight: null });
+      song('ms-g', { tracks: { violin: {} } });
+      expect(await (await fetch(`${base}/songs/ms-g/transcriptions`)).json()).toMatchObject({ tracksFrom: 'ymt3', instruments: null });
+    });
+
+    it('answers 404 for an unknown song and 400 for a bad id', async () => {
+      expect((await fetch(`${base}/songs/nope/transcriptions`)).status).toBe(404);
+      expect((await fetch(`${base}/songs/Bad%20Id/transcriptions`)).status).toBe(400);
+      expect((await fetch(`${base}/songs/%E0%A4%A/transcriptions`)).status).toBe(400);
+    });
   });
 
   it('reports a failed ingest with its error', async () => {
