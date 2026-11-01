@@ -14,6 +14,8 @@
 //  - fast runs make the figure bloom outward and turn (it keeps its shape) instead of flinging dancers anywhere.
 // Every attack still makes the whole company hop toward you on that very frame, and each dancer has echoes that follow
 // it in canon, a step behind and a step deeper. When its time is up a dancer sinks back into the blue.
+// The 'how present' knob tones all of it down: the picture fades toward black, the company moves slowly and hops less, and
+// only the hardest notes of the piece add a dancer. At 1 every factor below is exactly 1, so the picture is the v2 one.
 (() => {
   const TAU = Math.PI * 2;
   let ds = [], rips = [], form = 0, formRot = 0, fcx = 640, fcy = 360, fyOff = 0, glow = 0, lastForm = -1, gradOk = null, lastAt = -9;
@@ -49,8 +51,21 @@
   ];
 
   function knobs(x) {
-    return { scatter: x.p('scatter'), depth: x.p('depth'), echoes: Math.round(x.p('echoes')), snap: x.p('snap'), life: x.p('life') };
+    return { scatter: x.p('scatter'), depth: x.p('depth'), echoes: Math.round(x.p('echoes')), snap: x.p('snap'), life: x.p('life'), pres: x.p('presence') };
   }
+  // how present (0..1): which notes add a dancer, judged against this piece's own notes (recordings differ a lot in how hard
+  // they are played): every one at 1, the hardest half or so at 0.5, the hardest 10% at 0
+  let vels = null;
+  const hardEnough = (v, pres) => {
+    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    const cut = (1 - pres) * 0.9;
+    if (cut <= 0 || !vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= cut;
+  };
+  // a factor that is exactly 1 at full presence and 1 - k with the knob at the left
+  const damp = (pres, k) => 1 - (1 - pres) * k;
+  const GROUND_DIM = 0.7, ALL_DIM = 0.78;   // at the far left: ground 0.3 x 0.22 of its light (near black), shapes 0.22 (faint)
   // the dancers' places: sorted by pitch (then by age), spread evenly along the figure
   function place() {
     const live = ds.filter((d) => !d.gone).sort((a, b) => a.m - b.m || a.born - b.born);
@@ -91,6 +106,9 @@
       ICON.dot(g, w - 5, 6, 3, ICON.red);
     },
     life(g, v, w, h) { ICON.fade(g, w, h, 0.12 + v * 0.88, ICON.gold, 'dot'); },
+    presence(g, v, w, h) {                              // the blue ground with one disc on it, barely there or at full strength
+      ICON.alpha(g, 0.12 + 0.88 * v, () => { ICON.rect(g, 5, 3, w - 10, h - 6, ICON.blue); ICON.dot(g, w / 2, h / 2, 3 + 5 * v, ICON.gold); });
+    },
   };
 
   // one shape's outline (for the landing rings)
@@ -104,7 +122,7 @@
 
   TOOLS.push({
     id: 'fischinger', name: 'Fischinger', tag: 'v2',
-    blurb: 'After Oskar Fischinger\'s Optical Poem: on a deep blue ground, coloured discs, rings and bars swoop in on every note and stand in a figure by pitch (a row, an arch, a ring, a V, a spiral...) that each chord chooses. New in v2: every note lands with a pop and a ring, loud ones fast and bright, soft ones slow and pale; held notes stay lit, a few notes make big shapes and a crowd many small ones, and the figure rises with high music and sinks with low.',
+    blurb: 'After Oskar Fischinger\'s Optical Poem: on a deep blue ground, coloured discs, rings and bars swoop in on every note and stand in a figure by pitch (a row, an arch, a ring, a V, a spiral...) that each chord chooses. New in v2: every note lands with a pop and a ring, loud ones fast and bright, soft ones slow and pale; held notes stay lit, a few notes make big shapes and a crowd many small ones, and the figure rises with high music and sinks with low. A <b>how present</b> knob tones it right down: a few faint, slow shapes nearly lost in black, and only the hardest notes add one.',
     params: [
       { key: 'scatter', label: 'neat lines or scattered', min: 0, max: 1, value: 0.3, drive: '+rate',
         hint: 'What fast runs do to the figure. Left: it keeps its neat lines. Right: every run makes it bloom outward and turn before it springs back.',
@@ -121,27 +139,35 @@
       { key: 'life', label: 'how long they dance', min: 1, max: 10, value: 4,
         hint: 'How long a shape stays in the company before it sinks back into the blue. Left: a second. Right: ten seconds, a big crowd.',
         icon: ICONS.life },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: a few faint, slow shapes nearly lost in black, and only the hardest notes add one. Right: every note lands at full strength on the deep blue (as before).',
+        icon: ICONS.presence },
     ],
-    reset(x) { ds = []; rips = []; form = 0; formRot = 0; fcx = x.W / 2; fcy = x.H / 2; fyOff = 0; glow = 0; lastForm = -1; lastAt = -9; },
+    reset(x) { ds = []; rips = []; form = 0; formRot = 0; fcx = x.W / 2; fcy = x.H / 2; fyOff = 0; glow = 0; lastForm = -1; lastAt = -9; vels = null; },
     onChord(ch, x) {
-      const { scatter, depth, life } = knobs(x);
-      const vk = clamp01((ch.vel - 30) / 80), gap = x.t - lastAt; lastAt = x.t;
+      const { scatter, depth, life, pres } = knobs(x);
+      const vk = clamp01((ch.vel - 30) / 80), gap = x.t - lastAt;
+      // toned down: only the hardest notes are answered, and an attack with none of them does nothing at all
+      const notes = pres < 1 ? ch.notes.filter((n) => hardEnough(n.v, pres)) : ch.notes;
+      if (!notes.length) return;
+      lastAt = x.t;
+      const calm = damp(pres, 0.85), dz = depth * damp(pres, 0.7);
       // a chord (or a loud two-note stroke) calls a formation, chosen by its lowest note: same harmony, same figure
       const big = ch.notes.length >= 3 || (ch.notes.length >= 2 && ch.vel >= 88);
       let moved = false;
       if (big) {
         const was = form;
         form = (((ch.lo % 12) * 5) + (ch.notes.length >= 5 ? 3 : 0)) % FORMS.length;
-        if (form === lastForm && ch.vel >= 95) formRot += Math.PI / 6;   // the same chord again, loud: the figure turns a step
+        if (form === lastForm && ch.vel >= 95) formRot += Math.PI / 6 * calm;   // the same chord again, loud: the figure turns a step
         lastForm = form; moved = form !== was;
       }
       // every attack: the whole company hops toward you on this very frame, more for a loud one
-      for (const d of ds) { if (d.gone || d.arr < 1) continue; d.z = Math.max(0.78, d.z - (0.03 + 0.13 * vk)); d.vz -= 1.1 * vk; }
+      for (const d of ds) { if (d.gone || d.arr < 1) continue; d.z = Math.max(0.78, d.z - (0.03 + 0.13 * vk) * calm); d.vz -= 1.1 * vk * calm; }
       glow = Math.max(glow, vk);
       // fast notes make the figure bloom outward from its centre and turn (it keeps its shape, a little loosened)
       const fast = ch.notes.length <= 2 && gap < 0.22;
       if (fast && scatter > 0.02) {
-        const push = scatter * (0.35 + vk) * x.H * 1.1 * Math.max(0.25, Math.min(1, gap / 0.15));   // a blur of notes: many small pushes
+        const push = scatter * (0.35 + vk) * x.H * 1.1 * Math.max(0.25, Math.min(1, gap / 0.15)) * calm;   // a blur of notes: many small pushes
         for (const d of ds) {
           if (d.gone) continue;
           const ox = d.x - fcx, oy = d.y - fcy, od = Math.hypot(ox, oy) || 1, s = d.spin * 0.25 + 0.75;   // most turn the same way
@@ -150,14 +176,14 @@
         }
       }
       // the new dancers: one per note, swooping in from the depth; loud ones from deeper and faster
-      for (const n of ch.notes) {
+      for (const n of notes) {
         const nv = clamp01((n.v - 30) / 80);
         const kind = n.m < 48 ? 'bar' : n.m < 76 ? 'disc' : 'ring';
         const r = lerp(40, 15, clamp01((n.m - 28) / 72)) * (0.72 + 0.5 * nv);
-        const zFrom = 1 + depth * 7 * (0.45 + 0.55 * nv) + Math.random() * depth * 0.6;
+        const zFrom = 1 + dz * 7 * (0.45 + 0.55 * nv) + Math.random() * dz * 0.6;
         const d = { m: n.m, v: n.v, nv, kind, r, col: colOf(n.m), col2: colOf(n.m + 7), inner: kind === 'disc' && Math.random() < 0.35,
           born: x.t, age: 0, dur: n.d, life: life * (0.75 + 0.5 * nv) * (kind === 'bar' ? 1.15 : 1), gone: false,
-          left: 0, arr: 0, arrT: lerp(0.14, 0.03, nv), zFrom, fl: 0, rel: 0, cs: -1,
+          left: 0, arr: 0, arrT: lerp(0.14, 0.03, nv) / calm, zFrom, fl: 0, rel: 0, cs: -1,
           x: fcx, y: fcy, vx: 0, vy: 0, z: zFrom, vz: 0, u: 0.5, rank: 0, n: 1,
           jx: Math.random() * 2 - 1, jy: Math.random() * 2 - 1, spin: Math.random() < 0.5 ? -1 : 1, echo: [], wait: 0 };
         ds.push(d);
@@ -176,7 +202,8 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt, W = x.W, H = x.H;
-      const { scatter, depth, echoes, snap } = knobs(x);
+      const { scatter, depth, echoes, snap, pres } = knobs(x);
+      const calm = damp(pres, 0.85), size = damp(pres, 0.35);
       // the deep blue ground, a little lighter in the middle, a breath brighter on loud attacks
       glow *= Math.pow(0.5, dt / 0.22);
       if (!gradOk) {
@@ -185,16 +212,19 @@
       }
       g.globalAlpha = 1; g.fillStyle = gradOk; g.fillRect(0, 0, W, H);
       if (glow > 0.02) { g.fillStyle = `rgba(80,120,230,${0.1 * glow})`; g.fillRect(0, 0, W, H); }
+      // toned down: the ground goes dark first, so the shapes still read as faint colour on near-black
+      const groundK = damp(pres, GROUND_DIM);
+      if (pres < 1) { g.fillStyle = `rgba(0,0,0,${1 - groundK})`; g.fillRect(0, 0, W, H); }
 
       // the figure's centre wanders slowly, and rises with high music, sinks with low; the ring and spiral turn
       let live = 0, mSum = 0;
       for (const d of ds) if (!d.gone) { live++; mSum += d.m; }
-      if (live) { const want = clamp01(((mSum / live) - 40) / 44); fyOff += ((0.5 - want) * H * 0.14 - fyOff) * (1 - Math.pow(0.5, dt / 0.7)); }
+      if (live) { const want = clamp01(((mSum / live) - 40) / 44); fyOff += ((0.5 - want) * H * 0.14 * calm - fyOff) * (1 - Math.pow(0.5, dt / 0.7)); }
       fcx = W / 2 + W * 0.07 * Math.sin(x.t * 0.083); fcy = H / 2 + H * 0.04 * Math.sin(x.t * 0.061 + 1);
-      formRot += dt * 0.15;
+      formRot += dt * 0.15 * calm;
       const S = H * 0.3, cs = crowdScale(live);
       // springs: stiffness from 'snap'; slightly under-damped, so arrivals bounce a little
-      const om = lerp(4, 17, snap), zeta = lerp(0.95, 0.42, snap), kS = om * om, kD = 2 * zeta * om;
+      const om = lerp(4, 17, snap) * damp(pres, 0.65), zeta0 = lerp(0.95, 0.42, snap), zeta = zeta0 + (1 - zeta0) * (1 - pres), kS = om * om, kD = 2 * zeta * om;
       const omZ = om * 1.25 + 4, kSz = omZ * omZ, kDz = 2 * 0.45 * omZ;
       const loose = scatter * 0.12;
       for (const d of ds) {
@@ -205,7 +235,7 @@
         if (d.age > d.dur + 0.05) d.rel = Math.min(1, d.rel + dt / 0.5);      // let go: sinks a little into the blue
         const p = FORMS[form](d.u, d.n, d.rank);
         // the company sways together: a slow wave runs along the line, in song time
-        const sw = Math.sin(x.t * 1.7 - d.u * TAU * 0.8) * 0.06, sw2 = Math.cos(x.t * 0.9 - d.u * Math.PI) * 0.035;
+        const sw = Math.sin(x.t * 1.7 - d.u * TAU * 0.8) * 0.06 * calm, sw2 = Math.cos(x.t * 0.9 - d.u * Math.PI) * 0.035 * calm;
         const tx = fcx + (p[0] + d.jx * loose + sw2) * S, ty = fcy + fyOff + (p[1] + d.jy * loose * 0.7 + sw) * S;
         if (d.wait > 0) { d.wait -= dt; d.vx *= Math.pow(0.02, dt); d.vy *= Math.pow(0.02, dt); d.vz += (kSz * (1 - d.z) - kDz * d.vz) * dt; }
         else if (!d.gone) {
@@ -222,9 +252,9 @@
           const e = 1 - Math.pow(1 - d.arr, 3);
           d.z = 1 + (d.zFrom - 1) * (1 - e); d.vz = 0;
           if (d.arr >= 1) {
-            d.z = 1 - 0.24 * d.nv - 0.04; d.vz = 0; d.fl = 0.25 + 0.75 * d.nv;
+            d.z = 1 - 0.24 * d.nv * calm - 0.04 * calm; d.vz = 0; d.fl = (0.25 + 0.75 * d.nv) * calm;
             const k = 1 / d.z, sx = W / 2 + (d.x - W / 2) * k, sy = H / 2 + (d.y - H / 2) * k;
-            rips.push({ x: sx, y: sy, r: d.r * d.cs * k, kind: d.kind, col: d.col, a: d.nv, t: 0, life: 0.4 + 0.45 * d.nv,
+            rips.push({ x: sx, y: sy, r: d.r * d.cs * k * size, kind: d.kind, col: d.col, a: d.nv, t: 0, life: 0.4 + 0.45 * d.nv,
               grow: 1.5 + 2.2 * d.nv * lerp(1, 0.55, clamp01((d.n - 4) / 16)) });
           }
         } else d.z = Math.max(0.7, d.z + d.vz * dt);
@@ -267,12 +297,13 @@
       items.sort((a, b) => b[0].z - a[0].z);
       const vx = W / 2, vy = H / 2;
       for (const [o, d, j, out] of items) {
-        const k = 1 / o.z, sx = vx + (o.x - vx) * k, sy = vy + (o.y - vy) * k, r = d.r * d.cs * k * (1 - 0.14 * d.rel);
+        const k = 1 / o.z, sx = vx + (o.x - vx) * k, sy = vy + (o.y - vy) * k, r = d.r * d.cs * k * (1 - 0.14 * d.rel) * size;
         if (r < 0.6) continue;
         // far away (or an echo, or leaving) = closer to the blue; soft or let-go notes a touch, and let-go ones shrink a little
         const f = clamp01((o.z - 1) / 7) * 0.85 + j * 0.14 + (1 - d.nv) * 0.07 + d.rel * 0.1 + out * 0.9;
         if (f >= 0.98) continue;
-        const gr = ground(sx, sy, W, H), base = fog(d.col, Math.min(0.97, Math.max(0, f)), gr);
+        const gr = ground(sx, sy, W, H); gr[0] *= groundK; gr[1] *= groundK; gr[2] *= groundK;
+        const base = fog(d.col, Math.min(0.97, Math.max(0, f)), gr);
         const c = rgb(j === 0 && d.fl > 0.02 ? lift(base, d.fl * 0.5) : base);
         g.fillStyle = c; g.strokeStyle = c;
         if (d.kind === 'bar') {
@@ -285,6 +316,9 @@
           if (d.inner && j === 0) { g.fillStyle = rgb(fog(d.col2, Math.min(0.97, Math.max(0, f)), gr)); g.beginPath(); g.arc(sx, sy, r * 0.45, 0, TAU); g.fill(); }
         }
       }
+      // and then the whole picture (ground, rings, shapes) fades toward black together. The ground is repainted opaque every
+      // frame, so this never leaves trails.
+      if (pres < 1) { g.fillStyle = `rgba(0,0,0,${ALL_DIM * (1 - pres)})`; g.fillRect(0, 0, W, H); }
     },
   });
 })();

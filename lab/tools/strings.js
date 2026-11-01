@@ -2,8 +2,8 @@
 // Threads lean toward consonant partners and knot up against dissonant ones; each chord braids its
 // notes together at the shuttle's spot and sends bright kinks running away from it; held notes
 // thicken and glow; the hardest, most crowded chords snap a thread and whip the whole weave.
-// The "bend" knob curls the flat loom into arcs and, at 1, into closed woven rings. Five knobs (the 2026-10-31 style);
-// the other five are fixed at the defaults the user accepted (FIX below).
+// The "bend" knob curls the flat loom into arcs and, at 1, into closed woven rings. "How present" tones the whole weave down. Six knobs;
+// the others are fixed at the defaults the user accepted (FIX below).
 (() => {
   const SEG = 200, TAU = Math.PI * 2, LINGER = 0.9, MAXT = 22;
   const DISS = [0, 1, 0.6, 0.18, 0.1, 0.04, 0.85];       // roughness by interval class 0..6
@@ -17,6 +17,24 @@
   const FIX = { spread: 0.7, weight: 1.1, snap: 0.5 };
   const flowOf = (x) => Math.max(0, Math.min(2, 0.45 + 1 * 0.5 * (2 - 0) * x.feat.rate));     // faster → the weave flows quicker
   const pullOf = (x) => Math.max(0, Math.min(1, 0.4 + 1 * 0.5 * (1 - 0) * x.feat.level));     // louder → consonant notes lean closer
+  // how present (0..1): which notes pluck a thread. A note counts by its rank among this piece's notes (recordings differ
+  // a lot in how hard they play): every one at 1, the hardest half at 0.47, the hardest 5% at 0. Threads don't last like
+  // Rorschach's ink, so that alone would leave quiet passages dead; a note also counts by its rank among the notes within
+  // 3 s of it, so each passage keeps answering its own peaks.
+  let vels = null;
+  const hardEnough = (v, x) => {
+    const cut = (1 - x.p('presence')) * 0.95, N = window.NOTES || [];
+    if (cut <= 0 || !N.length) return true;
+    if (!vels) vels = N.map((n) => n[3]).sort((a, b) => a - b);
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    if (a / vels.length >= cut) return true;
+    a = 0; b = N.length; while (a < b) { const k = (a + b) >> 1; if (N[k][0] < x.t - 3) a = k + 1; else b = k; }
+    let less = 0, near = 0;
+    for (let i = a; i < N.length && N[i][0] <= x.t + 3; i++) { near++; if (N[i][3] < v) less++; }
+    return less / Math.max(1, near - 1) >= cut;
+  };
+  const calmOf = (x) => 1 - 0.82 * (1 - x.p('presence'));  // how much of the motion is left: exactly 1 at full presence
+  const inkOf = (x) => 1 - 0.84 * (1 - x.p('presence'));   // how much of the light is left: exactly 1 at full presence
   let th = new Map(), phase = 0, centre = 0.5, shuttle = 0.3, whip = 0, time = 0;
   const hash = (m, k) => { const s = Math.sin(m * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -35,8 +53,8 @@
 
   TOOLS.push({
     id: 'strings', name: 'Woven threads', tag: 'v2',
-    blurb: 'Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Five knobs now, all starting at the defaults you accepted.',
-    // Five knobs (keys, ranges and drives unchanged, so saved settings still apply); the other five are fixed in FIX above.
+    blurb: 'Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Six knobs now, all starting at the defaults you accepted; "how present" tones it all down.',
+    // Keys, ranges and drives of the first five unchanged, so saved settings still apply; the rest are fixed in FIX above.
     params: [
       { key: 'bend', label: 'shape: band → rings', min: 0, max: 1, value: 0.32,
         hint: 'How much the band of threads curls. Left: a straight band across the screen. Middle: an arch. Right: closed woven rings.',
@@ -53,17 +71,21 @@
       { key: 'heat', label: 'colours', min: 0, max: 1, value: 0.5,
         hint: 'The colours of the threads (low notes darker, high notes paler). Left: ink blue and ice. Middle: blood red and bone. Right: ember and gold.',
         icon: (g, v, w, h) => { [0.05, 0.4, 0.75, 1].forEach((p, i) => { const c = palette(p, v); ICON.line(g, 3, 5 + i * 5.3, w - 3, 5 + i * 5.3, `rgb(${c.map(Math.round).join(',')})`, 2.6); }); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: a few faint, nearly still threads, and only the hardest notes pluck one. Right: every note is a thread at full light (as before).',
+        icon: (g, v, w, h) => { ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.wave(g, w, h, 0.06 + 0.5 * v, 1.5, '#c4483c', 1.4); ICON.wave(g, w, h, -(0.06 + 0.5 * v), 1.5, ICON.ink, 1.4); }); } },
     ],
-    reset() { th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
+    reset() { vels = null; th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
     onChord(ch, x) {
       shuttle = (shuttle + 0.19 + x.rnd(0, 0.2)) % 1;    // the shuttle steps across the loom, one stop per attack
-      const u0 = shuttle, notes = [...ch.notes].sort((a, b) => a.m - b.m), n = notes.length;
+      const u0 = shuttle, notes = [...ch.notes].sort((a, b) => a.m - b.m).filter((q) => hardEnough(q.v, x)), n = notes.length;
+      if (!n) return;                                     // too soft for this presence: the weave doesn't answer
       let cp = 0; for (const q of notes) cp += q.m; cp = Math.max(0, Math.min(1, (cp / n - 21) / 87));
       notes.forEach((q, idx) => {
         let s = th.get(q.m);
         if (!s) { if (th.size >= MAXT) { let old = null; for (const o of th.values()) if (!old || o.end < old.end) old = o; th.delete(old.m); } th.set(q.m, (s = make(q.m))); }
         s.end = Math.max(s.end, x.t + Math.max(0.35, q.d)); s.after = 0; s.held = 0; s.v = q.v; s.flash = 1;
-        const A = (6 + 46 * Math.pow(q.v / 115, 2)) * (1 - s.p * 0.45), tau = Math.min(1.8, 0.45 + q.d * 0.35);
+        const A = (6 + 46 * Math.pow(q.v / 115, 2)) * (1 - s.p * 0.45) * calmOf(x), tau = Math.min(1.8, 0.45 + q.d * 0.35);
         for (const dir of [1, -1]) s.pulses.push({ pos: u0 + x.rnd(-0.01, 0.01), dir, A, tau, age: 0 });
         if (s.pulses.length > 8) s.pulses.splice(0, s.pulses.length - 8);
         if (n >= 2) s.braid = { u0, cp, idx, n, age: 0, spin: x.rnd(3, 6) * (Math.random() < 0.5 ? 1 : -1) };
@@ -71,7 +93,7 @@
       // Snap: force times crowding, so the lone fff tolls ring clean and the climax's barrage tears.
       const loud = (ch.vel - 84) / 24, crowd = 0.35 + x.feat.rate * 1.6;
       const score = loud * crowd * (n >= 3 ? 1 : 0.5), ease = FIX.snap;
-      if (ease > 0 && score > 1.2 - ease) {
+      if (ease > 0 && score * x.p('presence') > 1.2 - ease) {
         const k = Math.min(n, 1 + Math.floor(score * 1.5));
         for (let i = 0; i < k; i++) { const s = th.get(notes[Math.floor(Math.random() * n)].m); if (s && !s.snap) s.snap = { u: (u0 + x.rnd(-0.15, 0.15) + 1) % 1, age: 0, A: x.rnd(60, 120) * (Math.random() < 0.5 ? 1 : -1) }; }
         whip = Math.min(1, whip + 0.35 + score * 0.15);
@@ -82,8 +104,9 @@
       time += dt;
       const bend = x.p('bend'), spread = FIX.spread, weave = Math.round(x.p('weave')), sway = x.p('sway'), flow = flowOf(x);
       const pull = pullOf(x), tangle = x.p('tangle'), weight = FIX.weight, heat = x.p('heat');
+      const calm = calmOf(x), ink = inkOf(x), thin = 1 - 0.4 * (1 - x.p('presence'));
       whip *= Math.exp(-dt / 0.55);
-      phase += dt * TAU * (0.08 + flow * 0.3) + whip * dt * 5;
+      phase += dt * TAU * (0.08 + flow * 0.3) * calm + whip * calm * dt * 5;
       // geometry: a strip of length L, rolled around a centre by angle th0 (0 = flat loom, 2π = rings)
       const L = W * 1.12, th0 = bend * TAU, flat = th0 < 0.02;
       const Rc = flat ? 0 : L / th0, cx = W / 2, cy = flat ? 0 : H / 2 + Rc * (1 + Math.cos(th0 / 2)) / 2;
@@ -106,7 +129,7 @@
         const tgt = den ? pull * 0.6 * num / (1 + den) : 0;
         s.shift += (tgt - s.shift) * (1 - Math.exp(-dt / 0.35));
         const harsh = cnt ? Math.max(0, Math.min(1, (rough / cnt - 0.12) / 0.3)) : 0; // average roughness, so big consonant chords stay smooth
-        s.tangle += (harsh * tangle - s.tangle) * (1 - Math.exp(-dt / (harsh ? 0.25 : 0.8)));
+        s.tangle += (harsh * tangle * calm - s.tangle) * (1 - Math.exp(-dt / (harsh ? 0.25 : 0.8)));
       }
       g.lineCap = 'round'; g.lineJoin = 'round';
       for (const s of list) {
@@ -115,17 +138,17 @@
         const rel = Math.min(1, s.after / LINGER), fade0 = 1 - rel;
         if (fade0 <= 0) { th.delete(s.m); continue; }
         s.flash = Math.max(0, s.flash - dt / 0.22);
-        for (const q of s.pulses) { q.age += dt; q.pos += q.dir * dt * (0.18 + flow * 0.42); q.A *= Math.exp(-dt / q.tau); }
+        for (const q of s.pulses) { q.age += dt; q.pos += q.dir * dt * (0.18 + flow * 0.42) * calm; q.A *= Math.exp(-dt / q.tau); }
         s.pulses = s.pulses.filter((q) => q.A > 0.6);
         const b = s.braid; if (b) { b.age += dt; if (b.age > 2.2) s.braid = null; }
         const sn = s.snap; if (sn) { sn.age += dt; if (sn.age > 1.8) s.snap = null; }
         const glow = sounding ? Math.min(1, s.held / 1.6) : glowOf(s);
         const dim = Math.max(0.4, Math.exp(-Math.max(0, s.held - 2.5) / 3)); // a long-held note glows, then slowly sinks back like a piano tone
         s.glowLast = glow;
-        const fade = fade0 * dim;
-        const home = homeOf(s.p) * (1 + rel * 0.5), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8);
-        const kw = 0.03, bw = b ? 0.06 + b.age * 0.08 : 0, bfade = b ? Math.exp(-b.age / 0.7) * Math.min(1, b.age / 0.06) : 0;
-        const bR = b ? 10 + 4 * Math.min(6, b.n) : 0, bHome = b ? homeOf(b.cp) : 0;
+        const fade = fade0 * dim * ink;
+        const home = homeOf(s.p) * (1 + rel * 0.5), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8) * calm;
+        const kw = 0.03, bw = b ? 0.06 + b.age * 0.08 : 0, bfade = b ? Math.exp(-b.age / 0.7) * Math.min(1, b.age / 0.06) * calm : 0;
+        const bR = b ? (10 + 4 * Math.min(6, b.n)) * calm : 0, bHome = b ? homeOf(b.cp) : 0;
         const gapH = sn ? 0.035 * (sn.age < 0.06 ? sn.age / 0.06 : Math.exp(-(sn.age - 0.06) / 0.6)) : 0;
         const pts = s.pts;
         for (let i = 0; i <= SEG; i++) {
@@ -145,8 +168,8 @@
           if (sn) {
             const d = wrap(u - sn.u), ad = Math.abs(d), sg = d < 0 ? -1 : 1;
             if (ad < gapH) { pts[i * 2] = NaN; continue; }
-            Y += sn.A * Math.exp(-ad / 0.09) * Math.exp(-sn.age / 0.45) * Math.sin(sn.age * 24 - ad * 50) * sg;
-            X -= sg * 70 * Math.exp(-ad / 0.06) * Math.exp(-sn.age / 0.35);
+            Y += sn.A * calm * Math.exp(-ad / 0.09) * Math.exp(-sn.age / 0.45) * Math.sin(sn.age * 24 - ad * 50) * sg;
+            X -= sg * 70 * calm * Math.exp(-ad / 0.06) * Math.exp(-sn.age / 0.35);
           }
           if (flat) { pts[i * 2] = cx + X - L / 2; pts[i * 2 + 1] = H / 2 + Y; }
           else { const a = (X / L - 0.5) * th0, r = Rc - Y * sc; pts[i * 2] = cx + r * Math.sin(a); pts[i * 2 + 1] = cy - r * Math.cos(a); }
@@ -164,7 +187,7 @@
         };
         const base = palette(s.p, heat), exc = Math.min(1, s.flash * 0.7 + glow * 0.2);
         const col = `rgb(${Math.round(lerp(base[0], 255, exc * 0.55))},${Math.round(lerp(base[1], 244, exc * 0.55))},${Math.round(lerp(base[2], 228, exc * 0.55))})`;
-        const w = lerp(5, 0.9, Math.pow(s.p, 0.6)) * (0.35 + 0.65 * Math.min(1.1, s.v / 105)) * weight * (1 + 1.1 * glow) * (1 + s.flash * 0.4);
+        const w = lerp(5, 0.9, Math.pow(s.p, 0.6)) * (0.35 + 0.65 * Math.min(1.1, s.v / 105)) * weight * (1 + 1.1 * glow) * (1 + s.flash * 0.4) * thin;
         trace(0, SEG);
         // held notes swell and glow
         g.globalCompositeOperation = 'lighter';
@@ -180,7 +203,7 @@
         }
         // the torn ends spark
         if (sn && sn.age < 0.7) {
-          g.fillStyle = 'rgb(255,240,210)'; g.globalAlpha = 1 - sn.age / 0.7;
+          g.fillStyle = 'rgb(255,240,210)'; g.globalAlpha = (1 - sn.age / 0.7) * ink;
           for (const sg of [-1, 1]) {
             const i = ((Math.round((sn.u + sg * (gapH + 0.004)) * SEG) % SEG) + SEG) % SEG, px = pts[i * 2];
             if (px === px) { g.beginPath(); g.arc(px, pts[i * 2 + 1], 2 + w * 0.8, 0, TAU); g.fill(); }

@@ -2,6 +2,8 @@
 // crescents, tears, commas, chevrons, needles) that freeze, tremble, then bolt with a speed curve t^exp, smearing into
 // streaks and heating up (dark → hot → white) as they go. Musical threats scatter them: a bass hit rises from the
 // bottom at the bass note's x, a loud chord bursts in the middle of the flock, a melody leap blows up the old spot.
+// A sixth knob, how present (the user, 2026-11-01: the sliders only boost): turned down, the shapes and streaks fade and
+// cool, flight slows, they barely tremble, and only the hardest notes and attacks of the song call them up or scatter them.
 (() => {
   const TYPES = ['dot', 'oval', 'ring', 'crescent', 'tear', 'comma', 'chevron', 'needle']; // round → sharp
   // Palettes: heat 0..1 ramps through four [hue, sat, light] stops.
@@ -89,9 +91,28 @@
   // as knobs, computed exactly as the harness's x.p does at its default depth 0.5, so the widget moves as before.
   const drv = (x, base, min, max, sign, f) => Math.max(min, Math.min(max, base + sign * 0.5 * (max - min) * (x.feat[f] - 0)));
   const hesOf = (x) => drv(x, 0.55, 0, 1.2, -1, 'rate');     // how long a new shape freezes (s); shorter when the music is fast
-  const threatOf = (x) => drv(x, 0.8, 0, 2, 1, 'bass');      // how hard they scatter from a threat; harder with more bass
+  const threatOf = (x) => drv(x, 0.8, 0, 2, 1, 'bass') * x.p('presence'); // how hard they scatter from a threat; harder with more bass
   const REG = 57;                                             // notes from A3 up spawn shapes
   const FLOCK = 0.5;                                          // half loners, half schools
+  // how present (0..1): which attacks count, judged against this piece's own (recordings differ a lot in how hard they
+  // play): every one at 1, the hardest two thirds at 0.5, the hardest 10% at 0. The lists are only built once the knob is down.
+  let hiVels = null, chordVels = null;
+  const cutOf = (pres) => Math.pow(1 - pres, 1.5) * 0.9;
+  const atLeast = (list, v, cut) => {
+    if (!list.length) return true;
+    let a = 0, b = list.length; while (a < b) { const k = (a + b) >> 1; if (list[k] < v) a = k + 1; else b = k; }
+    return a / list.length >= cut;
+  };
+  const hardNote = (v, cut) => {
+    if (cut <= 0) return true;
+    if (!hiVels) hiVels = (window.NOTES || []).filter((n) => n[2] >= REG).map((n) => n[3]).sort((a, b) => a - b);
+    return atLeast(hiVels, v, cut);
+  };
+  const hardChord = (v, cut) => {
+    if (cut <= 0) return true;
+    if (!chordVels) chordVels = (typeof CHORDS !== 'undefined' ? CHORDS : []).map((c) => c.vel).sort((a, b) => a - b);
+    return atLeast(chordVels, v, cut);
+  };
 
   // Knob pictures: small versions of the shapes, pointing right, in the ember colours.
   const EMB = (h, a = 1) => ramp(0, h, a);
@@ -128,9 +149,9 @@
 
   TOOLS.push({
     id: 'flee', name: 'Skittish shapes', tag: 'v3',
-    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers.',
+    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers. Turn <b>how present</b> down to tone it right down: faint, slow shapes that only the hardest notes call up.',
     params: [
-      // Five knobs; keys, ranges, defaults and drives are unchanged from v3, so saved settings still apply.
+      // Six knobs: the five of v3 (keys, ranges, defaults and drives unchanged, so saved settings still apply) and how present.
       { key: 'mix', label: 'round or sharp shapes', min: 0, max: 1, value: 0.45,
         hint: 'Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles.',
         icon: (g, v, w, h) => { const c = Math.round(v * 7), col = EMB(0.62);
@@ -158,15 +179,23 @@
         hint: 'The colours, from cool and dark when still to hot and bright when fleeing. Left: ember (red to yellow). Then ice (blue), bone (pale), and right: venom (violet to pink).',
         icon: (g, v, w, h) => { const pal = Math.round(v * 3), n = 10, sw = (w - 6) / n;
           for (let i = 0; i < n; i++) ICON.rect(g, 3 + i * sw, 5, Math.ceil(sw), h - 10, ramp(pal, i / (n - 1))); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much of the picture it takes. Left: a few faint shapes that hardly move, called up only by the hardest notes. Right: every high note at full strength (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const hx = w / 2 + 4 + 8 * v, y = h / 2, L = v * (w - 16);
+          if (L > 1) { const gr = g.createLinearGradient(hx, 0, hx - L, 0); gr.addColorStop(0, EMB(0.75, 0.9)); gr.addColorStop(1, EMB(0.2, 0));
+            g.fillStyle = gr; g.beginPath(); g.moveTo(hx, y - 3); g.lineTo(hx - L, y - 0.4); g.lineTo(hx - L, y + 0.4); g.lineTo(hx, y + 3); g.fill(); }
+          mini(g, 'oval', hx, y, 6 + 6 * v, EMB(0.45 + 0.45 * v)); }) },
     ],
     reset() {
-      shapes = []; threats = []; chain = null; idle = 9; panic = 0; avgVel = 75; prevHi = -1; prevHiT = -9;
+      shapes = []; threats = []; chain = null; idle = 9; panic = 0; avgVel = 75; prevHi = -1; prevHiT = -9; hiVels = null; chordVels = null;
       cool = { bass: 0, loud: 0, leap: 0 }; last = { x: 640, y: 760 }; burst = null;
     },
     onChord(ch, x) {
       const reg = REG, resp = threatOf(x);
       const loudCut = avgVel + 12;
       avgVel += (ch.vel - avgVel) * 0.04;
+      // how present: a soft attack is still heard (the averages above, the melody below) but does nothing visible.
+      const pres = x.p('presence'), cut = cutOf(pres), hard = hardChord(ch.vel, cut);
 
       // Flock centre (or the spawn cluster) for the burst.
       let cx = 0, cy = 0; for (const s of shapes) { cx += s.x; cy += s.y; }
@@ -175,16 +204,18 @@
       // Threats, each with its own place so you can read the cause.
       if (ch.vel >= loudCut && ch.notes.length >= 3 && time - cool.loud > 0.25) {
         cool.loud = time; const bx = cx + x.rnd(-30, 30), by = cy + x.rnd(-30, 30);
-        addThreat(x, 'loud', bx, by, 300 + 200 * resp, 2);
-        burst = { x: bx, y: by, n: Math.min(9, 2 + ch.notes.length) };
+        if (hard) {
+          addThreat(x, 'loud', bx, by, 300 + 200 * resp, 2);
+          burst = { x: bx, y: by, n: Math.max(1, Math.round(Math.min(9, 2 + ch.notes.length) * pres)) };
+        }
       } else if (ch.lo < 50 && ch.vel >= avgVel - 4 && time - cool.bass > 0.2) {
         cool.bass = time;
         const bx = x.W * (0.1 + 0.8 * Math.max(0, Math.min(1, (ch.lo - 24) / 26)));
-        addThreat(x, 'bass', bx, x.H + 60, 340, 1.2, -520);
+        if (hard) addThreat(x, 'bass', bx, x.H + 60, 340, 1.2, -520);
       }
       const hiNote = ch.hi >= reg ? ch.hi : -1;
       if (hiNote > 0 && prevHi > 0 && Math.abs(hiNote - prevHi) >= 7 && time - prevHiT < 1.5 && time - cool.leap > 0.3 && chain) {
-        cool.leap = time; addThreat(x, 'leap', chain.x, chain.y, 240, 1.2);
+        cool.leap = time; if (hard) addThreat(x, 'leap', chain.x, chain.y, 240, 1.2);
         // The melody jumps: the next cluster starts far away, up or down with the leap.
         const p = Math.max(0, Math.min(1, (hiNote - reg) / 30));
         let nx = x.rnd(x.W * 0.15, x.W * 0.85); if (Math.abs(nx - chain.x) < 300) nx = chain.x < x.W / 2 ? chain.x + 380 : chain.x - 380;
@@ -193,10 +224,10 @@
       if (hiNote > 0) { prevHi = hiNote; prevHiT = time; }
 
       // Every attack: the frozen ones flinch (a hop and a glance), so the onset is visible even when nothing new spawns.
-      const tw = x.p('twitch');
-      for (const s of shapes) if (s.tb < 0 || Math.random() < 0.3) {
-        const j = (2 + 10 * tw) * (s.tb < 0 ? 1 : 0.4);
-        s.x += x.rnd(-j, j); s.y += x.rnd(-j, j); s.off = x.rnd(0.3, 0.6 + 1.2 * tw) * sgn(); s.flash = Math.max(s.flash, 0.25);
+      const tw = x.p('twitch') * pres;
+      if (hard) for (const s of shapes) if (s.tb < 0 || Math.random() < 0.3) {
+        const j = (2 + 10 * tw) * (s.tb < 0 ? 1 : 0.4) * pres;
+        s.x += x.rnd(-j, j); s.y += x.rnd(-j, j); s.off = x.rnd(0.3, 0.6 + 1.2 * tw) * sgn() * pres; s.flash = Math.max(s.flash, 0.25 * pres);
       }
 
       // A loud chord throws out a ring of shapes already running.
@@ -215,7 +246,7 @@
       const highs = ch.notes.filter((n) => n.m >= reg).sort((a, b) => a.m - b.m).slice(panic > 0.5 ? -6 : -4);
       const mix = x.p('mix');
       for (const n of highs) {
-        if (shapes.length >= 110 || Math.random() > pSpawn) continue;
+        if (shapes.length >= 110 || Math.random() > pSpawn || !hardNote(n.v, cut)) continue;
         const p = Math.max(0, Math.min(1, (n.m - reg) / 30));
         const size = (16 + 26 * n.v / 110) * (1.25 - 0.5 * p) * x.rnd(0.7, 1.4);
         const pitchY = x.H * (0.82 - 0.64 * p);
@@ -246,7 +277,8 @@
       const g = x.g, dt = x.dt;
       time += dt; idle += dt; budget = 4;
       panic += (smooth(0.12, 0.6, x.feat.rate) - panic) * (1 - Math.pow(0.5, dt / 0.4));
-      const e = x.p('exp'), tw = x.p('twitch'), streak = x.p('streak'), resp = threatOf(x), flock = FLOCK;
+      const pres = x.p('presence'), fade = 1 - 0.84 * (1 - Math.pow(pres, 1.5)), slow = 1 - 0.8 * (1 - pres); // both exactly 1 at the default
+      const e = x.p('exp'), tw = x.p('twitch') * pres, streak = x.p('streak'), resp = threatOf(x), flock = FLOCK;
       const pal = Math.round(x.p('pal'));
 
       // Threats: move (bass ones rise), age, push.
@@ -282,11 +314,11 @@
         }
         // Twitch: sudden jerks of heading that snap back.
         s.off *= Math.pow(0.5, dt / (0.06 + 0.1 * (1 - tw)));
-        if (s.tb > 0 && Math.random() < dt * (0.5 + 9 * tw)) s.off = x.rnd(0.3, 0.4 + 1.1 * tw) * sgn();
+        if (s.tb > 0 && Math.random() < dt * (0.5 + 9 * tw)) s.off = x.rnd(0.3, 0.4 + 1.1 * tw) * sgn() * pres;
         // Speed: pos = D (t/T)^e, so speed = e D t^(e-1) / T^e.
         let v = 0;
-        if (s.tb > 0) v = Math.min(3200, e * s.D * Math.pow(s.tb, e - 1) / Math.pow(s.T, e));
-        else { const j = (0.6 + 3 * tw) * Math.min(1.5, dt * 60); s.x += x.rnd(-j, j); s.y += x.rnd(-j, j); }
+        if (s.tb > 0) v = Math.min(3200, e * s.D * Math.pow(s.tb, e - 1) / Math.pow(s.T, e)) * slow;
+        else { const j = (0.6 + 3 * tw) * Math.min(1.5, dt * 60) * pres; s.x += x.rnd(-j, j); s.y += x.rnd(-j, j); }
         s.speed = v;
         const head = s.h + s.off; s.head = head;
         s.x += Math.cos(head) * v * dt; s.y += Math.sin(head) * v * dt;
@@ -297,13 +329,13 @@
 
       // Threat marks: a dark void that pushes the trails away, and a thin ring for the loud ones.
       for (const t of threats) {
-        const k = t.age / t.life, r = t.R * (0.25 + 0.75 * (1 - Math.pow(1 - Math.min(1, k * 2.2), 3))), a = (1 - k) * Math.min(1, resp + 0.2);
+        const k = t.age / t.life, r = t.R * (0.25 + 0.75 * (1 - Math.pow(1 - Math.min(1, k * 2.2), 3))), a = (1 - k) * Math.min(1, resp + 0.2) * fade;
         const gr = g.createRadialGradient(t.x, t.y, 0, t.x, t.y, r * 0.8);
         gr.addColorStop(0, `rgba(0,0,0,${0.55 * a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
         g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = gr;
         g.beginPath(); g.arc(t.x, t.y, r * 0.8, 0, Math.PI * 2); g.fill();
         if (t.kind === 'loud' && t.age < 0.12) { // one crisp hairline on the attack, gone before it can ripple
-          g.strokeStyle = ramp(pal, 0.8, 0.7 * (1 - t.age / 0.12)); g.lineWidth = 1.5;
+          g.strokeStyle = ramp(pal, 0.8, 0.7 * (1 - t.age / 0.12) * fade); g.lineWidth = 1.5;
           g.beginPath(); g.arc(t.x, t.y, 30 + t.age * 1400, 0, Math.PI * 2); g.stroke();
         }
       }
@@ -312,7 +344,7 @@
       for (const s of shapes) {
         const fin = Math.min(1, s.age / 0.05), fout = Math.min(1, (7 - s.age) / 1);
         const heat = Math.min(1, Math.max(s.heat, s.flash)), hb = Math.round(heat * (HB - 1));
-        const a = s.al * fin * fout * (0.45 + 0.55 * heat);
+        const a = s.al * fin * fout * (0.45 + 0.55 * heat) * fade;
         if (a <= 0.01) continue;
         const c = Math.cos(s.head), sn = Math.sin(s.head);
         const L = streak * s.speed * 0.09;

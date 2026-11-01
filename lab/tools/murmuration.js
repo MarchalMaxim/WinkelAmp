@@ -5,6 +5,9 @@
 // make. Major chords are plain straight-edged shapes, minor chords curl inward into stars, other chords swell round; two
 // notes make a lens, one note a clock hand with a ring. A spoke from the centre always points at the bass note. So the
 // same chord always gives the same figure, a new key turns it, and a repeated progression repeats its figures.
+// A sixth knob, how present (the user, 2026-11-01: sliders that can only boost should also dim): turned down, a thin few
+// faint birds on short streaks, barely startled, and only this song's hardest chords pull them into a figure. At 1 it is
+// the flock as it always was; the mood and the melody still steer it all the way down.
 (() => {
   const N = 900, HM = 16, MS = 96, SPAN = 7;
   const px = new Float32Array(N), py = new Float32Array(N), vx = new Float32Array(N), vy = new Float32Array(N);
@@ -75,6 +78,28 @@
     const ax = x.W * 0.5 + Math.sin(time * 0.23) * x.W * 0.16, ay = x.H * 0.5 + Math.sin(time * 0.31 + 1) * x.H * 0.1;
     ggx[gi] = Math.max(60, Math.min(x.W - 60, ax + x.rnd(-1, 1) * 300)); ggy[gi] = Math.max(60, Math.min(x.H - 60, ay + x.rnd(-1, 1) * 170)); gth[gi] += x.rnd(-1.6, 1.6);
   }
+  // how present (0..1): which chords it answers, judged against this song's own chords (recordings differ a lot in how
+  // hard they play). A startle needs a chord in the hardest 5% at 0, every chord at 1; a figure likewise needs the hardest
+  // 3% of the chords that clear the "which chords re-form it" bar, so the whole slider acts wherever that knob stands.
+  let chordVels = null, chordScores = null;
+  const figureScore = (c) => c.vel + 3 * (c.notes.length - 3);
+  const atOrBelow = (a, v) => { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] <= v) lo = m + 1; else hi = m; } return lo; };
+  function readSong() {
+    const all = typeof CHORDS !== 'undefined' ? CHORDS : [], up = (a, b) => a - b;
+    chordVels = all.map((c) => c.vel).sort(up);
+    chordScores = all.filter((c) => c.notes.length >= 2 && c.hi >= 60).map(figureScore).sort(up);
+  }
+  const startles = (vel, pres) => {
+    if (pres >= 1) return true;
+    if (!chordVels) readSong();
+    return !chordVels.length || atOrBelow(chordVels, vel) / chordVels.length >= (1 - pres) * 0.95;
+  };
+  const figures = (score, bar, pres) => {
+    if (pres >= 1) return true;
+    if (!chordScores) readSong();
+    const under = atOrBelow(chordScores, bar - 1e-6), over = chordScores.length - under;
+    return over <= 0 || (atOrBelow(chordScores, score) - under) / over >= (1 - pres) * 0.97;
+  };
   // Knob pictures.
   const BONE = '#a8b4c8', TRI = [0, 4, 7]; // C major on the clock, for the icons
   const triIcon = (g, w, h, spread, col) => {
@@ -110,10 +135,13 @@
       { key: 'bleed', label: 'red on loud notes', min: 0, max: 1, value: 0.6, drive: '+level',
         hint: 'How much loud notes stain the flock red. Left: it stays pale. Right: blood red, white-hot on the biggest chords.',
         icon: (g, v, w, h) => { for (let k = 0; k < 5; k++) ICON.line(g, 4 + k * 7, h - 5, 9 + k * 7, 5, ICON.lerp('#a8b4c8', '#d01e22', v * (0.3 + 0.7 * k / 4)), 2.2); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much the flock takes over. Left: a few faint birds, calm, and only the hardest chords pull them into a figure. Right: the whole flock at full strength (as before).',
+        icon: (g, v, w, h) => { const R = ICON.rng(5), n = 3 + Math.round(v * 11); ICON.alpha(g, 0.5 + 0.5 * v, () => { for (let k = 0; k < 14; k++) { const x = 4 + R() * (w - 12), y = 4 + R() * (h - 8), l = 4 + v * 3; if (k < n) ICON.line(g, x, y, x + l, y - l * 0.4, BONE, 1 + 0.4 * v); } }); } },
     ],
     reset(x) {
       time = x.t; A = 0; bassS = 0; low = 0; phase = 0; agit = 0; dread = 1; lastT = -99; pulse = 0; notes = []; nChord = 0;
-      formHold = 0; sinceStrike = 9; lastStrike = -9; calm = 1; sig = ''; fpulse = 0; hp = 0;
+      formHold = 0; sinceStrike = 9; lastStrike = -9; calm = 1; sig = ''; fpulse = 0; hp = 0; chordVels = null; chordScores = null;
       for (let i = 0; i < N; i++) {
         U0[i] = (i + Math.random() * 0.6) / N; S0[i] = (Math.random() * 2 - 1) * Math.sqrt(Math.random()); R0[i] = Math.random(); A0[i] = Math.random(); D0[i] = Math.random();
         const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 90;
@@ -129,11 +157,13 @@
       if (notes.length > 400) notes.splice(0, 200);
       if (ch.hi < 62 && ch.vel > 70) low = 1;
       const w = Math.max(0, Math.min(1, (ch.vel - 45) / 60)), n = ch.notes.length;
-      const panic = Math.min(2, 1 + x.feat.rate), bleed = x.p('bleed');
+      // Turned down it answers less hard and stains less. The mood above keeps listening to every chord.
+      const pres = x.p('presence'), live = 1 - 0.9 * (1 - pres);
+      const panic = Math.min(2, 1 + x.feat.rate), bleed = x.p('bleed') * live;
       let mean = 0; for (const q of ch.notes) mean += q.m; mean /= n;
       // A loud chord that reaches above middle C: the flock re-forms into that chord's figure, on the attack.
-      const score = ch.vel + 3 * (n - 3);
-      if (score >= 112 - 30 * x.p('strike') && n >= 2 && ch.hi >= 60 && x.t - lastStrike > 0.2) {
+      const score = figureScore(ch), bar = 112 - 30 * x.p('strike');
+      if (score >= bar && n >= 2 && ch.hi >= 60 && x.t - lastStrike > 0.2 && figures(score, bar, pres)) {
         const c = readChord(ch), same = c.sig === sig && formHold > 0.05;
         calm = ss(0.7, 2.2, x.t - lastStrike); // after a quiet spell it explodes first; in a fast run it glides figure to figure
         lastStrike = x.t; sinceStrike = 0; formHold = 1; sig = c.sig;
@@ -141,8 +171,8 @@
         const reg = Math.max(0, Math.min(1, (mean - 48) / 36));
         fsc = Math.min(x.H * 0.36, 125 + 100 * w + Math.min(8, n) * 4);
         fcx = x.W * 0.5; fcy = Math.max(fsc + 24, Math.min(x.H - fsc - 24, x.H * (0.58 - 0.16 * reg)));
-        if (same) { fpulse = 1; calm = 0; } else buildFigure(c);
-        const pow = (same ? 2.5 : 1.5 + calm * (4 + w * 9)) * (0.6 + 0.4 * panic);
+        if (same) { fpulse = live; calm = 0; } else buildFigure(c);
+        const pow = (same ? 2.5 : 1.5 + calm * (4 + w * 9)) * (0.6 + 0.4 * panic) * live;
         const ox = same ? fcx : ccx, oy = same ? fcy : ccy;
         for (let i = 0; i < N; i++) {
           let dx = px[i] - ox, dy = py[i] - oy; const d = Math.hypot(dx, dy) + 1; dx /= d; dy /= d;
@@ -152,13 +182,14 @@
         }
         return;
       }
+      if (!startles(ch.vel, pres)) return;
       // Otherwise a startle where the note lands: on a figure, at the note's own hour on its clock; in song, at the head of
       // the melody ribbon; else at a bird picked by pitch.
       const j = Math.max(0, Math.min(N - 1, ((mean - 28) / 70 * N) | 0));
       const wf = Math.min(1, formHold * 1.7), sing = Math.max(0, 1 - agit - dread) * (1 - wf);
       let lx = px[j] + (headX - px[j]) * sing, ly = py[j] + (headY - py[j]) * sing;
       lx += (fcx + clockX(ch.hi % 12) * fsc - lx) * wf; ly += (fcy + clockY(ch.hi % 12) * fsc - ly) * wf;
-      const R = (70 + w * 200) * (0.6 + 0.4 * panic) * (1 - 0.35 * wf), P = (0.3 + w * w * 5) * panic * (1 - 0.65 * dread) * (1 - 0.4 * agit) * (1 - 0.4 * wf);
+      const R = (70 + w * 200) * (0.6 + 0.4 * panic) * (1 - 0.35 * wf), P = (0.3 + w * w * 5) * panic * (1 - 0.65 * dread) * (1 - 0.4 * agit) * (1 - 0.4 * wf) * live;
       for (let i = 0; i < N; i++) {
         const dx = px[i] - lx, dy = py[i] - ly, d2 = dx * dx + dy * dy;
         if (d2 > R * R) continue;
@@ -167,7 +198,7 @@
         heat[i] = Math.min(1.6, heat[i] + bleed * w * f * 1.3);
       }
       // Dread: the knot throbs and darkens to blood.
-      if (ch.hi < 60 || dread > 0.4) { pulse = Math.max(pulse, w); for (let i = 0; i < N; i++) heat[i] = Math.min(1.6, heat[i] + bleed * w * 0.5 * dread); }
+      if (ch.hi < 60 || dread > 0.4) { pulse = Math.max(pulse, w * live); for (let i = 0; i < N; i++) heat[i] = Math.min(1.6, heat[i] + bleed * w * 0.5 * dread); }
       // Agitation: a shard jumps somewhere else.
       kickShard(x, nChord % K);
     },
@@ -175,6 +206,8 @@
       const g = x.g, dt = x.dt, k = dt * 60, W = x.W, H = x.H;
       time += dt; sinceStrike += dt;
       const coh = x.p('tight'), panic = Math.min(2, 1 + x.feat.rate);
+      // How present: every factor is exactly 1 at the top of the slider, so the flock there is the flock as it always was.
+      const pres = x.p('presence'), off = 1 - pres, live = 1 - 0.9 * off, glide = 1 - 0.9 * off, drift = 1 - 0.7 * off, ink = 1 - 0.75 * off, thin = 1 - 0.4 * off, flock = 1 - 0.75 * off * off;
       // Mood from the music: attack rate → agitation; held bass with few attacks → dread.
       A *= Math.pow(0.5, dt / 1.2);
       bassS += (x.feat.bass - bassS) * (1 - Math.pow(0.5, dt / 1.5));
@@ -219,10 +252,10 @@
       const fs = fsc * (1 + 0.13 * fpulse), fth = (1.5 + 13 * (1 - coh)) * (1 + 0.6 * fpulse);
 
       // In a figure the birds are pulled in harder (and damped) so a new chord's shape is legible within a third of a second.
-      const ks = (0.004 + 0.03 * coh) * (1 + 0.6 * wd) * (1 + 2 * wa) * rest + wf * (0.05 + 0.07 * coh);
+      const ks = ((0.004 + 0.03 * coh) * (1 + 0.6 * wd) * (1 + 2 * wa) * rest + wf * (0.05 + 0.07 * coh)) * glide;
       const dN = Math.pow(0.86 - 0.16 * wd - 0.1 * wa - 0.1 * wf, k), dB = Math.pow(0.9, k);
-      const turb = (0.03 + 0.1 * panic * (0.4 + wa)) * (1 - 0.6 * wf) * k, jit = wa * panic * 1.4 * k;
-      phase += ws * dt / SPAN;
+      const turb = (0.03 + 0.1 * panic * (0.4 + wa)) * (1 - 0.6 * wf) * k * live, jit = wa * panic * 1.4 * k * live;
+      phase += ws * dt / SPAN * drift; // turned down, the birds drift slower along the same melody line
       let sx = 0, sy = 0; const hd = Math.pow(0.5, dt / 0.55);
       hp = (hp + 1) % HM;
       for (let i = 0; i < N; i++) {
@@ -265,7 +298,7 @@
         hx[i * HM + hp] = px[i]; hy[i * HM + hp] = py[i];
         sx += px[i]; sy += py[i];
         heat[i] *= hd;
-        bin[i] = Math.min(3, (heat[i] * 3.2) | 0);
+        bin[i] = D0[i] < flock ? Math.min(3, (heat[i] * 3.2) | 0) : 4; // 4: flown but not drawn, the stroke loop has no such bin
       }
       ccx = sx / N; ccy = sy / N;
 
@@ -278,17 +311,17 @@
       // Heat cools from a white flash through blood to deep maroon and back to the flock's own colour.
       const cols = [col, mix(col, [120, 10, 18], 0.8 * bl), mix(col, [205, 28, 34], bl), mix(col, [255, 236, 222], bl)];
       const css = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
-      const T = Math.max(1, Math.min(HM - 1, Math.round(x.p('trail'))));
+      const T = Math.max(1, Math.min(HM - 1, Math.round(x.p('trail') * (1 - 0.5 * off))));
       // While one figure glides into the next the trails are cut short, so the new shape reads instead of a smeared sheet;
       // after an explosion they stay long (the streaks).
-      const alpha = 0.9 - 0.15 * wd, cap = (40 + 16 * T) * (1 - 0.75 * wf * (1 - calm));
+      const alpha = (0.9 - 0.15 * wd) * ink, cap = (40 + 16 * T) * (1 - 0.75 * wf * (1 - calm));
       g.lineCap = 'round'; g.lineJoin = 'round';
       // The clock face, faintly, while a figure stands: twelve hours, the chord's own lit.
       if (wf > 0.02) {
         for (const lit of [0, 1]) {
           g.beginPath();
           for (let p = 0; p < 12; p++) { if ((pcsMask >> p & 1) !== lit) continue; const r0 = fs * 1.13, r1 = fs * (lit ? 1.27 : 1.17); g.moveTo(fcx + clockX(p) * r0, fcy + clockY(p) * r0); g.lineTo(fcx + clockX(p) * r1, fcy + clockY(p) * r1); }
-          g.strokeStyle = css(lit ? [235, 225, 215] : col, (lit ? 0.7 : 0.25) * wf); g.lineWidth = lit ? 2.5 : 1.5; g.stroke();
+          g.strokeStyle = css(lit ? [235, 225, 215] : col, (lit ? 0.7 : 0.25) * wf * ink); g.lineWidth = (lit ? 2.5 : 1.5) * thin; g.stroke();
         }
       }
       for (let b = 0; b < 4; b++) {
@@ -300,7 +333,7 @@
           for (let j = 0; j < T && len < cap; j++) { h = (h + HM - 1) % HM; const nx = hx[o + h], ny = hy[o + h]; len += Math.abs(nx - lx) + Math.abs(ny - ly); g.lineTo(nx, ny); lx = nx; ly = ny; }
         }
         g.strokeStyle = css(cols[b], alpha);
-        g.lineWidth = 1.3 + 0.5 * b + 1.6 * wd;
+        g.lineWidth = (1.3 + 0.5 * b + 1.6 * wd) * thin;
         g.stroke();
       }
     },

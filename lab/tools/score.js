@@ -4,6 +4,8 @@
 // sometimes bracketed with a little numeral (how many notes); deep loud bass leaves heavy discs and slabs; the biggest
 // chords throw a large thin circle; a silence starts a new system with a double bar. One continuous line runs through
 // the page and swells with the loudness. Dense passages are thinned: what isn't written in full is left as specks.
+// A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, the whole page sinks
+// toward black, marks and all, it drifts more slowly, the line barely swells, and only the song's hardest attacks are written.
 (() => {
   const TAU = Math.PI * 2;
   const PAPER = { bg: [233, 225, 207], ink: [22, 19, 15], red: [178, 50, 32] };
@@ -11,11 +13,34 @@
   const WRITE = 0.84;                   // where the pen is, as a fraction of the width
   let figs = [], life = [], lifeAcc = 0, lvl = 0, tokens = 3, lastAt = -99, lastWritten = null, lastBig = -99, lastDisc = -99, lastBracket = -99, tex = [];
   let pop = 0;                          // the pen's flash on each attack
+  let land = 1;                         // how much a mark swells as it lands: how present, set each frame
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   const Y = (m, H) => H * 0.9 - ((clamp(m, 24, 96) - 24) / 72) * H * 0.8;
   const chords = () => (typeof CHORDS !== 'undefined' ? CHORDS : []);
+  // The page's drift: the speed knob, slowed to 40% of itself as how present goes to 0.
+  const driftOf = (x) => x.p('speed') * (1 - 0.6 * (1 - x.p('presence')));
+  // how present (0..1): which attacks are written, judged against this piece's own attacks (recordings differ a lot in
+  // how hard they play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  let vels = null;
+  const hardEnough = (v, pres) => {
+    if (pres >= 1) return true;
+    if (!vels) vels = chords().map((c) => c.vel).sort((a, b) => a - b);
+    if (!vels.length) return true;
+    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
+    return a / vels.length >= (1 - pres) * 0.95;
+  };
+  // Turned down, the page is painted here at full strength, ink dark on bone, and stamped once onto the stage.
+  let sheet = null, sheetG = null;
+  function sheetFor(x) {
+    const cw = x.g.canvas.width, ch = x.g.canvas.height;
+    if (!sheet || sheet.width !== cw || sheet.height !== ch) {
+      sheet = document.createElement('canvas'); sheet.width = cw; sheet.height = ch; sheetG = sheet.getContext('2d');
+      sheetG.setTransform(cw / x.W, 0, 0, ch / x.H, 0, 0);   // the stage may be supersampled: the sheet stays as sharp
+    }
+    return sheetG;
+  }
 
   // Bone paper or night: a grainy page, painted once and copied each frame.
   function page(W, H, night) {
@@ -48,7 +73,7 @@
 
   // One attack (a chord) becomes figures at the pen. age > 0 when rebuilding the page after a jump.
   function write(ch, x, age) {
-    const W = x.W, H = x.H, px = W * WRITE, speed = x.p('speed'), wt = x.p('weight'), orn = x.p('figures');
+    const W = x.W, H = x.H, px = W * WRITE, speed = driftOf(x), wt = x.p('weight'), orn = x.p('figures');
     lvl = Math.max(lvl, ch.vel / 115);
     const gap = ch.t - lastAt; lastAt = ch.t;
     tokens = Math.min(3, tokens + gap * x.p('ink'));
@@ -62,6 +87,8 @@
     };
     // a new system after a silence: a double bar
     if (gap > 2.2) mk({ k: 'bar', y0: H * 0.3, y1: H * 0.7, w: wt });
+    // not hard enough for how present: nothing is written (the silence above and the line still counted it)
+    if (!hardEnough(ch.vel, x.p('presence'))) return;
     // thinning: an attack costs a token; loud, deep or full ones may borrow a little, the rest become specks
     if (tokens < 1 && !(ch.vel >= 108 && tokens > -0.5)) {
       if (strong) { const lo = notes[0], hi = notes[n - 1]; mk({ k: 'stem', y0: Y(hi.m, H), y1: Y(lo.m, H), lw: 0.6, faint: true }); return; }
@@ -121,7 +148,7 @@
   // Rebuild the last screenful from the notes so a jump in the song shows a full page at once.
   function rebuild(x) {
     figs = []; life = []; lifeAcc = 0; lvl = 0; tokens = 3; lastAt = -99; lastWritten = null; lastBig = -99; lastDisc = -99; lastBracket = -99; pop = 0;
-    const speed = x.p('speed'), span = (x.W * WRITE + 260) / speed, t0 = Math.max(0, x.t - span), C = chords();
+    const speed = driftOf(x), span = (x.W * WRITE + 260) / speed, t0 = Math.max(0, x.t - span), C = chords();
     let cur = t0;
     const step = (to) => { while (cur < to - 1e-6) { const d = Math.min(0.05, to - cur); advance(d, speed, x); cur += d; } };
     for (const ch of C) { if (ch.t < t0) lastAt = ch.t; }   // so the first rebuilt chord isn't mistaken for one after a silence
@@ -140,12 +167,12 @@
     switch (f.k) {
       case 'speck': g.fillStyle = rgba(P.ink, a * 0.55); g.fillRect(x0 - f.r / 2, f.y - f.r / 2, f.r, f.r); return;
       case 'note': {
-        const r = f.r * (1 + 0.35 * Math.max(0, 1 - f.age / 0.15));
+        const r = f.r * (1 + 0.35 * land * Math.max(0, 1 - f.age / 0.15));
         g.beginPath(); g.arc(x0, f.y, r, 0, TAU);
         if (f.fill) { g.fillStyle = rgba(ink, a); g.fill(); } else { g.strokeStyle = rgba(ink, a); g.lineWidth = f.lw; g.stroke(); }
         return;
       }
-      case 'disc': { g.fillStyle = rgba(ink, a); g.beginPath(); g.arc(x0, f.y, f.r * (1 + 0.25 * Math.max(0, 1 - f.age / 0.15)), 0, TAU); g.fill(); return; }
+      case 'disc': { g.fillStyle = rgba(ink, a); g.beginPath(); g.arc(x0, f.y, f.r * (1 + 0.25 * land * Math.max(0, 1 - f.age / 0.15)), 0, TAU); g.fill(); return; }
       case 'beam': {
         if (f.len < 1) return;
         g.fillStyle = g.strokeStyle = rgba(ink, a);
@@ -181,7 +208,7 @@
 
   TOOLS.push({
     id: 'score', name: 'Graphic score', tag: 'new',
-    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line.',
+    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a faint page, a slower drift and only the hardest attacks written.',
     params: [
       { key: 'speed', label: 'how fast the page moves', min: 20, max: 140, value: 48, drive: '+rate',
         hint: 'How fast the writing drifts to the left. Left: slow, the marks crowd together. Right: fast, they spread far apart.',
@@ -207,18 +234,30 @@
         icon: (g, v, w, h) => { const night = v < 0.5, bg = night ? '#0d0c0b' : '#e9e1cf', ink = night ? '#e6dcca' : '#16130f';
           ICON.rect(g, 2, 2, w - 4, h - 4, bg); if (night) { g.strokeStyle = '#4a4038'; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); }
           ICON.dot(g, 10, 15, 3, ink); ICON.ring(g, 21, 9, 3, ink, 1); ICON.rect(g, 21, 17, 14, 1.6, ink); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: a faint page drifting slowly, and only the hardest attacks are written. Right: every attack at full strength (as before).',
+        icon: (g, v, w, h) => ICON.alpha(g, 0.14 + 0.86 * v, () => {   // the page with its marks, dim and nearly bare, or bright and written over
+          const ink = '#16130f';
+          ICON.rect(g, 3, 3, w - 6, h - 6, '#e9e1cf');
+          ICON.dot(g, 11, 15, 2.8, ink);
+          if (v > 0.3) ICON.rect(g, 19, 9, 14, 1.8, ink);
+          if (v > 0.6) ICON.dot(g, 24, 17, 2, ink);
+          if (v > 0.85) ICON.ring(g, 31, 16, 3, ink, 1);
+        }) },
     ],
-    reset(x) { rebuild(x); },
+    reset(x) { vels = null; rebuild(x); },
     onChord(ch, x) { write(ch, x, 0); },
     frame(x) {
-      const g = x.g, W = x.W, H = x.H, night = x.p('paper') < 0.5, P = night ? NIGHT : PAPER;
+      const pres = x.p('presence'), stage = x.g, g = pres < 1 ? sheetFor(x) : stage;
+      const W = x.W, H = x.H, night = x.p('paper') < 0.5, P = night ? NIGHT : PAPER;
       const k = night ? 0 : 1; tex[k] ??= page(W, H, night);   // both pages are kept, so a driven flip never stutters
-      advance(x.dt, x.p('speed'), x);
+      land = pres;
+      advance(x.dt, driftOf(x), x);
       pop *= Math.pow(0.5, x.dt / 0.08);
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
       g.drawImage(tex[k], 0, 0);
       // the continuous line through the page, swelling with the loudness
-      const ly = H * 0.535, wt = x.p('weight');
+      const ly = H * 0.535, wt = x.p('weight') * (1 - 0.75 * (1 - pres));   // turned down, it hardly swells
       if (life.length > 1) {
         g.fillStyle = rgba(P.ink, 0.88); g.beginPath();
         for (let i = 0; i < life.length; i++) { const s = life[i]; g.lineTo(s.x, ly - (0.6 + s.w * 3.2 * wt)); }
@@ -233,6 +272,17 @@
       const fade = g.createLinearGradient(0, 0, 60, 0);
       fade.addColorStop(0, rgba(P.bg, 0.9)); fade.addColorStop(1, rgba(P.bg, 0));
       g.fillStyle = fade; g.fillRect(0, 0, 60, H);
+      // Turned down: the page, under a lowered lamp, onto the stage. A plain low alpha would pile up over the stage's slow
+      // 8-bit fade and band the bone into olive and blue. So: 'lighten' lifts the stage to exactly the dimmed page, the same
+      // on every frame, and whatever is brighter under it (another widget) stays; the source-over before it is what lets
+      // the dark ink cut in, and it covers what's under the page less and less as the knob goes down.
+      if (g !== stage) {
+        g.fillStyle = `rgba(0,0,0,${1 - (0.12 + 0.88 * pres)})`; g.fillRect(0, 0, W, H);
+        stage.globalCompositeOperation = 'source-over';
+        if (x.dt > 0) { stage.globalAlpha = pres; stage.drawImage(sheet, 0, 0, W, H); stage.globalAlpha = 1; }   // no time, no change
+        stage.globalCompositeOperation = 'lighten'; stage.drawImage(sheet, 0, 0, W, H);
+        stage.globalCompositeOperation = 'source-over';
+      }
     },
   });
 })();
