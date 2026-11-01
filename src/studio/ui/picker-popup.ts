@@ -129,7 +129,7 @@ export class PickerPopup {
     });
     // A change during playback reaches the draft when the sweep ends, by the same reload as a real edit.
     window.addEventListener('pointerup', () => { if (this.sweep !== null) { this.sweep = null; this.draft(false); } });
-    // Enter or Space on a focused chip clicks it with no pointer.
+    // Enter on a focused chip clicks it with no pointer; Space stays the preview's, in the picker's keys.
     strip.addEventListener('click', (e) => {
       const id = this.chipId(e.target);
       if (e.detail !== 0 || id === null) return;

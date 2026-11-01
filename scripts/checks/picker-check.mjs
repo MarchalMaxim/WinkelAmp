@@ -168,6 +168,34 @@ try {
   check('while it plays it fires exactly the picks\' attacks', JSON.stringify(delivered.heard) === JSON.stringify(delivered.want), `${delivered.heard.length} of ${delivered.want.length}`);
   check('no widget error on the set', !delivered.errors.length);
 
+  // ---- tones ----
+  // Counted where the picker asks for them: a seek while paused, then play, as the user rewinds to check marks by ear.
+  const tonesOver = (from, to) => page.evaluate(async ({ from, to }) => {
+    const s = window.__studio, p = s.picker, tone = p.tone, frame = () => new Promise(requestAnimationFrame);
+    let k = 0;
+    p.tone = (...a) => { k++; tone.apply(p, a); };
+    s.player.seek(from);
+    await frame(); await frame();
+    await s.player.play();
+    await new Promise((ok) => { const w = () => (s.player.time >= to ? ok() : requestAnimationFrame(w)); w(); });
+    s.player.pause();
+    delete p.tone;
+    return k;
+  }, { from, to });
+  const marks = await page.evaluate(() => { const p = window.__studio.picker; return p.l.notes.filter((n) => p.marked.has(n.id)).map((n) => ({ t: n.t, i: n.i })); });
+  const from = marks[0].t - 0.5, to = marks[Math.min(5, marks.length - 1)].t + 0.3;
+  const heardFirst = await tonesOver(from, to), heardAgain = await tonesOver(from, to);
+  check('a paused seek back and the same stretch again: the tones come again', heardFirst > 0 && Math.abs(heardAgain - heardFirst) <= 1, `${heardFirst}, then ${heardAgain}`);
+  const past = marks[marks.length - 1].t + 2;
+  const burst = await tonesOver(past, past + 0.3);
+  check('a paused seek forward: no burst of what it skipped', burst === 0, `${burst} tones`);
+  await page.click('[data-ping]');
+  await page.locator('.np-hear').nth(marks[0].i).click();
+  const instrument = await tonesOver(from, to);
+  check('♪ too after a paused seek back', instrument > 0, `${instrument} tones`);
+  await page.locator('.np-hear').nth(marks[0].i).click();
+  await page.click('[data-ping]');
+
   // ---- back in the studio ----
   await page.click('[data-back]');
   await settle(400);
@@ -181,6 +209,7 @@ try {
   await page.click('[data-ok]');
   await settle(300);
   check('an update changes the set', (await page.evaluate(() => window.__studio.store.state.show.picks.p1.notes.length)) === 1);
+  check('the tones go on from where the update left the playhead', await page.evaluate(() => { const { picker: p, player } = window.__studio; return p.cursor === p.l.index.firstFrom(player.time); }));
   await page.click('[data-back]');
   await settle(300);
   await page.keyboard.press('Control+z');
@@ -201,14 +230,53 @@ try {
     // A set over two sections, its layer then gone from the first: that section's pick has nothing to fire.
     const s = window.__studio, [a, b] = s.store.state.show.sections, mid = (x) => (x.start + x.end) / 2;
     s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[mid(a), mid(a) + 0.2, 60, 80], [mid(b), mid(b) + 0.2, 62, 80]] } });
+    await s.picker.open();   // drawn already: the set's own notes don't change below
     const layer = s.store.state.show.sections[0].layers.findIndex((l) => l.listen === 'picks:p2');
     s.store.dispatch({ type: 'edit', edit: { kind: 'removeLayer', section: 0, layer } });
-    await s.picker.open();
     return document.querySelector('.np-set[data-set="p2"] .np-set-warn')?.textContent ?? '';
   });
   await settle();
   await shot('never-heard');
   check('the set row says a pick is never heard', warned === '1 never heard', warned);
+
+  // A boundary moved past a drawn set, the picker closed as it is for that edit: the picks stay the same object.
+  const moved = await page.evaluate(async () => {
+    const s = window.__studio, a = s.store.state.show.sections[0], warn = () => document.querySelector('.np-set[data-set="p3"] .np-set-warn')?.textContent ?? '';
+    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[a.end - 2, a.end - 1.8, 60, 80], [a.end - 1, a.end - 0.8, 62, 80]] } });
+    const before = warn(), picks = s.store.state.show.picks;
+    s.picker.close();
+    s.store.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: a.end - 3 } });
+    await s.picker.open();
+    const after = warn(), same = picks === s.store.state.show.picks;
+    s.store.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: a.end } });
+    return { before, after, same, back: warn() };
+  });
+  check('a boundary moved past a drawn set: its row says so', moved.same && moved.before === '' && moved.after === '2 never heard', JSON.stringify(moved));
+  check('and moved back with the picker open, it stops', moved.back === '', moved.back);
+
+  // ---- the window ----
+  const wide = await page.evaluate(() => document.querySelector('.np-set[data-set="p1"] canvas').width);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await settle(300);
+  const sized = await page.evaluate(() => { const c = document.querySelector('.np-set[data-set="p1"] canvas'); return { w: c.width, want: Math.round(c.clientWidth * (window.devicePixelRatio || 1)) }; });
+  check('a resized window draws the ticks again at its size', sized.w === sized.want && sized.w !== wide, JSON.stringify(sized));
+
+  // ---- a save that fails ----
+  const retried = await page.evaluate(async () => {
+    const s = window.__studio, p = s.picker, api = p.d.api, save = api.saveMelody, said = () => s.store.state.notices.some((n) => n.id === 'picker-save');
+    let tries = 0;
+    api.saveMelody = () => { tries++; return Promise.reject(new Error('disk full')); };
+    p.changed();
+    p.saveMarks();
+    await p.saving;
+    const failed = said();
+    api.saveMelody = (m) => { tries++; return save.call(api, m); };
+    p.close();
+    await p.saving;
+    api.saveMelody = save;
+    return { failed, tries, after: said() };
+  });
+  check('a failed save says so, closing tries again, and the notice goes', retried.failed && retried.tries === 2 && !retried.after, JSON.stringify(retried));
 
   check('no page errors', !errors.length, errors[0] ?? '');
 } finally {

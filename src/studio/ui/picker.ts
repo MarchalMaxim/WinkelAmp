@@ -60,8 +60,9 @@ export class Picker {
   private unsubscribe: (() => void) | null = null;
   private dots = new Map<number, string>();
   private rows: SetRow[] = [];
-  private drawnPicks: unknown = null;
+  private drawnShow: unknown = null;
   private ticksView: unknown = null;
+  private ticksW = 0;
   private rowsKey = '';
   private readonly $ = <T extends HTMLElement>(q: string) => this.el.querySelector<T>(q)!;
 
@@ -222,7 +223,10 @@ export class Picker {
     if (!this.dirty || !this.canSave || !this.l) return;
     this.dirty = false;
     const m = { ...emptyMelody(this.d.pack.id), notes: marksToSave(this.marked, this.l.notes, this.unmatched) };
-    this.saving = this.saving.then(() => this.d.api.saveMelody(m)).catch((e: Error) => {
+    this.saving = this.saving.then(() => this.d.api.saveMelody(m)).then(() => {
+      if (this.d.store.state.notices.some((n) => n.id === 'picker-save')) this.d.store.dispatch({ type: 'dismiss', id: 'picker-save' });
+    }).catch((e: Error) => {
+      this.dirty = true;   // the next change, or closing, tries again
       this.d.notify({ id: 'picker-save', level: 'error', text: `The marked melody was not saved: ${e.message}` });
     });
   }
@@ -260,8 +264,9 @@ export class Picker {
   /** The show or the notices changed. */
   private drawStore(): void {
     const { show, notices } = this.d.store.state;
-    if (show && show.picks !== this.drawnPicks) {
-      this.drawnPicks = show.picks;
+    // The whole show, not its picks: a moved boundary or a removed layer changes a row with the same set of picks.
+    if (show && show !== this.drawnShow) {
+      this.drawnShow = show;
       this.rows = setRows(show);
       if (this.l) {
         const { notes, roll } = this.l;
@@ -316,11 +321,12 @@ export class Picker {
     }
   }
 
-  /** The rows' ticks, when the view or the sets changed. */
+  /** The rows' ticks, when the view, the sets or the width changed. */
   private drawTicks(roll: PickerRoll): void {
-    if (roll.view === this.ticksView) return;
-    this.ticksView = roll.view;
     const { a, b } = roll.view, w = roll.axis.w, d = window.devicePixelRatio || 1;
+    if (roll.view === this.ticksView && w === this.ticksW) return;
+    this.ticksView = roll.view;
+    this.ticksW = w;
     for (const r of this.rows) {
       const c = this.$(`.np-set[data-set="${r.id}"] canvas`) as HTMLCanvasElement, H = c.clientHeight, W = c.clientWidth;
       if (!W) continue;
@@ -413,7 +419,8 @@ export class Picker {
     if (!this.l) return;
     const { roll, popup } = this.l;
     if (!popup.isOpen) {
-      if (player.playing) { roll.follow(t); this.sound(t, this.l); } else this.lastT = t;
+      if (player.playing) { roll.follow(t); this.sound(t, this.l); }
+      else if (t !== this.lastT) { this.lastT = t; this.cursor = this.l.index.firstFrom(t); }   // a seek while paused: the tones go on from there
       const m = this.$<HTMLCanvasElement>('.np-stage canvas'), d = window.devicePixelRatio || 1;
       const w = Math.round(m.clientWidth * d), h = Math.round(m.clientHeight * d);
       if (w && (m.width !== w || m.height !== h)) { m.width = w; m.height = h; }
