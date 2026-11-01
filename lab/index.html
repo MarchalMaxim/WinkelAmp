@@ -225,6 +225,12 @@ const SONGS = {
     // III Allegro 5:48 (walking on ice; the warm south wind in its lento ~8:08; all the winds at war from 8:40).
     moments: [[0, 'dread', 'Shivering'], [36, 'agitato', 'The wind'], [66, 'casket'], [180, 'agitato', 'Chattering teeth'],
       [210, 'return', 'Largo: rain'], [348, 'dread', 'On the ice'], [400, 'agitato'], [488, 'return'], [520, 'casket', 'The winds at war']] },
+  // Out of distribution for tagging: brutal off-beat orchestra, then a heavy march. Moments are my reading of the
+  // packs' sections and loudness, not checked against the scores. YourMT3 hears little brass in either (horn 41 notes).
+  'rite-sacrificial-dance': { title: 'Stravinsky: The Rite of Spring, Sacrificial Dance', audio: 'rite-sacrificial-dance.mp3', notes: 'notes-rite-sacrificial-dance.js', pack: 'pack-rite-sacrificial-dance.js', dur: 298.2,
+    moments: [[0, 'agitato', 'Spasms'], [30, 'dread', 'Lull'], [53, 'agitato'], [100, 'dread'], [110, 'casket', 'The full orchestra'], [264, 'casket', 'The last chord']] },
+  'prokofiev-knights': { title: 'Prokofiev: Romeo and Juliet, Dance of the Knights', audio: 'prokofiev-knights.mp3', notes: 'notes-prokofiev-knights.js', pack: 'pack-prokofiev-knights.js', dur: 325.3,
+    moments: [[0, 'casket', 'The knights'], [104, 'return', 'Quieter'], [190, 'dread', 'Hushed'], [285, 'casket', 'The knights return']] },
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
