@@ -1,0 +1,86 @@
+/* The note picker (picker*.ts): the mockup's layout and values, in the studio's colours. Marks are amber everywhere. */
+.np { --np-mark: #f4b740; --np-ink: #16140f; position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); }
+.np button[aria-pressed="true"] { background: #3a3220; border-color: var(--np-mark); }
+.np-head { display: flex; align-items: baseline; gap: 14px; padding: 10px 16px 8px; }
+.np-title { font: 400 17px/1.2 var(--serif); }
+.np-tools { display: flex; align-items: center; gap: 8px; padding: 0 16px 8px; flex-wrap: wrap; }
+.np-tools button { padding: 5px 11px; }
+.np-sp { flex: 1; }
+.np-hint { color: var(--dim); font-size: 13px; }
+.np-time { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 92px; }
+.np-notices { display: grid; gap: 6px; padding: 0 16px 8px; }
+.np-notices:empty { display: none; }
+.np-main { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 16px 12px; }
+.np-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.np-right { width: 300px; flex: none; display: flex; flex-direction: column; gap: 10px; }
+.np-roll-host { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.np-roll { flex: 1; min-height: 200px; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.np-roll canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.np-roll-top { cursor: crosshair; touch-action: none; }
+.np-tip { position: absolute; pointer-events: none; background: #000c; padding: 2px 7px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.np-strip { flex: none; height: 30px; width: 100%; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; }
+.np-scene { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; min-height: 46px; overflow: hidden; }
+.np-scene-head { position: absolute; left: 0; top: 0; bottom: 0; width: 1.5px; background: #fff; pointer-events: none; z-index: 1; }
+.np-empty { color: var(--dim); padding: 6px 12px; font-size: 13px; }
+.np-set { position: relative; display: flex; align-items: center; height: 30px; }
+.np-set-name { width: 120px; flex: none; padding: 0 6px 0 12px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-set canvas { flex: 1; min-width: 0; height: 24px; display: block; cursor: pointer; }
+/* Over the ticks, not beside them: the ticks line up with the notes above. */
+.np-set button { position: absolute; right: 2px; z-index: 2; border: 0; background: var(--panel); color: var(--dim); padding: 0 8px; }
+.np-set-warn { position: absolute; right: 36px; z-index: 2; padding: 0 6px; background: var(--panel); color: #f0c080; font-size: 12px; cursor: help; }
+.np-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.np-stage { padding: 0; overflow: hidden; }
+.np-stage canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+.np-stage-label { padding: 6px 10px; color: var(--dim); font-size: 12px; }
+.np-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.np-steps li { display: flex; gap: 9px; color: var(--dim); }
+.np-steps li.on { color: var(--fg); }
+.np-steps i { font-style: normal; flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid currentColor; display: grid; place-items: center; font-size: 12px; }
+.np-steps li.done i { background: var(--np-mark); border-color: var(--np-mark); color: var(--np-ink); }
+.np-steps small { display: block; color: var(--dim); font-size: 12.5px; }
+.np-connect { margin-top: 6px; }
+.np-fine { color: var(--dim); font-size: 12px; margin: 0; }
+.np-legend { gap: 6px; }
+.np-lead { color: var(--dim); font-size: 13px; margin-right: 2px; }
+.np-inst { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.np .np-inst button { border: 0; border-radius: 0; padding: 3px 8px; font-size: 13px; background: var(--raised); }
+.np-show i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.np-show .dim { font-size: 11.5px; }
+.np .np-show[aria-pressed="false"] { color: var(--dim); text-decoration: line-through; }
+.np-show[aria-pressed="false"] i { opacity: 0.25; }
+.np .np-inst .np-hear { border-left: 1px solid var(--line); color: var(--dim); }
+.np .np-inst .np-hear[aria-pressed="true"] { color: var(--np-mark); }
+
+/* The popup. */
+.np-modal { position: fixed; inset: 0; background: #000a; display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 5; }
+.np-box { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(1080px, 100%); max-height: 100%; overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.np-box h2 { margin: 0; font: 400 19px/1.2 var(--serif); }
+.np-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.np-widget { position: relative; flex-wrap: nowrap; }
+.np-widget > button { flex: none; }
+.np-widget > button::after { content: " ▾"; color: var(--dim); }
+.np-what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.np-chooser { position: absolute; left: 0; top: calc(100% + 6px); z-index: 3; width: min(460px, 100%); max-height: 56vh; overflow: auto; margin: 0; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 30px #000a; }
+.np-chips { position: relative; flex: none; height: 150px; overflow-x: auto; overflow-y: hidden; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; user-select: none; touch-action: pan-x; }
+.np-chips-in { position: relative; height: 130px; }
+.np .np-chip { box-shadow: inset 0 0 0 2px var(--ic, transparent); position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #5b5236; border: 0; padding: 0; font-size: 9px; color: #d8d0b8; cursor: pointer; display: grid; place-items: center; }
+.np .np-chip:hover { background: #7b6d42; }
+.np .np-chip.sel { background: var(--np-mark); color: var(--np-ink); font-weight: 700; box-shadow: inset 0 0 0 2px var(--ic, transparent), 0 0 0 2px #f4b74055; }
+.np .np-chip.now { outline: 2px solid #fff; }
+.np-gap { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--line); color: var(--dim); font-size: 10px; padding-left: 3px; pointer-events: none; }
+.np-pop-bottom { display: flex; gap: 14px; align-items: stretch; }
+.np-pop-stage { width: 300px; flex: none; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.np-pop-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+.np-pop-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; justify-content: space-between; }
+.np-count { font-size: 20px; font-weight: 600; }
+.np-count span { font-size: 14px; font-weight: 400; color: var(--dim); }
+.np-box input[type="number"] { width: 60px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+
+@media (max-width: 820px) {
+  .np { overflow: auto; }
+  .np-main { flex: none; flex-direction: column; }
+  .np-right { width: auto; }
+  .np-roll { min-height: 280px; flex: none; }
+  .np-pop-bottom { flex-direction: column; }
+  .np-pop-stage { width: 100%; }
+}

@@ -5,7 +5,7 @@
  */
 import { SETTLED, samePreview, type Conductor } from '../show/conductor';
 import type { Show } from '../show/show';
-import { startLive } from '../../widgets/driver';
+import { startLive, type Stepper } from '../../widgets/driver';
 import type { WidgetRuntime } from '../../widgets/runtime';
 
 /** How long the playhead rests before the paused picture settles; a quick preview slower than SLOW_MS (timed up to a
@@ -24,9 +24,14 @@ export class Player {
   /** While paused: the show and time the picture on screen was drawn for (by playing up to the pause, or a preview). */
   private pictured: { show: Show; t: number } | null = null;
   private settleTimer = 0;
+  private resting = false;
 
   constructor(readonly canvas: HTMLCanvasElement, readonly audio: HTMLAudioElement, readonly conductor: Conductor, readonly runtime: WidgetRuntime) {
-    this.stop = startLive(conductor, runtime, audio, (t) => this.onTick?.(t));
+    const live: Stepper = {
+      reset: (t) => { if (!this.resting) conductor.reset(t); },
+      step: (t, dt) => { if (!this.resting) conductor.step(t, dt); },
+    };
+    this.stop = startLive(live, runtime, audio, (t) => this.onTick?.(t));
     audio.addEventListener('pause', () => { this.pictured = { show: conductor.current, t: this.time }; });
     audio.addEventListener('play', () => { this.pictured = null; clearTimeout(this.settleTimer); });
   }
@@ -41,6 +46,14 @@ export class Player {
   }
   pause(): void { this.audio.pause(); }
   toggle(): void { if (this.audio.paused) void this.play().catch(() => {}); else this.pause(); }
+
+  /** While resting the loop takes no steps and draws nothing (the preview has the clock); on waking it repaints. */
+  rest(on: boolean): void {
+    this.resting = on;
+    if (on) return;
+    this.pictured = null;
+    this.refresh();
+  }
 
   /** Paused → conductor.preview(t), so the picture shows what plays there; playing → the picture starts again at t. */
   seek(t: number): void {

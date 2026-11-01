@@ -1,7 +1,8 @@
 /**
  * The open layer's controls under its knobs (plan 2026-10-31 T16), in plain words:
  * - Listens to: all notes, an instrument track of this recording, a family of them, or a line derived from the notes,
- *   with a small picture of where that part plays in the section.
+ *   with a small picture of where that part plays in the section. A layer on hand-picked notes says how many instead,
+ *   with a way back to the picker: the select could only orphan its set.
  * - Where: the whole screen, a spotlight (the widget seen only through a shape) or a window (the whole widget shrunk
  *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
  * - Intensity: always full, or a curve written by a preset (fade in or out, swell, pulse on the beats, gate on
@@ -11,9 +12,10 @@
 import './layer-controls.css';
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
-import { FAMILIES, LINES, listenOf, type Layer } from '../show/show';
+import { FAMILIES, LINES, listenOf, picksId, type Layer, type Show } from '../show/show';
 import type { Span, WaLayers } from '../../widgets/layers';
 import type { Family, Line, Listen, Pivot, Region, TrackId } from '../../widgets/types';
+import { impulseWords } from './picker-logic';
 
 export interface ListenOption { group: string; value: Listen; label: string }
 
@@ -41,6 +43,7 @@ export function listenOptions(pack: Pick<SongPack, 'tracks'>): ListenOption[] {
 /** A part's name in words, whether or not this song has it. */
 export function listenLabel(l: Listen): string {
   if (l === 'all') return 'All notes';
+  if (picksId(l) !== null) return 'Your picks';
   if (l in LINE_LABELS) return LINE_LABELS[l as Line];
   if (l.startsWith('family:')) return FAMILY_LABELS[l.slice(7) as Family] ?? l;
   return TRACKS[l as TrackId]?.label ?? l;
@@ -72,7 +75,7 @@ export type PresetChoice =
   | { kind: 'pulse'; every: number; unit: 'beats' | 'bars' } | { kind: 'gate'; above: number } | { kind: 'plays' };
 
 export function presetPivots(L: WaLayers, choice: PresetChoice, span: Span,
-  pack: Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>, listen: Listen | undefined): Pivot[] {
+  pack: Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>, listen: Listen | undefined, picks?: Show['picks']): Pivot[] {
   const P = L.presets;
   switch (choice.kind) {
     case 'fadeIn': return P.fadeIn(span, choice.seconds);
@@ -80,7 +83,7 @@ export function presetPivots(L: WaLayers, choice: PresetChoice, span: Span,
     case 'swell': return P.swell(span);
     case 'pulse': return P.pulse(span, pack.beats, { every: choice.every * (choice.unit === 'bars' ? 4 : 1) });
     case 'gate': return P.gate(span, pack.loudness, { above: choice.above });
-    case 'plays': return P.plays(span, L.listenNotes({ notes: pack.notes, tracks: pack.tracks }, listen).notes);
+    case 'plays': return P.plays(span, L.listenNotes({ notes: pack.notes, tracks: pack.tracks, picks }, listen).notes);
   }
 }
 
@@ -111,6 +114,9 @@ export interface LayerControlsDeps {
   /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back), under the
       key memoryKey() gives for this layer now (its section and instance key, so a reorder never hands it to another). */
   memory: Map<string, Region>; memoryKey(): string;
+  /** The show's sets of picks now, and the way to the popup on one. */
+  picks(): Show['picks'];
+  editPicks(id: string): void;
 }
 
 let step = 0;
@@ -127,6 +133,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     <section class="lc-part">
       <h4>Listens to</h4>
       <div class="lc-listen"><select aria-label="What this layer listens to"></select><canvas class="lc-spark" width="${SPARK_W}" height="${SPARK_H}" aria-hidden="true"></canvas></div>
+      <p class="lc-picks small" hidden><span></span> <button type="button" data-edit-picks>Edit picks</button></p>
       <p class="lc-note small"></p>
     </section>
     <section class="lc-part">
@@ -181,12 +188,12 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     sel.value = cur;
   };
 
-  let drawn = '';
+  let drawn = '', drawnNotes: unknown = null;
   const drawSpark = (listen: Listen | undefined, span: Span) => {
     const key = JSON.stringify([listen ?? 'all', span.start, span.end]);
-    if (key === drawn) return;
-    drawn = key;
-    const { notes, heard } = L.listenNotes({ notes: d.pack.notes, tracks: d.pack.tracks }, listen);
+    const { notes, heard } = L.listenNotes({ notes: d.pack.notes, tracks: d.pack.tracks, picks: d.picks() }, listen);
+    if (key === drawn && notes === drawnNotes) return;
+    drawn = key; drawnNotes = notes;
     const dpr = window.devicePixelRatio || 1;
     spark.width = Math.round(SPARK_W * dpr); spark.height = Math.round(SPARK_H * dpr);
     const g = spark.getContext('2d')!, len = Math.max(1e-6, span.end - span.start);
@@ -254,15 +261,20 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       : k === 'swell' ? { kind: 'swell' }
       : k === 'pulse' ? { kind: 'pulse', every: Math.round(num('[data-every]', 1, 32, 1)), unit: $<HTMLSelectElement>('[data-unit]').value as 'beats' | 'bars' }
       : k === 'gate' ? { kind: 'gate', above: Number(above.value) } : { kind: 'plays' };
-    const p = presetPivots(L, choice, d.span(), d.pack, listenOf(d.layer() ?? { widget: d.widget }));
+    const p = presetPivots(L, choice, d.span(), d.pack, listenOf(d.layer() ?? { widget: d.widget }), d.picks());
     d.edit({ intensity: p.length ? p : null }, group('preset'));
   }));
   $<HTMLButtonElement>('[data-clear]').addEventListener('click', () => d.edit({ intensity: null }, group('preset')));
+  $<HTMLButtonElement>('[data-edit-picks]').addEventListener('click', () => { const id = picksId(d.layer()?.listen); if (id) d.editPicks(id); });
 
   const sync = () => {
     const l = d.layer(); if (!l) return;
     const listen = listenOf(l), r = l.region, span = d.span();
-    fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
+    const set = picksId(listen);
+    if (set === null) fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
+    $<HTMLElement>('.lc-listen').hidden = set !== null;
+    $<HTMLElement>('.lc-picks').hidden = set === null;
+    if (set !== null) $<HTMLElement>('.lc-picks span').textContent = impulseWords(d.picks()?.[set]?.notes ?? []);
     drawSpark(listen, span);
     box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.mode || undefined) === r?.mode)));
     $<HTMLElement>('.lc-say').textContent = !r ? 'Seen across the whole picture, as in the lab.'

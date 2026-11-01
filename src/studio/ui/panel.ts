@@ -27,6 +27,8 @@ interface Deps {
   drives: [Drive, string][]; icon: IconLib;
   time: () => number; features: () => Features; errors: () => Record<string, string>;
   splitAtPlayhead(): void; seek(t: number): void;
+  /** Opens the note picker's popup on a set of picks. */
+  editPicks(id: string): void;
 }
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -44,8 +46,8 @@ export function verdictTag(m: WidgetMeta): string {
 const KEY_IDLE = 600;
 
 const RANK: Record<string, number> = { love: 0, keep: 1, 'needs work': 2 };
-const GROUPS = ['You love these', 'You keep these', 'These need work', 'Not judged yet', 'You dropped these'];
-const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4) : 3);
+export const GROUPS = ['You love these', 'You keep these', 'These need work', 'Not judged yet', 'You dropped these'];
+export const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4) : 3);
 
 /** What a layer hears, where it is seen and whether it follows a curve, in a few words ('' when none is set). */
 function layerParts(l: Layer): string {
@@ -174,7 +176,7 @@ export class Panel {
     }
     for (let k = sec.layers.length - 1; k >= 0; k--) {
       const l = sec.layers[k], entry = this.d.catalogue.get(l.widget), m = entry?.meta;
-      const open = s.selected.layer === k, err = this.d.errors()[l.widget];
+      const open = s.selected.layer === k, err = this.d.errors()[instanceKey(l)];
       const li = document.createElement('li');
       li.className = `layer${open ? ' open' : ''}`;
       li.style.setProperty('--hue', String(widgetHue(l.widget)));
@@ -241,6 +243,7 @@ export class Panel {
       // by section and instance key (unique in a section), not by position, so a reorder or a removal never brings
       // one layer's remembered place back on another
       memory: this.places, memoryKey: () => { const l = sec()?.layers[k]; return `${i}:${l ? instanceKey(l) : k}`; },
+      picks: () => this.d.store.state.show?.picks, editPicks: this.d.editPicks,
     });
   }
 
