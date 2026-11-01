@@ -100,6 +100,13 @@
           "loud": 0.3,
           "dense": 0.3
         }
+      },
+      "tentacled": {
+        "looks": "Thick arms that reach, curl and grab out from a dark centre.",
+        "sounds": "Low lines that reach upward: rising bass figures, low chords that swell and spread.",
+        "fit": {
+          "low": 0.8
+        }
       }
     },
     "motion": {
@@ -275,6 +282,14 @@
         "sounds": "Hushed and unresolved: soft, modal or chromatic, a question left open.",
         "fit": {
           "quiet": 0.6
+        }
+      },
+      "alien": {
+        "looks": "Uncanny, not of this world: things that grow, reach and writhe in a way nothing alive should.",
+        "sounds": "Low, strange harmony: clusters, tritones, growling bass, dark brass.",
+        "fit": {
+          "low": 0.7,
+          "loud": 0.4
         }
       }
     }
@@ -595,6 +610,11 @@
     "smear": "smeared",
     "synchronized": "unison",
     "swarm": "unison",
-    "abrupt": "twitchy"
+    "abrupt": "twitchy",
+    "brutal": "violent",
+    "creepy": "alien",
+    "cthulhu": "alien",
+    "eldritch": "alien",
+    "tendrils": "tentacled"
   }
 }

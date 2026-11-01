@@ -138,17 +138,17 @@ describe('filterWidgets', () => {
   });
 
   it('feel words: AND across the chosen words', () => {
-    const ids = filterWidgets(metas, { ...none, feel: ['dark', 'liquid'] }, words).map((m) => m.id);
+    const ids = filterWidgets(metas, { ...none, feel: ['dark', 'alien'] }, words).map((m) => m.id);
     expect(ids).toContain('rorschach');
     expect(ids).not.toContain('kandinsky');
-    for (const id of ids) expect(tags[id].feel).toEqual(expect.arrayContaining(['dark', 'liquid']));
+    for (const id of ids) expect(tags[id].feel).toEqual(expect.arrayContaining(['dark', 'alien']));
   });
 
   it('instrument words: AND too, combined with feel', () => {
-    const ids = filterWidgets(metas, { ...none, instruments: ['cello', 'bassoon'] }, words).map((m) => m.id);
+    const ids = filterWidgets(metas, { ...none, instruments: ['contrabass', 'timpani'] }, words).map((m) => m.id);
     expect(ids).toContain('rorschach');
-    for (const id of ids) expect(tags[id].instruments).toEqual(expect.arrayContaining(['cello', 'bassoon']));
-    expect(filterWidgets(metas, { feel: ['vivid'], instruments: ['cello', 'bassoon'], tracks: null }, words)).toEqual([]);
+    for (const id of ids) expect(tags[id].instruments).toEqual(expect.arrayContaining(['contrabass', 'timpani']));
+    expect(filterWidgets(metas, { feel: ['vivid'], instruments: ['contrabass', 'timpani'], tracks: null }, words)).toEqual([]);
   });
 
   it('suits this song: one of its instruments maps to one of the tracks (a family word to any track of it)', () => {

@@ -35,7 +35,7 @@
   "pointillism": {"feel":["grainy","vivid","liquid","playful"],"instruments":["plucked","flute"],"role":"base"},
   "ridges": {"feel":["dark","flowing","swelling","dread"],"instruments":["piano","cello"],"role":"ground"},
   "riley": {"feel":["flickering","swelling","marching","icy"],"instruments":["strings","contrabass"],"role":"ground"},
-  "rorschach": {"feel":["liquid","dark","dread","heavy"],"instruments":["cello","contrabass","bassoon"],"role":"base"},
+  "rorschach": {"feel":["dark","violent","alien","tentacled"],"instruments":["piano","contrabass","timpani"],"role":"lead"},
   "score": {"feel":["flowing","airy","pale","playful"],"instruments":["piano","flute"],"role":"ground"},
   "scribble": {"feel":["skittish","grainy","brittle","flowing"],"instruments":["violin","viola"],"role":"base"},
   "squares": {"feel":["heavy","dark","dread","stabbing"],"instruments":["piano","contrabass","timpani"],"role":"accent"},

@@ -183,8 +183,8 @@ describe('the filter', () => {
       expect(lab).toEqual(filterWidgets(metas, { feel: f.feel, instruments: f.inst, tracks: null }, words).map((m) => m.id));
     }
   });
-  it('dark + liquid keeps rorschach; nothing chosen keeps all, untagged ones too', () => {
-    expect(metas.filter((m) => U.matches(m.tags, { feel: ['dark', 'liquid'], inst: [] })).map((m) => m.id)).toContain('rorschach');
+  it('dark + alien keeps rorschach; nothing chosen keeps all, untagged ones too', () => {
+    expect(metas.filter((m) => U.matches(m.tags, { feel: ['dark', 'alien'], inst: [] })).map((m) => m.id)).toContain('rorschach');
     expect(U.matches(undefined, { feel: [], inst: [] })).toBe(true);
     expect(U.matches(undefined, { feel: ['dark'], inst: [] })).toBe(false);
   });

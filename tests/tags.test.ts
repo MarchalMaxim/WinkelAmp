@@ -20,18 +20,18 @@ describe('lab/tags.json and lab/tag-words.json', () => {
   });
 
   it('have at least the first 28 feel words on 5 axes, none twice, and 18 instruments', () => {
-    // The vocabulary grows from the user's own words as widgets are tuned (2026-11-01: anxious, twitchy, fibrous; rough, smeared, violent; unison, mysterious).
+    // The vocabulary grows from the user's own words as widgets are tuned (2026-11-01: anxious, twitchy, fibrous; rough, smeared, violent; unison, mysterious; alien, tentacled).
     expect(Object.keys(words.feel)).toHaveLength(5);
     expect(feelWords(words).length).toBeGreaterThanOrEqual(28);
     expect(new Set(feelWords(words)).size).toBe(feelWords(words).length);
     expect(Object.keys(words.instruments)).toHaveLength(18);
   });
 
-  it('use every feel word and every instrument at least once', () => {
+  it('use every feel word at least once', () => {
+    // Instruments may go unused: they are the transcribers' fixed list, and the user's tuning decides who suits them
+    // (2026-11-01: rorschach, the only bassoon widget, became piano, contrabass, timpani).
     const feel = new Set(Object.values(tags).flatMap((t) => t.feel));
     for (const w of feelWords(words)) expect(feel.has(w), w).toBe(true);
-    const inst = new Set(Object.values(tags).flatMap((t) => t.instruments));
-    for (const w of Object.keys(words.instruments)) expect(inst.has(w), w).toBe(true);
   });
 
   it('describe every feel word, and pair instruments with feel words', () => {
