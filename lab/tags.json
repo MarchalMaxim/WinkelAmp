@@ -19,7 +19,7 @@
   "ikeda": {"feel":["icy","flickering","brittle","marching"],"instruments":["harpsichord","piano"],"role":"ground"},
   "kandinsky": {"feel":["vivid","playful","triumphant","heavy"],"instruments":["tutti","trumpet","cello"],"role":"base"},
   "klee": {"feel":["warm","grainy","marching","glowing"],"instruments":["strings","harpsichord","violin"],"role":"ground"},
-  "kline": {"feel":["heavy","stabbing","brittle","triumphant"],"instruments":["trombone","timpani","tutti"],"role":"ground"},
+  "kline": {"feel":["stabbing","rough","violent","smeared"],"instruments":["trombone","timpani","tutti"],"role":"ground"},
   "kusama": {"feel":["vivid","grainy","playful","marching"],"instruments":["piano","plucked"],"role":"ground"},
   "lenlye": {"feel":["flickering","skittish","brittle","playful"],"instruments":["timpani","plucked"],"role":"ground"},
   "lewitt": {"feel":["pale","airy","marching","serene"],"instruments":["harpsichord","piano"],"role":"ground"},

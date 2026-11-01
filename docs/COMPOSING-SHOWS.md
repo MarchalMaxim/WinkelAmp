@@ -620,7 +620,7 @@ Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
 
 After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
 
-Feel: heavy, stabbing, brittle, triumphant · Suits: trombone, timpani, tutti · Role: ground
+Feel: stabbing, rough, violent, smeared · Suits: trombone, timpani, tutti · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|

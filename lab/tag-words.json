@@ -85,6 +85,21 @@
         "fit": {
           "dense": 0.4
         }
+      },
+      "rough": {
+        "looks": "Coarse, dry-brushed, torn edges: nothing smooth, the bristles show.",
+        "sounds": "Harsh, rasping attack: heavy bowing, brass forte, accents dug in.",
+        "fit": {
+          "loud": 0.6
+        }
+      },
+      "smeared": {
+        "looks": "Paint dragged and wiped across: streaks that trail behind the stroke.",
+        "sounds": "Attacks that drag: slurred chords, glissandi, a blur of pedal.",
+        "fit": {
+          "loud": 0.3,
+          "dense": 0.3
+        }
       }
     },
     "motion": {
@@ -240,6 +255,14 @@
         "fit": {
           "fast": 0.6,
           "dense": 0.4
+        }
+      },
+      "violent": {
+        "looks": "Strikes that land like blows: sudden, huge, merciless.",
+        "sounds": "Brutal accents, sforzando hammering, off-beat stabs (the Rite).",
+        "fit": {
+          "loud": 1,
+          "fast": 0.4
         }
       }
     }
@@ -523,7 +546,6 @@
     "hasty": "skittish",
     "nervous": "skittish",
     "jittery": "skittish",
-    "violent": "stabbing",
     "angry": "stabbing",
     "aggressive": "stabbing",
     "gloomy": "dark",
@@ -556,6 +578,8 @@
     "menacing": "dread",
     "sinister": "dread",
     "chaotic": "panic",
-    "frantic": "panic"
+    "frantic": "panic",
+    "attacking": "stabbing",
+    "smear": "smeared"
   }
 }
