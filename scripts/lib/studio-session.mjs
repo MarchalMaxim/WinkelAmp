@@ -1,6 +1,6 @@
 // The studio in a real browser, set up for a check (studio-check, and the UI checks of the instruments plan): temp
 // songs and shows folders (WINKELAMP_SONGS / WINKELAMP_SHOWS), songs ingested or copied into them, shows written, the
-// studio's own Vite server (port 5196 up, never the user's 5173/5174/5180), system Chrome with autoplay allowed, and a
+// studio's own Vite server (port WINKELAMP_PORT, else 5196, up; never the user's 5173/5174/5180), system Chrome with autoplay allowed, and a
 // first page opened on the first song. Local only: needs ffmpeg and system Chrome.
 //
 //   const st = await openStudio({ songs: 'fixture', shows: { demo: {...} } });
@@ -41,7 +41,7 @@ export function checker() {
 /**
  * @param {{ songs?: 'fixture' | string[], shows?: Record<string, object> | ((packs: Record<string, any>) => Record<string, object>),
  *   viewport?: { width: number, height: number }, query?: string, headed?: boolean, keep?: boolean, port?: number }} [o]
- *   query: the first page's URL query (default `?song=<first song>`); port: where Vite starts looking (default 5196).
+ *   query: the first page's URL query (default `?song=<first song>`); port: where Vite starts looking (default 5196; WINKELAMP_PORT overrides it).
  * @returns {Promise<{ page: import('playwright').Page, base: string, dirs: { tmp: string, songs: string, shows: string },
  *   packs: Record<string, any>, missing: string[], errors: string[], vite: import('vite').ViteDevServer,
  *   browser: import('playwright').Browser, close(): Promise<void> }>}
@@ -84,7 +84,7 @@ export async function openStudio(o = {}) {
     const showMap = typeof o.shows === 'function' ? o.shows(packs) : (o.shows ?? {});
     for (const [id, show] of Object.entries(showMap)) writeFileSync(path.join(shows, `${id}.json`), `${JSON.stringify(show, null, 2)}\n`);
 
-    vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: o.port ?? 5196, strictPort: false, hmr: false } });
+    vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || o.port || 5196, strictPort: false, hmr: false } });
     await vite.listen();
     const base = vite.resolvedUrls.local[0].replace(/\/$/, '');
     browser = await chromium.launch({ channel: 'chrome', headless: !o.headed, args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -92,6 +92,7 @@ export async function openStudio(o = {}) {
     const page = await browser.newPage({ viewport: o.viewport ?? { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
+    await page.route(/localhost:5174/, (r) => r.abort());   // a test browser never posts to the lab's ratings saver
     const query = o.query ?? (ids.length ? `?song=${ids[0]}` : '');
     await page.goto(`${base}/${query}`);
     if (ids.length) await page.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });

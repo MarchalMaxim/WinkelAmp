@@ -58,7 +58,7 @@ export type Line = 'melody' | 'bassline' | 'inner' | 'low' | 'high' | 'accents';
 export type Family = 'keys' | 'plucked' | 'strings' | 'winds' | 'brass' | 'percussion' | 'voice';
 export type TrackId = 'piano' | 'plucked' | 'violin' | 'viola' | 'cello' | 'contrabass' | 'strings' | 'timpani' | 'voice'
   | 'horn' | 'trumpet' | 'trombone' | 'brass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'saxophone';
-/** 'all' | a TrackId | `family:${Family}` | a Line. Absent = 'all'. */
+/** 'all' | a TrackId | `family:${Family}` | a Line | `picks:${id}`. Absent = 'all'. */
 export type Listen = string;
 export type Shape = 'linear' | 'ease' | 'hold';
 /** t: song s; v: 0..1; shape/bend: the segment from this pivot to the next (bend −1..1, 0 = straight). */
@@ -67,9 +67,12 @@ export interface Pivot { t: number; v: number; shape?: Shape; bend?: number }
 export interface Region { mode: 'spot' | 'window'; shape: 'rect' | 'ellipse'; x: number; y: number; w: number; h: number;
   rot?: number; feather?: number; blend?: 'over' | 'lighten'; fit?: 'cover' | 'contain' | 'stretch' }
 export type Persist = 'redraw' | 'strokes';
-export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>> }
+export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>>;
+  picks?: Record<string, { notes: Note[] }> }
 /** key = widget, or widget@listen; own = keeps its own pulse (listen set, or any intensity in the show). */
-export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean }
+export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean;
+  /** A set of picks: the notes this instance hears. A loaded key whose notes change is evaluated again. */
+  notes?: Note[] }
 /** until: the curve is read at min(t, until), a decaying instance's frozen value. */
 export interface SlotLayer { pivots?: readonly Pivot[]; until?: number; region?: Region; glide?: { from: Region; u: number } }
 export type Role = 'under' | 'ground' | 'base' | 'texture' | 'lead' | 'accent' | 'top' | 'standalone';

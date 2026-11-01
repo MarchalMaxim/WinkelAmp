@@ -4,7 +4,11 @@
  * and Save downloads the show and keeps a draft in this browser.
  */
 import type { NotesSource, SongPack } from '../pack/pack';
+import { canonicalMelody, emptyMelody, type Melody } from '../show/melody';
 import { canonicalShow, type Show } from '../show/show';
+
+/** A row of a song's notes.ymt3.json: label is the transcriber's guess at the instrument. */
+export type LabelNote = [start: number, end: number, midi: number, vel: number, label: string];
 
 export interface LibraryEntry { id: string; title: string; duration: number; notesFrom: NotesSource; hasShow: boolean; error?: string }
 
@@ -19,6 +23,11 @@ export interface ShowStore {
   saveShow(s: Show): Promise<void>;
   description(id: string): Promise<string>;
   saveDescription(id: string, text: string): Promise<void>;
+  /** The song's marked melody; an empty one when it has none. Static: localStorage 'wa-studio.melody.<id>'. */
+  melody(song: string): Promise<Melody>;
+  saveMelody(m: Melody): Promise<void>;
+  /** The transcriber's instrument labels, for a song without tracks. Static: none. */
+  labels(song: string): Promise<LabelNote[]>;
   /** The in-browser fallback's result (static: this browser's IndexedDB, else memory for this page). */
   addSong(p: SongPack, audio: Blob): Promise<void>;
 }
@@ -63,6 +72,11 @@ function devStore(): ShowStore {
     async saveDescription(id, text) {
       await check(await fetch(`${b}/api/shows/${id}/description`, { method: 'PUT', headers: { 'content-type': 'text/markdown' }, body: text }), 'save description');
     },
+    async melody(song) { return (await (await check(await fetch(`${b}/api/melodies/${song}`, { cache: 'no-store' }), `melody ${song}`)).json()) as Melody; },
+    async saveMelody(m) {
+      await check(await fetch(`${b}/api/melodies/${m.song}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: canonicalMelody(m) }), 'save melody');
+    },
+    async labels(song) { return ((await (await check(await fetch(`${b}/api/songs/${song}/labels`, { cache: 'no-store' }), `labels ${song}`)).json()) as { notes: LabelNote[] }).notes; },
     async addSong(p, audio) {
       await check(await fetch(`${b}/api/songs/${p.id}?name=${encodeURIComponent(p.audio)}`, { method: 'PUT', body: audio }), 'add song');
       await check(await fetch(`${b}/api/songs/${p.id}/pack`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p) }), 'add song');
@@ -72,6 +86,7 @@ function devStore(): ShowStore {
 
 const draftKey = (id: string) => `wa-studio.draft.${id}`;
 const descKey = (id: string) => `wa-studio.description.${id}`;
+const melodyKey = (id: string) => `wa-studio.melody.${id}`;
 function lsGet(k: string): string | null { try { return localStorage.getItem(k); } catch { return null; } }
 function lsSet(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* private window */ } }
 
@@ -143,6 +158,9 @@ function staticStore(): ShowStore {
     async saveShow(s) { const text = canonicalShow(s); lsSet(draftKey(s.id), text); download(`${s.id}.json`, text); },
     async description(id) { return lsGet(descKey(id)) ?? ''; },
     async saveDescription(id, text) { lsSet(descKey(id), text); },
+    async melody(song) { const m = lsGet(melodyKey(song)); return m ? (JSON.parse(m) as Melody) : emptyMelody(song); },
+    async saveMelody(m) { lsSet(melodyKey(m.song), canonicalMelody(m)); },
+    async labels() { return []; },
     async addSong(p, audio) {
       remember(p, audio);
       const d = await db;

@@ -87,4 +87,12 @@ describe('listenNotes', () => {
     expect(WA.listenNotes(song, 'melody')).toEqual({ notes: WA.lineNotes(all, 'melody'), heard: 'melody' });
     expect(WA.listenNotes(song, 'melody').notes).toEqual([[0, 1, 67, 80], [2, 3, 72, 80]]);
   });
+
+  it('gives a set of picks, and nothing when it is not there: never the fallback to all notes', () => {
+    const two: Note[] = [[1.5, 2, 60, 80], [2.5, 3, 62, 90]];
+    expect(WA.listenNotes({ notes: all, picks: { p1: { notes: two } } }, 'picks:p1')).toEqual({ notes: two, heard: 'picks:p1' });
+    expect(WA.listenNotes({ notes: all, picks: { p1: { notes: two } } }, 'picks:p9')).toEqual({ notes: [], heard: 'picks:p9' });
+    expect(WA.listenNotes({ notes: all }, 'picks:p9')).toEqual({ notes: [], heard: 'picks:p9' });
+    expect(WA.listenNotes({ notes: all }, 'picks:constructor')).toEqual({ notes: [], heard: 'picks:constructor' });
+  });
 });

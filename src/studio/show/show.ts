@@ -4,10 +4,12 @@
  * path like 'sections[2].layers[0].knobs.size'; repairShow fixes what can be fixed without asking.
  * Version 2 (plan 2026-10-31-instruments-regions-automation-hd §5): a layer may listen to a part, sit in a region and
  * follow an intensity curve. canonicalShow writes version 2 only when some layer does, so v1 files keep their bytes.
+ * Picks (spec 2026-11-01-note-picker): show.picks holds sets of hand-picked notes, the notes themselves, and a layer
+ * with listen 'picks:<id>' answers those notes only. A picks listen never turns into one that hears every note.
  */
 import { isSlug } from '../pack/pack';
 import { TRACKS, isTrackId } from '../pack/instruments';
-import type { Drive, Family, KnobState, Line, Listen, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
+import type { Drive, Family, KnobState, Line, Listen, Note, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
 
 export const SHOW_VERSION = 2, DEFAULT_FADE = 3, MAX_LAYERS = 6, MIN_SECTION = 1;
 /** Pivots per layer per section (WaLayers.MAX_PIVOTS). */
@@ -21,10 +23,13 @@ export type KnobSetting = number | Partial<KnobState>;
 export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; restart?: boolean;
   region?: Region; intensity?: Pivot[] }
 export interface ShowSection { start: number; end: number; label?: string; fade?: number; layers: Layer[] }
+/** Notes in full, sorted by start: a new transcription doesn't move them. */
+export interface PickSet { notes: Note[] }
 export interface Show {
   version: 1 | 2; id: string; song: string; title?: string;
   composer?: { by: 'auto' | 'claude' | 'user'; at: string };
   sections: ShowSection[];
+  picks?: Record<string, PickSet>;
 }
 export interface Issue { path: string; message: string }
 /** tracks: the song's instrument tracks (pack v2); undefined: no track warnings. */
@@ -33,13 +38,14 @@ export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, 
 export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
 const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
-  show: ['version', 'id', 'song', 'title', 'composer', 'sections'],
+  show: ['version', 'id', 'song', 'title', 'composer', 'sections', 'picks'],
   composer: ['by', 'at'],
   section: ['start', 'end', 'label', 'fade', 'layers'],
   layer: ['widget', 'listen', 'knobs', 'restart', 'region', 'intensity'],
   knob: ['base', 'drive', 'depth'],
   region: ['mode', 'shape', 'x', 'y', 'w', 'h', 'rot', 'feather', 'blend', 'fit'],
   pivot: ['t', 'v', 'shape', 'bend'],
+  pickSet: ['notes'],
 } as const;
 
 export const LINES: readonly Line[] = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
@@ -49,10 +55,17 @@ const SHAPES: readonly Shape[] = ['linear', 'ease', 'hold'];
 /** Region size (fraction of the canvas) and centre limits. */
 export const REGION_SIZE = [0.02, 2] as const, REGION_CENTRE = [-0.5, 1.5] as const;
 
-/** 'all' | a TrackId | family:<Family> | a Line. */
+const PICKS = 'picks:';
+export const picksListen = (id: string): Listen => `${PICKS}${id}`;
+/** 'picks:p1' → 'p1'; anything else → null. */
+export function picksId(listen: unknown): string | null {
+  return typeof listen === 'string' && listen.startsWith(PICKS) && isSlug(listen.slice(PICKS.length)) ? listen.slice(PICKS.length) : null;
+}
+
+/** 'all' | a TrackId | family:<Family> | a Line | picks:<slug> (only validateShow can see whether the set exists). */
 export function isListen(x: unknown): x is Listen {
   if (typeof x !== 'string') return false;
-  if (x === 'all' || isTrackId(x) || (LINES as readonly string[]).includes(x)) return true;
+  if (x === 'all' || isTrackId(x) || (LINES as readonly string[]).includes(x) || picksId(x) !== null) return true;
   return x.startsWith('family:') && (FAMILIES as readonly string[]).includes(x.slice(7));
 }
 /** The part a layer listens to, or undefined for all notes ('all' is the same as absent). */
@@ -63,9 +76,11 @@ export function instanceKey(l: Pick<Layer, 'widget' | 'listen'>): string {
   return p === undefined ? l.widget : `${l.widget}@${p}`;
 }
 const hasCurve = (l: { intensity?: unknown }): boolean => Array.isArray(l.intensity) && l.intensity.length > 0;
-/** Some layer listens to a part, sits in a region or follows a curve: the show is saved as version 2. Defensive, so
-    validateShow can ask it of raw JSON. */
+/** Some layer listens to a part, sits in a region or follows a curve, or the show has a set of picks: it is saved as
+    version 2. Defensive, so validateShow can ask it of raw JSON. */
 export function usesV2(show: Show): boolean {
+  const picks: unknown = (show as { picks?: unknown }).picks;
+  if (isObj(picks) && Object.keys(picks).length) return true;
   const secs: unknown = (show as { sections?: unknown }).sections;
   if (!Array.isArray(secs)) return false;
   return secs.some((s) => isObj(s) && Array.isArray(s.layers) && s.layers.some((l: unknown) =>
@@ -91,7 +106,7 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
   if (!isObj(x)) { err('', 'a show is a JSON object { version, id, song, sections }'); return { errors, warnings }; }
   typos(x, KEYS.show, '');
   if (x.version !== 1 && x.version !== 2) err('version', `version ${JSON.stringify(x.version)}: this studio reads versions 1 and ${SHOW_VERSION}`);
-  else if (x.version === 1 && usesV2(x as unknown as Show)) warn('version', 'uses version-2 fields (listen, region or intensity): saved as version 2');
+  else if (x.version === 1 && usesV2(x as unknown as Show)) warn('version', 'uses version-2 fields (listen, region, intensity or picks): saved as version 2');
   if (!isSlug(x.id)) err('id', `${JSON.stringify(x.id)} is not a slug (lowercase letters, digits, single dashes)`);
   if (!isSlug(x.song)) err('song', `${JSON.stringify(x.song)} is not a song id (a slug: the folder songs/<id>/)`);
   if (x.title !== undefined && typeof x.title !== 'string') err('title', 'not a string');
@@ -101,6 +116,7 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
     } else typos(x.composer, KEYS.composer, 'composer');
   }
 
+  const sets: ReadonlySet<string> = new Set(isObj(x.picks) ? Object.keys(x.picks) : []);
   const sections = x.sections;
   if (!Array.isArray(sections) || !sections.length) { err('sections', 'a show needs at least one section'); return { errors, warnings }; }
   let prev: { start: number; end: number; i: number } | null = null;
@@ -136,8 +152,9 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
     if (!s.layers.length) warn(`${at}.layers`, 'no layers: the picture fades to black here');
     if (s.layers.length > MAX_LAYERS) warn(`${at}.layers`, `${s.layers.length} layers: more than ${MAX_LAYERS} gets muddy and slow`);
     const seen = new Set<string>(), span = timesOk ? { start: s.start as number, end: s.end as number } : null;
-    s.layers.forEach((l: unknown, j) => validateLayer(l, `${at}.layers[${j}]`, seen, span, c, err, warn, typos));
+    s.layers.forEach((l: unknown, j) => validateLayer(l, `${at}.layers[${j}]`, seen, span, c, sets, err, warn, typos));
   });
+  if (x.picks !== undefined) validatePicks(x.picks, sections, err, warn, typos);
   return { errors, warnings };
 }
 
@@ -156,15 +173,17 @@ function missingPart(listen: string, c: ShowContext): string | null {
   return null;
 }
 
-function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | null, c: ShowContext, err: Report,
-  warn: Report, typos: Typos): void {
+function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | null, c: ShowContext, sets: ReadonlySet<string>,
+  err: Report, warn: Report, typos: Typos): void {
   if (!isObj(l) || typeof l.widget !== 'string') { err(at, 'not a layer { widget: "<id>" }'); return; }
   typos(l, KEYS.layer, at);
   const meta = c.widgets?.get(l.widget);
   if (c.widgets && !meta) err(`${at}.widget`, `unknown widget '${l.widget}' (no lab/tools/${l.widget}.js)`);
   const listenOk = l.listen === undefined || isListen(l.listen);
   if (!listenOk) {
-    err(`${at}.listen`, `${JSON.stringify(l.listen)} is not a part: 'all', a track (${Object.keys(TRACKS).join(', ')}), family:<${FAMILIES.join('|')}> or a line (${LINES.join(', ')})`);
+    err(`${at}.listen`, `${JSON.stringify(l.listen)} is not a part: 'all', a track (${Object.keys(TRACKS).join(', ')}), family:<${FAMILIES.join('|')}>, a line (${LINES.join(', ')}) or picks:<id>`);
+  } else if (picksId(l.listen) !== null) {
+    if (!sets.has(picksId(l.listen)!)) err(`${at}.listen`, `${JSON.stringify(l.listen)} has no set in show.picks: it would hear nothing`);
   } else if (typeof l.listen === 'string') {
     const why = missingPart(l.listen, c);
     if (why) warn(`${at}.listen`, why);
@@ -189,6 +208,46 @@ function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | n
     if (v.base !== undefined) { if (!isNum(v.base)) err(`${kp}.base`, 'not a number'); else range(v.base, `${kp}.base`); }
     if (v.drive !== undefined && !DRIVES.includes(v.drive as Drive)) err(`${kp}.drive`, `${JSON.stringify(v.drive)} is not a drive (one of ${DRIVES.map((d) => `'${d}'`).join(', ')})`);
     if (v.depth !== undefined && !(isNum(v.depth) && v.depth >= 0 && v.depth <= 1)) err(`${kp}.depth`, `${JSON.stringify(v.depth)} is not a depth from 0 to 1`);
+  }
+}
+
+/** What is wrong with a note of a set, or null. */
+function badNote(n: unknown): string | null {
+  if (!Array.isArray(n) || n.length !== 4 || !n.every(isNum)) return 'not [start, end, midi, velocity]';
+  const [s, e, m, v] = n as Note;
+  if (e < s) return `ends at ${fmt(e)} s, before it starts at ${fmt(s)} s`;
+  if (m < 0 || m > 127) return `midi ${m} is outside 0..127`;
+  if (v < 0 || v > 127) return `velocity ${v} is outside 0..127`;
+  return null;
+}
+
+function validatePicks(picks: unknown, sections: unknown[], err: Report, warn: Report, typos: Typos): void {
+  if (!isObj(picks)) { err('picks', 'not an object { <id>: { notes } }'); return; }
+  for (const [id, set] of Object.entries(picks)) {
+    const at = `picks.${id}`;
+    if (!isSlug(id)) err(at, `${JSON.stringify(id)} is not a slug (lowercase letters, digits, single dashes)`);
+    if (!isObj(set)) { err(at, 'not a set { notes }'); continue; }
+    typos(set, KEYS.pickSet, at);
+    const notes = set.notes;
+    if (!Array.isArray(notes)) { err(`${at}.notes`, 'not a list of notes [start, end, midi, velocity]'); continue; }
+    if (!notes.length) err(`${at}.notes`, 'no notes: a set of picks needs at least one');
+    let prev = -Infinity, sorted = true;
+    notes.forEach((n: unknown, i) => {
+      const why = badNote(n);
+      if (why) { err(`${at}.notes[${i}]`, why); return; }
+      if ((n as Note)[0] < prev) sorted = false;
+      prev = (n as Note)[0];
+    });
+    if (!sorted) err(`${at}.notes`, 'the notes are not sorted by start');
+    // A pick starts in the section holding its time: a section's end is the next one's.
+    const using = sections.filter((s): s is ShowSection => isObj(s) && isNum(s.start) && isNum(s.end) && Array.isArray(s.layers)
+      && s.layers.some((l: unknown) => isObj(l) && picksId(l.listen) === id));
+    if (!using.length) { warn(at, 'no layer uses it'); continue; }
+    notes.forEach((n: unknown, i) => {
+      if (!badNote(n) && !using.some((s) => (n as Note)[0] >= s.start && (n as Note)[0] < s.end)) {
+        warn(`${at}.notes[${i}]`, `starts at ${fmt((n as Note)[0])} s, outside every section using it: never heard`);
+      }
+    });
   }
 }
 
@@ -298,6 +357,40 @@ export function repairPivots(p: unknown, at = 'intensity', span: Span | null = n
   return out;
 }
 
+/** Notes as a set holds them: malformed ones dropped, numbers to 4 decimals, sorted by start (stable). Says each fix
+    (the rounding is no fix: canonicalShow writes that anyway); never mutates `n`. */
+export function repairPickNotes(n: unknown, at = 'notes', fix: Report = () => {}): Note[] {
+  if (!Array.isArray(n)) { fix(at, 'was not a list of notes: removed'); return []; }
+  const out: Note[] = [];
+  n.forEach((x: unknown, i) => {
+    const why = badNote(x);
+    if (why) fix(`${at}[${i}]`, `${why}: dropped`);
+    else out.push((x as Note).map((v) => Math.round(v * 1e4) / 1e4 || 0) as Note);
+  });
+  if (out.every((x, i) => i === 0 || x[0] >= out[i - 1][0])) return out;
+  fix(at, 'sorted the notes by start');
+  return out.map((x, i) => [x, i] as const).sort((a, b) => a[0][0] - b[0][0] || a[1] - b[1]).map(([x]) => x);
+}
+
+/** The sets as validateShow wants them: their notes repaired; a set left with no notes goes (and with it its layers, in
+    repairSection), an unused one stays for its warning, since it's hand work. Says which ids are left. */
+function repairPicks(s: Show, fix: Report): ReadonlySet<string> {
+  const picks: unknown = s.picks;
+  if (picks === undefined) return new Set();
+  delete s.picks;
+  if (!isObj(picks)) { fix('picks', 'was not an object: removed'); return new Set(); }
+  const out: Record<string, PickSet> = {};
+  for (const [id, set] of Object.entries(picks)) {
+    const at = `picks.${id}`;
+    if (!isSlug(id)) { fix(at, `${JSON.stringify(id)} is not a slug: the set removed`); continue; }
+    if (!isObj(set)) { fix(at, 'was not a set: removed'); continue; }
+    const notes = repairPickNotes(set.notes, `${at}.notes`, fix);
+    if (notes.length) out[id] = { notes }; else fix(at, 'no notes left: the set removed');
+  }
+  if (Object.keys(out).length) s.picks = out;
+  return new Set(Object.keys(out));
+}
+
 /** Fixes what validateShow complains about, where the fix is obvious; never mutates `show`. */
 export function repairShow(show: Show, c: ShowContext): { show: Show; fixed: Issue[] } {
   const s = clone(show), fixed: Issue[] = [];
@@ -337,12 +430,13 @@ export function repairShow(show: Show, c: ShowContext): { show: Show; fixed: Iss
     secs.splice(i, 1);
     if (i > 0) i--;
   }
-  secs.forEach((x, i) => repairSection(x, `sections[${i}]`, c, fix));
+  const sets = repairPicks(s, fix);
+  secs.forEach((x, i) => repairSection(x, `sections[${i}]`, c, sets, fix));
   s.sections = secs;
   return { show: s, fixed };
 }
 
-function repairSection(x: ShowSection, at: string, c: ShowContext, fix: (p: string, m: string) => void): void {
+function repairSection(x: ShowSection, at: string, c: ShowContext, sets: ReadonlySet<string>, fix: (p: string, m: string) => void): void {
   if (x.fade !== undefined) {
     if (!isNum(x.fade)) { fix(`${at}.fade`, 'was not a number: removed (the default, 3 s)'); delete x.fade; }
     else if (x.fade < 0 || x.fade > MAX_FADE) { const f = clamp(x.fade, 0, MAX_FADE); fix(`${at}.fade`, `${fmt(x.fade)} s → ${f} s`); x.fade = f; }
@@ -354,6 +448,8 @@ function repairSection(x: ShowSection, at: string, c: ShowContext, fix: (p: stri
     if (!isObj(l) || typeof l.widget !== 'string') { fix(lp, 'not a layer: dropped'); return; }
     const meta = c.widgets?.get(l.widget);
     if (c.widgets && !meta) { fix(lp, `unknown widget '${l.widget}': dropped`); return; }
+    // Never by deleting the listen: that would make it the plain widget on every note.
+    if (typeof l.listen === 'string' && l.listen.startsWith(PICKS) && !sets.has(picksId(l.listen) ?? '')) { fix(lp, `listens to ${JSON.stringify(l.listen)}, which has no set: dropped`); return; }
     if (l.listen !== undefined && !isListen(l.listen)) { fix(`${lp}.listen`, `${JSON.stringify(l.listen)} is not a part: removed (all notes)`); delete l.listen; }
     const key = instanceKey(l);
     if (seen.has(key)) { fix(lp, `'${key}' twice in one section: the second dropped`); return; }
@@ -389,7 +485,8 @@ function repairSection(x: ShowSection, at: string, c: ShowContext, fix: (p: stri
 
 /** What shows/<id>.json holds: keys in schema order (unknown properties dropped), times to ms, 2-space indent, a final
     newline. version is 2 when usesV2, else 1. listen 'all' and an empty intensity are left out (they mean nothing);
-    region numbers and pivot v and bend are rounded to 4 decimals, pivot t to ms, and each pivot sits on one line. */
+    region numbers and pivot v and bend are rounded to 4 decimals, pivot t to ms, and each pivot sits on one line. picks
+    come after sections ({} left out), a note a line, its numbers to 4 decimals: a pick is exactly the note. */
 export function canonicalShow(show: Show): string {
   const pick = (o: Record<string, unknown>, keys: readonly string[], map: (k: string, v: unknown) => unknown = (_k, v) => v) => {
     const out: Record<string, unknown> = {};
@@ -405,6 +502,13 @@ export function canonicalShow(show: Show): string {
     pivots.push(`{ ${Object.entries(q).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')} }`);
     return `\u0000P${pivots.length - 1}`;
   };
+  const noteLines: string[] = [];
+  const note = (n: unknown): unknown => {
+    if (!Array.isArray(n)) return n;
+    noteLines.push(`[${n.map((x) => JSON.stringify(r4(x))).join(', ')}]`);
+    return `\u0000N${noteLines.length - 1}`;
+  };
+  const pickSet = (p: unknown) => (isObj(p) ? pick(p, KEYS.pickSet, (_k, v) => (Array.isArray(v) ? v.map(note) : v)) : p);
   const knob = (v: unknown) => (isObj(v) ? pick(v, KEYS.knob) : v);
   const layer = (l: Layer) => pick(l as unknown as Record<string, unknown>, KEYS.layer, (k, v) =>
     k === 'knobs' && isObj(v) ? Object.fromEntries(Object.entries(v).map(([key, x]) => [key, knob(x)]))
@@ -416,7 +520,9 @@ export function canonicalShow(show: Show): string {
     k === 'start' || k === 'end' || k === 'fade' ? (isNum(v) ? ms(v) : v) : k === 'layers' && Array.isArray(v) ? v.map(layer) : v);
   const version = usesV2(show) ? 2 : 1;
   const o = pick(show as unknown as Record<string, unknown>, KEYS.show, (k, v) =>
-    k === 'version' ? version : k === 'composer' && isObj(v) ? pick(v, KEYS.composer) : k === 'sections' && Array.isArray(v) ? v.map(section) : v);
+    k === 'version' ? version : k === 'composer' && isObj(v) ? pick(v, KEYS.composer) : k === 'sections' && Array.isArray(v) ? v.map(section)
+    : k === 'picks' && isObj(v) ? (Object.keys(v).length ? Object.fromEntries(Object.entries(v).map(([id, p]) => [id, pickSet(p)])) : undefined) : v);
   const text = JSON.stringify(o, null, 2);
-  return `${pivots.length ? text.replace(/"\\u0000P(\d+)"/g, (_m, i: string) => pivots[Number(i)]) : text}\n`;
+  const swap = (t: string, re: RegExp, lines: string[]) => (lines.length ? t.replace(re, (_m, i: string) => lines[Number(i)]) : t);
+  return `${swap(swap(text, /"\\u0000P(\d+)"/g, pivots), /"\\u0000N(\d+)"/g, noteLines)}\n`;
 }

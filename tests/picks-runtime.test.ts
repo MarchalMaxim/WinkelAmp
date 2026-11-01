@@ -1,0 +1,264 @@
+// A real WidgetRuntime and Conductor on stub canvases: the attacks a widget answers are exactly groupChords(picks).
+/// <reference types="node" />
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { loadLayers } from '../scripts/node/layers';
+import { Conductor, samePreview, showInstances } from '../src/studio/show/conductor';
+import { applyEdit } from '../src/studio/show/edit';
+import type { Show } from '../src/studio/show/show';
+import { groupChords } from '../src/widgets/chords';
+import { WidgetRuntime } from '../src/widgets/runtime';
+import type { LabHarness, Note, WidgetMeta } from '../src/widgets/types';
+
+const WA = loadLayers();
+
+/** A 2D context that takes every call. */
+const fakeG = (canvas: unknown): CanvasRenderingContext2D => new Proxy({ canvas } as Record<string, unknown>, {
+  get: (o, k) => (k in o ? o[k as string] : () => {}),
+  set: (o, k, v) => { o[k as string] = v; return true; },
+}) as unknown as CanvasRenderingContext2D;
+function fakeCanvas(w = 1280, h = 720): HTMLCanvasElement {
+  const c = { width: w, height: h } as unknown as HTMLCanvasElement & { g?: CanvasRenderingContext2D };
+  c.getContext = (() => (c.g ??= fakeG(c))) as never;
+  return c;
+}
+
+/** What the probes saw, in the global the widget source reads. */
+interface Log { heard: Record<string, [number, number, number][]>; resets: Record<string, number>; loaded: Record<string, [number, number]>;
+  frames: Record<string, { t: number; level: number; size: number | undefined }[]> }
+const log = (): Log => (globalThis as unknown as { __probe: Log }).__probe;
+
+const probe = (id: string) => `TOOLS.push({ id: '${id}', name: '${id}', params: [{ key: 'size', min: 0, max: 9, value: 1 }],
+  init: (() => { window.__probe.loaded['${id}'] = [window.NOTES.length, CHORDS.length]; })(),
+  reset() { window.__probe.resets['${id}'] = (window.__probe.resets['${id}'] || 0) + 1; },
+  onChord(ch) { (window.__probe.heard['${id}'] ??= []).push([ch.t, ch.vel, ch.notes.length]); },
+  frame(x) { (window.__probe.frames['${id}'] ??= []).push({ t: x.t, level: x.level, size: x.p('size') }); },
+});`;
+const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other') };
+const HARNESS: LabHarness = { toolIds: Object.keys(SOURCES), verdicts: {}, drives: [], iconSource: '{ ink: "#000", gauge() {} }' };
+const META: WidgetMeta = { id: 'x', name: 'x', blurb: '', tag: '', verdict: null, params: [{ key: 'size', min: 0, max: 9, value: 1 }] };
+
+/** 100 attacks, one every 0.3 s from 0.1 s. */
+const SONG: Note[] = Array.from({ length: 100 }, (_, i) => [Math.round((0.1 + i * 0.3) * 1e4) / 1e4, 0.3 + i * 0.3, 60 + (i % 12), 70]);
+/** 5 notes making 4 attacks, two of them 30 ms apart. Not all of them are in SONG: a pick is the note itself. */
+const PICKS: Note[] = [[1.234, 1.5, 72, 60], [4.1, 4.4, 74, 110], [4.13, 4.5, 77, 40], [6.05, 6.5, 70, 30], [8.2, 8.6, 79, 90]];
+const asHeard = (notes: Note[]) => groupChords(notes).map((c) => [c.t, c.vel, c.notes.length]);
+
+const show = (notes: Note[] = PICKS): Show => ({
+  version: 2, id: 'demo', song: 'demo',
+  sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }, { widget: 'plain' }] }],
+  picks: { p1: { notes } },
+});
+const KEY = 'pick@picks:p1';
+
+const start = (s: Show = show()) => {
+  const rt = new WidgetRuntime(fakeCanvas(), { notes: SONG }, { sources: SOURCES, harness: HARNESS, layers: WA });
+  const c = new Conductor(rt, s, () => META);
+  rt.deliveredLog = [];
+  return { rt, c };
+};
+/** Steps at 1/60 s from `from` to `to`. */
+function play(c: Conductor, from: number, to: number): void {
+  const n = Math.round((to - from) * 60);
+  for (let i = 1; i <= n; i++) c.step(from + i / 60, 1 / 60);
+}
+
+beforeAll(() => {
+  vi.stubGlobal('window', globalThis);
+  vi.stubGlobal('document', { createElement: () => fakeCanvas() });
+  vi.stubGlobal('NOTES', SONG);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterAll(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.stubGlobal('__probe', { heard: {}, resets: {}, loaded: {}, frames: {} } satisfies Log); });
+
+describe('a widget on a set of picks', () => {
+  it('answers exactly the picked attacks and none between; a plain one in the same show hears all', () => {
+    const { rt, c } = start();
+    c.reset(0);
+    play(c, 0, 31);
+    expect(log().heard.pick).toEqual(asHeard(PICKS));
+    expect(rt.deliveredLog!.filter(([k]) => k === KEY).map(([, t]) => t)).toEqual(groupChords(PICKS).map((x) => x.t));
+    expect(log().heard.plain).toHaveLength(100);
+    expect(rt.errors).toEqual({});
+  });
+
+  it('a pick\'s loudness sets the strength: the level at its frame is at least vel / 115', () => {
+    const { c } = start();
+    c.reset(0);
+    play(c, 0, 10);
+    const f = log().frames.pick, at = (t: number) => f.find((x) => x.t >= t)!.level;
+    for (const ch of groupChords(PICKS)) expect(at(ch.t)).toBeGreaterThanOrEqual(ch.vel / 115 - 1e-9);
+    // After 2 s of decay (0.5^(2/0.8) = 0.18), a loud pick lifts it high and a soft one hardly at all.
+    expect(at(8.2)).toBeGreaterThan(at(6.05));
+    expect(at(6.05)).toBeLessThan(0.4);
+  });
+
+  it('at load the routed copy sees the picks, not the song', () => {
+    start();
+    expect(log().loaded.pick).toEqual([5, 4]);
+    expect(log().loaded.plain).toEqual([100, 100]);
+  });
+
+  it('across a boundary: all heard, no reset at the boundary', () => {
+    const two = (): Show => ({ ...show(), sections: [
+      { start: 0, end: 5, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
+      { start: 5, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
+    ] });
+    const { c } = start(two());
+    c.reset(0);
+    const before = log().resets.pick;
+    play(c, 0, 10);
+    expect(log().heard.pick).toEqual(asHeard(PICKS));
+    expect(log().resets.pick).toBe(before);
+  });
+
+  it('entering at a boundary: a pick in the first step of its section is heard', () => {
+    const s: Show = { ...show([[5, 5.5, 72, 80], [8, 8.5, 72, 80]]), sections: [
+      { start: 0, end: 5, layers: [{ widget: 'plain' }] },
+      { start: 5, end: 30, layers: [{ widget: 'plain' }, { widget: 'pick', listen: 'picks:p1' }] },
+    ] };
+    const { c } = start(s);
+    c.reset(0);
+    play(c, 0, 10);
+    expect(log().heard.pick).toEqual(asHeard(s.picks!.p1.notes));
+  });
+
+  it('a placement holds a pick that a step carries over its section\'s end', () => {
+    const s0: Show = { version: 2, id: 'demo', song: 'demo', sections: [
+      { start: 0, end: 5, layers: [{ widget: 'plain' }] }, { start: 5, end: 30, layers: [{ widget: 'plain' }] },
+    ] };
+    const notes: Note[] = [[1, 1.5, 72, 80], [4.995, 5.2, 72, 90]];
+    const { c } = start(applyEdit(s0, { kind: 'placePicks', widget: 'pick', notes }));
+    c.reset(0);
+    play(c, 0, 8);   // the step from 4.983 to 5 lands on the boundary, with the pick inside it
+    expect(log().heard.pick).toEqual(asHeard(notes));
+  });
+
+  it('decay: the layer only in section 0, a pick in the next section\'s fade is not heard', () => {
+    const s: Show = { ...show([[1, 1.5, 72, 80], [5.5, 6, 72, 80]]), sections: [
+      { start: 0, end: 5, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
+      { start: 5, end: 30, fade: 3, layers: [{ widget: 'plain' }] },
+    ] };
+    const { c } = start(s);
+    c.reset(0);
+    play(c, 0, 10);
+    expect(log().heard.pick).toEqual([[1, 80, 1]]);
+  });
+
+  it('a seek: only attacks after it; a seek exactly onto a pick does not fire it, a seek back before it does', () => {
+    const { c } = start();
+    c.reset(5);
+    play(c, 5, 10);
+    expect(log().heard.pick).toEqual(asHeard(PICKS).slice(2));
+    log().heard.pick = [];
+    c.reset(8.2);
+    play(c, 8.2, 10);
+    expect(log().heard.pick ?? []).toEqual([]);
+    c.reset(8.1);
+    play(c, 8.1, 10);
+    expect(log().heard.pick).toEqual(asHeard(PICKS).slice(3));
+  });
+
+  it('an update reaches the running widget: only the new picks from there, its notes the new ones, a knob kept, no error', () => {
+    const a = show(), { rt, c } = start(a);
+    rt.setKnobs(KEY, { size: { base: 7, drive: '', depth: 0.5 } });
+    c.reset(0);
+    play(c, 0, 2);
+    expect(log().heard.pick).toEqual(asHeard(PICKS).slice(0, 1));
+
+    const NEW: Note[] = [[3, 3.5, 60, 50], [5, 5.5, 62, 55], [9, 9.5, 64, 60]];
+    const b = applyEdit(a, { kind: 'updatePicks', id: 'p1', widget: 'pick', notes: NEW });
+    log().heard.pick = [];
+    const resets = log().resets.pick ?? 0;
+    c.setShow(b);
+    expect(log().loaded.pick).toEqual([3, 3]);
+    expect(log().resets.pick).toBe(resets + 1);
+    expect(rt.loaded().filter((k) => k === KEY)).toHaveLength(1);
+    play(c, 2, 10);
+    expect(log().heard.pick).toEqual(asHeard(NEW));
+    expect(log().frames.pick.at(-1)!.size).toBe(7);
+    expect(rt.errors).toEqual({});
+
+    // Undo: only the old picks again.
+    log().heard.pick = [];
+    c.setShow(a);
+    expect(log().loaded.pick).toEqual([5, 4]);
+    play(c, 10, 11);
+    expect(log().heard.pick ?? []).toEqual([]);
+    c.reset(0);
+    play(c, 0, 10);
+    expect(log().heard.pick).toEqual(asHeard(PICKS));
+    expect(rt.errors).toEqual({});
+  });
+
+  it('an update picks up after the time it comes at: nothing already played fires again', () => {
+    const a = show(), { c } = start(a);
+    c.reset(0);
+    play(c, 0, 5);
+    log().heard.pick = [];
+    c.setShow(applyEdit(a, { kind: 'updatePicks', id: 'p1', widget: 'pick', notes: [[1, 1.5, 60, 50], [7, 7.5, 62, 55]] }));
+    play(c, 5, 10);
+    expect(log().heard.pick).toEqual([[7, 55, 1]]);
+  });
+
+  it('a show set again with the same picks does not reload', () => {
+    const a = show(), { c } = start(a);
+    c.reset(0);
+    const resets = log().resets.pick;
+    log().loaded.pick = [0, 0];
+    c.setShow({ ...a, picks: { p1: { notes: JSON.parse(JSON.stringify(PICKS)) as Note[] } } });
+    expect(log().loaded.pick).toEqual([0, 0]);
+    expect(log().resets.pick).toBe(resets);
+  });
+
+  it('samePreview sees a change of picks, and only that', () => {
+    const a = show();
+    const b = applyEdit(a, { kind: 'updatePicks', id: 'p1', widget: 'pick', notes: [[3, 3.5, 60, 50]] });
+    expect(samePreview(a, b, 5)).toBe(false);
+    expect(samePreview(a, { ...a }, 5)).toBe(true);
+    expect(samePreview(a, { ...a, picks: { p1: { notes: JSON.parse(JSON.stringify(PICKS)) as Note[] } } }, 5)).toBe(true);
+  });
+
+  it('an unknown set hears nothing: never all the notes', () => {
+    const s: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p9' }] }] };
+    const { rt, c } = start(s);
+    c.reset(0);
+    play(c, 0, 31);
+    expect(log().heard.pick ?? []).toEqual([]);
+    expect(log().loaded.pick).toEqual([0, 0]);
+    expect(rt.instance('pick@picks:p9')!.routed).toBe(true);
+    expect(rt.errors).toEqual({});
+  });
+
+  it('an empty set hears nothing too', () => {
+    const { c } = start(show([]));
+    c.reset(0);
+    play(c, 0, 31);
+    expect(log().heard.pick ?? []).toEqual([]);
+  });
+
+  it('a malformed picks listen hears nothing', () => {
+    const s: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:' }] }] };
+    const { c } = start(s);
+    c.reset(0);
+    play(c, 0, 31);
+    expect(log().heard.pick ?? []).toEqual([]);
+  });
+
+  it('showInstances of a show without picks has no notes key on any spec; with picks only that spec has', () => {
+    const plain: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'plain' }, { widget: 'other', listen: 'melody' }] }] };
+    for (const s of showInstances(plain)) expect('notes' in s).toBe(false);
+    const specs = showInstances(show());
+    expect(specs.find((s) => s.key === KEY)!.notes).toBe(PICKS);
+    expect('notes' in specs.find((s) => s.key === 'plain')!).toBe(false);
+  });
+
+  it('a set shared by two widgets: each hears it', () => {
+    const s: Show = { ...show(), sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }, { widget: 'other', listen: 'picks:p1' }] }] };
+    const { c } = start(s);
+    c.reset(0);
+    play(c, 0, 10);
+    expect(log().heard.pick).toEqual(asHeard(PICKS));
+    expect(log().heard.other).toEqual(asHeard(PICKS));
+  });
+});

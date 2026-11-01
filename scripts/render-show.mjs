@@ -130,7 +130,7 @@ const frameSink = {
   },
 };
 
-const vite = await createServer({ root: ROOT, logLevel: 'error', plugins: [frameSink], server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
+const vite = await createServer({ root: ROOT, logLevel: 'error', plugins: [frameSink], server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || 5190, strictPort: false, hmr: false } });
 let browser = null, tmp = null, code = 0, cleaning = null, cancelled = false;
 /** Chrome, the encoders and the server closed, the temp folder removed (unless --keep); once, whoever asks first. */
 const cleanup = () => (cleaning ??= (async () => {

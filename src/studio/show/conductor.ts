@@ -9,7 +9,7 @@ import { resolveKnobs } from '../../widgets/features';
 import type { RuntimeLike, Slot } from '../../widgets/runtime';
 import type { InstanceSpec, SlotLayer, WidgetMeta } from '../../widgets/types';
 import { entriesBetween, scheduleAt, sectionAt, type ScheduledWidget } from './schedule';
-import { instanceKey, listenOf, type KnobSetting, type Show } from './show';
+import { instanceKey, listenOf, picksId, type KnobSetting, type Show } from './show';
 
 /** A slot with its layer (plan 2026-10-31 §6: Slot gains `layer` in runtime.ts with T12). */
 export type ShowSlot = Slot & { layer?: SlotLayer };
@@ -19,14 +19,17 @@ export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
   step(t: number, dt: number, slots: readonly ShowSlot[]): void;
 }
 
-/** The instances of a show in first-appearance order. own: it listens to a part, or some layer of it has a curve. */
+/** The instances of a show in first-appearance order. own: it listens to a part, or some layer of it has a curve.
+    notes: a set of picks' notes, so a pick is the note itself and needs no song to look it up in; none for a missing set. */
 export function showInstances(show: Show): InstanceSpec[] {
   const out = new Map<string, InstanceSpec>();
   for (const s of show.sections) for (const l of s.layers) {
     const key = instanceKey(l), listen = listenOf(l);
     let spec = out.get(key);
     if (!spec) {
-      spec = { key, widget: l.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined };
+      const id = picksId(listen);
+      spec = { key, widget: l.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined,
+        ...(id !== null ? { notes: show.picks?.[id]?.notes ?? [] } : {}) };
       out.set(key, spec);
     }
     if (l.intensity?.length) spec.own = true;
@@ -83,9 +86,10 @@ const ownKeys = (show: Show): Set<string> => new Set(showInstances(show).filter(
 /** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would hand the
     runtime at the reset and at every preview step (and who it resets on the way), so an edit to a section the preview
     does not reach, a split at t or a new name leaves a paused picture as it is. Moments are left out: a new name or a
-    split only renumbers them. */
+    split only renumbers them. Picks are not in the schedule, so any change of them counts. */
 export function samePreview(a: Show, b: Show, t: number): boolean {
   if (a === b) return true;
+  if (a.picks !== b.picks && JSON.stringify(a.picks) !== JSON.stringify(b.picks)) return false;
   const ownA = ownKeys(a), ownB = ownKeys(b);
   for (const w of [QUICK, SETTLED]) {
     const { t0, times } = previewSteps(t, w);

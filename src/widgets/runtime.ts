@@ -133,28 +133,33 @@ export class WidgetRuntime implements RuntimeLike {
 
   /** Evaluates each not-yet-loaded instance once, in this order (load order is draw order and, through load-time
       randomness, part of the pixels). A widget id loads its plain instance (today's call); a spec with a listen that the
-      song has is routed: evaluated with its part's NOTES and CHORDS. A key already loaded only takes the spec's `own`
-      (a curve added in an edit), in place: re-evaluating would wipe its state. A failure is kept in errors[key]. */
+      song has is routed: evaluated with its part's NOTES and CHORDS; a spec with notes (a set of picks) is routed on
+      them, even on none. A key already loaded only takes the spec's `own` (a curve added in an edit), in place:
+      re-evaluating would wipe its state. Except when its notes changed: widgets read them when they load, so an edited
+      set is evaluated again, cold at the last step and reset, its knobs kept (the Conductor won't send them again). A
+      failure is kept in errors[key]. */
   load(specs: readonly (string | InstanceSpec)[]): void {
     const L = this.layers;
     for (const x of specs) {
       const spec: InstanceSpec = typeof x === 'string' ? { key: x, widget: x } : x;
       const key = spec.key, have = this.insts.get(key);
-      if (have) { this.setOwn(have, !!L && (!!spec.own || have.routed)); continue; }
+      const knobs = have && spec.notes && spec.notes !== have.notes ? this.knobs[key] : undefined;
+      if (have && !knobs) { this.setOwn(have, !!L && (!!spec.own || have.routed)); continue; }
+      if (have) this.forget(key);
       if (this.tools.has(key) || this.errors[key]) continue;
       const src = this.lib.sources[spec.widget];
       if (src == null) { this.errors[key] = `no widget file lab/tools/${spec.widget}.js`; continue; }
       let notes = this.song.notes, routed = false;
       if (spec.listen !== undefined && spec.listen !== 'all') {
         if (!L) { this.errors[key] = `listens to ${spec.listen}, but this runtime has no layer code`; continue; }
-        const heard = L.listenNotes(this.song, spec.listen);
+        const heard = spec.notes ? { notes: spec.notes, heard: spec.listen } : L.listenNotes(this.song, spec.listen);
         if (heard.heard !== 'all') { notes = heard.notes; routed = true; }   // a part the song lacks: all notes, unrouted
       }
       const chords = routed ? groupChords(notes) : this.chords;
       try {
         const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes } : { icon: this.icon, chords: this.chords });
         this.tools.set(key, tool); this.order.push(key);
-        this.knobs[key] = resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
+        this.knobs[key] = knobs ?? resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
         const inst: InstanceState = {
           key, widget: spec.widget, salt: L ? L.fnv32(key) : 0, notes, chords, ci: 0,
           pulse: { level: 0, rate: 0 }, feat: newFeatures(),
@@ -162,8 +167,14 @@ export class WidgetRuntime implements RuntimeLike {
         };
         this.insts.set(key, inst);
         L?.coldInstance(inst, this.stepT);
+        if (knobs) this.safe(key, 'reset', this.g, this.ctx);
       } catch (e) { this.errors[key] = `load: ${e instanceof Error ? e.message : String(e)}`; }
     }
+  }
+  /** An instance as if never loaded (its set of picks changed), but for its knobs. */
+  private forget(key: string): void {
+    this.tools.delete(key); this.insts.delete(key); this.winG.delete(key); delete this.errors[key];
+    this.order.splice(this.order.indexOf(key), 1);
   }
   /** Instance keys in load order. */
   loaded(): readonly string[] { return this.order; }

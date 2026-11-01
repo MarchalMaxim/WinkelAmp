@@ -42,7 +42,7 @@ for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
   if (!existsSync(path.join(ROOT, f))) { console.log(`runtime-check: skipped (no ${f}: the lab's transcriptions are local only)`); process.exit(0); }
 }
 
-const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
+const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || 5190, strictPort: false, hmr: false } });
 await vite.listen();
 const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
 const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');
