@@ -10,6 +10,9 @@
 // nothing moves unless the music moves it. Bars and marks fade without motion and with no sudden start, so no moment of
 // it reads as a beat; a bar is painted over (the brush sweeps) only at the instant a new bar lands and pushes it out.
 // And a colour knob: ink, blood red, yellow or blue.
+// The weight knob reaches further left than its old 0.35 (the user: sliders should dim, not only boost): from 0.35 down to
+// 0.1 the strokes go on thinning, the ink fades and fewer chords land, until only this piece's hardest leave a faint line.
+// Every value from 0.35 up draws exactly what it always drew.
 (() => {
   const DEG = Math.PI / 180;
   const BONE = '#e7dfcc', BONE_INK = '#ece4d2', BLACK = '#0d0b0a', NIGHT = '#100e0d';
@@ -26,6 +29,8 @@
   const lerp = (a, b, k) => a + (b - a) * k;
   const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const inkOf = (x) => clamp(Math.round(x.p('colour')), 0, INKS.length - 1);
+  // how firm the hand is: 1 at any weight from 0.35 up, 0 at the left end of the knob (0.1)
+  const firmOf = (x) => clamp((x.p('weight') - 0.1) / 0.25, 0, 1);
 
   // How big a chord is compared with the rest of this piece: the share of the song's chords that are softer (0..1).
   function buildPct() {
@@ -284,9 +289,9 @@
           hs.forEach((k, i) => { const bh = k * (h - 6), y = h - 3 - bh; ICON.rect(g, 4 + i * 7, y, 5, bh, y <= line ? ICON.ink : ICON.dim); });
           ICON.line(g, 2, line, w - 2, line, ICON.red, 1.2);
         } },
-      { key: 'weight', label: 'how heavy', min: 0.35, max: 1.9, value: 1,
-        hint: 'How thick the bars and marks are. Left: thin, wiry strokes. Right: huge, heavy beams.',
-        icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, BONE); const t = 1.5 + v * 13; ICON.rect(g, 5, h / 2 - t / 2, w - 10, t, BLACK); } },
+      { key: 'weight', label: 'how heavy', min: 0.1, max: 1.9, value: 1,
+        hint: 'How thick the bars and marks are. Left: faint, thin lines, on only the hardest chords. Right: huge, heavy beams.',
+        icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, BONE); const t = 1.5 + v * 13; ICON.alpha(g, 0.15 + v * 6, () => ICON.rect(g, 5, h / 2 - t / 2, w - 10, t, BLACK)); } },
       { key: 'stay', label: 'how long they stay', min: 1.2, max: 24, value: 4, drive: '+level',
         hint: 'How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear.',
         icon: (g, v, w, h) => {
@@ -322,6 +327,8 @@
       const rel = clamp(0.5 + (ch.vel - localV) / 24, 0, 1), p = pct(ch.vel);
       localV += (ch.vel - localV) * Math.max(0.08, 1 - Math.exp(-gap / 1.2));
       const loud = clamp(0.6 * p + 0.4 * rel, 0, 1);
+      // a light hand: only the hardest chords of this piece land (the hardest 55% at weight 0.225, the top 10% at 0.1)
+      if (p < (1 - firmOf(x)) * 0.9) return;
       // a chord counts as bigger when it stands out from what came before, breaks a silence, or is full
       const quiet = clamp((gap - 0.35) / 1.4, 0, 1);
       const score = 0.55 * p + 0.45 * rel + 0.25 * quiet + 0.03 * Math.min(ch.notes.length - 1, 4);
@@ -336,7 +343,7 @@
       for (let i = 0; i < live.length - MAX_LIVE; i++) live[i].wipe = 0;
     },
     frame(x) {
-      const g = x.g, mode = x.p('ground') >= 0.5 ? 1 : 0, ink = inkOf(x), life = x.p('stay'), dt = x.dt;
+      const g = x.g, mode = x.p('ground') >= 0.5 ? 1 : 0, ink = inkOf(x), life = x.p('stay'), dt = x.dt, faint = 1 - 0.85 * (1 - firmOf(x));
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
       g.drawImage(ground[mode] ??= makeGround(mode, x.W, x.H), 0, 0);
       const P = (pool[mode * 8 + ink] ??= makePool(mode, ink));
@@ -345,7 +352,7 @@
       const drawMark = (m) => {
         const sp = P[m.v], sx = m.L / MARK_L, sy = m.T / sp.T;
         const reveal = 1 - Math.pow(1 - Math.min(1, m.age / m.dur), 2), sw = sp.pad + (MARK_L + sp.pad) * reveal;
-        g.globalAlpha = m.q < 1 ? 1 - 0.78 * smooth(0.1, 1, m.q) : 0.22 * (1 - smooth(1, 2.6, m.q));
+        g.globalAlpha = (m.q < 1 ? 1 - 0.78 * smooth(0.1, 1, m.q) : 0.22 * (1 - smooth(1, 2.6, m.q))) * faint;
         if (g.globalAlpha <= 0.01) return;
         g.save(); g.translate(m.x, m.y); g.rotate(m.ang * DEG); g.scale(sx, sy);
         g.drawImage(sp.cv, 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h);
@@ -369,8 +376,8 @@
         const sw = sp.pad + (s.L + sp.pad) * reveal;
         g.save(); g.translate(s.x, s.y); g.rotate(s.ang * DEG);
         const fade = (1 - smooth(0.25, 1, s.q)) * (s.wipe == null ? 1 : 1 - smooth(1, 4, s.wipe));
-        if (fade > 0 && s.a < 0.995 && s.un[mode]) { g.globalAlpha = fade; g.drawImage(under(s, mode), 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h); }
-        g.globalAlpha = s.a * fade;
+        if (fade > 0 && s.a < 0.995 && s.un[mode]) { g.globalAlpha = fade * faint; g.drawImage(under(s, mode), 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h); }
+        g.globalAlpha = s.a * fade * faint;
         if (g.globalAlpha > 0) g.drawImage(sp.cv, 0, 0, sw * sp.k, sp.h * sp.k, -sp.pad, -sp.cy, sw, sp.h);
         if (s.wipe != null) {
           // the cover slides in tail first, so its dry, streaky end is the brush's front edge; once the bar under it has
