@@ -236,19 +236,6 @@ index 90cb0cc..63dfbd6 100644
      } catch { /* a broken pack: no end or track checks */ }
    }
    let { errors, warnings } = validateShow(x, c);
-diff --git a/scripts/render-show.mjs b/scripts/render-show.mjs
-index 9a0afd1..53c6edd 100644
---- a/scripts/render-show.mjs
-+++ b/scripts/render-show.mjs
-@@ -183,7 +183,7 @@ try {
-     from = 'composed';
-   } else throw new Error(`no show ${arg}: not a file, not in ${showsDir()}, and no song pack ${arg} in ${songs}`);
-   const pack = readPack(show.song);
--  const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}) });
-+  const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}), noteTypes: loadLayers().noteTypeCounts(pack) });
-   for (const w of v.warnings) console.log(`warning  ${w.path}: ${w.message}`);
-   if (v.errors.length) {
-     for (const e of v.errors) console.error(`error  ${e.path}: ${e.message}`);
 diff --git a/src/studio/show/show.ts b/src/studio/show/show.ts
 index 6ddb824..ff254a4 100644
 --- a/src/studio/show/show.ts
