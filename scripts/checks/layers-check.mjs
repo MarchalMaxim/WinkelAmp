@@ -181,7 +181,7 @@ try {
     await page.waitForSelector('.layer.open[data-k="2"] .lc');
     await page.click('.layer.open [data-mode="window"]');
     const hint = await page.locator('.layer.open .lc-hint').textContent().catch(() => '');
-    if (!phone) check('casket in a window says it cuts only its own picture', /in a window it cuts only its own picture/.test(hint ?? ''), hint ?? '');
+    if (!phone) check('casket as a small copy says it cuts only its own picture', /as a small copy it cuts only its own picture/.test(hint ?? ''), hint ?? '');
     await shot(`panel-where-reader${sfx}`, '.layer.open .lc-part:nth-of-type(2)');
   }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
