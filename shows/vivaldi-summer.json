@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "id": "vivaldi-summer",
+  "song": "vivaldi-summer",
+  "title": "Vivaldi: Summer",
+  "composer": { "by": "claude", "at": "2026-11-01T22:00:00.000Z" },
+  "sections": [
+    { "start": 0, "end": 33, "label": "The heat", "fade": 3, "layers": [
+      { "widget": "horizon" },
+      { "widget": "fields", "knobs": { "back": 1.4 } },
+      { "widget": "brush", "listen": "cello", "knobs": { "presence": 0.45 } }
+    ] },
+    { "start": 33, "end": 84, "label": "Languor, the violins stir", "fade": 3, "layers": [
+      { "widget": "horizon", "knobs": { "presence": 0.5 } },
+      { "widget": "brush", "listen": "cello", "knobs": { "presence": 0.3 } },
+      { "widget": "current", "listen": "violin", "knobs": { "presence": 0.7 } }
+    ] },
+    { "start": 84, "end": 113.5, "label": "The cuckoo", "fade": 2, "layers": [
+      { "widget": "horizon", "knobs": { "presence": 0.3 } },
+      { "widget": "current", "listen": "violin", "knobs": { "presence": 0.4 } },
+      { "widget": "murmuration", "listen": "violin" },
+      { "widget": "scribble", "listen": "viola", "knobs": { "presence": 0.4 }, "region": { "mode": "window", "shape": "rect", "x": 0.82, "y": 0.78, "w": 0.3, "h": 0.3, "feather": 0.2, "fit": "contain" } }
+    ] },
+    { "start": 113.5, "end": 138, "label": "A first gust", "fade": 1, "layers": [
+      { "widget": "riley", "knobs": { "presence": 0.55 } },
+      { "widget": "strings", "listen": "violin" },
+      { "widget": "squares", "listen": "cello" }
+    ] },
+    { "start": 138, "end": 163, "label": "The turtle dove", "fade": 3, "layers": [
+      { "widget": "miro" },
+      { "widget": "score", "listen": "violin", "knobs": { "presence": 0.5 }, "region": { "mode": "window", "shape": "rect", "x": 0.75, "y": 0.25, "w": 0.38, "h": 0.38, "feather": 0.2, "fit": "contain" } }
+    ] },
+    { "start": 163, "end": 191.5, "label": "The solo violin darts", "fade": 2, "layers": [
+      { "widget": "miro", "knobs": { "presence": 0.25 } },
+      { "widget": "flee", "listen": "violin" },
+      { "widget": "ikeda", "listen": "high", "knobs": { "presence": 0.35 }, "region": { "mode": "window", "shape": "rect", "x": 0.5, "y": 0.86, "w": 0.7, "h": 0.2, "feather": 0.2, "fit": "cover" } }
+    ] },
+    { "start": 191.5, "end": 236, "label": "The north wind", "fade": 1, "layers": [
+      { "widget": "riley" },
+      { "widget": "kandinsky", "listen": "cello", "knobs": { "presence": 0.6 } },
+      { "widget": "strings", "listen": "violin" },
+      { "widget": "squares", "listen": "bassline" }
+    ] },
+    { "start": 236, "end": 328, "label": "The shepherd's lament", "fade": 3, "layers": [
+      { "widget": "fifths", "listen": "viola", "knobs": { "presence": 0.45 } },
+      { "widget": "brush", "listen": "violin" },
+      { "widget": "contours", "listen": "cello" }
+    ] },
+    { "start": 328, "end": 359, "label": "The storm threatens", "fade": 1, "layers": [
+      { "widget": "ridges", "listen": "cello", "knobs": { "presence": 0.6 } },
+      { "widget": "rorschach", "listen": "accents" },
+      { "widget": "flee", "listen": "violin", "knobs": { "presence": 0.6 } }
+    ] },
+    { "start": 359, "end": 472, "label": "Adagio: the gnats, and far thunder", "fade": 4, "layers": [
+      { "widget": "horizon", "knobs": { "presence": 0.35 } },
+      { "widget": "brush", "listen": "violin", "knobs": { "presence": 0.7 } },
+      { "widget": "lenlye", "listen": "viola", "knobs": { "presence": 0.3 } },
+      { "widget": "squares", "listen": "accents" }
+    ] },
+    { "start": 472, "end": 488.5, "label": "Thunder closes in", "fade": 1, "layers": [
+      { "widget": "horizon", "knobs": { "presence": 0.15 } },
+      { "widget": "kline", "listen": "accents" },
+      { "widget": "squares", "listen": "accents" }
+    ] },
+    { "start": 488.5, "end": 555.5, "label": "Presto: the storm breaks", "fade": 0.5, "layers": [
+      { "widget": "riley", "knobs": { "presence": 0.45 } },
+      { "widget": "strings", "listen": "violin" },
+      { "widget": "kline", "listen": "cello", "knobs": { "weight": 0.6 } },
+      { "widget": "flee", "listen": "high", "knobs": { "presence": 0.6 } }
+    ] },
+    { "start": 555.5, "end": 600.5, "label": "Hail on the fields", "fade": 1, "layers": [
+      { "widget": "kandinsky", "listen": "cello" },
+      { "widget": "strings", "listen": "violin", "knobs": { "presence": 0.6 } },
+      { "widget": "rorschach", "listen": "accents" },
+      { "widget": "blocks", "listen": "viola" }
+    ] },
+    { "start": 600.5, "end": 640.5, "label": "All the strings together", "fade": 1, "layers": [
+      { "widget": "riley" },
+      { "widget": "strings", "listen": "violin" },
+      { "widget": "suprematism", "listen": "cello", "knobs": { "presence": 0.7 } },
+      { "widget": "squares", "listen": "accents" }
+    ] },
+    { "start": 640.5, "end": 664.09, "label": "The last blows", "fade": 1, "layers": [
+      { "widget": "kline", "listen": "family:strings" },
+      { "widget": "rorschach", "listen": "accents" },
+      { "widget": "casket" }
+    ] }
+  ]
+}
