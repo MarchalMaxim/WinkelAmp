@@ -105,12 +105,12 @@
 
   TOOLS.push({
     id: 'mandala', name: 'Mandala', tag: 'v2',
-    blurb: 'A radial bloom: each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle. New in v2: every attack lands with rays from the centre and a kick; sounding notes are filled (solid when loud, see-through when soft), and once let go they linger as fine outline lace behind the live ones. The <b>how present</b> knob tones it right down.',
+    blurb: 'A radial bloom: each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle. New in v2: every attack lands with rays from the centre and a kick; sounding notes are filled (solid when loud, see-through when soft), and once let go they linger as fine outline lace behind the live ones. The <b>how present</b> knob sets how much it builds: from a small figure of a few short-lived spokes to dense lace.',
     params: [
-      { key: 'mirrors', label: 'copies per note', min: 0.5, max: 3, value: 1.5,
+      { key: 'mirrors', label: 'copies per note', min: 0.5, max: 3, value: 1.5, less: 0.5,
         hint: 'How many mirrored copies a chord gets, per note in it. Left: a few spokes. Right: dense lace, a big chord fills the circle.',
         icon: (g, v, w, h) => rosette(g, w, h, Math.round(3 + v * 11), 1, 0, ICON.gold) },
-      { key: 'size', label: 'size (breathes)', min: 0.4, max: 1.3, value: 0.86, drive: '+level',
+      { key: 'size', label: 'size (breathes)', min: 0.4, max: 1.3, value: 0.86, less: 0.55, drive: '+level',
         hint: 'How big the mandala is; it follows loudness, so it swells on loud chords. Left: a small jewel. Right: fills the screen.',
         icon: (g, v, w, h) => { rosette(g, w, h, 8, 0.3 + v * 0.75, 0, ICON.gold); ICON.dot(g, w / 2, h / 2, 1 + v * 1.6, ICON.red); } },
       { key: 'spin', label: 'turning speed', min: 0, max: 1, value: 0.2, drive: '+rate',
@@ -124,7 +124,7 @@
           g.fillStyle = ICON.ink; g.beginPath(); g.moveTo(ex + 3.5 * Math.cos(ta), ey + 3.5 * Math.sin(ta));
           g.lineTo(ex - 3 * Math.cos(ta - 1.2), ey - 3 * Math.sin(ta - 1.2)); g.lineTo(ex - 3 * Math.cos(ta + 1.2), ey - 3 * Math.sin(ta + 1.2)); g.fill();
         } },
-      { key: 'life', label: 'how long they stay', min: 0.3, max: 8, value: 3.5, drive: '-rate',
+      { key: 'life', label: 'how long they stay', min: 0.3, max: 8, value: 3.5, less: 1.5, drive: '-rate',
         hint: 'How long a shape stays after its note ends; it follows the tempo, so busy passages clear faster. Left: a flicker, only the live notes. Right: layers pile up into a dense mandala.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.1 + v * 0.9, ICON.gold, 'diamond') },
       { key: 'jag', label: 'spikes on clashing notes', min: 0, max: 1, value: 0.7,
@@ -138,7 +138,10 @@
           }
           g.closePath(); g.fill();
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much mandala it builds: how far the figure reaches, how many mirrored copies a chord gets, how long the shapes stay after their notes. Left: a small figure of a few spokes that are soon gone. Right: the full circle with lace piling up behind the notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint figure, nearly still, that answers only the hardest notes and the odd soft one. Right: every note blooms at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => rosette(g, w, h, 8, 0.45 + 0.55 * v, 0, ICON.gold)) },
     ],

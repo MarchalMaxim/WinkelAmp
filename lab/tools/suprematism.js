@@ -65,15 +65,15 @@
 
   TOOLS.push({
     id: 'suprematism', name: 'Suprematism', tag: 'new',
-    blurb: 'Malevich-style flat planes on a dark field: bass slams heavy black bars in low, high notes add thin slivers high, chords add red, ochre and cream blocks, and big chords flip planes on their side. Loud, dense passages tilt the whole composition and pile the planes into each other; quiet ones let them drift apart and level out. The <b>how present</b> knob tones it right down.',
+    blurb: 'Malevich-style flat planes on a dark field: bass slams heavy black bars in low, high notes add thin slivers high, chords add red, ochre and cream blocks, and big chords flip planes on their side. Loud, dense passages tilt the whole composition and pile the planes into each other; quiet ones let them drift apart and level out. The <b>how present</b> knob sets how many planes crowd the field.',
     // Five knobs (the user's rule for this round), and how present as a sixth. Folded into fixed choices: angle spread (still leans more when loud),
     // drift, size by register, and flips on big chords (more of them when loud). 'push' merges tilt and collision pull.
     params: [
-      { key: 'count', label: 'how many planes', min: 4, max: 60, step: 1, value: 22,
+      { key: 'count', label: 'how many planes', min: 4, max: 60, step: 1, value: 22, less: 4,
         hint: 'How many planes can be on the field at once; the oldest leave first. Left: a sparse few. Right: a crowded field.',
         icon: (g, v, w, h) => { const R = ICON.rng(4), n = Math.round(2 + v * 16), cols = [ICON.red, ICON.ink, ICON.gold, '#8a8078'];
           for (let i = 0; i < n; i++) { const L = 5 + R() * 9; g.save(); g.translate(5 + R() * (w - 10), 4 + R() * (h - 8)); g.rotate((R() - 0.5) * 0.8); ICON.rect(g, -L / 2, -1.2, L, 2.4 + (i % 3 === 0 ? 2 : 0), cols[i % 4]); g.restore(); } } },
-      { key: 'life', label: 'how long a plane stays', min: 1, max: 20, value: 9, drive: '-rate',
+      { key: 'life', label: 'how long a plane stays', min: 1, max: 20, value: 9, less: 1.5, drive: '-rate',
         hint: 'How long a plane stays before it shrinks away. Left: a second or two. Right: it holds for many bars.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, ICON.red, 'square') },
       { key: 'push', label: 'how hard loud music pushes', min: 0, max: 1.5, value: 0.6,
@@ -87,10 +87,13 @@
       { key: 'temp', label: 'cold / hot colours', min: 0, max: 1, value: 0.5,
         hint: 'The four inks. Left: cold, blue and steel greys. Middle: classic red, ochre and cream. Right: hot orange and gold.',
         icon: (g, v, w, h) => { ICON.rect(g, 1, 1, w - 2, h - 2, ink('field', v)); ICON.rect(g, 4, 4, 20, 8, ink('red', v)); ICON.rect(g, 26, 5, 10, 16, ink('ochre', v)); ICON.rect(g, 6, 15, 17, 4, ink('cream', v)); ICON.rect(g, 4, 21, 30, 2.5, ink('black', v)); } },
-      { key: 'size', label: 'size', min: 0.4, max: 1.6, value: 0.85, drive: '+bass',
+      { key: 'size', label: 'size', min: 0.4, max: 1.6, value: 0.85, less: 0.55, drive: '+bass',
         hint: 'How big the planes are. Left: small, with lots of empty field. Right: big slabs that fill the frame.',
         icon: (g, v, w, h) => { const L = 8 + v * 28, T = 2.5 + v * 7; g.save(); g.translate(w / 2, h / 2); g.rotate(-0.25); ICON.rect(g, -L / 2, -T / 2, L, T, ICON.red); g.restore(); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How full the field is: how many planes can be on it, how long each stays, how big they are. Left: a few small planes that shrink away soon. Right: a full field of big slabs. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a few faint planes on a dark, level, nearly still field, added only by the hardest notes. Right: every attack adds its planes at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {
           const bars = [[0, -1, 22, ICON.red], [-9, -7, 12, ICON.gold], [9, 7, 14, ICON.ink]];

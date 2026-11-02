@@ -123,7 +123,7 @@
   }
   TOOLS.push({
     id: 'riley', name: 'Op art', tag: 'v2',
-    blurb: 'A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden, until <b>how present</b> is turned down: the colours then sink toward black and let them show, the field calms, and only the hardest chords bend it.',
+    blurb: 'A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden. <b>how present</b> sets how much field there is: turned down, a few broad, clean bands that only loud playing still bends.',
     params: [
       { key: 'pattern', label: 'pattern', min: 0, max: 2, step: 1, value: 0,
         hint: 'What the field is made of. Left: stripes. Middle: a checkerboard. Right: rings around the centre.',
@@ -133,10 +133,10 @@
           else if (k === 1) for (let y = 3, j = 0; y < h - 3; y += 5, j++) for (let x = 3, i = 0; x < w - 3; x += 5, i++) { if ((i + j) % 2) ICON.rect(g, x, y, 5, 5); }
           else for (let r = 2.5; r < 13; r += 3.2) ICON.ring(g, w / 2, h / 2, r, ICON.ink, 1.5);
         } },
-      { key: 'stripe', label: 'stripe width', min: 5, max: 60, step: 1, value: 16,
+      { key: 'stripe', label: 'stripe width', min: 5, max: 60, step: 1, value: 16, less: 36,
         hint: 'How wide each stripe is. Left: fine, dizzying lines. Right: a few broad bands.',
         icon: (g, v, w, h) => { const bw = 1.4 + v * 6.6; for (let x = 3; x < w - 3; x += 2 * bw) ICON.rect(g, x, 3, Math.min(bw, w - 3 - x), h - 6); } },
-      { key: 'bend', label: 'how much the music bends it', min: 0, max: 2.5, value: 1, drive: '+level',
+      { key: 'bend', label: 'how much the music bends it', min: 0, max: 2.5, value: 1, less: 0, drive: '+level',
         hint: 'How hard the notes bend the field: lenses on the bass, ripples on the melody, sharp kinks on chords. Left: almost flat. Right: wild, swelling distortion.',
         icon: (g, v, w, h) => {
           g.strokeStyle = ICON.ink; g.lineWidth = 2;
@@ -144,7 +144,7 @@
             for (let y = 2; y <= h - 2; y += 1) { const b = Math.exp(-((y - h / 2) ** 2) / 40) * (x0 - w / 2) * 0.35; const x = x0 + v * (Math.sin(y * 0.42 + i * 0.3) * 2.2 + b); y === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
             g.stroke(); }
         } },
-      { key: 'shimmer', label: 'shimmer', min: 0, max: 2, value: 0.3, drive: '+rate',
+      { key: 'shimmer', label: 'shimmer', min: 0, max: 2, value: 0.3, less: 0, drive: '+rate',
         hint: 'A fine, fast trembling of every edge, so the eye fizzes. Left: still, clean edges. Right: the whole field buzzes.',
         icon: (g, v, w, h) => {
           const r = ICON.rng(3); g.strokeStyle = ICON.ink; g.lineWidth = 1.8;
@@ -160,7 +160,10 @@
           for (let x = 4; x < w - 4; x += 8) ICON.rect(g, x, 2, 4, h - 4, hex(p[1]));
           g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(1.5, 1.5, w - 3, h - 3);
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much stripe field there is: how many stripes, how hard the notes bend them, how much their edges tremble. Left: a few broad, clean bands that only loud playing still bends. Right: the full fine field, bending and fizzing. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a dim, almost still field that lets what is under it show, and only the hardest chords bend it. Right: the full field, every note bending it (as before).',
         icon: (g, v, w, h) => {
           ICON.alpha(g, 0.14 + 0.86 * v, () => {

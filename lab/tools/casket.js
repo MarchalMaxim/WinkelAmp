@@ -100,13 +100,13 @@
     id: 'casket', name: 'The casket', tag: 'v2',
     blurb: 'New in v2: it strikes once and lets go. On the hardest attacks the picture melts, paint drips from the top and one cut slashes through, then it leaves the picture alone until the next. It works on whatever is under it. <b>keep melting between</b>, all the way right, is the old casket that never stops.',
     params: [
-      { key: 'melt', label: 'melt', min: 0, max: 6, value: 2.2,
+      { key: 'melt', label: 'melt', min: 0, max: 6, value: 2.2, less: 0.7,
         hint: 'How far the whole picture slides down and melts when it strikes. Left: it holds still. Right: it runs a long way down.',
         icon: meltIcon },
-      { key: 'drips', label: 'drips', min: 0, max: 1, value: 0.5,
+      { key: 'drips', label: 'drips', min: 0, max: 1, value: 0.5, less: 0.1,
         hint: 'How much paint drips from the top when it strikes. Left: no drips. Right: a curtain of them.',
         icon: dripIcon },
-      { key: 'cutAt', label: 'which attacks strike', min: 80, max: 118, step: 1, value: 92,
+      { key: 'cutAt', label: 'which attacks strike', min: 80, max: 118, step: 1, value: 92, less: 108,
         hint: 'How hard an attack must be to set it off, against this piece. Left: a strike every few seconds. Right: only the very hardest, far apart.',
         icon: slashIcon },
       { key: 'gap', label: 'how far a cut slides', min: 0, max: 3, value: 1,
@@ -121,7 +121,10 @@
           ICON.line(g, 2, h - 3, w - 2, h - 3, ICON.dim, 1);
           for (let i = 0; i < 8; i++) { const b = i === 3 ? (1 - v) * 16 : 0, l = v * 11 + b; if (l > 0.5) ICON.rect(g, 4 + i * 4.3, h - 3 - l, 3, l, i === 3 ? SCAR : RED); }
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it destroys: how often it strikes, how much paint drips, how far the picture melts. Left: a strike about every twelve seconds in busy music, with a short melt and a drip or two. Right: a strike every five or six seconds, several drips, a long melt. Very sparse music strikes on every attack at any setting. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint melt and a hairline cut, and far fewer strikes. Right: at full strength.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.line(g, w / 2 - 4 - 7 * v, h - 3, w / 2 + 4 + 7 * v, 3, SCAR, 0.8 + 1.6 * v)) },
     ],

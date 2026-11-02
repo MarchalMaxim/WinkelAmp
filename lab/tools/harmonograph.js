@@ -95,7 +95,7 @@
       { key: 'size', label: 'size', min: 0.4, max: 1.3, value: 0.95,
         hint: 'How wide the pen swings. Left: a small figure in the middle. Right: fills the screen.',
         icon: (g, v, w, h) => liss(g, w, h, { s: 0.3 + v * 0.7, fy: 2 }) },
-      { key: 'speed', label: 'how fast the pen draws', min: 0.3, max: 5, value: 1.6,
+      { key: 'speed', label: 'how fast the pen draws', min: 0.3, max: 5, value: 1.6, less: 0.4,
         hint: 'How quickly the pen traces the figure. Left: slow, you watch each loop being drawn. Right: the whole figure appears almost at once.',
         icon: (g, v, w, h) => liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, frac: 0.15 + v * 0.85, nib: true }) },
       { key: 'damp', label: 'how fast it winds inward', min: 0.02, max: 0.6, value: 0.2,
@@ -104,9 +104,12 @@
       { key: 'push', label: 'how hard notes push the pen', min: 0, max: 1.5, value: 0.8,
         hint: 'What each note does to the pen. Left: nothing, the line just winds down. Right: every note flings the pen back out and leaves a thick bright knot in the line.',
         icon: (g, v, w, h) => liss(g, w, h, { fx: 1, fy: 1, ph: Math.PI / 2, cycles: 4, damp: 0.8, lw: 1, kicks: [[0.35, v * 0.7], [0.7, v * 0.7]] }) },
-      { key: 'stay', label: 'how long the lines stay', min: 0.3, max: 8, value: 4.5,
+      { key: 'stay', label: 'how long the lines stay', min: 0.3, max: 8, value: 4.5, less: 0.3,
         hint: 'How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other.',
         icon: (g, v, w, h) => { if (v > 0.05) liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, alpha: v * 0.9 }); liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, frac: 0.18, col: ICON.ink, lw: 1.6, nib: true }); } },
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much figure it draws: how fast the pen goes and how long the lines stay. Left: a short, slow trace that fades quickly. Right: the full tangle of lines. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) {
       if (x && x.canvas) sizeOff(x);

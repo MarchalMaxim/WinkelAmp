@@ -54,7 +54,7 @@
     id: 'nebula', name: 'Nebula', tag: 'v2',
     blurb: 'Every note is a pull, placed round a circle by its note name, and fine glowing grains stream between the notes. New: each attack now flares where its note sits and breathes out a puff of bright, almost white grains (loud notes big, soft ones faint, deep notes slow and wide, high ones quick and fine), and a chord forms separate knots joined by threads.',
     params: [
-      { key: 'pull', label: 'how hard notes pull', min: 0.2, max: 2, value: 0.8, drive: '+density',
+      { key: 'pull', label: 'how hard notes pull', min: 0.2, max: 2, value: 0.8, less: 0.4, drive: '+density',
         hint: 'How strongly the notes gather the grains. Left: a loose haze that barely bends. Right: tight, bright knots and threads.',
         icon: (g, v, w, h) => { const r = ICON.rng(4), k = 0.15 + v * 0.8;
           for (let i = 0; i < 22; i++) { const x0 = 3 + r() * (w - 6), y0 = 3 + r() * (h - 6), a = r() * 6.28, d = r() * 4;
@@ -67,7 +67,7 @@
             g.strokeStyle = ICON.blue; g.lineWidth = 1.2; g.beginPath(); P.forEach(([X, Y], i) => (i ? g.lineTo(X, Y) : g.moveTo(X, Y))); g.stroke();
             const [x1, y1] = P[P.length - 2], [x2, y2] = P[P.length - 1]; ICON.arrow(g, x1, y1, x2, y2, ICON.blue, 1.2); }
           ICON.dot(g, w / 2, h / 2, 1.6, ICON.ink); } },
-      { key: 'amount', label: 'how much dust', min: 1000, max: 7000, step: 100, value: 4000,
+      { key: 'amount', label: 'how much dust', min: 1000, max: 7000, step: 100, value: 4000, less: 1000,
         hint: 'How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud.',
         icon: (g, v, w, h) => ICON.dots(g, 5 + v * 70, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }) },
       { key: 'threads', label: 'grains or threads', min: 0.5, max: 6, value: 1.4,
@@ -75,13 +75,16 @@
         icon: (g, v, w, h) => { const r = ICON.rng(2);
           for (let i = 0; i < 6; i++) { const x = 6 + r() * (w - 12), y = 4 + r() * (h - 8), L = 0.6 + v * 13, a = 0.3 + r() * 0.4;
             ICON.line(g, x - Math.cos(a) * L / 2, y - Math.sin(a) * L / 2, x + Math.cos(a) * L / 2, y + Math.sin(a) * L / 2, ICON.violet, 1.3); } } },
-      { key: 'burst', label: 'how each note ignites', min: 0, max: 2, value: 0.9, drive: '+level',
+      { key: 'burst', label: 'how each note ignites', min: 0, max: 2, value: 0.9, less: 0, drive: '+level',
         hint: 'What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of bright new grains.',
         icon: (g, v, w, h) => { const r = ICON.rng(5); ICON.dot(g, w / 2, h / 2, 1.5 + v * 1.5, ICON.red);
           const n = Math.round(v * 16);
           for (let j = 0; j < n; j++) { const a = r() * 6.28, d = 3 + r() * (3 + v * 7);
             ICON.dot(g, w / 2 + Math.cos(a) * d * 1.5, h / 2 + Math.sin(a) * d, 0.8, j % 2 ? ICON.gold : ICON.red); } } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much dust there is: how many grains drift, how hard the notes gather them, and how big a puff each note breathes out. Left: a thin scatter of grains, loose around the notes, with small puffs that only loud notes still raise. Right: a thick cloud with big puffs of new grains. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: nearly dark, a few faint wisps gathering at the notes, and only the hardest notes of the piece glow. Right: every note ignites at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.dots(g, 6 + v * 24, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }); ICON.dot(g, w / 2, h / 2, 1.2 + 3 * v, ICON.gold); }) },
     ],

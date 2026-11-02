@@ -146,7 +146,7 @@
 
   TOOLS.push({
     id: 'cells', name: 'Cells', tag: 'v2',
-    blurb: 'A mosaic of coloured cells, one per note, left to right by pitch and coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, each attack swells its cell and flashes a pale kernel that shrinks while the note sounds, and loud attacks send a ring of light through the mosaic. <b>How present</b> tones it right down: a faint, calm mosaic where only the hardest notes open a cell.',
+    blurb: 'A mosaic of coloured cells, one per note, left to right by pitch and coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, each attack swells its cell and flashes a pale kernel that shrinks while the note sounds, and loud attacks send a ring of light through the mosaic. <b>How present</b> sets how much mosaic builds up: turned down, cells close as soon as their notes end and the rest is dark ground.',
     params: [
       { key: 'edge', label: 'how hard attacks land', min: 0, max: 2, value: 1, drive: '+level',
         hint: 'How strongly each struck note shows. Left: cells just appear, with thin seams. Right: a struck cell swells, its borders go thick and black, and loud ones send a ring of light through the mosaic.',
@@ -158,7 +158,7 @@
           g.strokeStyle = ICON.lerp('#9a8f84', '#050406', Math.min(1, v * 1.6)); g.lineWidth = 0.8 + v * 4.4;
           P.forEach((pts) => { poly(g, pts); g.stroke(); });
         } },
-      { key: 'stay', label: 'how long cells linger', min: 0, max: 5, value: 2,
+      { key: 'stay', label: 'how long cells linger', min: 0, max: 5, value: 2, less: 0,
         hint: 'When a note ends its cell dims, waits, then closes up into its neighbours. Left: it closes the moment the note ends. Right: it lingers for seconds, so the mosaic fills up.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, ICON.gold) },
       { key: 'pebble', label: 'mosaic or pebbles', min: 0, max: 1, value: 0.25,
@@ -180,7 +180,10 @@
           g.globalAlpha = v; g.fillStyle = '#6545a0'; g.fill(); g.globalAlpha = 1;
           g.strokeStyle = ICON.lerp('#b9a0e0', '#6545a0', v); g.lineWidth = 1.8; g.stroke();
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much mosaic builds up: how long cells linger after their note before they close into their neighbours. Sounding notes always hold a cell open. Left: cells close as soon as the note ends, the rest is dark ground. Right: they linger for seconds and fill the picture. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: nearly dark and still; only the hardest notes (in a quiet stretch, one now and then) open a faint cell. Right: every note opens one at full colour (as before).',
         icon: (g, v, w, h) => {
           const P = [[[21, 1], [39, 1], [39, 13], [16, 15]], [[1, 1], [21, 1], [16, 15], [1, 19]], [[1, 19], [16, 15], [39, 13], [39, 25], [1, 25]]];

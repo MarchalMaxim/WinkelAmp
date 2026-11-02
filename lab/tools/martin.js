@@ -124,7 +124,7 @@
   const PAPER_ICON = (v) => ICON.lerp('#131215', '#ece7dc', v);
   TOOLS.push({
     id: 'martin', name: 'Agnes Martin', tag: 'new',
-    blurb: 'After Agnes Martin: pale bands of washed colour under a fine pencil grid, the keyboard from bass (bottom) to treble. A soft note faintly deepens its band; a held note tints its own thin stripe in the colour of the harmony. Loud music is nearly ignored: it is for the chorale and the oboe cadenza. Paints its own canvas; turn <b>how present</b> down and it sinks to a faint ghost, with what lies under it showing through.',
+    blurb: 'After Agnes Martin: pale bands of washed colour under a fine pencil grid, the keyboard from bass (bottom) to treble. A soft note faintly deepens its band; a held note tints its own thin stripe in the colour of the harmony. Loud music is nearly ignored: it is for the chorale and the oboe cadenza. Paints its own canvas; turn <b>how present</b> down and the page keeps only its resting bands under a few ruled lines, with marks that are faint and soon gone.',
     params: [
       { key: 'paper', label: 'night or day paper', min: 0, max: 1, value: 1,
         hint: 'The ground the bands sit on. Left: a very dark canvas with chalk lines. Right: warm off-white paper with pencil lines.',
@@ -135,20 +135,23 @@
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc');
           ICON.alpha(g, 0.04 + v * 0.9, () => { ICON.rect(g, 4, 4, w - 8, 6, '#dea9a7'); ICON.rect(g, 4, 16, w - 8, 6, '#a6bcd6'); });
           for (const y of [4, 10, 16, 22]) ICON.line(g, 4, y, w - 4, y, 'rgba(62,60,66,0.5)', 0.6); } },
-      { key: 'mark', label: 'how much a note marks', min: 0, max: 1, value: 0.6, drive: '-level',
+      { key: 'mark', label: 'how much a note marks', min: 0, max: 1, value: 0.6, less: 0.3, drive: '-level',
         hint: 'How strongly a note deepens its band and a held note tints its stripe. Left: the music barely touches the picture. Right: every soft note leaves a clear wash. Set to follow loudness downwards, so loud music marks it even less.',
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc');
           ICON.alpha(g, 0.08 + v * 0.85, () => ICON.rect(g, 4, 8, w - 8, 10, '#b0686c'));
           ICON.line(g, 4, 8, w - 4, 8, 'rgba(62,60,66,0.6)', 0.6); ICON.line(g, 4, 18, w - 4, 18, 'rgba(62,60,66,0.6)', 0.6); } },
-      { key: 'stay', label: 'how long a mark stays', min: 1, max: 20, value: 10, drive: '-rate',
+      { key: 'stay', label: 'how long a mark stays', min: 1, max: 20, value: 10, less: 2.5, drive: '-rate',
         hint: 'How long a deepened band or tinted stripe takes to fade back. Left: a breath. Right: it lingers for many seconds. Set to fade faster when the music gets busy.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, '#d8a2a2', 'square') },
-      { key: 'grid', label: 'how fine the grid', min: 0, max: 1, value: 0.6,
+      { key: 'grid', label: 'how fine the grid', min: 0, max: 1, value: 0.6, less: 0.2,
         hint: 'The pencil grid over the bands. Left: only the ruled lines between the bands. Right: a fine, dense mesh of small rectangles.',
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc'); const { hs, nv } = gridSteps(v), c = 'rgba(62,60,66,0.75)';
           const nh = Math.round(12 / hs); for (let i = 0; i <= nh; i++) { const y = 4 + (i / nh) * (h - 8); ICON.line(g, 4, y, w - 4, y, c, 0.7); }
           const nvi = Math.round(nv / 5); for (let i = 0; i <= nvi; i++) { if (!nvi) break; const x = 4 + (i / nvi) * (w - 8); ICON.line(g, x, 4, x, h - 4, c, 0.7); } } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much the music and the pencil leave on the page: how strongly a note deepens its band or tints its stripe, how long that mark stays, how many pencil lines rule the grid. Left: the resting bands under a few ruled lines, and marks that are faint and gone in a breath. Right: a fine grid and clear washes that linger for many seconds. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint ghost of the page you can see through, marked only by its softest long notes. Right: the full page, marked by every note (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.12 + 0.88 * v, () => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc'); ICON.rect(g, 4, 5, w - 8, 6, '#dea9a7'); ICON.rect(g, 4, 15, w - 8, 6, '#a6bcd6'); }) },
     ],

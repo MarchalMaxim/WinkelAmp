@@ -109,12 +109,12 @@
       { key: 'dot', label: 'dot size', min: 1.5, max: 10, value: 4.5, drive: '-rate',
         hint: 'How big each dot is. Left: fine stipple. Right: fat dabs of paint.',
         icon: (g, v, w, h) => { const r = ICON.rng(4); for (let i = 0; i < 9; i++) ICON.dot(g, 7 + r() * (w - 14), 6 + r() * (h - 12), 0.9 + v * 3.4, iconHue(i - 4)); } },
-      { key: 'burst', label: 'dots per note', min: 0.2, max: 3, value: 1, drive: '+level',
+      { key: 'burst', label: 'dots per note', min: 0.2, max: 3, value: 1, less: 0.25, drive: '+level',
         hint: 'How many dots one note throws. Left: a few sparse dabs. Right: a dense spray.',
         icon: (g, v, w, h) => { const r = ICON.rng(9), n = Math.round(3 + v * 34);
           for (let i = 0; i < n; i++) ICON.dot(g, w / 2 + (r() + r() + r() - 1.5) * 13, h / 2 + (r() + r() + r() - 1.5) * 9, 1.3, iconHue(Math.round((r() - 0.5) * 3))); } },
       // 'stay' replaces 'fade' (its '-rate' drive emptied the canvas in busy passages): busier playing now shortens it by at most 45%.
-      { key: 'stay', label: 'how long the painting stays', min: 1, max: 25, value: 8,
+      { key: 'stay', label: 'how long the painting stays', min: 1, max: 25, value: 8, less: 2.5,
         hint: 'How long the dots and colour fields stay before they fade. Left: a few seconds. Right: the canvas keeps a long memory.',
         icon: (g, v, w, h) => { const life = 0.12 + 0.88 * v, step = (w - 4) / 4, r = ICON.rng(3);
           for (let i = 0; i < 4; i++) { const a = Math.max(0, 1 - (i / 3) / life);
@@ -127,7 +127,10 @@
       { key: 'layout', label: 'where the colours go', min: 0, max: 2, value: 0,
         hint: 'How the notes are laid out. Left: a field (across: how far from the home key; up: high or low). Middle: a keyboard, low to high. Right: a wheel around the home key. In between blends the two.',
         icon: (g, v, w, h) => { for (let f = -5; f <= 6; f++) { const reg = ((f + 5) % 3) / 2, [px, py] = mini(f, reg, v * 2, w, h); ICON.dot(g, px, py, 1.8, iconHue(f)); } } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much paint it throws: how many dots each note dabs and how long the painting stays. Left: a few sparse dabs that vanish soon. Right: dense spray and a long memory. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a still canvas, where only the hardest notes of the piece dab a few faint dots. Right: every note paints at full strength (as before).',
         icon: (g, v, w, h) => { const r = ICON.rng(4), n = Math.round(2 + v * 10);
           ICON.alpha(g, 0.2 + 0.8 * v, () => { for (let i = 0; i < n; i++) ICON.dot(g, 6 + r() * (w - 12), 5 + r() * (h - 10), 1 + v * 2, iconHue((i % 5) - 2)); }); } },

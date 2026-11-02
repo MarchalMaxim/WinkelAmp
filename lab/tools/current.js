@@ -219,14 +219,14 @@
 
   TOOLS.push({
     id: 'current', name: 'The current', tag: 'v3',
-    blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> knob, to tone it right down: faint threads in slow water, and only the hardest chords pour colour.',
+    blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> slider sets how much current there is, from one lone thread in slow water to the full braid.',
     params: [
       // Six knobs: five with the keys, ranges, defaults and drives of v3, so saved settings still apply, and how present.
-      { key: 'threads', label: 'how many threads', min: 1, max: 5, step: 1, value: 3,
+      { key: 'threads', label: 'how many threads', min: 1, max: 5, step: 1, value: 3, less: 1,
         hint: 'How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 4);
           for (let i = n - 1; i >= 0; i--) strand(g, w, h, n > 1 ? 8 : 0, (i / n) * Math.PI * 2, tc(i), i ? 1.2 : 1.6, 1); } },
-      { key: 'braid', label: 'how wide they weave', min: 0, max: 220, step: 1, value: 70,
+      { key: 'braid', label: 'how wide they weave', min: 0, max: 220, step: 1, value: 70, less: 15,
         hint: 'How far the other threads swing around the melody’s thread. Left: tight together, almost one line. Right: wide loops that cross far apart.',
         icon: (g, v, w, h) => { const a = 0.6 + v * (h / 2 - 3.5);
           strand(g, w, h, a, Math.PI, tc(2), 1.2); strand(g, w, h, a, 0, tc(1), 1.2); strand(g, w, h, a * 0.12, 0, tc(0), 1.6); } },
@@ -234,7 +234,7 @@
         hint: 'How thick the threads are drawn. Left: hair-thin. Right: thick, glowing cords.',
         icon: (g, v, w, h) => { const lw = 0.5 + v * 4;
           strand(g, w, h, 5, 0, tc(1, 0.12), lw * 2.4); strand(g, w, h, 5, 0, tc(0), lw); } },
-      { key: 'flow', label: 'water speed', min: 0.2, max: 3, value: 1, drive: '+rate',
+      { key: 'flow', label: 'water speed', min: 0.2, max: 3, value: 1, less: 0.4, drive: '+rate',
         hint: 'How fast the water runs and the threads travel. Left: a slow, lazy drift. Right: a rushing stream.',
         icon: (g, v, w, h) => { const L = 5 + v * (w - 14), col = '#6f9fc4';
           [[6, 3], [h / 2, 9], [h - 6, 0]].forEach(([y, dx]) => ICON.arrow(g, 4 + dx * (1 - v), y, Math.min(w - 3, 4 + dx * (1 - v) + L), y, col, 1.3)); } },
@@ -244,7 +244,10 @@
           ICON.blur(g, 2.5, () => { g.fillStyle = `rgb(${c})`; g.beginPath(); g.ellipse(w / 2, h / 2 - 2, w / 2 - 6, h / 2 - 6, 0, 0, Math.PI * 2); g.fill(); });
           for (let i = 0; i < 12; i++) ICON.rect(g, 3 + i * (w - 6) / 12, h - 4, Math.ceil((w - 6) / 12), 2.5, `hsl(${i * 30},85%,50%)`);
           ICON.rect(g, 2 + v * (w - 6), h - 6, 2, 5.5, ICON.ink); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much current it weaves: how many threads braid, how wide they swing, how fast the water runs. Left: the melody\'s lone thread in slow water. Right: the whole braid in a rushing stream. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: faint threads in slow, barely tinted water, and only the hardest chords pour colour. Right: every chord pours and stirs at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const a = 1.5 + v * (h / 2 - 5);
           strand(g, w, h, a, Math.PI, tc(2), 1.2); strand(g, w, h, a, 0, tc(1), 1.2); strand(g, w, h, a * 0.12, 0, tc(0), 1.6); }) },

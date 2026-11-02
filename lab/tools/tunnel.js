@@ -59,11 +59,11 @@
 
   TOOLS.push({
     id: 'tunnel', name: 'Tunnel', tag: 'new',
-    blurb: 'You fall through a zoom-feedback tunnel: every note drops an outline at the far mouth (low notes big and outside, high ones nested inside) and the picture streams toward you. Busier playing speeds the fall on a steep curve, the melody steers the vanishing point, and big chords punch a surge forward. Turn <b>how present</b> down to tone it right down: a few faint outlines on a slow drift, thrown only by the hardest notes.',
+    blurb: 'You fall through a zoom-feedback tunnel: every note drops an outline at the far mouth (low notes big and outside, high ones nested inside) and the picture streams toward you. Busier playing speeds the fall on a steep curve, the melody steers the vanishing point, and big chords punch a surge forward. Turn <b>how present</b> down to keep it small: the fall stops and the outlines stay in a knot at the mouth, until a big chord pushes them out.',
     // Five knobs (lab/README.md) and how present; all five keep their old keys, ranges and defaults. The dropped ones are fixed now
     // (acceleration curve 2.2, surge 1.3) or follow the music on their own (drift, mouth size, echoes: see fold()).
     params: [
-      { key: 'speed', label: 'how fast you fall', min: 0, max: 2, value: 0.8,
+      { key: 'speed', label: 'how fast you fall', min: 0, max: 2, value: 0.8, less: 0,
         hint: 'How fast the tunnel streams toward you (busier playing always speeds it up). Left: a slow glide. Right: a rush.',
         icon: (g, v, w, h) => { const c = col(0.3, 0, 1, 1);
           for (let i = 0; i < 4; i++) ICON.ring(g, w / 2, h / 2, 1.5 + i * (1.2 + 2.6 * v), c, 1.2);
@@ -74,7 +74,7 @@
           g.save(); g.translate(w / 2, h / 2);
           [11, 7, 3.5].forEach((r, i) => { g.strokeStyle = col(0.2 + 0.35 * i, 0, 1, 1); g.lineWidth = 1.3; path(g, kindOf(sh, [0.2, 0.5, 0.8][i]), r, 0); g.stroke(); });
           g.restore(); } },
-      { key: 'trail', label: 'how long the walls linger', min: 0.05, max: 1.5, value: 0.35, drive: '-density',
+      { key: 'trail', label: 'how long the walls linger', min: 0.05, max: 1.5, value: 0.35, less: 0.05, drive: '-density',
         hint: 'How long the streaks of earlier outlines stay on the walls. Left: crisp, single outlines. Right: long glowing walls.',
         icon: (g, v, w, h) => { const k = 0.08 + 0.85 * v;
           for (let i = 0; i < 7; i++) { const a = Math.pow(k, i); if (a < 0.04) break; ICON.alpha(g, a, () => ICON.ring(g, w / 2, h / 2, 11.5 - i * 1.5, col(0.3, 0, 1, 1), 1.3)); } } },
@@ -89,7 +89,10 @@
       { key: 'palette', label: 'colours', min: 0, max: 3, step: 1, value: 0,
         hint: 'The colours, from low notes to high ones. Left to right: ember (blood red to gold), ice (deep blue to white), bruise (violet to teal), bone (grey to warm white).',
         icon: (g, v, w, h) => ICON.palette(g, [0, 0.33, 0.66, 1].map((p) => col(p, Math.round(v * 3), 1, 1)), w, h) },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How far the tunnel reaches: how fast you fall and how long the walls linger. Left: the outlines stay in a small knot at the mouth, and only a big chord pushes them out. Right: the whole tunnel streaming past you, with glowing walls. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much of the picture it takes. Left: a few faint outlines on a slow drift, thrown only by the hardest notes. Right: every note at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const n = 1 + Math.round(v * 3), c = col(0.3, 0, 1, 1);
           for (let i = 0; i < n; i++) ICON.ring(g, w / 2, h / 2, 3 + i * 3, c, 1.3); }) },

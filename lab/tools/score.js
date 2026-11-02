@@ -208,17 +208,17 @@
 
   TOOLS.push({
     id: 'score', name: 'Graphic score', tag: 'new',
-    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a faint page, a slower drift and only the hardest attacks written.',
+    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a sparse, plain page with only the strongest attacks written, soon drifting off.',
     params: [
-      { key: 'speed', label: 'how fast the page moves', min: 20, max: 140, value: 48, drive: '+rate',
+      { key: 'speed', label: 'how fast the page moves', min: 20, max: 140, value: 48, less: 100, drive: '+rate',
         hint: 'How fast the writing drifts to the left. Left: slow, the marks crowd together. Right: fast, they spread far apart.',
         icon: (g, v, w, h) => { const gap = 2.5 + v * 7; for (let i = 0; i < 6; i++) { const x = w - 5 - i * gap; if (x < 3) break; ICON.dot(g, x, h / 2 + (i % 2 ? -4 : 4), 1.8); } ICON.arrow(g, w - 6, h - 3, w - 6 - (6 + v * 20), h - 3, ICON.dim, 1); } },
-      { key: 'ink', label: 'how much gets written', min: 0.5, max: 8, value: 1.6,
+      { key: 'ink', label: 'how much gets written', min: 0.5, max: 8, value: 1.6, less: 0.5,
         hint: 'How many attacks are written out in full; the rest are left as specks. Left: only the strongest few, sparse and calm. Right: nearly every note.',
         icon: (g, v, w, h) => { const R = ICON.rng(4), n = 9, full = Math.round(1 + v * 8);
           for (let i = 0; i < n; i++) { const x = 4 + (i + 0.5) * ((w - 8) / n), y = 5 + R() * (h - 10);
             if (i % Math.max(1, Math.round(n / full)) === 0 || full >= n) ICON.dot(g, x, y, 2.4); else ICON.rect(g, x - 0.6, y - 0.6, 1.3, 1.3, ICON.dim); } } },
-      { key: 'figures', label: 'plain or ornate', min: 0, max: 1, value: 0.45, drive: '+density',
+      { key: 'figures', label: 'plain or ornate', min: 0, max: 1, value: 0.45, less: 0.05, drive: '+density',
         hint: 'How rich the notation is. Left: plain dots and lines, like Cage. Right: brackets with numerals, black discs, slabs and big circles, like Treatise.',
         icon: (g, v, w, h) => {
           ICON.dot(g, 8, h / 2 + 3, 2); ICON.line(g, 8, h / 2 + 3, 20, h / 2 + 3, ICON.ink, 1);
@@ -234,7 +234,10 @@
         icon: (g, v, w, h) => { const night = v < 0.5, bg = night ? '#0d0c0b' : '#e9e1cf', ink = night ? '#e6dcca' : '#16130f';
           ICON.rect(g, 2, 2, w - 4, h - 4, bg); if (night) { g.strokeStyle = '#4a4038'; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); }
           ICON.dot(g, 10, 15, 3, ink); ICON.ring(g, 21, 9, 3, ink, 1); ICON.rect(g, 21, 17, 14, 1.6, ink); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much is on the page: how many attacks are written in full, how ornate the notation is, how soon the writing drifts off the page. Left: only the strongest few, plain dots and lines, and they leave quickly. Right: a well-filled page with brackets, discs and circles. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint page drifting slowly, and only the hardest attacks are written. Right: every attack at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.14 + 0.86 * v, () => {   // the page with its marks, dim and nearly bare, or bright and written over
           const ink = '#16130f';

@@ -149,9 +149,9 @@
 
   TOOLS.push({
     id: 'brush', name: 'Calligraphy', tag: 'v2',
-    blurb: 'The melody written as ink brush strokes: one stroke per phrase, climbing and diving with the top notes, swelling on each attack, drying into streaks and flicking off at the phrase end. Low notes under the melody leave ink dabs; strong chords add a red slash, and after a pause a red ensō circle. The <b>how present</b> knob tones it right down.',
+    blurb: 'The melody written as ink brush strokes: one stroke per phrase, climbing and diving with the top notes, swelling on each attack, drying into streaks and flicking off at the phrase end. Low notes under the melody leave ink dabs; strong chords add a red slash, and after a pause a red ensō circle. The <b>how present</b> knob sets how much ink it lays down.',
     params: [  // v2: 5 knobs, new keys so these defaults apply even where the old ones were saved; how present came later, as a sixth
-      { key: 'size', label: 'brush size', min: 0.3, max: 3, value: 1.2, drive: '+level',
+      { key: 'size', label: 'brush size', min: 0.3, max: 3, value: 1.2, less: 0.5, drive: '+level',
         hint: 'How thick the ink strokes are. Left: a fine pen line. Right: a fat, loaded brush.',
         icon: (g, v, w, h) => { g.strokeStyle = BONE; g.lineWidth = 1 + v * 9; g.beginPath(); g.moveTo(7, h * 0.66); g.quadraticCurveTo(w / 2, h * 0.18, w - 7, h * 0.5); g.stroke(); } },
       { key: 'dryness', label: 'dry brush', min: 0, max: 1, value: 0.3, drive: '+rate',
@@ -169,21 +169,24 @@
       { key: 'leap', label: 'how far it follows the notes', min: 2, max: 24, value: 5,
         hint: 'How far the stroke climbs and dives with the melody. Left: an almost level line. Right: a big leap for every note.',
         icon: (g, v, w, h) => ICON.wave(g, w, h, 0.08 + 0.85 * v, 1.5, BONE, 2.5) },
-      { key: 'gestures', label: 'slashes on big chords', min: 0, max: 1, value: 0.5,
+      { key: 'gestures', label: 'slashes on big chords', min: 0, max: 1, value: 0.5, less: 0.05,
         hint: 'How often a strong chord adds a red slash (or, after a pause, a red ensō circle). Left: never, only the melody. Right: on most strong chords.',
         icon: (g, v, w, h) => {
           ICON.line(g, 4, h * 0.72, w - 4, h * 0.62, BONE, 2);
           const n = Math.round(v * 3);
           for (let i = 0; i < n; i++) ICON.line(g, 9 + i * 10, h - 4, 17 + i * 10, 4, ICON.red, 3.2);
         } },
-      { key: 'stay', label: 'how long the ink stays', min: 1, max: 30, value: 8,
+      { key: 'stay', label: 'how long the ink stays', min: 1, max: 30, value: 8, less: 1.5,
         hint: 'How long a stroke stays before it dries away. Left: gone in a second. Right: stays half a minute, the page fills up.',
         icon: (g, v, w, h) => {   // a stroke whose tail fades out: the longer the tail, the longer the ink stays
           const L = 4 + v * (w - 10), n = 14;
           for (let i = 0; i < n; i++) { const a = 1 - i / n; if (4 + (i / n) * (w - 8) > 4 + L) break; ICON.alpha(g, a, () => ICON.line(g, 4 + (i / n) * (w - 8), h / 2, 4 + ((i + 1) / n) * (w - 8), h / 2, BONE, 6)); }
           ICON.dot(g, 5, h / 2, 3.4, BONE);
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much ink it lays down: how long strokes stay, how often big chords add a red slash, how broad the brush is. Left: a few fine strokes that dry away quickly. Right: the full page of ink. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint, thin, nearly level line that answers only the hardest notes and the odd soft one. Right: every note writes at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {   // the same stroke fading out, its red slash thinning until none is left at the far left
           g.strokeStyle = BONE; g.lineWidth = 1 + 3 * v; g.beginPath(); g.moveTo(5, h * 0.62); g.quadraticCurveTo(w / 2, h * (0.5 - 0.3 * v), w - 5, h * 0.5); g.stroke();

@@ -114,24 +114,27 @@
     // Five knobs (lab/README.md) plus how present, as on Rorschach; no drive on it. Fixed now: pressure response 1, chord scratch 1, red accents 0.6, bone ink, dark field;
     // the jitter follows loudness on its own. New keys where a default changed, so old saved settings don't override them.
     params: [
-      { key: 'speed', label: 'how fast the pens run', min: 0.2, max: 3, value: 1, drive: '+rate',
+      { key: 'speed', label: 'how fast the pens run', min: 0.2, max: 3, value: 1, less: 0.4, drive: '+rate',
         hint: 'How fast the pens travel. Left: a slow, short crawl. Right: long lines racing across the sheet.',
         icon: (g, v, w, h) => { const L = 7 + v * (w - 12); coilIcon(g, 3, 3 + L, h / 2, 3.5, 0.5 + v * 2.5, ICON.ink, 1.4); ICON.dot(g, 3 + L, h / 2, 2.2, ICON.red); } },
       { key: 'loops', label: 'how loopy', min: 0, max: 1, value: 0.5, drive: '+rate',
         hint: 'The shape of the scrawl. Left: long open arcs. Right: tight coils, loop over loop.',
         icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 8.5 - 3.5 * v, 0.45 + 5.5 * v, ICON.ink, 1.3) },
-      { key: 'pens', label: 'how many pens', min: 1, max: 6, step: 1, value: 3,
+      { key: 'pens', label: 'how many pens', min: 1, max: 6, step: 1, value: 3, less: 1,
         hint: 'How many pens draw at once, each for its own part of the keyboard. Left: one lone pen. Right: six.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5), rh = (h - 4) / n;
           for (let i = 0; i < n; i++) coilIcon(g, 3 + (i % 2) * 4, w - 7 + (i % 2) * 4, 2 + rh * (i + 0.5), Math.min(4, rh * 0.4), 2.2, ICON.ink, 1.1); } },
-      { key: 'stay', label: 'how long lines stay', min: 1, max: 20, value: 7,
+      { key: 'stay', label: 'how long lines stay', min: 1, max: 20, value: 7, less: 2.5,
         hint: 'How long a line stays before it fades like graphite. Left: gone in a second. Right: the sheet fills up.',
         icon: (g, v, w, h) => { const life = 0.1 + 0.9 * v;
           for (let i = 0; i < 3; i++) ICON.alpha(g, Math.max(0, 1 - i / 2 / life), () => coilIcon(g, 1 + i * 13, 12 + i * 13, h / 2, 4.5, 1.6, ICON.ink, 1.3)); } },
       { key: 'weight', label: 'how heavy the line', min: 0.3, max: 2.5, value: 1.2,
         hint: 'How thick the pen line is. Left: a hairline. Right: heavy, pressed graphite.',
         icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.5 + v * 3.3) },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much line gets drawn: how fast the pens run, how many pens there are, how long lines stay. Left: one slow pen leaving a short trail. Right: three pens racing, the sheet filling up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: faint thin lines, slow steady pens, and only the hardest attacks press or scratch. Right: every note jolts the pens at full strength.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.6 + v * 1.8)) },
     ],

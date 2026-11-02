@@ -37,7 +37,7 @@
           }
         } },
       // New key (was 'decay', driven by speed): that drive cut waves to a flash in fast passages, so dense b5 printed almost nothing.
-      { key: 'life', label: 'how long the waves last', min: 0.4, max: 6, value: 2.2,
+      { key: 'life', label: 'how long the waves last', min: 0.4, max: 6, value: 2.2, less: 0.8,
         hint: 'How long a wave of dots keeps spreading before it fades. Left: a quick pulse. Right: slow rings that linger.',
         icon: (g, v, w, h) => { for (let i = 0; i < 5; i++) { const a = Math.max(0, 1 - i / (0.7 + v * 4.3)); if (a > 0) ICON.alpha(g, a, () => ICON.ring(g, 7, h / 2, 2.5 + i * 7, ICON.red, 2)); } } },
       { key: 'contrast', label: 'hard print', min: 0, max: 1, value: 0.45, drive: '+level',
@@ -46,9 +46,12 @@
           const kc = 2.5 + 22 * v, t0 = 0.42, f = (u) => 1 / (1 + Math.exp(-kc * (u - t0))), l0 = f(0), l1 = f(1);
           for (let i = 0; i < 6; i++) { const u = i / 5, t = (1 - v) * u + v * (f(u) - l0) / (l1 - l0); ICON.dot(g, 4 + i * 6.4, h / 2, 0.5 + 2.7 * t, ICON.red); }
         } },
-      { key: 'standing', label: 'stripes from held chords', min: 0, max: 1.5, value: 0.6, drive: '+density',
+      { key: 'standing', label: 'stripes from held chords', min: 0, max: 1.5, value: 0.6, less: 0.1, drive: '+density',
         hint: 'While a chord rings, its notes print a faint standing pattern of stripes. Left: none, only the waves. Right: strong stripes.',
         icon: (g, v, w, h) => { for (let y = 4; y < h; y += 6) for (let x = 4; x < w; x += 6) ICON.dot(g, x, y, 1.2 * (1 - v) + v * (0.3 + 2.5 * (0.5 + 0.5 * Math.cos((x - y * 0.7) * 0.33))), ICON.gold); } },
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much gets printed: how long each wave keeps spreading and how strong the held-chord stripes are. Left: short pulses that die quickly, hardly any stripes. Right: slow rings that overlap and a striped field. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { waves = []; time = 0; kick = 0; kickRot = 0; flip = 0; lastFlip = -9; ref = 80; },
     onChord(ch, x) {

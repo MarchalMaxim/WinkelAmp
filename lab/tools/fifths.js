@@ -116,7 +116,7 @@
     id: 'fifths', name: 'Harmonic web', tag: 'v2',
     blurb: 'The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.',
     params: [
-      { key: 'decay', label: 'how long the web remembers', min: 0.5, max: 30, value: 9,
+      { key: 'decay', label: 'how long the web remembers', min: 0.5, max: 30, value: 9, less: 0.8,
         hint: 'How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together.',
         icon: (g, v, w, h) => { for (let i = 4; i >= 0; i--) { const a = Math.max(0, 1 - i / (0.6 + v * 4.4)); if (a > 0) ICON.alpha(g, a, () => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, i * 0.55, PINK)); } } },
       // New key: loudness already thickens the strings by itself, so the old saved 'louder → more' drive would count it twice.
@@ -132,7 +132,10 @@
       { key: 'fill', label: 'filled shapes', min: 0, max: 1, value: 0.2, drive: '+level',
         hint: 'How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes.',
         icon: (g, v, w, h) => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, 0, PINK, 1.4, v) },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a faint, still web that only the hardest attacks of the piece touch. Right: every attack at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => tri(g, w / 2, h / 2 + 1, 5 + 6 * v, 0.2, 1, 0, PINK, 0.7 + 0.9 * v)) },
     ],

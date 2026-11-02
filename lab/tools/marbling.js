@@ -122,10 +122,10 @@
     id: 'marbling', name: 'Marbling', tag: 'v2',
     blurb: 'Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.',
     params: [
-      { key: 'drop', label: 'drop size', min: 0.1, max: 1.8, value: 1,
+      { key: 'drop', label: 'drop size', min: 0.1, max: 1.8, value: 1, less: 0.3,
         hint: 'How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods.',
         icon: (g, v, w, h) => { const r = 2.5 + v * 9.5; ICON.dot(g, w / 2, h / 2, r, '#801016'); ICON.dot(g, w / 2, h / 2, r * 0.72, '#000'); ICON.dot(g, w / 2, h / 2, r * 0.55, '#c43424'); ICON.dot(g, w / 2, h / 2, r * 0.28, '#f0e2cc'); } },
-      { key: 'combing', label: 'combing', min: 0, max: 1.5, value: 0.6, drive: '+rate',
+      { key: 'combing', label: 'combing', min: 0, max: 1.5, value: 0.6, less: 0.1, drive: '+rate',
         hint: 'How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers.',
         icon: (g, v, w, h) => {
           const cols = ['#c43424', '#e9e2da', '#801016', '#e9e2da'];
@@ -167,6 +167,9 @@
             ICON.alpha(g, 1 - v * 0.85, () => ICON.ring(g, w / 2, h / 2, r, ICON.lerp(hex(PAL[0][i + 1]), '#ffffff', 0.35), 1.3));
           });
         } },
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much ink goes into the bath: how big the drops are and how much the comb rakes them out. Left: a few small beads on black. Right: floods raked into feathers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) { clear(x); },
     /** What the last attack did (for test scripts). */
