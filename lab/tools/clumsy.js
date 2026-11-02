@@ -54,7 +54,7 @@
         i, r, polys, kind: ORDER[i % ORDER.length], ink: INKS[i % INKS.length],
         cr: ORDER[i % ORDER.length] === 'bar' ? 0.62 : 0.82,
         x: x.rnd(0.1, 0.9) * x.W, y: F - r - x.rnd(0, 180), vx: 0, vy: 0, a: x.rnd(-0.6, 0.6), w: x.rnd(-3, 3),
-        sq: 0, sqV: 0, crouch: 0, ground: 0, next: 0, float: 0, kicked: -9, z: i, slot: i, still: 0, on: false, quiet: 0, content: false, retried: false,
+        sq: 0, sqV: 0, crouch: 0, ground: 0, next: 0, float: 0, kicked: -9, bumped: -9, z: i, slot: i, still: 0, on: false, quiet: 0, content: false, retried: false,
         dope: i === 2 ? 2.6 : x.rnd(0.6, 1.5), legs: i === 2 ? 0.5 : x.rnd(0.85, 1.15), err: x.rnd(-1, 1),   // number 2 is always the last one
       });
     }
@@ -102,14 +102,40 @@
     const dis = x.p('disorder'), presK = 0.35 + 0.65 * x.p('presence'), R = s.r * x.p('size');
     const long = clamp((n.d - 0.45) / 1, 0, 1), short = clamp((0.18 - n.d) / 0.12, 0, 1);
     const h = Math.min(floorAt(x) - 40, (16 + 210 * Math.pow(loud, 1.9)) * dis * presK * Math.pow(32 / R, 0.25) * (1 + 0.15 * long) * (1 - 0.45 * short) * x.rnd(0.8, 1.2));
-    // The height is measured from the floor: hit in mid-air it tumbles, but it doesn't launch again from up there.
-    const left = h - above(s, x);
-    s.vy = left > 0 ? Math.min(s.vy, -Math.sqrt(2 * G * left)) : s.vy;
+    // Caught in its own hop it goes up again, but hit again before it has come down it only tumbles and veers: a storm of
+    // hits must not juggle the crowd up there, floating. The height is measured from the floor.
+    const inAir = s.ground <= 0 && song - s.kicked < 0.5, left = h - above(s, x);
+    if (!inAir && left > 0) s.vy = Math.min(s.vy, -Math.sqrt(2 * G * left));
     s.vx += x.rnd(-1, 1) * (40 + 230 * loud) * dis * presK;
     s.w += (x.rnd() < 0.5 ? -1 : 1) * x.rnd(0.6, 1) * (3 + 14 * loud) * dis * presK * Math.pow(40 / R, 0.7) * (1 + 0.7 * short);
-    s.float = long * 0.5; s.ground = 0; s.crouch = 0; s.sqV -= 5 + 7 * loud; s.kicked = song; s.content = false; s.retried = false;
+    if (!inAir) s.float = long * 0.25;
+    s.ground = 0; s.crouch = 0; s.sqV -= 5 + 7 * loud; s.kicked = song; s.content = false; s.retried = false;
     s.next = song + x.rnd(0.08, 0.34) * s.dope;                        // the late reaction
     if (x.rnd() < 0.7) s.z = ++zc;
+  }
+
+  // A late one coming down in the settled row: it doesn't shove anybody out of place (that would start the churn again),
+  // but the one it hits rocks and squashes, the flinch runs on to whoever stands against it, and the arrival bounces off.
+  function bump(a, b, closing, act, x) {
+    const up = a.y < b.y ? a : b, low = up === a ? b : a;
+    if (up.ground > 0 || up.vy < -40 || low.ground <= 0) return;      // it takes one coming down and one standing; in mid-air they just pass
+    if (song - up.bumped < 0.16 || song - low.bumped < 0.16) return;
+    const k = x.p('size'), presK = 0.35 + 0.65 * x.p('presence'), hit = Math.min(1, closing / 650), side = up.x > low.x ? -1 : 1;
+    const rock = (s, f) => {                                           // the second flinch in a row is half the first, or a pair would never stop
+      f *= song - s.bumped < 0.9 ? 0.5 : 1;
+      s.w += side * f * (1.6 + 6 * hit) * presK * Math.pow(38 / (s.r * k), 0.6); s.sqV += f * (3 + 8 * hit) * presK; s.bumped = song;
+    };
+    if (song - up.bumped >= 0.9) {                                     // thrown off once; after that it lands and stays
+      up.vy = -(70 + 230 * hit) * presK; up.vx += -side * (30 + 170 * hit) * presK;
+      up.w -= side * (2 + 7 * hit) * presK * Math.pow(38 / (up.r * k), 0.6);
+    }
+    up.bumped = song; up.z = Math.max(up.z, ++zc);
+    rock(low, 1);
+    if (hit > 0.35) for (const o of act) {
+      if (o === up || o === low || song - o.bumped < 0.16 || o.ground <= 0) continue;
+      const reach = (o.r * o.cr + low.r * low.cr) * k;
+      if (Math.abs(o.x - low.x) < reach && Math.abs(o.y - low.y) < reach) rock(o, 0.45);
+    }
   }
 
   function physics(act, x, h) {
@@ -147,7 +173,7 @@
       }
       if (contacts) {
         s.x += nx * deepest; s.y += ny * deepest; s.ground = 0.07;
-        const calm = s.content ? s.quiet : 0;                           // arrived: the wobble is allowed to end
+        const calm = s.content && song - s.bumped > 0.25 ? s.quiet : 0;  // arrived: the wobble is allowed to end, once a flinch has had its moment
         s.w *= Math.exp(-h * (Math.abs(s.w) < 7 ? 2.2 + 10 * calm : 0.9)); s.vx *= Math.exp(-h * (slide ? 0.1 : 1.3 + 8 * calm));
         if (contacts > 1 && Math.abs(s.w) < 1.6 && Math.abs(s.vy) < 40) { s.w *= 0.8; if (!slide) s.vx *= 0.92; }   // flat on the floor: the chatter dies
       }
@@ -163,6 +189,7 @@
       const closing = -((b.vx - a.vx) * nX + (b.vy - a.vy) * nY);
       const calm = Math.min(a.quiet, b.quiet);                         // right after a hit they crash into each other; later they hop past
       if (closing < 110 + 900 * calm) {
+        if (closing >= 110) bump(a, b, closing, act, x);
         // Only one still looking for its place shuffles; it doesn't shove the ones who already arrived back out of theirs.
         const creep = 26 * h, ca = !a.content && a.ground > 0, cb = !b.content && b.ground > 0;
         if (ca) a.x -= Math.sign(nX) * creep * (cb ? mb / sum : 1);
@@ -248,7 +275,8 @@
       const n = ch.notes[0];
       for (const s of crew) {
         const q = ch.notes[Math.floor(x.rnd() * many)] || n;
-        const loud = clamp(0.25 + 0.75 * rankIn(velsN, q.v), 0, 1) * x.rnd(0.55, 1);
+        // Even a full chord leaves a few merely stumbling, so the crowd is never all up in the air at the same height.
+        const loud = clamp(0.25 + 0.75 * rankIn(velsN, q.v), 0, 1) * x.rnd(0.55, 1) * (x.rnd() < 0.18 ? 0.4 : 1);
         kick(s, q, loud * dense, x);
       }
     } else {
