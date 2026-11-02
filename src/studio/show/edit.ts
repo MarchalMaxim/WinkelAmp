@@ -23,8 +23,6 @@ export type ShowEdit =
   | { kind: 'removeLayer'; section: number; layer: number }
   | { kind: 'moveLayer'; section: number; from: number; to: number }
   | { kind: 'setKnob'; section: number; layer: number; key: string; value: KnobSetting | null }   // null = back to default
-  /** Several knobs of one layer as one change: what how present does. */
-  | { kind: 'setKnobs'; section: number; layer: number; values: Record<string, KnobSetting | null> }
   | { kind: 'setSection'; section: number; patch: { label?: string; fade?: number } }
   /** null removes the field; listen 'all' is the same as null. A listen whose key is already in the section is refused. */
   | { kind: 'setLayer'; section: number; layer: number; patch: { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null } }
@@ -247,15 +245,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       const next = layers.slice(); const [l] = next.splice(e.from, 1); next.splice(to, 0, l);
       return withLayers(show, e.section, next);
     }
-    case 'setKnob':
-    case 'setKnobs': {
-      if (!isIndex(e.section, S.length) || !isIndex(e.layer, S[e.section].layers.length)) return show;
-      if (e.kind === 'setKnob' && !e.key) return show;
+    case 'setKnob': {
+      if (!isIndex(e.section, S.length) || !isIndex(e.layer, S[e.section].layers.length) || !e.key) return show;
       const l = S[e.section].layers[e.layer];
       const knobs: Record<string, KnobSetting> = { ...(l.knobs ?? {}) };
-      for (const [key, value] of Object.entries(e.kind === 'setKnob' ? { [e.key]: e.value } : e.values)) {
-        if (value === null) delete knobs[key]; else knobs[key] = typeof value === 'number' ? value : { ...value };
-      }
+      if (e.value === null) delete knobs[e.key]; else knobs[e.key] = typeof e.value === 'number' ? e.value : { ...e.value };
       const { knobs: _old, ...rest } = l;
       const next: Layer = Object.keys(knobs).length ? { ...rest, knobs } : rest;
       const layers = S[e.section].layers.slice(); layers[e.layer] = next;

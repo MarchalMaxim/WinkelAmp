@@ -40,13 +40,6 @@ export function settingOf(q: Param, s: KnobState): KnobSetting | null {
   return out;
 }
 
-/** What moving how present puts in the show: its own setting and each follower's new base, drives kept. */
-export function presentEdit(params: readonly Param[], q: Param, st: KnobState, now: Record<string, KnobSetting> | undefined, bases: Record<string, number>): Record<string, KnobSetting | null> {
-  const values: Record<string, KnobSetting | null> = { [q.key]: settingOf(q, st) };
-  for (const f of params) if (f.key in bases) values[f.key] = settingOf(f, { ...knobState(f, now?.[f.key]), base: bases[f.key] });
-  return values;
-}
-
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
 export interface KnobRow { el: HTMLElement; q: Param; live: HTMLCanvasElement | null; sync(s: KnobState): void; drawLive(f: Features): void }

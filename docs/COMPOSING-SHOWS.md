@@ -54,11 +54,6 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
   `bass` (more bass) and `density` (fuller chords); `""` holds it fixed. `depth` 0..1 is how far. Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
-  - `howmuch` (shown as "how present") draws nothing itself. In the lab and the studio, moving its slider writes the
-    knobs marked "Follows how present" below; they are saved as ordinary values and a hand-set one holds until the
-    slider moves again. So in a file, set the followers you want: `howmuch` alone changes nothing (`check-show` warns).
-  - `presence` (shown as "old: how faint", and only on a layer that set it) is the old dimming knob, kept so saved
-    scenes keep their look. Don't write it in a new show: to fade a widget or thin its attacks over time, use `intensity`.
 - `fade` (optional, seconds, default 3, 0 = a hard cut): how long the previous section's widgets take to fade out
   when this section starts. `restart: true` on a layer resets a widget that continues from the previous section.
 - `npm run check-show -- --fix` writes the canonical form: keys in the order above, two-space indent.

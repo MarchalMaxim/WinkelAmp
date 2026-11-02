@@ -3,9 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { loadCatalogue } from '../scripts/node/catalogue';
-import { applyEdit } from '../src/studio/show/edit';
-import { validateShow, type Show } from '../src/studio/show/show';
-import { presentEdit } from '../src/studio/ui/knobs';
+import type { KnobSetting } from '../src/studio/show/show';
+import { knobWrites } from '../src/studio/ui/how-present';
 import type { Param } from '../src/widgets/types';
 
 const WA = loadLayers();
@@ -47,33 +46,22 @@ describe('an old knob', () => {
 
 describe('in the studio', () => {
   const how = knob({ key: 'howmuch', value: 1 });
-  const params = [knob({ key: 'a', less: 0.1 }), knob({ key: 'b', less: 0.2, value: 0.4 }), how];
-  const show = (knobs?: Show['sections'][number]['layers'][number]['knobs']) =>
-    ({ sections: [{ start: 0, end: 10, layers: [{ widget: 'w', ...(knobs ? { knobs } : {}) }] }] }) as unknown as Show;
-  const layerAfter = (s: Show, values: ReturnType<typeof presentEdit>) => applyEdit(s, { kind: 'setKnobs', section: 0, layer: 0, values }).sections[0].layers[0];
+  const params = [knob({ key: 'a', less: 0.1 }), knob({ key: 'b', less: 0.2, value: 0.4 }), knob({ key: 'free' }), how];
+  const at = (s: number, now?: Record<string, KnobSetting>) => Object.fromEntries(knobWrites(params, how, { base: s, drive: '', depth: 0.5 }, now).map((w) => [w.key, w.value]));
 
-  it('overwrites a hand-set knob, keeps its drive, and writes a real value for each follower', () => {
-    const cur = { a: 0.9, b: { base: 0.3, drive: '+level' as const } };
-    const v = presentEdit(params, how, { base: 0, drive: '', depth: 0.5 }, cur, WA.presentValues(params, 0));
-    const l = layerAfter(show(cur), v);
-    expect(l.knobs).toEqual({ howmuch: 0, a: 0.1, b: { base: 0.2, drive: '+level' } });
+  it('overwrites a hand-set knob, keeps its drive, and leaves a knob that does not follow', () => {
+    expect(at(0, { a: 0.9, b: { base: 0.3, drive: '+level' }, free: 0.7 })).toEqual({ howmuch: 0, a: 0.1, b: { base: 0.2, drive: '+level' } });
   });
-  it('leaves nothing in the show at the right end', () => {
-    const v = presentEdit(params, how, { base: 1, drive: '', depth: 0.5 }, { howmuch: 0.2, a: 0.1, b: 0.2 }, WA.presentValues(params, 1));
-    expect(layerAfter(show({ howmuch: 0.2, a: 0.1, b: 0.2 }), v).knobs).toBeUndefined();
+  it('clears them all at the right end', () => {
+    expect(at(1, { howmuch: 0.2, a: 0.1, b: 0.2 })).toEqual({ howmuch: null, a: null, b: null });
+  });
+  it('an ordinary knob writes only itself', () => {
+    expect(knobWrites(params, params[0], { base: 0.7, drive: '', depth: 0.5 }, undefined)).toEqual([{ key: 'a', value: 0.7 }]);
   });
 });
 
 describe('the widgets', () => {
   const { widgets } = loadCatalogue();
-  const warned = (knobs: Record<string, number>) => validateShow({ version: 1, id: 's', song: 's', sections: [{ start: 0, end: 10, layers: [{ widget: 'vine', knobs }] }] },
-    { widgets }).warnings.filter((w) => w.path.endsWith('knobs.howmuch'));
-
-  it('check-show says so when a file sets how present and none of what follows it', () => {
-    expect(warned({ howmuch: 0.3 })).toHaveLength(1);
-    expect(warned({ howmuch: 0.3, branch: 0.1 })).toEqual([]);
-    expect(warned({ howmuch: 1 })).toEqual([]);
-  });
   const list = [...widgets.values()];
 
   it('a follower is in range, moves, and belongs to a widget with the slider', () => {
