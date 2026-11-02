@@ -22,23 +22,25 @@ function functionSource(html: string, name: string): string {
 }
 
 describe('readLabSongs and the pack file', () => {
-  it('keeps a pack key added to a song', () => {
-    const copy = HTML.replace("prelude: { title: 'Rachmaninoff: Prelude in C♯ minor',", "prelude: { pack: 'pack-prelude.js', title: 'Rachmaninoff: Prelude in C♯ minor',");
+  it('a song need not have a pack', () => {
+    const copy = HTML.replace("pack: 'pack-prelude.js', ", '');
     expect(copy).not.toBe(HTML);
-    expect(readLabSongs(copy).prelude.pack).toBe('pack-prelude.js');
+    expect(readLabSongs(copy).prelude.pack).toBeUndefined();
   });
 
-  it('names the pack files that npm run lab-notes writes for the ensemble songs, and none for the others', () => {
+  it('names the pack files that npm run lab-notes writes, for every song', () => {
     const songs = readLabSongs(HTML);
     expect(songs.b5.pack).toBe('pack-beethoven5.js');
     expect(songs['vivaldi-winter'].pack).toBe('pack-vivaldi-winter.js');
-    expect(songs.prelude.pack).toBeUndefined();
+    expect(songs.prelude.pack).toBe('pack-prelude.js');
+    for (const [id, song] of Object.entries(songs)) expect(song.pack, id).toMatch(/^pack-[a-z0-9-]+\.js$/);
   });
 
   it('refuses a pack that is not a pack-<id>.js file name', () => {
-    const bad = HTML.replace("prelude: { title:", "prelude: { pack: '../songs/x.json', title:");
+    const bad = HTML.replace("pack: 'pack-prelude.js'", "pack: '../songs/x.json'");
+    expect(bad).not.toBe(HTML);
     expect(() => readLabSongs(bad)).toThrow(/SONGS\.prelude\.pack/);
-    const num = HTML.replace("prelude: { title:", 'prelude: { pack: 3, title:');
+    const num = HTML.replace("pack: 'pack-prelude.js'", 'pack: 3');
     expect(() => readLabSongs(num)).toThrow(/SONGS\.prelude\.pack/);
   });
 });
