@@ -323,8 +323,11 @@
       if (!notes.length) return;
       const S = speedK(x), b = x.p('branch'), maxTips = 3 + Math.round(46 * b * b);
       // Every tip jerks forward in the same frame. Fast music gets smaller jerks, or a run would fill the page in seconds.
-      const kick = (3 + 15 * ch.vel / 127) * S / (1 + 0.35 * x.rate);
-      for (const t of tips) { t.v1 += kick / 0.09; t.v2 = Math.min(60 * S, t.v2 + 7 * S); t.flash = Math.max(t.flash, 0.6); }
+      // While there is hardly anything yet, a loud attack shoots much further, so a piece's first chords look as big as they sound.
+      const hard = (ch.vel / 127) ** 2, young = Math.max(0, 1 - live / 1500);
+      const kick = (3 + 15 * ch.vel / 127) * S / (1 + 0.35 * x.rate) * (1 + 3 * young * hard), surge = (7 + 45 * young * hard) * S;
+      for (const t of tips) { t.v1 += kick / 0.09; t.v2 = Math.min(60 * S, t.v2 + surge); t.flash = Math.max(t.flash, 0.6); }
+      const before = tips.length;
       let taker = null;
       for (const n of notes.slice(0, 6)) {
         const px = (0.05 + 0.9 * pitchT(n.m)) * x.W, e = noteEnergy(n, b), w = noteWidth(n);
@@ -348,6 +351,8 @@
         forks = Math.floor(forks + Math.random());
         for (let i = 0; i < forks && tips.length < maxTips; i++) forkTip(taker, Math.max(30, taker.e * 0.6), noteWidth(notes[Math.min(i, size - 1)]));
       }
+      // What this attack started jerks with it, in the same frame, instead of waiting for the next one.
+      for (let i = before; i < tips.length; i++) { const t = tips[i]; t.v1 = kick / 0.09; t.v2 = Math.min(60 * S, surge); }
     },
     frame(x) {
       if (!occ) this.reset(x);

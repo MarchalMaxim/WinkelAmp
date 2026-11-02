@@ -142,7 +142,7 @@
       const keep = x.p('keep'), s = 0.1 + 0.9 * x.p('presence');
       // The steady melt (keep) and a strike's: fast at the attack, spent after MELT_LONG. At rest nothing is copied at all.
       let melt = x.p('melt') * s * keep, ghost = 0;
-      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * s * (1 - keep) * MELT_KICK * u * u; ghost = 0.95 * s * (1 - keep) * u * u; meltAge += x.dt; }
+      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * s * (1 - keep) * MELT_KICK * u * u; ghost = 0.95 * s * (1 - keep) * u * u * Math.min(1, x.p('melt') / 2.2); meltAge += x.dt; }   // no melt, no held picture: the left end of "melt" holds still
       if (melt > 0 || keep >= 1) {
         grab(x);
         for (let i = 0; i < x.W; i += 10) {

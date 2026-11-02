@@ -954,7 +954,7 @@ Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `haughty` | how far it turns away | 0.15..1.4 | 1 | fixed | How far the figure leans back from them before it flicks. Left: a slight lift of the chin. Right: it turns its whole back. |
-| `flourish` | how grand the gesture is | 0.2..1.6 | 1 | fixed | How much of the stroke flicks, and how wide its gold arc is. Left: only the very tip. Right: the whole upper part, in a sweeping arc. |
+| `flourish` | how grand the gesture is | 0.2..1.6 | 1 | fixed | How much of the stroke flicks, and how far. Left: only the very tip. Right: the whole upper part, in a sweep. |
 | `crowd` | how many come near | 0..1 | 0.45 | fixed | How many small marks come up to it. Left: one at a time. Right: a stream of them. |
 | `near` | how close they get | 0..1 | 0.6 | fixed | How close the marks dare come. Left: they stop far off. Right: right up to it. |
 | `robe` | the colour | 0..2 | 0 | fixed | Which colours it wears. Left: purple and gold. Middle: black and gold. Right: oxblood and ivory. |
@@ -962,14 +962,14 @@ Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · 
 
 #### `comfort`: Comfort
 
-Big flat fields of soft colour melting into each other, breathing slowly together and wandering over minutes. A note is a gentle press: the field's own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones.
+Big flat fields of soft colour, each held on one side and dissolving into the others on the other, breathing slowly together and wandering over minutes. A note is a gentle press and a wide, faint blush: the field's own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones, and a melody blushes as clearly as a chord.
 
 Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `breath` | how slowly it breathes | 3.5..20 | 10 | fixed | How long one breath takes. Left: a quick, light rise and fall. Right: one long breath every 20 seconds. |
-| `press` | how far a note presses | 0.15..2 | 1 | fixed | How far a note pushes in the edge of a field. Left: a faint touch. Right: a deep, slow give. |
+| `press` | how far a note presses | 0.15..2 | 1 | fixed | How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give. |
 | `size` | how big the fields are | 0..1 | 0.5 | fixed | How many fields share the picture. Left: many small ones. Right: a few huge ones. |
 | `warmth` | how warm the colours are | 0..1 | 0.5 | fixed | The colour of it all. Left: cool dusk, grey-rose. Right: amber. |
 | `stay` | how long the warmth stays | 1.5..15 | 5 | fixed | How long a field keeps the warmth of a note. Left: fades quickly. Right: stays for many seconds. |
@@ -977,7 +977,7 @@ Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: grou
 
 #### `honey`: Honey
 
-Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape droop at once, then fill, and slowly push out another.
+Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape sink under the weight, and it stays low; then it fills, and slowly pushes out another.
 
 Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base
 
@@ -992,7 +992,7 @@ Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: bas
 
 #### `lazy`: Lazy
 
-It can't be bothered. A heap of heavy, shapeless green masses: every attack goes through it as a slow shudder, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Fast music makes it care less.
+It can't be bothered. Heavy, shapeless green stains slumped across the picture: an attack goes through them as one heavy jolt they creep back from, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Busy music it mostly ignores, swelling slowly, and only the hard notes still land.
 
 Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
 
@@ -1000,7 +1000,7 @@ Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: gro
 |---|---|---|---|---|---|
 | `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early. |
 | `lift` | how high it bothers to lift | 0.1..1 | 0.75 | fixed | How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen. |
-| `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the masses are. Left: slim. Right: huge, overlapping everything. |
+| `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the stains are. Left: slim. Right: huge, overlapping everything. |
 | `limbs` | how many masses | 4..15 | 12 | fixed | How many masses lie in the heap. Left: a few. Right: a big heap. |
 | `green` | which green | 0..1 | 0.5 | fixed | Which greens it lies in. Left: a dark pond. Right: sour acid. |
 | `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength. |
