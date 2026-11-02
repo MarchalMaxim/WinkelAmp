@@ -1,8 +1,8 @@
-// Duet: two soft bodies with a relationship, one round and full, one sharp and spiked. Every attack gets a verdict from
+// Duet: two soft bodies with a relationship, one round and full, one sharp and torn. Every attack gets a verdict from
 // the harmony in the same frame: consonant against what is sounding, a lunge together; dissonant, a recoil. Each body is
 // one closed contour of spring nodes around a moving centre. Low notes move the round one, high notes the sharp one.
-// The sharp one is not spokes round a hub: it is an uneven splinter, cut anew at every clash, with its points bunched on
-// one or two sides and bare edge elsewhere, so a clash makes it less orderly and the silhouette never settles.
+// The sharp one is not spokes round a hub: it is an uneven splinter, cut anew at every clash and now and then besides, its
+// points bunched on one or two sides, each with its own lean, so it never lies like feathers and the silhouette never settles.
 // Where they overlap the two colours run into each other, and only the places where the edges cross burn hot.
 (() => {
   const N = 72, TAU = Math.PI * 2;
@@ -31,12 +31,12 @@
     }
   }
   let time = 0;
-  // The life inside a body: a tiling ink field, dark pools with pale lines along their shores. Filled through the contour.
+  // The life inside a body: a tiling ink field of two washes, dark and pale, wide and edgeless, so it never reads as spots or cells. Filled through the contour.
   let inkDark = null, inkPale = null;
   function buildInk(g) {
     const S = 256, a = document.createElement('canvas'), b = document.createElement('canvas'); a.width = a.height = b.width = b.height = S;
     const grid = (n) => Float32Array.from({ length: n * n }, () => Math.random());
-    const G = [[4, grid(4), 1], [8, grid(8), 0.5], [16, grid(16), 0.1]], W = [[3, grid(3)], [5, grid(5)]];
+    const G = [[3, grid(3), 1], [6, grid(6), 0.42], [12, grid(12), 0.1]], F = [[2, grid(2), 1], [5, grid(5), 0.5]], W = [[2, grid(2)], [3, grid(3)]];
     const sm = (t) => t * t * (3 - 2 * t);
     const noise = (n, v, u, w) => {
       const x = u * n, y = w * n, i = Math.floor(x), j = Math.floor(y), fx = sm(x - i), fy = sm(y - j);
@@ -45,13 +45,15 @@
     };
     const ga = a.getContext('2d'), gb = b.getContext('2d'), ia = ga.createImageData(S, S), ib = gb.createImageData(S, S);
     for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-      const u0 = x / S, w0 = y / S, u = u0 + 0.16 * (noise(W[0][0], W[0][1], u0, w0) - 0.5), w = w0 + 0.16 * (noise(W[1][0], W[1][1], u0, w0) - 0.5);
+      const u0 = x / S, w0 = y / S, u = u0 + 0.3 * (noise(W[0][0], W[0][1], u0, w0) - 0.5), w = w0 + 0.3 * (noise(W[1][0], W[1][1], u0, w0) - 0.5);
       let f = 0; for (const [n, v, k] of G) f += k * noise(n, v, u, w);
-      f /= 1.6;
-      const pool = clamp((f - 0.45) / 0.17, 0, 1), rim = gau(f - 0.585, 0.012), k = (y * S + x) * 4;
-      ia.data[k + 3] = 255 * Math.min(1, 0.5 * pool * pool * (3 - 2 * pool) + 0.14 * rim);   // a wash that deepens with no edge, and a faint tide line in it
+      f /= 1.52;
+      let e = 0; for (const [n, v, q] of F) e += q * noise(n, v, w, u);
+      e /= 1.5;
+      const pool = clamp((f - 0.34) / 0.36, 0, 1), fog = clamp((e - 0.42) / 0.3, 0, 1), k = (y * S + x) * 4;
+      ia.data[k + 3] = 255 * 0.5 * pool * pool * (3 - 2 * pool);                 // a wash that deepens with no edge
       ib.data[k] = ib.data[k + 1] = ib.data[k + 2] = 255;
-      ib.data[k + 3] = 255 * 0.3 * gau(f - 0.42, 0.007);                         // a pale shoreline further out
+      ib.data[k + 3] = 255 * 0.17 * fog * fog * (3 - 2 * fog);                   // and a pale one that slides across it
     }
     ga.putImageData(ia, 0, 0); gb.putImageData(ib, 0, 0);
     inkDark = g.createPattern(a, 'repeat'); inkPale = g.createPattern(b, 'repeat');
@@ -60,8 +62,8 @@
   // along one or two of its edges, the rest left bare. face: the angle in body terms the first cluster sits at (null for any).
   function cut(f, face, wild, tau, rnd) {
     const K = 4 + Math.floor(rnd() * 3), gaps = []; let sum = 0;
-    for (let i = 0; i < K; i++) { const q = rnd() * rnd() + 0.1; gaps.push(q); sum += q; }
-    const ax = rnd() * TAU, st = 0.2 + 0.35 * rnd(), c = Math.cos(ax), n0 = Math.sin(ax);
+    for (let i = 0; i < K; i++) { const q = rnd() * rnd() * 0.8 + 0.22; gaps.push(q); sum += q; }
+    const ax = rnd() * TAU, st = 0.08 + 0.26 * rnd(), c = Math.cos(ax), n0 = Math.sin(ax);
     let an = rnd() * TAU; const C = [];
     for (let i = 0; i < K; i++) {
       an += gaps[i] / sum * TAU;
@@ -78,15 +80,27 @@
     const V = [];
     for (let i = 0; i < K; i++) {
       const p = C[i], q = C[(i + 1) % K]; V.push([p[0], p[1], 0.55]);
-      if (i !== main && i !== second) continue;
+      if (i !== main && i !== second) {                                               // a bare edge is sometimes bitten, off centre, so there are no clean wings
+        if (rnd() < 0.55) {
+          const t = 0.2 + 0.55 * rnd(), w = 0.06 + 0.12 * rnd(), bx = (p[0] + q[0]) / 2, by = (p[1] + q[1]) / 2, dep = 0.3 + 0.45 * rnd();
+          const at = (u, k) => [p[0] + (q[0] - p[0]) * u - bx * k, p[1] + (q[1] - p[1]) * u - by * k, 0];
+          V.push(at(t - w, 0), at(t + w * rnd(), dep), at(t + w, 0));
+        }
+        continue;
+      }
       let ex = q[0] - p[0], ey = q[1] - p[1]; const el = Math.hypot(ex, ey) || 1; ex /= el; ey /= el;
       let nx = ey, ny = -ex; if (nx * (p[0] + q[0]) + ny * (p[1] + q[1]) < 0) { nx = -nx; ny = -ny; }
-      const m = 2 + Math.floor(rnd() * (2.2 + wild * 3)), wide = 0.3 + 0.45 * rnd(), t0 = 0.1 + (0.8 - wide) * rnd(), lean = (rnd() * 2 - 1) * 0.9, hero = Math.floor(rnd() * m);
+      const m = 2 + Math.floor(rnd() * (2.2 + wild * 3)), wide = 0.3 + 0.45 * rnd(), t0 = 0.1 + (0.8 - wide) * rnd(), hero = Math.floor(rnd() * m);
+      // breakage and not a comb: every thorn its own spacing, width, length and lean, so no run of them lies the same way like feathers
+      const sp = []; let spSum = 0; for (let j = 0; j < m; j++) { const q0 = 0.2 + rnd() * rnd() * 1.6; sp.push(q0); spSum += q0; }
+      let along = t0;
       for (let j = 0; j < m; j++) {
-        const a0 = t0 + wide * (j + 0.12 * rnd()) / m, a1 = t0 + wide * (j + 1) / m, mid = (a0 + a1) / 2;
-        let l = 0.14 + 0.42 * rnd() * rnd() + wild * 0.4 * rnd(); if (j === hero) l = l * 1.25 + 0.2;
+        const w = wide * sp[j] / spSum, a0 = along, a1 = along + w * (0.4 + 0.6 * rnd()), mid = a0 + (a1 - a0) * (0.15 + 0.7 * rnd()); along += w;
+        let l = 0.1 + 0.46 * rnd() * rnd() + wild * 0.4 * rnd(); if (rnd() < 0.3) l *= 0.35; if (j === hero) l = l * 1.25 + 0.2;
+        l = Math.min(l, 0.05 + (j === hero ? 2.4 : 2) * (a1 - a0) * el, 0.62);                 // never a hair: a thin spike that moves leaves hatching under the fade
+        const tilt = (rnd() * 2 - 1) * 1.3;
         V.push([p[0] + ex * el * a0, p[1] + ey * el * a0, 0]);
-        V.push([p[0] + ex * (el * mid + lean * l) + nx * l, p[1] + ey * (el * mid + lean * l) + ny * l, 1]);
+        V.push([p[0] + ex * (el * mid + tilt * l) + nx * l, p[1] + ey * (el * mid + tilt * l) + ny * l, 1]);
         V.push([p[0] + ex * el * a1, p[1] + ey * el * a1, 0]);
       }
     }
@@ -102,20 +116,27 @@
       for (let e = 0; e <= extra && at < N; e++, at++) { const t = e / (extra + 1); f.tx[at] = p[0] + (q[0] - p[0]) * t; f.ty[at] = p[1] + (q[1] - p[1]) * t; }
     }
     for (let i = 0; i < N; i++) f.jag[i] = (rnd() * 2 - 1) * (1 - f.tw[i]);
-    f.tau = tau; f.reach = -1; f.lastCut = time;
+    f.tau = tau; f.reach = -1; f.lastCut = time; f.nextCut = time + 2.4 + 2.2 * rnd();
+  }
+  // What the round one catches from the other: a few points bunched on one side, never evenly round it, and elsewhere each time they touch.
+  function catchPoints(f, rnd) {
+    f.barb.fill(0);
+    let i = Math.floor(rnd() * N);
+    for (let k = 3 + Math.floor(rnd() * 3); k > 0; k--) {
+      const h = 0.14 + 0.28 * rnd(); i = (i + 2 + Math.floor(rnd() * 6)) % N;
+      f.barb[i] = h; f.barb[(i + 1) % N] = Math.max(f.barb[(i + 1) % N], h * 0.15); f.barb[(i + N - 1) % N] = Math.max(f.barb[(i + N - 1) % N], h * 0.15);
+    }
   }
   const newForm = (round) => {
     const f = {
-      round, x: 0, y: 0, vx: 0, vy: 0, lx: 0, ly: 0, rot: Math.random() * TAU, d: new Float32Array(N), v: new Float32Array(N), T: new Float32Array(N),
+      round, x: 0, y: 0, vx: 0, vy: 0, rot: Math.random() * TAU, d: new Float32Array(N), v: new Float32Array(N), T: new Float32Array(N),
       px: new Float32Array(N), py: new Float32Array(N), wa: Math.random() * TAU, wb: Math.random() * TAU, ang: new Float32Array(N),
       tx: new Float32Array(N), ty: new Float32Array(N), ox: new Float32Array(N), oy: new Float32Array(N), tw: new Float32Array(N), jag: new Float32Array(N), boost: new Float32Array(N), barb: new Float32Array(N),
-      tau: 1, reach: -1, lastCut: -9, nextCut: 5 + Math.random() * 4, ia: Math.random() * 256, ib: Math.random() * 256, iv: 0, wv: 0,
-      tongues: [], lit: 0, swell: 0, swellTo: 0, swellEnd: 0, ghosts: [], lastGhost: 0, path: null,
+      tau: 1, reach: -1, lastCut: -9, nextCut: 3 + Math.random() * 2, ia: Math.random() * 256, ib: Math.random() * 256, iv: 0, wv: 0,
+      tongues: [], lit: 0, swell: 0, swellTo: 0, swellEnd: 0, ghosts: [], lastGhost: 0, path: null, qx: new Float32Array(N), qy: new Float32Array(N), sp: new Float32Array(N), hasQ: false, fast: 0, ext: null,
     };
     if (round) {
-      // what it catches from the other: a few points bunched on one side, never evenly round it
-      const at = Math.floor(Math.random() * N);
-      for (const e of [0, 3, 5, 9, 15]) { const i = (at + e) % N, h = 0.14 + 0.28 * Math.random(); f.barb[i] = h; f.barb[(i + 1) % N] = Math.max(f.barb[(i + 1) % N], h * 0.15); f.barb[(i + N - 1) % N] = Math.max(f.barb[(i + N - 1) % N], h * 0.15); }
+      catchPoints(f, Math.random);
       for (let i = 0; i < N; i++) f.ang[i] = i / N * TAU;
     } else {
       cut(f, null, 0, 1, Math.random); f.ox.set(f.tx); f.oy.set(f.ty);
@@ -124,7 +145,7 @@
     return f;
   };
   let A = newForm(true), B = newForm(false), ready = false;
-  let lastCons = true, mood = 0.3, lean = 0, bristle = 0, ripple = 0, infl = 0, quiet = 9, spin = 1, holdEnd = 0, flash = 0, vels = null;
+  let lastCons = true, mood = 0.3, lean = 0, bristle = 0, ripple = 0, infl = 0, quiet = 9, spin = 1, holdEnd = 0, flash = 0, vels = null, velAvg = 0.4, jolt = 0;
 
   // how present: only the piece's hardest attacks move them as it goes down (as in Rorschach)
   const hardEnough = (v, x) => {
@@ -157,7 +178,7 @@
   function answer(f, o, cons, power, count, hold, x, motion) {
     const dx = o.x - f.x, dy = o.y - f.y, D = Math.hypot(dx, dy) || 1, nx = dx / D, ny = dy / D, phi = Math.atan2(dy, dx);
     const R = x.p('size') * 92, sign = cons ? 1 : -1;
-    const dense = 1 / (1 + 2.2 * x.feat.rate);
+    const dense = Math.max(1 / (1 + 2.2 * x.feat.rate), jolt);                        // fast music damps the hits, but an accent well above its neighbours still lands
     const J = (cons ? x.p('pull') * (150 + 620 * power) : x.p('push') * (190 + 820 * power)) * (0.35 + 0.65 * dense) * motion;
     f.vx += nx * J * sign; f.vy += ny * J * sign;
     f.x += nx * sign * J * 0.012; f.y += ny * sign * J * 0.012;                       // seen in the attack's own frame
@@ -242,7 +263,7 @@
       }
       const a = Math.atan2(oy, ox), m = Math.hypot(ox, oy), abs = a + f.rot;
       // it breathes unevenly at rest; a clash stands its points out and breaks its bare edges
-      const r = m * (1 + 0.06 * Math.sin(2 * a + time * 0.43 + f.wa) + 0.04 * Math.sin(3 * a - time * 0.29 + f.wb)) * (1 + bristle * 0.4 * f.tw[i] + f.boost[i]) + bristle * 0.17 * f.jag[i];
+      const r = m * (1 + 0.13 * Math.sin(2 * a + time * 0.61 + f.wa) + 0.1 * Math.sin(3 * a - time * 0.47 + f.wb)) * (1 + bristle * 0.4 * f.tw[i] + f.boost[i]) + bristle * 0.17 * f.jag[i];
       const th = abs + lean * 0.55 * Math.sin(wrap(phi - abs)), rho = Math.max(R * 0.12, R * sw * r + f.d[i]);
       f.px[i] = f.x + Math.cos(th) * rho; f.py[i] = f.y + Math.sin(th) * rho;
     }
@@ -259,6 +280,14 @@
     }
     p.closePath();
     f.path = p;
+  }
+  // How far the contour reaches from the centre on each side (left, right, top, bottom), quick to grow and slow to shrink.
+  function extents(f, dt) {
+    let l = 0, r = 0, t = 0, b = 0;
+    for (let i = 0; i < N; i++) { const dx = f.px[i] - f.x, dy = f.py[i] - f.y; if (dx < l) l = dx; if (dx > r) r = dx; if (dy < t) t = dy; if (dy > b) b = dy; }
+    const pad = f.round ? 10 : 4, now = [pad - l, pad + r, pad - t, pad + b];
+    if (!f.ext) { f.ext = now; return; }
+    for (let k = 0; k < 4; k++) f.ext[k] += (now[k] - f.ext[k]) * (1 - Math.exp(-dt / (now[k] > f.ext[k] ? 0.03 : 0.3)));
   }
   function sim(h, x) {
     const W = x.W, H = x.H, R = x.p('size') * 92, pull = x.p('pull'), push = x.p('push');
@@ -277,12 +306,18 @@
     const mx = (A.x + B.x) / 2 - W / 2, my = (A.y + B.y) / 2 - H / 2;
     for (const f of [A, B]) {
       f.vx -= mx * 1.1 * h; f.vy -= my * 1.6 * h;
-      const pad = R * 1.2;
-      if (f.x < pad) f.vx += (pad - f.x) * 26 * h; if (f.x > W - pad) f.vx -= (f.x - W + pad) * 26 * h;
-      if (f.y < pad) f.vy += (pad - f.y) * 26 * h; if (f.y > H - pad) f.vy -= (f.y - H + pad) * 26 * h;
+      // the walls keep the whole contour in frame, by how far this body reaches on each side right now
+      const e = f.ext || [R * 1.1, R * 1.1, R * 1.1, R * 1.1];
+      let x0 = e[0], x1 = W - e[1], y0 = e[2], y1 = H - e[3];
+      if (x0 > x1) x0 = x1 = (x0 + x1) / 2; if (y0 > y1) y0 = y1 = (y0 + y1) / 2;
+      const pad = 14;
+      if (f.x < x0 + pad) f.vx += (x0 + pad - f.x) * 26 * h; if (f.x > x1 - pad) f.vx -= (f.x - x1 + pad) * 26 * h;
+      if (f.y < y0 + pad) f.vy += (y0 + pad - f.y) * 26 * h; if (f.y > y1 - pad) f.vy -= (f.y - y1 + pad) * 26 * h;
       const damp = Math.exp(-2.1 * h); f.vx *= damp; f.vy *= damp;
       const sp = Math.hypot(f.vx, f.vy); if (sp > 1500) { f.vx *= 1500 / sp; f.vy *= 1500 / sp; }
-      f.x = clamp(f.x + f.vx * h, R * 1.1, W - R * 1.1); f.y = clamp(f.y + f.vy * h, R * 1.1, H - R * 1.1);
+      f.x += f.vx * h; f.y += f.vy * h;
+      if (f.x < x0) { f.x += (x0 - f.x) * 0.25; if (f.vx < 0) f.vx *= -0.25; } else if (f.x > x1) { f.x += (x1 - f.x) * 0.25; if (f.vx > 0) f.vx *= -0.25; }   // a bump, and no snap when its reach grows
+      if (f.y < y0) { f.y += (y0 - f.y) * 0.25; if (f.vy < 0) f.vy *= -0.25; } else if (f.y > y1) { f.y += (y1 - f.y) * 0.25; if (f.vy > 0) f.vy *= -0.25; }
     }
     A.rot += h * (0.05 + 0.2 * Math.abs(lean)) * spin; B.rot -= h * (0.09 + 0.25 * Math.abs(lean)) * spin;
     targets(A, B, x, R); targets(B, A, x, R); nodes(A, h); nodes(B, h);
@@ -297,13 +332,13 @@
     flash *= Math.exp(-dt / 0.14);
     // touching: each picks up something of the other, fading over a few seconds
     const D = Math.hypot(B.x - A.x, B.y - A.y), S = radA(R) + radB(R);
-    if (D < S * 0.98) infl = Math.min(1, infl + dt * 1.1); else infl *= Math.exp(-dt / 3.2);
+    if (D < S * 0.98) { if (infl < 0.02) catchPoints(A, () => x.rnd()); infl = Math.min(1, infl + dt * 1.1); } else infl *= Math.exp(-dt / 3.2);
     for (const f of [A, B]) {
       f.lit *= Math.exp(-dt / 0.16);
       f.swell += ((time < f.swellEnd ? f.swellTo : 0) - f.swell) * (1 - Math.exp(-dt / 0.3));
       if (!f.round) {
         const k = 1 - Math.exp(-dt / f.tau), b = Math.exp(-dt / 0.42);
-        if (time > f.nextCut) { cut(f, null, 0, 1.6, () => x.rnd()); f.nextCut = time + 5 + x.rnd() * 4; }   // left alone it still never settles
+        if (time > f.nextCut) cut(f, null, 0, 1.6, () => x.rnd());   // left alone it still never settles
         for (let i = 0; i < N; i++) { f.ox[i] += (f.tx[i] - f.ox[i]) * k; f.oy[i] += (f.ty[i] - f.oy[i]) * k; f.boost[i] *= b; f.ang[i] = Math.atan2(f.oy[i], f.ox[i]); }
       }
       const iv = Math.exp(-dt / 0.5);
@@ -318,54 +353,69 @@
   function inked(f, g, path, R, alpha, amount) {
     const s = 1.15 * R / 92, rot = f.rot * 0.5 + f.wv + f.wa, c = Math.cos(rot) * s, n = Math.sin(rot) * s;
     inkDark.setTransform(new DOMMatrix([c, n, -n, c, f.x * 0.82 + f.ia, f.y * 0.82 - f.ia * 0.4]));
-    g.globalAlpha = alpha * amount; g.fillStyle = inkDark; g.fill(path);
+    const still = 1 - 0.85 * f.fast;                                                    // ink printed at speed would print its own ribs into the trail
+    g.globalAlpha = alpha * amount * still; g.fillStyle = inkDark; g.fill(path);
     const s2 = s * 1.35, c2 = Math.cos(-rot * 0.7) * s2, n2 = Math.sin(-rot * 0.7) * s2;
     inkPale.setTransform(new DOMMatrix([c2, n2, -n2, c2, f.x * 0.9 + f.ib, f.y * 0.9 + f.ib * 0.6]));
-    g.globalAlpha = alpha * amount * (0.6 + 0.4 * f.lit); g.fillStyle = inkPale; g.fill(path);
+    g.globalAlpha = alpha * amount * still * (0.6 + 0.4 * f.lit); g.fillStyle = inkPale; g.fill(path);
   }
-  // A fast body leaves a smear and not a stack of copies: a few of its outline between where it was and where it is, over the fade.
-  function smear(f, col, g, alpha) {
-    const dx = f.x - f.lx, dy = f.y - f.ly, n = Math.min(9, Math.floor(Math.hypot(dx, dy) / 5));
-    f.fast = Math.min(1, Math.hypot(dx, dy) / 25);                                     // and its crisp line drops out, or it stacks up as steps
-    if (!n) return;
-    g.fillStyle = rgb(col.map((v) => v * 0.6));
-    for (let k = 1; k <= n; k++) {
-      const t = k / (n + 1), ax = -dx * (1 - t), ay = -dy * (1 - t);
-      g.globalAlpha = alpha * (0.2 + 0.55 * t);
-      g.translate(ax, ay); g.fill(f.path); g.translate(-ax, -ay);
+  // A fast body leaves a smear and not a stack of copies. The harness's fade steps down at each frame's trailing edge, so
+  // the contour is drawn several times between last frame's pose and this one, each faint and in the body's own fill: what
+  // lies in the gap climbs evenly into the new body's edge and the step is gone. Node by node, so a tongue or a re-cut smears too.
+  function smear(f, fill, g, alpha) {
+    let top = 0, sum = 0;
+    for (let i = 0; i < N; i++) { const d = Math.hypot(f.px[i] - f.qx[i], f.py[i] - f.qy[i]); f.sp[i] = d; sum += d; if (d > top) top = d; }
+    if (f.hasQ) f.fast = Math.min(1, sum / N / 8);                                     // and its crisp edges drop out, or they stack up as steps
+    const n = Math.min(12, Math.floor(top / 3));
+    if (f.hasQ && n) {
+      g.fillStyle = fill; g.globalAlpha = alpha * (1 - Math.pow(0.1, 1 / n));
+      for (let k = 1; k <= n; k++) {
+        const t = k / (n + 1); g.beginPath();
+        for (let i = 0; i < N; i++) { const a = f.qx[i] + (f.px[i] - f.qx[i]) * t, b = f.qy[i] + (f.py[i] - f.qy[i]) * t; if (i) g.lineTo(a, b); else g.moveTo(a, b); }
+        g.closePath(); g.fill();
+      }
     }
+    f.qx.set(f.px); f.qy.set(f.py); f.hasQ = true;
   }
-  function paint(f, o, col, g, R, alpha) {
-    // the body: lit on the side that faces the other
+  // the body's fill: lit on the side that faces the other
+  function bodyFill(f, o, col, g, R) {
     const dx = o.x - f.x, dy = o.y - f.y, D = Math.hypot(dx, dy) || 1, r = R * 1.6;
     const gr = g.createRadialGradient(f.x + dx / D * R * 0.55, f.y + dy / D * R * 0.55, 0, f.x, f.y, r);
     gr.addColorStop(0, rgb(col, 0.14 + f.lit * 0.55)); gr.addColorStop(0.55, rgb(col, f.lit * 0.2)); gr.addColorStop(1, rgb(col.map((v) => v * 0.72)));
+    return gr;
+  }
+  function paint(f, gr, col, g, R, alpha) {
     g.globalAlpha = alpha; g.fillStyle = gr;
     if (f.round) {                                                                    // soft edge: two wide faint strokes, no blur
       g.strokeStyle = rgb(col); g.lineJoin = 'round';
-      g.globalAlpha = alpha * 0.16; g.lineWidth = 16; g.stroke(f.path);
-      g.globalAlpha = alpha * 0.32; g.lineWidth = 7; g.stroke(f.path);
+      const soft = 1 - f.fast;
+      if (soft > 0.02) { g.globalAlpha = alpha * 0.16 * soft; g.lineWidth = 16; g.stroke(f.path); g.globalAlpha = alpha * 0.32 * soft; g.lineWidth = 7; g.stroke(f.path); }
       g.globalAlpha = alpha; g.fill(f.path);
     } else {
       g.fill(f.path);
-      g.strokeStyle = rgb(col, 0.3 + f.lit * 0.5); g.lineJoin = 'miter'; g.miterLimit = 6; g.lineWidth = 1.2; g.globalAlpha = alpha * (1 - 0.85 * (f.fast || 0)); g.stroke(f.path);
+      g.strokeStyle = rgb(col, 0.3 + f.lit * 0.5); g.lineJoin = 'miter'; g.miterLimit = 6; g.lineWidth = 1.2; g.globalAlpha = alpha * (1 - f.fast); g.stroke(f.path);
     }
     inked(f, g, f.path, R, alpha, 1);
   }
 
+  // The sharp form on a knob: a torn shard, unit radius s/2.
+  const shardIcon = (g, cx, cy, s, col) => {
+    const P = [[-0.95, -0.2], [-0.25, -0.5], [-0.05, -0.15], [0.55, -0.95], [0.45, -0.2], [0.95, 0.3], [0.05, 0.3], [-0.3, 0.9]];
+    g.fillStyle = col; g.beginPath(); P.forEach(([a, b], i) => g[i ? 'lineTo' : 'moveTo'](cx + a * s / 2, cy + b * s / 2)); g.closePath(); g.fill();
+  };
   TOOLS.push({
     id: 'duet', name: 'Duet', tag: 'new',
     blurb: 'Two forms in two colours, one round and one sharp, that want each other and can\'t stand each other. Every attack gets a verdict from the harmony: consonant, they lunge together; dissonant, they are thrown apart. Low notes move the round one, high notes the sharp one. Leave them alone and they end up nearly touching, trembling.',
     params: [
       { key: 'pull', label: 'how strongly they want each other', min: 0, max: 2, value: 1,
         hint: 'How strongly they want each other. Left: they keep their distance. Right: always reaching.',
-        icon: (g, v, w, h) => { const d = 13 - v * 8; ICON.dot(g, w / 2 - d, h / 2, 5, '#ff4a1c'); ICON.shape(g, 'star', w / 2 + d, h / 2, 10, '#1f6bff'); } },
+        icon: (g, v, w, h) => { const d = 13 - v * 8; ICON.dot(g, w / 2 - d, h / 2, 5, '#ff4a1c'); shardIcon(g, w / 2 + d, h / 2, 12, '#1f6bff'); } },
       { key: 'push', label: 'how hard a clash throws them apart', min: 0.2, max: 2, value: 1,
         hint: 'How hard a clash throws them apart. Left: a flinch. Right: flung to opposite corners.',
         icon: (g, v, w, h) => { const d = 4 + v * 10; ICON.arrow(g, w / 2 - 1, h / 2, w / 2 - 2 - d, h / 2, '#ff4a1c'); ICON.arrow(g, w / 2 + 1, h / 2, w / 2 + 2 + d, h / 2, '#1f6bff'); } },
       { key: 'size', label: 'how big they are', min: 0.5, max: 2.2, value: 1,
         hint: 'How big they are. Left: small and agile. Right: filling the screen.',
-        icon: (g, v, w, h) => { const r = 2.5 + v * 5.5; ICON.dot(g, w / 2 - r - 1, h / 2, r, '#ff4a1c'); ICON.shape(g, 'star', w / 2 + r + 1, h / 2, r * 2, '#1f6bff'); } },
+        icon: (g, v, w, h) => { const r = 2.5 + v * 5.5; ICON.dot(g, w / 2 - r - 1, h / 2, r, '#ff4a1c'); shardIcon(g, w / 2 + r + 1, h / 2, r * 2.3, '#1f6bff'); } },
       { key: 'split', label: 'where the keyboard divides them', min: 30, max: 90, step: 1, value: 60,
         hint: 'Where the keyboard divides between them. Left: nearly everything moves the sharp one. Right: nearly everything moves the round one.',
         icon: (g, v, w, h) => { ICON.keys(g, w, h, 0, v, '#ff4a1c'); } },
@@ -374,17 +424,18 @@
         icon: (g, v, w, h) => { const p = PAIRS[Math.round(v * 2)]; ICON.dot(g, w / 2 - 6, h / 2, 7, rgb(p.a)); ICON.dot(g, w / 2 + 6, h / 2, 7, rgb(p.b)); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: almost gone, barely moving, and only the hardest attacks reach them. Right: fully there, answering everything.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => { ICON.dot(g, w / 2 - 6, h / 2, 2 + 4 * v, '#ff4a1c'); ICON.shape(g, 'star', w / 2 + 6, h / 2, 4 + 8 * v, '#1f6bff'); }) },
+        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => { ICON.dot(g, w / 2 - 6, h / 2, 2 + 4 * v, '#ff4a1c'); shardIcon(g, w / 2 + 6, h / 2, 5 + 8 * v, '#1f6bff'); }) },
     ],
     reset() {
       time = 0; A = newForm(true); B = newForm(false); ready = false; vels = null;
-      lastCons = true; mood = 0.3; lean = 0; bristle = 0; ripple = 0; infl = 0; quiet = 9; spin = 1; holdEnd = 0; flash = 0;
+      lastCons = true; mood = 0.3; lean = 0; bristle = 0; ripple = 0; infl = 0; quiet = 9; spin = 1; holdEnd = 0; flash = 0; velAvg = 0.4; jolt = 0;
     },
     onChord(ch, x) {
       if (!hardEnough(ch.vel, x)) return;
       const score = verdict(ch, x), cons = score >= 0, split = x.p('split');
       const pres = x.p('presence'), motion = 0.2 + 0.8 * pres;
       const loud = clamp((ch.vel - 30) / 85, 0.05, 1);
+      jolt = clamp((loud - velAvg - 0.06) / 0.2, 0, 1); velAvg += (loud - velAvg) * 0.12;
       let la = 0, lb = 0, ha = 0, hb = 0, va = 0, vb = 0;
       for (const n of ch.notes) {
         if (n.m < split) { la++; ha = Math.max(ha, n.d || 0); va = Math.max(va, n.v); }
@@ -398,6 +449,8 @@
       quiet = 0; flash = Math.max(flash, loud);
       // every clash cuts the sharp one anew, with its worst side turned to the other; a louder one cuts it wilder
       if (!cons && time - B.lastCut > 0.09) cut(B, Math.atan2(A.y - B.y, A.x - B.x) - B.rot, clamp(0.25 + 0.5 * loud + 0.4 * Math.abs(score), 0, 1), 0.06 + 0.5 * (1 - motion), () => x.rnd());
+      // and a consonance that finds it long unchanged reshapes it gently, so a shape can't sit through a sparse passage
+      else if (cons && time - B.lastCut > 1.2) cut(B, Math.atan2(A.y - B.y, A.x - B.x) - B.rot, 0.1, 0.55 + 0.5 * (1 - motion), () => x.rnd());
       const hold = Math.max(ha, hb);
       if (hold > 0.6) holdEnd = Math.max(holdEnd, time + Math.min(cons ? 4 : 1.2, hold));   // an embrace holds longer than a flinch
       const pa = clamp((va - 30) / 85, 0.05, 1), pb = clamp((vb - 30) / 85, 0.05, 1);
@@ -406,7 +459,7 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt, W = x.W, H = x.H, R = x.p('size') * 92;
-      if (!ready) { A.x = A.lx = W * 0.38; A.y = A.ly = H * 0.52; B.x = B.lx = W * 0.62; B.y = B.ly = H * 0.48; ready = true; }
+      if (!ready) { A.x = W * 0.38; A.y = H * 0.52; B.x = W * 0.62; B.y = H * 0.48; ready = true; }
       if (!inkDark) buildInk(g);
       const pi = Math.round(x.p('pair')), pal = PAIRS[pi];
       if (pi !== haloPair) { paintHalos(pal); haloPair = pi; }
@@ -416,6 +469,7 @@
         for (let i = 0; i < n; i++) sim(h, x);
       }
       contour(A, B, R); contour(B, A, R * 1.05);
+      if (dt > 0 || !A.ext) { extents(A, dt); extents(B, dt); }
       // What is painted every frame builds up under the harness's fade (12% a frame), so ask for the alpha whose steady
       // state is how present it should look; plain alpha would leave it nearly solid when turned down.
       const seen = 0.1 + 0.9 * x.p('presence'), alpha = 0.12 * seen / (1 - 0.88 * seen);
@@ -430,10 +484,10 @@
         g.strokeStyle = rgb(col, 0.1);
         for (const q of f.ghosts) { g.globalAlpha = alpha * 0.34 * (1 - q.age / 1.5); g.stroke(q.path); }
       }
-      if (dt > 0) { smear(A, pal.a, g, alpha); smear(B, pal.b, g, alpha); }
-      A.lx = A.x; A.ly = A.y; B.lx = B.x; B.ly = B.y;
-      paint(A, B, pal.a, g, R, alpha);
-      paint(B, A, pal.b, g, R * 1.05, alpha);
+      const fa = bodyFill(A, B, pal.a, g, R), fb = bodyFill(B, A, pal.b, g, R * 1.05);
+      if (dt > 0) { smear(A, fa, g, alpha); smear(B, fb, g, alpha); }
+      paint(A, fa, pal.a, g, R, alpha);
+      paint(B, fb, pal.b, g, R * 1.05, alpha);
       // Where they overlap the colours run into each other: all of the first on its own side, all of the second on the other,
       // the third colour only between, and the first one's ink carries on through. So the sharp edge dissolves inside the round one.
       const D = Math.hypot(B.x - A.x, B.y - A.y) || 1, ux = (B.x - A.x) / D, uy = (B.y - A.y) / D, mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, ext = Math.max(D * 0.5, R * 0.75);
@@ -449,7 +503,7 @@
       const hot = alpha * (0.3 + 0.7 * x.p('presence'));
       let crossings = 0;
       g.lineJoin = 'round'; g.lineCap = 'round';
-      for (let i = 0; i < N && crossings < 8; i++) {
+      for (let i = 0; i < N && crossings < 6; i++) {
         const k = (i + 1) % N, a0 = A.px[i], b0 = A.py[i], ex = A.px[k] - a0, ey = A.py[k] - b0;
         for (let j = 0; j < N; j++) {
           const q = (j + 1) % N, fx = B.px[q] - B.px[j], fy = B.py[q] - B.py[j], den = ex * fy - ey * fx;
@@ -457,13 +511,12 @@
           const t = ((B.px[j] - a0) * fy - (B.py[j] - b0) * fx) / den, u = ((B.px[j] - a0) * ey - (B.py[j] - b0) * ex) / den;
           if (t < 0 || t > 1 || u < 0 || u > 1) continue;
           crossings++;
+          const calm = 1 - 0.95 * Math.min(1, Math.max(A.sp[i], B.sp[j]) / 7);              // out where the edges race, or each frame's line stays under the fade as a stack of twigs
+          if (calm < 0.08) break;
           for (const [ln, c, wd] of [[1, rgb(pal.seam, 0.5), 3.5 + 3 * flash], [0, '#fff', 1 + 1.4 * flash]]) {
-            g.strokeStyle = c; g.lineWidth = wd; g.globalAlpha = hot * (ln ? 0.5 : 0.95);
-            g.beginPath();
-            for (const [px, py, at] of [[A.px, A.py, i], [B.px, B.py, j]]) {
-              g.moveTo(px[(at + N - 1) % N], py[(at + N - 1) % N]);
-              for (let e = 0; e <= 2; e++) g.lineTo(px[(at + e) % N], py[(at + e) % N]);
-            }
+            g.strokeStyle = c; g.lineWidth = wd; g.globalAlpha = hot * calm * (ln ? 0.5 : 0.95);
+            g.beginPath();                                                             // along the round edge only: one line, never a fork
+            g.moveTo(A.px[i], A.py[i]); g.lineTo(A.px[k], A.py[k]); g.lineTo(A.px[(k + 1) % N], A.py[(k + 1) % N]);
             g.stroke();
           }
           break;
