@@ -67,7 +67,7 @@ const fmt = (p) => `${p.format}: ${p.video ?? 'no video'} ${p.width}×${p.height
 
 let songId = SONG, duration = 0;
 if (!SONG) {
-  // The studio-check's song: 30 s of a sine with the fixture's chords as its notes, and a three-section show.
+  // The studio-check's song: 30 s of a sine with the fixture's chords as its notes, and a show of three clips.
   const songs = process.env.WINKELAMP_SONGS;
   mkdirSync(songs);
   const wav = path.join(tmp, 'demo.wav');
@@ -78,10 +78,8 @@ if (!SONG) {
   const pack = JSON.parse(readFileSync(path.join(songs, 'demo', 'pack.json'), 'utf8'));
   duration = pack.duration;
   const D = Math.round(pack.duration * 1000) / 1000;
-  writeFileSync(path.join(shows, 'demo.json'), `${JSON.stringify({ version: 1, id: 'demo', song: 'demo', title: 'Record check', sections: [
-    { start: 0, end: 10, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
-    { start: 10, end: 20, label: 'Two', fade: 3, layers: [{ widget: 'kandinsky' }] },
-    { start: 20, end: D, label: 'Three', layers: [{ widget: 'kandinsky' }, { widget: 'casket' }] },
+  writeFileSync(path.join(shows, 'demo.json'), `${JSON.stringify({ version: 3, id: 'demo', song: 'demo', title: 'Record check', clips: [
+    { id: 'c1', start: 0, end: D, track: 0, widget: 'kandinsky' }, { id: 'c2', start: 0, end: 10, track: 1, widget: 'squares' }, { id: 'c3', start: 20, end: D, track: 1, widget: 'casket' },
   ] }, null, 2)}\n`);
   songId = 'demo';
 } else {
@@ -144,7 +142,7 @@ try {
         return page.evaluate(() => {
           const st = window.__studio, t0 = st.player.audio.currentTime, show = st.store.state.show;
           st.player.seek(25);
-          st.store.dispatch({ type: 'edit', edit: { kind: 'setSection', section: 0, patch: { label: 'Not now' } } });
+          st.store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: 'c1', patch: { fade: 0 } } });
           return { moved: Math.abs(st.player.audio.currentTime - t0) > 1, edited: st.store.state.show !== show,
             undo: document.querySelector('[data-undo]').disabled, exportHidden: document.querySelector('.export').hidden, rec: document.querySelector('.rec-text').textContent };
         });

@@ -38,7 +38,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, port: 5190, viewport: { width: 1280, height: 800 }, shows: (packs) => {
   const D = Math.round(packs.demo.duration * 1000) / 1000;
-  return { demo: { version: 1, id: 'demo', song: 'demo', title: 'Redo check', sections: [{ start: 0, end: D, label: 'One', layers: [{ widget: 'kandinsky' }] }] } };
+  return { demo: { version: 3, id: 'demo', song: 'demo', title: 'Redo check', clips: [{ id: 'c1', start: 0, end: D, track: 0, widget: 'kandinsky' }] } };
 } });
 const { page, base, errors, dirs, packs, vite } = st;
 const { startEars } = await vite.ssrLoadModule('/scripts/ears/server.ts');
@@ -92,9 +92,9 @@ try {
   await page.keyboard.press('Space');
   const playing = await page.evaluate(() => window.__studio.player.playing);
   check('Space on a radio selects it and plays nothing', await page.isChecked('input[name="engine"][value="muscriptor"]') && !playing, `playing ${playing}`);
-  const sections = await page.evaluate(() => window.__studio.store.state.show.sections.length);
+  const clips = await page.evaluate(() => window.__studio.store.state.show.clips.length);
   await page.keyboard.press('s');
-  check('s splits no section under the dialog', (await page.evaluate(() => window.__studio.store.state.show.sections.length)) === sections);
+  check('s splits no clip under the dialog', (await page.evaluate(() => window.__studio.store.state.show.clips.length)) === clips);
 
   check('Start is off with MuScriptor and no list', await startOff());
   await pickList('strings');

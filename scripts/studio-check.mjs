@@ -1,6 +1,6 @@
 // The studio in a real browser (plan T4 step 5): a 30 s test song in temp songs/shows folders, its own Vite server,
 // system Chrome with autoplay allowed. Checks the library, playing, letterboxing on resize, hiding the controls, a
-// boundary drag and its undo, adding the casket and its knob rows, knob pictures equal to the lab card's, Ctrl+S, a
+// clip drag and its undo, adding the casket and its knob rows, knob pictures equal to the lab card's, Ctrl+S, a
 // broken show opening repaired, a fading slot drawing between "without" and "with", a paused picture holding still,
 // a jump resetting the picture, and legacy.html loading without page errors.
 //
@@ -29,10 +29,11 @@ let GOOD, pack;
 const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, shows: (packs) => {
   pack = packs.demo;
   const D = Math.round(pack.duration * 1000) / 1000;
-  GOOD = { version: 1, id: 'demo', song: 'demo', title: 'Studio check', sections: [
-    { start: 0, end: 10, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
-    { start: 10, end: 20, label: 'Two', fade: 3, layers: [{ widget: 'kandinsky' }] },
-    { start: 20, end: D, label: 'Three', layers: [{ widget: 'kandinsky' }, { widget: 'casket' }] },
+  GOOD = { version: 3, id: 'demo', song: 'demo', title: 'Studio check', clips: [
+    { id: 'c1', start: 0, end: 20, track: 0, widget: 'kandinsky' },
+    { id: 'c2', start: 0, end: 10, track: 1, widget: 'squares' },
+    { id: 'c3', start: 20, end: D, track: 0, widget: 'kandinsky' },
+    { id: 'c4', start: 20, end: D, track: 1, widget: 'casket' },
   ] };
   return { demo: GOOD };
 } });
@@ -106,32 +107,32 @@ try {
   check('a jump over 0.5 s resets the picture', rj2 >= rj + 1, `resets ${rj} → ${rj2}`);
   await page.evaluate(() => window.__studio.player.pause());
 
-  // Dragging a boundary makes the show dirty; Ctrl+Z makes it clean.
+  // Dragging a clip makes the show dirty; Ctrl+Z makes it clean.
   check('the saved show opens clean', !(await state(page)).dirty, (await state(page)).text);
-  const handle = page.locator('.band .handle').first();
-  const box = await handle.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const clipBox = await page.locator('.clip[data-id="c2"]').boundingBox();
+  await page.mouse.move(clipBox.x + clipBox.width / 2, clipBox.y + clipBox.height / 2);
   await page.mouse.down();
-  for (let i = 1; i <= 6; i++) await page.mouse.move(box.x + box.width / 2 + i * 12, box.y + box.height / 2);
+  for (let i = 1; i <= 6; i++) await page.mouse.move(clipBox.x + clipBox.width / 2 + i * 12, clipBox.y + clipBox.height / 2);
   await page.mouse.up();
-  const moved = await page.evaluate(() => window.__studio.store.state.show.sections[1].start);
+  const clipOf = (id) => page.evaluate((id) => window.__studio.store.state.show.clips.find((c) => c.id === id), id);
+  const moved = (await clipOf('c2')).start;
   const dirty = await state(page);
-  check('dragging a boundary moves it and makes the show dirty', moved > 10.5 && dirty.dirty, `boundary at ${moved}, "${dirty.text}"`);
+  check('dragging a clip moves it and makes the show dirty', moved > 0.5 && dirty.dirty, `start at ${moved}, "${dirty.text}"`);
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press('Control+z');
   const undone = await state(page);
-  const back = await page.evaluate(() => window.__studio.store.state.show.sections[1].start);
-  check('Ctrl+Z puts it back and the show is clean', !undone.dirty && back === 10, `boundary at ${back}, "${undone.text}"`);
+  const back = (await clipOf('c2')).start;
+  check('Ctrl+Z puts it back and the show is clean', !undone.dirty && back === 0, `start at ${back}, "${undone.text}"`);
 
   // Adding the casket shows its 7 knob rows, each with its 3 pictures.
-  await page.click('.band .sec >> nth=1');
+  await page.evaluate(() => window.__studio.player.seek(14));
   await page.click('[data-act="add"]');
   await page.click('.pick[data-id="casket"]');
   await page.waitForTimeout(200);
-  const rows = await page.evaluate(() => [...document.querySelectorAll('.layer.open .prm')].map((r) => r.querySelectorAll('canvas').length));
+  const rows = await page.evaluate(() => [...document.querySelectorAll('.panel .params .prm')].map((r) => r.querySelectorAll('canvas').length));
   check('adding the casket shows 7 knob rows with 3 pictures each', rows.length === 7 && rows.every((n) => n === 3), JSON.stringify(rows));
-  const added = await page.evaluate(() => window.__studio.store.state.show.sections[1].layers.map((l) => l.widget).join(','));
-  check('the casket is on top of the section', added === 'kandinsky,casket', added);
+  const added = await page.evaluate(() => { const s = window.__studio.store.state; return s.show.clips.find((c) => c.id === s.selected.clip); });
+  check('the casket lands at the playhead, on top, selected', added?.widget === 'casket' && added.start === 14 && added.track === 2, JSON.stringify(added));
 
   // Ctrl+S saves a show the validator accepts.
   await page.evaluate(() => document.activeElement?.blur());
@@ -142,10 +143,9 @@ try {
   check('Ctrl+S writes a show the validator accepts', v.errors.length === 0 && savedText.includes('"casket"'), v.errors.map((e) => e.message).join('; '));
 
   // The squares' knob pictures equal the lab card's.
-  await page.click('.band .sec >> nth=0');
-  await page.click('.layer:has-text("Dread squares") .layer-name');
+  await page.click('.clip[data-id="c2"]');
   await page.waitForTimeout(200);
-  const studioIcons = await page.evaluate(() => [...document.querySelectorAll('.layer.open .prm')].map((r) => [r.dataset.p, ...[...r.querySelectorAll('canvas[data-i="0"], canvas[data-i="1"]')].map((c) => c.toDataURL())]));
+  const studioIcons = await page.evaluate(() => [...document.querySelectorAll('.panel .params .prm')].map((r) => [r.dataset.p, ...[...r.querySelectorAll('canvas[data-i="0"], canvas[data-i="1"]')].map((c) => c.toDataURL())]));
   if (existsSync(path.join(ROOT, 'lab/notes.js'))) {
     const lab = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     await lab.route(/localhost:5174/, (r) => r.abort());
@@ -187,7 +187,7 @@ try {
   await rp.close();
 
   // A show with an overlap opens repaired (unsaved, with a notice) and plays.
-  const bad = structuredClone(GOOD); bad.sections[0].end = 12;
+  const bad = structuredClone(GOOD); bad.clips[2].start = 12;
   writeFileSync(path.join(shows, 'demo.json'), `${JSON.stringify(bad, null, 2)}\n`);
   await page.reload();
   await page.waitForFunction(() => window.__studio?.player.duration > 0, null, { timeout: 30_000 });
@@ -200,17 +200,17 @@ try {
   const lit2 = await litShare(page);
   check('the repaired show plays', lit2 > 0.01, `${(lit2 * 100).toFixed(1)} % lit`);
   await page.evaluate(() => window.__studio.player.pause());
-  // A widget that throws says so: a notice, and the reason on its open layer.
+  // A widget that throws says so: a notice, and the reason on its clip.
   const broke = await page.evaluate(async () => {
-    const st = window.__studio, s = st.store.state.show, t = 14.5;
-    const i = s.sections.findIndex((x) => x.start <= t && t < x.end), k = s.sections[i].layers.length - 1, id = s.sections[i].layers[k].widget;
-    st.store.dispatch({ type: 'select', section: i, layer: k });
-    st.runtime.tool(id).frame = () => { throw new Error('broken on purpose'); };
+    const st = window.__studio, t = 14.5, s = st.store.state.show;
+    const c = s.clips.filter((x) => x.start <= t && t < x.end).sort((a, b) => b.track - a.track)[0], key = `${c.widget}#${c.id}`;
+    st.store.dispatch({ type: 'select', clip: c.id });
+    st.runtime.tool(key).frame = () => { throw new Error('broken on purpose'); };
     st.player.seek(t);
     await new Promise((r) => setTimeout(r, 400));
-    return { id, notices: [...document.querySelectorAll('.notice.error')].map((n) => n.textContent), err: document.querySelector('.panel .layer.open .err')?.textContent ?? null };
+    return { key, notices: [...document.querySelectorAll('.notice.error')].map((n) => n.textContent), err: document.querySelector('.panel .err')?.textContent ?? null };
   });
-  check('a widget that throws gets an error notice and its reason on the open layer',
+  check('a widget that throws gets an error notice and its reason on its clip',
     broke.notices.some((n) => /stopped: broken on purpose/.test(n)) && /broken on purpose/.test(broke.err ?? ''), JSON.stringify(broke));
   page.on('dialog', (d) => d.accept());
 
@@ -221,7 +221,7 @@ try {
   await hot.listen();
   try {
     const HOT = hot.resolvedUrls.local[0].replace(/\/$/, '');
-    const writeShow = (label) => { const f = path.join(shows, 'demo.json'); const g = structuredClone(GOOD); g.sections[0].label = label;
+    const writeShow = (label) => { const f = path.join(shows, 'demo.json'); const g = structuredClone(GOOD); g.title = label;
       writeFileSync(`${f}.tmp`, JSON.stringify(g)); renameSync(`${f}.tmp`, f); };
     writeShow('One');
     const hp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -238,20 +238,20 @@ try {
     check('Space after clicking Play pauses (once)', playing && paused, `playing ${playing}, then paused ${paused}`);
     await hp.evaluate(() => { window.__samePage = true; });
     writeShow('Changed on disk');
-    await hp.waitForFunction(() => window.__studio.store.state.show.sections[0].label === 'Changed on disk', null, { timeout: 8000 }).catch(() => {});
-    const followed = await hp.evaluate(() => ({ label: window.__studio.store.state.show.sections[0].label, same: window.__samePage === true }));
+    await hp.waitForFunction(() => window.__studio.store.state.show.title === 'Changed on disk', null, { timeout: 8000 }).catch(() => {});
+    const followed = await hp.evaluate(() => ({ label: window.__studio.store.state.show.title, same: window.__samePage === true }));
     check('a clean studio follows a show changed on disk, without reloading', followed.label === 'Changed on disk' && followed.same, JSON.stringify(followed));
-    await hp.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setSection', section: 1, patch: { label: 'Mine' } } }));
+    await hp.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: 'c2', start: 3, track: 1 } }));
     writeShow('Again on disk');
     await hp.waitForSelector('.notice:has-text("Load the version on disk")', { timeout: 8000 }).catch(() => {});
-    const asked = await hp.evaluate(() => ({ label: window.__studio.store.state.show.sections[0].label, notices: [...document.querySelectorAll('.notice')].map((n) => n.textContent) }));
+    const asked = await hp.evaluate(() => ({ label: window.__studio.store.state.show.title, notices: [...document.querySelectorAll('.notice')].map((n) => n.textContent) }));
     check('a dirty studio keeps its edits and offers the version on disk', asked.label === 'Changed on disk' && asked.notices.some((n) => /Load the version on disk/.test(n)), JSON.stringify(asked));
     await hp.click('.notice button:has-text("Load the version on disk")');
-    await hp.waitForFunction(() => window.__studio.store.state.show.sections[0].label === 'Again on disk', null, { timeout: 5000 }).catch(() => {});
-    const loaded = await hp.evaluate(() => window.__studio.store.state.show.sections.map((x) => x.label ?? null));
+    await hp.waitForFunction(() => window.__studio.store.state.show.title === 'Again on disk', null, { timeout: 5000 }).catch(() => {});
+    const loaded = await hp.evaluate(() => window.__studio.store.state.show.title);
     await hp.keyboard.press('Control+z');
-    const back = await hp.evaluate(() => window.__studio.store.state.show.sections.map((x) => x.label ?? null));
-    check('loading the version on disk keeps your edits one undo away', loaded[0] === 'Again on disk' && back[1] === 'Mine',
+    const back = await hp.evaluate(() => window.__studio.store.state.show.clips.find((c) => c.id === 'c2').start);
+    check('loading the version on disk keeps your edits one undo away', loaded === 'Again on disk' && back === 3,
       JSON.stringify({ loaded, back }));
     await hp.close();
   } finally { await hot.close(); }
@@ -300,8 +300,10 @@ try {
       pk && validatePack(pk).length === 0 && pk.notesFrom === 'approx' && pk.made.by === 'studio' && pk.notes.length > 20 && existsSync(path.join(songs, 'drop-test', 'audio.wav')),
       pk ? `${pk.notes.length} notes, ${pk.notesFrom}, by ${pk.made.by}, ${seconds.toFixed(1)} s` : 'no pack');
     const n = await p.locator('.notice').allInnerTexts();
-    const st = await p.evaluate(() => ({ url: location.search, origin: window.__studio?.store.state.origin, sections: window.__studio?.store.state.show?.sections.length }));
-    check('it opens with a composed show and a notice saying the notes are approximate', st.origin === 'auto' && n.some((x) => /approximate/.test(x)), `${JSON.stringify(st)} ${n.join(' | ')}`);
+    const st = await p.evaluate(() => ({ url: location.search, origin: window.__studio?.store.state.origin, clips: window.__studio?.store.state.show?.clips.length }));
+    check('it opens with an empty timeline and a notice saying the notes are approximate', st.origin === 'auto' && st.clips === 0 && n.some((x) => /approximate/.test(x)), `${JSON.stringify(st)} ${n.join(' | ')}`);
+    await p.click('[data-tl="compose"]');
+    await p.waitForFunction(() => window.__studio.store.state.show.clips.length > 0, null, { timeout: 10_000 });
     await p.evaluate(() => window.__studio.player.play());
     await p.waitForTimeout(3000);
     const lit3 = await litShare(p);

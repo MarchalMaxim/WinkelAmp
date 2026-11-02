@@ -128,10 +128,7 @@ try {
   check('Place in scene is off with none picked', await page.isDisabled('[data-ok]'));
   await page.click('.np-modal [data-choose]');
   await settle();
-  check('the chooser offers a widget already in the section', await page.evaluate(() => {
-    const here = window.__studio.store.state.show.sections.flatMap((s) => s.layers.map((l) => l.widget));
-    return [...document.querySelectorAll('.np-chooser .pick')].some((b) => here.includes(b.dataset.id) && !b.disabled);
-  }));
+  check('the chooser offers every widget', await page.evaluate(() => [...document.querySelectorAll('.np-chooser .pick')].every((b) => !b.disabled)));
   await page.keyboard.press('Escape');
   check('Esc closes the chooser first', await page.evaluate(() => document.querySelector('.np-chooser').hidden && !document.querySelector('.np-modal').hidden));
   await page.keyboard.press('Control+p');
@@ -202,7 +199,7 @@ try {
     !window.__studio.runtime.loaded().some((k) => k.includes('draft')) && window.__studio.picker.popup.runtime.loaded().some((k) => k.includes('draft'))));
   const whatSays = () => page.textContent('.np-modal [data-what]');
   const stoppedKey = await page.evaluate(() => {
-    const { runtime, widget } = window.__studio.picker.popup, key = `${widget}@picks:draft`;
+    const { runtime, widget } = window.__studio.picker.popup, key = `${widget}@picks:draft#draft`;
     runtime.errors[key] = 'Error: test';
     return key;
   });
@@ -228,14 +225,14 @@ try {
   await settle(400);
   const placed = await page.evaluate(() => {
     const s = window.__studio, show = s.store.state.show, set = show.picks?.p1;
-    return { notes: set?.notes, inSections: show.sections.filter((x) => x.layers.some((l) => l.listen === 'picks:p1')).length, selected: s.store.state.selected, t: s.player.time };
+    return { notes: set?.notes, clips: show.clips.filter((x) => x.listen === 'picks:p1').map((c) => c.id), selected: s.store.state.selected.clip, t: s.player.time };
   });
-  check('Place: a set, a layer in its sections, the playhead a second before the first pick', placed.notes?.length === 6 && placed.inSections >= 1 && Math.abs(placed.t - Math.max(0, placed.notes[0][0] - 1)) < 0.01);
+  check('Place: a set, a clip on it, selected, the playhead a second before the first pick', placed.notes?.length === 6 && placed.clips.length === 1 && placed.selected === placed.clips[0] && Math.abs(placed.t - Math.max(0, placed.notes[0][0] - 1)) < 0.01);
   check('a row with ticks under the roll', await page.evaluate(() => !!document.querySelector('.np-set[data-set="p1"] canvas')));
   await shot('placed-roll');
   // Fires exactly the attacks: played through the first few picks.
   const delivered = await page.evaluate(async () => {
-    const s = window.__studio, n = s.store.state.show.picks.p1.notes, key = 'pointillism@picks:p1';
+    const s = window.__studio, n = s.store.state.show.picks.p1.notes, key = `pointillism@picks:p1#${s.store.state.selected.clip}`;
     s.runtime.deliveredLog = [];
     await s.player.play();
     const until = Math.min(n[0][0] + 6, s.player.time + 8);
@@ -299,41 +296,42 @@ try {
   check('undo goes back to the six', (await page.evaluate(() => window.__studio.store.state.show.picks.p1.notes.length)) === 6);
   await page.keyboard.press('Control+z');
   await settle(300);
-  check('one more undo and the placement is gone', await page.evaluate(() => !window.__studio.store.state.show.picks && !window.__studio.store.state.show.sections.some((s) => s.layers.some((l) => l.listen?.startsWith('picks:')))));
+  check('one more undo and the placement is gone', await page.evaluate(() => !window.__studio.store.state.show.picks && !window.__studio.store.state.show.clips.some((c) => c.listen?.startsWith('picks:'))));
   await page.keyboard.press('Control+Shift+z');
   await settle(200);
   await page.keyboard.press('Control+s');
   await settle(500);
   const showFile = JSON.parse(readFileSync(path.join(dirs.shows, `${SONG}.json`), 'utf8'));
-  check('Ctrl+S saves the picks and the listen to the temp show', showFile.picks?.p1?.notes.length === 6 && JSON.stringify(showFile.sections).includes('picks:p1'));
+  check('Ctrl+S saves the picks and the listen to the temp show', showFile.picks?.p1?.notes.length === 6 && JSON.stringify(showFile.clips).includes('picks:p1'));
 
   // ---- a pick left behind ----
   const warned = await page.evaluate(async () => {
-    // A set over two sections, its layer then gone from the first: that section's pick has nothing to fire.
-    const s = window.__studio, [a, b] = s.store.state.show.sections, mid = (x) => (x.start + x.end) / 2;
-    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[mid(a), mid(a) + 0.2, 60, 80], [mid(b), mid(b) + 0.2, 62, 80]] } });
+    // A set over one clip, split, and its first part then gone: that part's pick has nothing to fire.
+    const s = window.__studio;
+    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[20, 20.2, 60, 80], [60, 60.2, 62, 80]] } });
     await s.picker.open();   // drawn already: the set's own notes don't change below
-    const layer = s.store.state.show.sections[0].layers.findIndex((l) => l.listen === 'picks:p2');
-    s.store.dispatch({ type: 'edit', edit: { kind: 'removeLayer', section: 0, layer } });
+    const c = s.store.state.show.clips.find((x) => x.listen === 'picks:p2');
+    s.store.dispatch({ type: 'edit', edit: { kind: 'splitClip', clip: c.id, t: 40 } });
+    s.store.dispatch({ type: 'edit', edit: { kind: 'removeClip', clip: c.id } });
     return document.querySelector('.np-set[data-set="p2"] .np-set-warn')?.textContent ?? '';
   });
   await settle();
   await shot('never-heard');
   check('the set row says a pick is never heard', warned === '1 never heard', warned);
 
-  // A boundary moved past a drawn set, the picker closed as it is for that edit: the picks stay the same object.
+  // A clip moved off a drawn set, the picker closed as it is for that edit: the picks stay the same object.
   const moved = await page.evaluate(async () => {
-    const s = window.__studio, a = s.store.state.show.sections[0], warn = () => document.querySelector('.np-set[data-set="p3"] .np-set-warn')?.textContent ?? '';
-    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[a.end - 2, a.end - 1.8, 60, 80], [a.end - 1, a.end - 0.8, 62, 80]] } });
-    const before = warn(), picks = s.store.state.show.picks;
+    const s = window.__studio, warn = () => document.querySelector('.np-set[data-set="p3"] .np-set-warn')?.textContent ?? '';
+    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes: [[80, 80.2, 60, 80], [81, 81.2, 62, 80]] } });
+    const before = warn(), picks = s.store.state.show.picks, c = s.store.state.show.clips.find((x) => x.listen === 'picks:p3');
     s.picker.close();
-    s.store.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: a.end - 3 } });
+    s.store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: c.id, start: 90, track: c.track } });
     await s.picker.open();
     const after = warn(), same = picks === s.store.state.show.picks;
-    s.store.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: a.end } });
+    s.store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: c.id, start: c.start, track: c.track } });
     return { before, after, same, back: warn() };
   });
-  check('a boundary moved past a drawn set: its row says so', moved.same && moved.before === '' && moved.after === '2 never heard', JSON.stringify(moved));
+  check('a clip moved off a drawn set: its row says so', moved.same && moved.before === '' && moved.after === '2 never heard', JSON.stringify(moved));
   check('and moved back with the picker open, it stops', moved.back === '', moved.back);
 
   // ---- the window ----
