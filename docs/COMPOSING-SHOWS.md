@@ -105,7 +105,7 @@ values:
 - **A set of picks**: `picks:p1`, notes the user chose by hand in the studio, kept in the show (below).
 
 **A widget's usual note type.** Some widgets have one in `lab/tags.json` (`noteType`; the widget list below prints it as
-**Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`. When the studio places such a widget,
+**Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`, honey `long`. When the studio places such a widget,
 it sets `listen` to that type, but only if the section holds enough of it: at least 3 attacks, one per 10 s on average,
 and half the section within reach of one. Otherwise the layer plays on all notes. The layer panel says in words what the
 layer hears and has one click to switch between the usual type and all notes. A usual type is a default, not a rule: a
@@ -1010,7 +1010,7 @@ Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: grou
 
 Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape sink under the weight, and it stays low; then it fills, and slowly pushes out another.
 
-Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base
+Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base · Note type: long
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|

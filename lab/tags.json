@@ -18,7 +18,7 @@
   "gust": {"feel":["gusty","triumphant","burning","vivid"],"instruments":["trumpet","trombone","tutti"],"role":"lead"},
   "halftone": {"feel":["grainy","swelling","warm","flickering"],"instruments":["strings","piano"],"role":"base"},
   "harmonograph": {"feel":["whirling","silky","glowing","serene"],"instruments":["strings","clarinet"],"role":"base"},
-  "honey": {"feel":["viscous","droopy","slow","glowing"],"instruments":["cello","horn","strings"],"role":"base"},
+  "honey": {"feel":["viscous","droopy","slow","glowing"],"instruments":["cello","horn","strings"],"role":"base","noteType":"long"},
   "horizon": {"feel":["still","serene","cool","longing"],"instruments":["strings","clarinet"],"role":"ground"},
   "ikeda": {"feel":["precise","binary","cryptic","flickering","icy"],"instruments":["harpsichord","piano"],"role":"lead"},
   "kandinsky": {"feel":["vivid","playful","triumphant","heavy"],"instruments":["tutti","trumpet","cello"],"role":"base"},

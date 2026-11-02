@@ -20,6 +20,8 @@ describe('note types in lab/tags.json', () => {
     expect(tags.martin.noteType).toBe('long');
     expect(tags.pixelsort.noteType).toBe('chords');
     expect(tags.stella.noteType).toBe('repeats');
+    expect(tags.honey.noteType).toBe('long');
+    for (const id of ['clumsy', 'comfort', 'duet', 'gust', 'lazy', 'royal', 'vine']) expect(tags[id].noteType, id).toBeUndefined();
     expect(tags.brush.noteType).toBeUndefined();
     expect(tags.kline.noteType).toBeUndefined();
     for (const [id, t] of Object.entries(tags)) if (t.noteType !== undefined) expect(NOTE_TYPES, id).toContain(t.noteType);

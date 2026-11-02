@@ -32,7 +32,7 @@ note, chosen by default when placed.
 - **A usual note type per widget** (`noteType` in `lab/tags.json`, `src/widgets/tags.ts`): placing the widget in the
   studio sets `listen` to it if the section has enough of it (`placedListen` in `src/studio/ui/layer-controls.ts`);
   the panel says what it hears and one click switches. Shipped: stella repeats, pixelsort chords, martin long, flee
-  runs. Trills are nobody's default. **Not yet judged by eye**: the four were chosen from reading the code.
+  runs, honey long (from round 9, the spec's proposal). Trills are nobody's default. **Not yet judged by eye**: the four were chosen from reading the code.
 - Shows saved before this are unchanged. Checks: `tests/note-types.test.ts`, `tests/layer-controls.test.ts`,
   `tests/tags.test.ts`; no browser run was done.
 
