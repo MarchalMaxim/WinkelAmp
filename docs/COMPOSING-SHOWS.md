@@ -1047,13 +1047,13 @@ Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: bas
 
 #### `lazy`: Lazy
 
-It can't be bothered. Heavy, shapeless green stains slumped across the picture: an attack goes through them as one heavy jolt they creep back from, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Busy music it mostly ignores, swelling slowly, and only the hard notes still land.
+It can't be bothered, and there is a lot of it. Huge, shapeless green stains slumped across the picture, far too heavy for the music to move: an attack soaks in as a dull sour colour and only leans on them a little, and they take seconds to come back. Once in a long while a hard note asks one to get up. It gathers itself slowly, gets a little way, gives up and slumps onto the others. Busy music it ignores, swelling slowly.
 
 Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early. |
+| `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How heavy it is, and how much it takes to get it moving. Left: lighter, and gets up now and then. Right: a dead weight that hardly ever stirs. |
 | `lift` | how high it bothers to lift | 0.1..1 | 0.75 | fixed | How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen. |
 | `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the stains are. Left: slim. Right: huge, overlapping everything. |
 | `limbs` | how many masses | 4..15 | 12 | fixed | How many masses lie in the heap. Left: a few. Right: a big heap. |

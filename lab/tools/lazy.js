@@ -1,11 +1,12 @@
 // Lazy: it can't be bothered. Heavy, shapeless green stains lie slumped across the whole picture, seeping through each other.
-// An attack, when it has the patience, goes through them as one heavy jolt they creep back from: they dip, and one goes a dull
-// sour colour. Busy music gets ignored: notes only feed one slow swell, and only the hard ones still land. Now and then a note
-// asks a stain to get up: its loose end, thinning as it goes, hauls itself up a little, loses interest, hangs there and flops
-// over onto its neighbours, which sag under it and take seconds to recover.
-// Each mass is a chain: its base pinned, its free end led along a path while it is up, the rest following by gravity,
-// heavy damping and length constraints, stepped in song seconds so nothing snaps at a low frame rate. Its two edges swell
-// unevenly and independently and taper to nothing at both ends, so it stays a form and never becomes an object.
+// They have mass: the music pushes them and they barely notice. What lands on the attack is colour, a dull sour stain soaking
+// in; the bodies only take the push, give a little over about a second and take several to come back. Busy music gets ignored:
+// notes only feed one slow swell. Once in a long while a hard note asks a stain to get up: its loose end, thinning as it goes,
+// gathers speed over seconds, gets a little way, hangs there and slumps onto its neighbours, which give under it just as slowly.
+// Each mass is a chain: its base pinned, its free end pulled along a path by a soft spring while it is up (so nothing it does can
+// start or stop at once), the rest following by gravity, heavy damping and length constraints, stepped in song seconds so
+// nothing snaps at a low frame rate. Its flesh is a critically damped spring at every point, coupled along the chain. Its two
+// edges swell unevenly and independently and taper to nothing at both ends, so it stays a form and never becomes an object.
 (() => {
   const PTS = 12, SUB = 6, TAU = Math.PI * 2, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
@@ -25,8 +26,8 @@
   // A fixed little generator, so one song always starts with the same heap, and each song with its own.
   const seeded = (s) => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 
-  let limbs = [], order = [], pend = [], marks = [], clock = 0, acc = 0, lastAttack = 0, gapUntil = 0, yawnT = -1, yawned = false, built = 0;
-  let vels = null, pitchLo = 36, pitchHi = 84, pulses = [], heave = 0, flush = 0, swell = 0, swellT = 0, nextJolt = 0;
+  let limbs = [], order = [], marks = [], clock = 0, acc = 0, lastAttack = 0, gapUntil = 0, yawnT = -1, yawned = false, built = 0;
+  let vels = null, pitchLo = 36, pitchHi = 84, flush = 0, swell = 0, swellT = 0, nextJolt = 0;
 
   // This song's own notes: how hard a velocity is among them, and which pitches it really spans.
   function learn() {
@@ -44,7 +45,7 @@
 
   function build(n, W, Ht) {
     let seed = 77; { const ns = window.NOTES || []; seed = (seed + ns.length * 31) >>> 0; for (let i = 0; i < Math.min(40, ns.length); i++) seed = (seed * 33 + ns[i][2]) >>> 0; }
-    const R = seeded(seed); limbs = []; pend = []; marks = []; pulses = [];
+    const R = seeded(seed); limbs = []; marks = [];
     const edge = () => {
       const f1 = 0.8 + R() * 0.9, f2 = 2 + R() * 1.6, f3 = 5 + R() * 4, p1 = R(), p2 = R(), p3 = R(), t = new Float32Array(SAMPLES);
       for (let s = 0; s < SAMPLES; s++) { const u = s / (SAMPLES - 1); t[s] = Math.max(0.45, 0.92 + 0.42 * Math.sin(TAU * (f1 * u + p1)) + 0.16 * Math.sin(TAU * (f2 * u + p2)) + 0.012 * Math.sin(TAU * (f3 * u + p3))); }
@@ -58,7 +59,7 @@
       const bx = W * (0.5 + (slots[i] - 0.5) * (1.05 + 0.2 * f));
       const side = bx < W * 0.3 ? 1 : bx > W * 0.7 ? -1 : (R() < 0.5 ? -1 : 1);
       const bulge = 0.45 + R() * 1.1, soft = 2 + R() * R() * 6;
-      const l = { i, f, w, L, soft, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], sag: new Float32Array(PTS), dim: new Float32Array(PTS), q: new Float32Array(PTS), fl: 0, na: edge(), nb: edge(),
+      const l = { i, f, w, L, soft, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], q: new Float32Array(PTS), qv: new Float32Array(PTS), fl: 0, na: edge(), nb: edge(),
         sx: new Float32Array(SAMPLES), sy: new Float32Array(SAMPLES), st: new Float32Array(SAMPLES), sb: new Float32Array(SAMPLES), mx: new Float32Array(SAMPLES), my: new Float32Array(SAMPLES), mr: new Float32Array(SAMPLES) };
       pose(l);
       for (let k = 0; k < PTS; k++) { l.x.push(l.rx[k]); l.y.push(l.ry[k]); l.px.push(l.rx[k]); l.py.push(l.ry[k]); }
@@ -78,30 +79,32 @@
     for (let k = 0; k < PTS - 1; k++) l.seg[k] = Math.hypot(l.rx[k + 1] - l.rx[k], l.ry[k + 1] - l.ry[k]);
   }
 
-  // A note asks this limb to get up. Returns false if it won't.
-  function ask(l, n, v01, x, late) {
+  // How much there is of it: fat ones are heavier, and the lazier the whole heap, the heavier everything.
+  const massOf = (l, lazy) => (0.7 + 0.9 * l.f) * (0.55 + 0.9 * lazy);
+
+  // A hard note asks this limb to get up. Returns false if it won't, which is usual.
+  function ask(l, n, v01, x) {
     const rate = x.feat.rate, lazy = x.p('lazy'), pres = x.p('presence');
-    if (l.state !== 'rest' || clock < l.free) return false;
+    if (l.state !== 'rest' || clock < l.free || clock < gapUntil) return false;
+    if (v01 < 0.35 + 0.4 * lazy) return false;
     let up = 0; for (const o of limbs) if (o.state !== 'rest') up++;
-    if (up >= Math.max(1, Math.round(4 - 3.4 * rate))) return false;
-    if (!late && clock < gapUntil) return false;
-    if (!late && Math.random() < Math.min(0.95, Math.max(0, rate * 1.15 - 0.05) + (lazy - 0.5) * 0.3)) return false;
-    const liftH = 240 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy) * (0.35 + 0.65 * pres);
-    const T = (1.5 + 1.9 * l.f) * (0.55 + 1.5 * lazy) * (1 + 0.6 * rate) * x.rnd(0.85, 1.15);
+    if (up >= (rate < 0.25 ? 2 : 1)) return false;
+    if (x.rnd(0, 1) < Math.min(0.95, Math.max(0, rate * 1.15 - 0.05) + (lazy - 0.5) * 0.3)) return false;
+    const liftH = 180 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy) * (0.35 + 0.65 * pres);
+    const T = (3.2 + 3 * l.f) * (0.6 + 1.4 * lazy) * (1 + 0.6 * rate) * x.rnd(0.85, 1.15);
     const e = PTS - 1;
     l.state = 'lift'; l.lp = 0; l.T = T; l.sink *= 0.35;
-    l.x0 = l.x[e]; l.y0 = l.y[e];
+    l.x0 = l.ex = l.x[e]; l.y0 = l.ey = l.y[e]; l.evx = l.evy = 0;
     l.ay = Math.max(l.Ht * 0.05, Math.min(l.y[e], l.by) - liftH);
     { const reach = l.L * x.rnd(0.72, 0.86), hh = Math.abs(l.ay - l.by); l.ax = l.bx + l.side * Math.sqrt(Math.max(l.L * l.L * 0.1, reach * reach - hh * hh)); }
     l.held = n.d > T * 1.1;
-    l.until = clock + (l.held ? Math.min(7, n.d) : T + x.rnd(0.25, 0.85) * (1.3 - 0.6 * lazy));
-    l.tw = (9 + 16 * v01) * (0.5 + 0.5 * pres); l.y[e] -= l.tw;   // the twitch: in the same frame as the attack
-    gapUntil = clock + rate * rate * x.rnd(3.5, 7);
+    l.until = clock + T + (l.held ? Math.min(3, n.d - T) : x.rnd(0.8, 2.2) * (1.3 - 0.6 * lazy));
+    gapUntil = clock + (4 + 12 * lazy) * (1 + 1.5 * rate) * x.rnd(0.8, 1.3);
     return true;
   }
 
-  // The least possible acknowledgement: a sour smear soaking into whichever mass is uppermost under this pitch.
-  function dimple(px, v01, x, jolt) {
+  // The least possible acknowledgement: a sour smear soaking into whichever mass is uppermost under this pitch. Colour only.
+  function dimple(px, v01, x) {
     const rate = x.feat.rate;
     let best = null, idx = 0, top = 1e9;
     for (const l of limbs) {
@@ -112,42 +115,39 @@
       if (y < top) { top = y; best = l; idx = nk; }
     }
     if (!best) return;
-    if (jolt) best.dim[idx] = Math.min(14, best.dim[idx] + (4 + 10 * v01) * (1 - 0.45 * rate));
     if (marks.length > 22) marks.shift();
-    marks.push({ l: best, k: idx * SUB, age: 0, life: 0.6 - 0.25 * rate, r: (50 + 70 * v01) * (1 - 0.3 * rate), a: jolt ? 0.42 : 0.14 });
+    marks.push({ l: best, k: idx * SUB, age: 0, life: 1.1 - 0.3 * rate, r: (50 + 70 * v01) * (1 - 0.3 * rate), a: 0.42 });
   }
 
-  // It lands: every limb under it sags where it was hit, and the sag spreads slowly along them.
+  // It lands: every limb under it takes the weight as a push where it was hit, and gives slowly.
   function squash(l, x) {
     const at = order.indexOf(l), amt = (9 + 26 * l.f) * x.p('fat') * x.p('presence');
     for (let o = 0; o < at; o++) {
       const b = order[o];
       for (let k = 0; k < PTS; k++) for (let j = PTS - 1; j >= 0; j -= 2) {
         const d = Math.hypot(b.x[k] - l.x[j], b.y[k] - l.y[j]), reach = (b.w + l.w) * 0.5 * x.p('fat');
-        if (d < reach) { b.sag[k] = Math.min(46, b.sag[k] + amt * (1 - d / reach) * 0.6); }
+        if (d < reach) { b.qv[k] = Math.min(60, b.qv[k] + amt * (1 - d / reach) * 0.8); }
       }
     }
   }
 
   function advance(l, h, x) {
-    const e = PTS - 1, lazy = x.p('lazy');
-    // the free end, led along its half-hearted path
+    const e = PTS - 1, lazy = x.p('lazy'), m = massOf(l, lazy);
+    // the free end's path, which it is only pulled towards
     let led = false, tx = 0, ty = 0;
     if (l.state === 'lift') {
       l.lp = Math.min(1, l.lp + h / l.T);
-      const q = 1 - Math.pow(1 - l.lp, 2.8), haul = 1 + 0.05 * Math.sin(l.lp * 16);
-      l.tw *= Math.exp(-h / 0.3);
-      tx = l.x0 + (l.ax - l.x0) * q; ty = l.y0 + (l.ay - l.y0) * q * haul - l.tw; led = true;
+      const q = l.lp * l.lp * (3 - 2 * l.lp);
+      tx = l.x0 + (l.ax - l.x0) * q; ty = l.y0 + (l.ay - l.y0) * q; led = true;
       if (l.lp >= 1) { l.state = 'hang'; l.hx = tx; l.hy = ty; l.ht = 0; }
     } else if (l.state === 'hang') {
       l.ht += h;
-      const tremble = l.held ? (1.4 + Math.min(3, l.ht * 0.9)) : 0;
-      tx = l.hx + 7 * Math.sin(l.ht * 1.7) + tremble * Math.sin(clock * 71); ty = l.hy + l.ht * (l.held ? 14 : 5) + tremble * 0.7 * Math.sin(clock * 83); led = true;
+      tx = l.hx + 4 * Math.sin(l.ht * 0.9); ty = l.hy + l.ht * (l.held ? 9 : 4); led = true;
       if (clock >= l.until) {
-        // topples, usually to the other side, unless that is off the screen
-        const flip = Math.random() < 0.82, ts = l.bx - l.side * l.L;
-        if (flip && ts > -70 && ts < x.W + 70) { l.side = -l.side; pose(l); }
-        l.state = 'fall'; l.fp = 0; l.x0 = tx; l.y0 = ty; l.T = (0.85 + 0.55 * l.f) * x.rnd(0.9, 1.25);
+        // slumps back where it was, now and then over to the other side, unless that is off the screen
+        const flip = x.rnd(0, 1) < 0.25, ts = l.bx - l.side * l.L, over = flip && ts > -70 && ts < x.W + 70;
+        if (over) { l.side = -l.side; pose(l); }
+        l.state = 'fall'; l.fp = 0; l.x0 = tx; l.y0 = ty; l.T = (1.8 + 1.6 * l.f) * (0.7 + 0.6 * lazy) * (over ? 1.8 : 1) * x.rnd(0.9, 1.25);
         order.splice(order.indexOf(l), 1); order.push(l);       // it comes down across its neighbours
         led = true;
       }
@@ -156,7 +156,7 @@
       const p = l.fp, sx = p * p * (3 - 2 * p);
       tx = l.x0 + (l.rx[e] - l.x0) * sx; ty = l.y0 + (l.ry[e] + l.sink - l.y0) * Math.pow(p, 2.3) - 12 * Math.sin(Math.PI * p); led = true;
       if (p >= 1) {
-        l.state = 'rest'; l.free = clock + (2.5 + 7 * lazy) * x.rnd(0.8, 1.3); l.slide = l.side * x.rnd(2, 8);
+        l.state = 'rest'; l.free = clock + (6 + 14 * lazy) * x.rnd(0.8, 1.3); l.slide = l.side * x.rnd(2, 8);
         squash(l, x);
       }
     }
@@ -166,8 +166,8 @@
       const d = l.slide * h; l.slide *= Math.exp(-h / 2.4);
       if (l.bx + d > -60 && l.bx + d < x.W + 60) { l.bx += d; for (let k = 0; k < PTS; k++) l.rx[k] += d; }
     }
-    const busy = l.state !== 'rest'; l.hl = (l.hl === undefined ? 1 : l.hl) + ((busy ? 0 : 1) - (l.hl === undefined ? 1 : l.hl)) * (1 - Math.exp(-h / 0.5));
-    const damp = Math.exp(-h * DAMP), pull = 1 - Math.exp(-h / (busy ? 1.3 : 0.75));
+    const busy = l.state !== 'rest'; l.hl = (l.hl === undefined ? 1 : l.hl) + ((busy ? 0 : 1) - (l.hl === undefined ? 1 : l.hl)) * (1 - Math.exp(-h / 1.5));
+    const damp = Math.exp(-h * DAMP), pull = 1 - Math.exp(-h / ((busy ? 2.4 : 1.8) * Math.sqrt(m)));
     for (let k = 1; k < PTS; k++) {
       const u = k / e, vx = (l.x[k] - l.px[k]) * damp, vy = (l.y[k] - l.py[k]) * damp;
       l.px[k] = l.x[k]; l.py[k] = l.y[k];
@@ -180,7 +180,12 @@
       if (l.y[k] > floor + 2) l.y[k] = floor + 2;
     }
     l.x[0] = l.rx[0]; l.y[0] = l.ry[0] + l.sink;
-    if (led) { l.x[e] = tx; l.y[e] = ty; }
+    if (led) {
+      const we = 1.5 / Math.sqrt(m);
+      l.evx += ((tx - l.ex) * we * we - 2 * we * l.evx) * h; l.ex += l.evx * h;
+      l.evy += ((ty - l.ey) * we * we - 2 * we * l.evy) * h; l.ey += l.evy * h;
+      l.x[e] = l.ex; l.y[e] = l.ey;
+    }
     for (let it = 0; it < 4; it++) {
       for (let k = 0; k < e; k++) {
         const dx = l.x[k + 1] - l.x[k], dy = l.y[k + 1] - l.y[k], d = Math.hypot(dx, dy) || 1, c = (d - l.seg[k]) / d * 0.5;
@@ -198,20 +203,19 @@
         if (d < min) { const c = (d - min) / d * 0.5, wa = k === 0 ? 0 : 1, wb = (led && k + 4 === e) ? 0 : 1, t = wa + wb; if (t) { l.x[k] += dx * c * 2 * wa / t; l.y[k] += dy * c * 2 * wa / t; l.x[k + 4] -= dx * c * 2 * wb / t; l.y[k + 4] -= dy * c * 2 * wb / t; } }
       }
     }
-    // the sag spreads along the limb and recovers over seconds; a dimple is gone in a moment
-    const sag = l.sag, dim = l.dim, sp = 1 - Math.exp(-h / 0.9), rec = Math.exp(-h / (2.2 + 1.6 * lazy)), rd = Math.exp(-h / 0.4);
-    let prev = sag[0];
+    // its flesh: critically damped, so a push takes about a second to show and several to go, and it spreads along the limb
+    const w = 1.25 / Math.sqrt(m), up = 0.55 + 0.9 * (1 - l.f), q = l.q, qv = l.qv;
     for (let k = 0; k < PTS; k++) {
-      const cur = sag[k], nxt = k < e ? sag[k + 1] : cur;
-      sag[k] = (cur + ((prev + nxt) * 0.5 - cur) * sp) * rec; prev = cur;
-      dim[k] *= rd;
+      const lap = (k > 0 ? q[k - 1] : q[k]) + (k < e ? q[k + 1] : q[k]) - 2 * q[k];
+      qv[k] += (((swell * up - q[k]) + 0.8 * lap) * w * w - 2 * w * qv[k]) * h;
     }
+    for (let k = 0; k < PTS; k++) q[k] += qv[k] * h;
   }
 
   // The chain drawn smooth. Two independent uneven edges, tapering to nothing at both ends; what is hauled up thins as it goes.
   function sample(l, fat, yawn) {
     const e = PTS - 1; let s = 0;
-    const X = (k) => l.x[Math.max(0, Math.min(e, k))], Y = (k) => { const q = Math.max(0, Math.min(e, k)); return l.y[q] + l.sag[q] + l.q[q] + l.dim[q] * 0.5 - yawn * 12; };
+    const X = (k) => l.x[Math.max(0, Math.min(e, k))], Y = (k) => { const q = Math.max(0, Math.min(e, k)); return l.y[q] + l.q[q] - yawn * 12; };
     const hl = l.hl === undefined ? 1 : l.hl;
     for (let k = 0; k < e; k++) {
       const x0 = X(k - 1), x1 = X(k), x2 = X(k + 1), x3 = X(k + 2), y0 = Y(k - 1), y1 = Y(k), y2 = Y(k + 1), y3 = Y(k + 2);
@@ -219,11 +223,11 @@
         const t = j / SUB, t2 = t * t, t3 = t2 * t;
         l.sx[s] = 0.5 * (2 * x1 + (x2 - x0) * t + (2 * x0 - 5 * x1 + 4 * x2 - x3) * t2 + (3 * x1 - x0 - 3 * x2 + x3) * t3);
         l.sy[s] = 0.5 * (2 * y1 + (y2 - y0) * t + (2 * y0 - 5 * y1 + 4 * y2 - y3) * t2 + (3 * y1 - y0 - 3 * y2 + y3) * t3);
-        const u = (k + t) / e, q1 = Math.min(e, k + 1), sg = l.sag[k] + (l.sag[q1] - l.sag[k]) * t, dm = l.dim[k] + (l.dim[q1] - l.dim[k]) * t, qq = l.q[k] + (l.q[q1] - l.q[k]) * t;
+        const u = (k + t) / e, q1 = Math.min(e, k + 1), qq = l.q[k] + (l.q[q1] - l.q[k]) * t;
         const env = Math.pow(Math.sin(Math.PI * Math.pow(u, l.bulge)), 0.36), thin = 1 - (1 - hl) * 0.5 * u;
-        const base = 0.5 * l.w * fat * env * thin * (1 + sg * 0.006 + qq * 0.008) * (1 + yawn * 0.12);
-        l.st[s] = Math.max(0, base * l.na[s] - dm * 0.5 * env);
-        l.sb[s] = Math.max(0, base * l.nb[s] - dm * 0.5 * env);
+        const base = 0.5 * l.w * fat * env * thin * (1 + qq * 0.008) * (1 + yawn * 0.12);
+        l.st[s] = base * l.na[s];
+        l.sb[s] = base * l.nb[s];
         s++;
       }
     }
@@ -263,14 +267,13 @@
     }
   }
 
-  // Every attack passes through the heap: a slow wave out from its pitch, and a dip of the whole heap, thin masses most.
-  function shudder() {
+  // An attack only pushes the heap: most under its pitch, thin masses most, the fat ones hardly at all.
+  function shove(px, a, lazy) {
     for (const l of limbs) {
-      const up = 0.55 + 0.9 * (1 - l.f);
+      const m = massOf(l, lazy), up = 0.55 + 0.9 * (1 - l.f);
       for (let k = 0; k < PTS; k++) {
-        let q = heave + swell;
-        for (const p of pulses) { const d = (Math.abs(l.x[k] - p.x) - p.age * 620) / 210; if (d > -2.2 && d < 2.2) q += p.a * Math.exp(-p.age / 1.1 - d * d); }
-        l.q[k] = q * up;
+        const d = (l.x[k] - px) / 340;
+        l.qv[k] = Math.min(60, l.qv[k] + (42 * a * up / m) * (0.25 + 0.75 * Math.exp(-d * d)));
       }
     }
   }
@@ -281,7 +284,6 @@
     g.globalAlpha = 1; g.fillStyle = css(ground); g.fillRect(0, 0, W, H);
     const w = wg;
     w.setTransform(1, 0, 0, 1, 0, 0); w.clearRect(0, 0, wash.width, wash.height); w.setTransform(1 / K, 0, 0, 1 / K, 0, 0);
-    shudder();
     for (let o = 0; o < order.length; o++) {
       const l = order[o];
       sample(l, fat, yawn); normals(l); hang(l);
@@ -309,10 +311,10 @@
 
   TOOLS.push({
     id: 'lazy', name: 'Lazy', tag: 'new',
-    blurb: 'It can\'t be bothered. Heavy, shapeless green stains slumped across the picture: an attack goes through them as one heavy jolt they creep back from, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Busy music it mostly ignores, swelling slowly, and only the hard notes still land.',
+    blurb: 'It can\'t be bothered, and there is a lot of it. Huge, shapeless green stains slumped across the picture, far too heavy for the music to move: an attack soaks in as a dull sour colour and only leans on them a little, and they take seconds to come back. Once in a long while a hard note asks one to get up. It gathers itself slowly, gets a little way, gives up and slumps onto the others. Busy music it ignores, swelling slowly.',
     params: [
       { key: 'lazy', label: 'how lazy it is', min: 0, max: 1, value: 0.5,
-        hint: 'How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early.',
+        hint: 'How heavy it is, and how much it takes to get it moving. Left: lighter, and gets up now and then. Right: a dead weight that hardly ever stirs.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 15 - 12 * v, 3.5, '#7c9a2f') },
       { key: 'lift', label: 'how high it bothers to lift', min: 0.1, max: 1, value: 0.75,
         hint: 'How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen.',
@@ -330,39 +332,28 @@
         hint: 'How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => limbIcon(g, w, h, 2 + 9 * v, 2 + 4 * v, '#7c9a2f')) },
     ],
-    reset(x) { vels = null; built = 0; limbs = []; order = []; pend = []; marks = []; pulses = []; heave = 0; flush = 0; swell = 0; swellT = 0; nextJolt = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
+    reset(x) { vels = null; built = 0; limbs = []; order = []; marks = []; flush = 0; swell = 0; swellT = 0; nextJolt = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
     onChord(ch, x) {
       const n0 = Math.round(x.p('limbs'));
       if (built !== n0) build(n0, x.W, x.H);
       lastAttack = clock; if (yawnT < 0) yawned = false;
       const pres = x.p('presence'), cut = (1 - pres) * 0.95, rate = x.feat.rate;
       const notes = ch.notes.slice().sort((a, b) => b.v - a.v);
-      let asked = 0, dims = 0, jolt = false; const seen = new Set();
+      let jolt = false;
       if (notes.length && rank(notes[0].v) >= cut) {
-        // The jolt, in this very frame, if it has the patience: not while it is still getting over the last one, unless the note
-        // is one of the piece's hard ones. Anything it ignores only feeds one slow swell.
+        // The push, if it has the patience: not while it is still getting over the last one, unless the note is one of the
+        // piece's hard ones. Anything it ignores only feeds one slow swell. The colour lands in this very frame; the bodies don't.
         const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate) * (0.3 + 0.7 * pres);
         const pr = Math.max(0, Math.min(1, (notes[0].m - pitchLo) / (pitchHi - pitchLo)));
-        jolt = clock >= nextJolt || (v >= 0.85 && clock >= nextJolt - 0.6);
+        jolt = clock >= nextJolt || (v >= 0.85 && clock >= nextJolt - 0.3);
         if (jolt) {
-          nextJolt = clock + (0.1 + 0.9 * rate * rate) * x.rnd(0.7, 1.5);
-          if (pulses.length >= 6) pulses.shift();
-          pulses.push({ x: pr * x.W, a: 30 * a, age: 0 });
-          heave = Math.min(24, heave + 12 * a); flush = Math.min(1, flush + 0.7 * a);
+          nextJolt = clock + (0.9 + 1.6 * rate) * (0.6 + 0.8 * x.p('lazy')) * x.rnd(0.8, 1.3);
+          shove(pr * x.W, a, x.p('lazy'));
+          flush = Math.min(1, flush + 0.7 * a);
           const lm = limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))]; lm.fl = Math.min(1, lm.fl + 1.1 * a);
+          ask(limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))], notes[0], v, x);
+          for (const n of notes.slice(0, 2)) dimple(x.pitch01(n.m) * x.W * 0.9 + x.W * 0.05 + x.rnd(-30, 30), rank(n.v), x);
         } else swellT = Math.min(30, swellT + 2.2 * a);
-      }
-      for (const n of notes) {
-        const v01 = rank(n.v);
-        if (v01 < cut) continue;
-        const pr = Math.max(0, Math.min(1, (n.m - pitchLo) / (pitchHi - pitchLo)));
-        const l = limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))];
-        if (asked < 3 && !seen.has(l)) {
-          seen.add(l);
-          if (asked === 0) { if (ask(l, n, v01, x, false)) { asked++; continue; } }
-          else if (l.state === 'rest' && clock >= l.free) { asked++; pend.push({ l, n, v01, wait: x.rnd(0.02, 0.25) * (1 + 3 * rate) }); continue; }  // the others come raggedly, each late on its own
-        }
-        if (dims++ < (jolt ? 3 : 1)) dimple(x.pitch01(n.m) * x.W * 0.9 + x.W * 0.05 + x.rnd(-30, 30), v01, x, jolt);
       }
     },
     frame(x) {
@@ -370,15 +361,11 @@
       if (built !== n0) build(n0, x.W, x.H);
       const dt = x.dt;
       if (dt > 0) {
-        for (const q of pend) { q.wait -= dt; if (q.wait <= 0) { ask(q.l, q.n, q.v01, x, true); q.done = true; } }
-        pend = pend.filter((q) => !q.done);
         acc = Math.min(0.1, acc + dt);
         while (acc >= H_STEP) { acc -= H_STEP; clock += H_STEP; for (const l of limbs) advance(l, H_STEP, x); }
         for (const m of marks) m.age += dt;
-        for (const p of pulses) p.age += dt;
-        pulses = pulses.filter((p) => p.age < 3);
-        heave *= Math.exp(-dt / 0.4); flush *= Math.exp(-dt / 0.28);
-        swellT *= Math.exp(-dt / 2.5); swell += (swellT - swell) * (1 - Math.exp(-dt / 0.9));
+        flush *= Math.exp(-dt / 0.28);
+        swellT *= Math.exp(-dt / 2.5); swell += (swellT - swell) * (1 - Math.exp(-dt / 1.6));
         for (const l of limbs) l.fl *= Math.exp(-dt / 0.45);
         marks = marks.filter((m) => m.age < m.life);
         // after a long quiet the whole heap swells and subsides, once
