@@ -133,6 +133,9 @@
         },
         {
           "widget": "casket",
+          "knobs": {
+            "keep": 1
+          },
           "intensity": [
             { "t": 199.578, "v": 0, "bend": -0.418 },
             { "t": 220.353, "v": 1, "bend": 0.764 },
@@ -198,7 +201,10 @@
           }
         },
         {
-          "widget": "casket"
+          "widget": "casket",
+          "knobs": {
+            "keep": 1
+          }
         }
       ]
     },

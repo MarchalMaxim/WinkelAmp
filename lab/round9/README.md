@@ -48,7 +48,7 @@ New: "how present", and "keep melting between", which goes from the new way on t
 - `beethoven5` (15 casket layers), `chopin-winter-wind` (3), `rach-prelude-recording` (1): "keep melting between" is set to 1, the old casket.
 - `vivaldi-winter` (1 layer, from your own edit, cut at 118, no jolt): "keep melting between" is added at 1 on that layer, nothing else changed, so your own show looks as it did.
 - `vivaldi-summer` (1 layer, "The last blows"): not set, so **it uses the new one-time casket**. If you want it as it was, set "keep melting between" to the far right on that layer.
-- `chopin-nocturne-48-1` (2 layers, your own show, saved while the casket was still the old one): not set, so **they use the new one-time casket for now**. If you want them as they were, set "keep melting between" to the far right on those layers.
+- `chopin-nocturne-48-1` (2 layers, your own show, saved while the casket was still the old one): "keep melting between" is added at 1 on both, nothing else changed, so your own show looks as it did. For the new one-time casket, move it to the far left on those layers.
 - The three lab combinations with the casket (brush and threads, murmuration, Kandinsky and pixel sort) set "keep melting between" to 1 when you press "try together", because what they describe is the continuous melt.
 
 To see the difference, put the casket over Rorschach on the Prelude at 2:04 and move "keep melting between".
