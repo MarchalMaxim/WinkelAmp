@@ -7,7 +7,7 @@
  *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
  * - Intensity: always full, or a curve written by a preset (fade in or out, swell, pulse on the beats, gate on
  *   loudness, while its part plays), shaped further in the lane under the timeline.
- * Every change is one setLayer edit, one undo step.
+ * Every change is one setClip edit, one undo step.
  */
 import './layer-controls.css';
 import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
@@ -85,7 +85,7 @@ export function nearShare(times: readonly number[], s: Span): number {
 /** Enough to take a usual type when placed: the count, and spread, so a layer doesn't sit still for most of its section by default. */
 export const enoughAttacks = (times: readonly number[], s: Span): boolean => times.length >= neededAttacks(s) && nearShare(times, s) >= NEAR_SHARE;
 
-/** What a widget hears when placed in this section: its usual note type if the section has enough of it, else nothing
+/** What a widget hears when placed in this span: its usual note type if the span has enough of it, else nothing
     (all notes). */
 export function placedListen(L: WaLayers, pack: Pick<SongPack, 'notes' | 'tracks'>, s: Span, usual: NoteType | undefined): NoteType | undefined {
   return usual && enoughAttacks(attackTimes(L, pack, usual, s), s) ? usual : undefined;
@@ -178,7 +178,7 @@ export interface LayerControlsDeps {
   span(): Span;
   /** The layer now (undo changes it without a redraw). */
   layer(): Layer | undefined;
-  /** One setLayer edit; group: the undo step it belongs to. Returns whether the show changed. */
+  /** One setClip edit; group: the undo step it belongs to. Returns whether the show changed. */
   edit(patch: LayerPatch, group: string): boolean;
   /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back), under the
       key memoryKey() gives for this layer now (its clip, so it never goes to another). */
