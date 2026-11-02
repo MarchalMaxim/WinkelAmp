@@ -54,7 +54,8 @@ export type KnobPhase = 'move' | 'end' | 'step';
 export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], icon: IconLib, onChange: (s: KnobState, phase: KnobPhase) => void): KnobRow {
   const label = esc(q.label ?? q.key);
   const el = document.createElement('div');
-  const select = `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
+  // How present only moves the other knobs: there is nothing for the music to drive.
+  const select = q.leads ? '<span></span>' : `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
   const slider = `<input type="range" data-k aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}">`;
   const rich = !!(q.icon || q.hint);
   el.className = rich ? 'prm' : 'prm plain';
@@ -63,7 +64,7 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
     ? `<div class="top"><canvas class="live" data-i="live"></canvas><span class="name">${label}</span>${q.hint ? '<button type="button" class="info" data-info aria-label="what is this?">i</button>' : '<span></span>'}${select}</div>
        <div class="row"><canvas data-i="0"></canvas>${slider}<canvas data-i="1"></canvas></div>${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}`
     : `<span class="name">${label}</span>${slider}${select}`;
-  const input = el.querySelector('input')!, sel = el.querySelector('select')!;
+  const input = el.querySelector('input')!, sel = el.querySelector('select');
   const [live, i0, i1] = ['live', '0', '1'].map((k) => el.querySelector<HTMLCanvasElement>(`canvas[data-i="${k}"]`));
   let cur = { ...state };
   if (live && i0 && i1) { drawIcon(i0, q, 0, icon); drawIcon(i1, q, 1, icon); }
@@ -73,7 +74,7 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
     sync(s) {
       cur = { ...s };
       if (Number(input.value) !== s.base) input.value = String(s.base);   // a drag already shows its value; an undo moves it back
-      sel.value = s.drive;
+      if (sel) sel.value = s.drive;
       if (live) drawIcon(live, q, norm(q, s.base), icon);
     },
     drawLive(f) { if (live) drawIcon(live, q, norm(q, knobValue(q, cur, f)), icon); },
@@ -87,8 +88,8 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
     onChange(cur, pointer ? 'move' : 'step');
   });
   input.addEventListener('change', () => { if (pointer) onChange({ ...cur, base: Number(input.value) }, 'end'); });
-  sel.addEventListener('change', () => { cur = { ...cur, drive: sel.value as Drive }; onChange(cur, 'end'); });
-  input.value = String(state.base); sel.value = state.drive;
+  sel?.addEventListener('change', () => { cur = { ...cur, drive: sel.value as Drive }; onChange(cur, 'end'); });
+  input.value = String(state.base); if (sel) sel.value = state.drive;
   row.sync(state);
   return row;
 }

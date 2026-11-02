@@ -1,9 +1,7 @@
 // Op art (after Bridget Riley): a stripe / checker / ring field the music warps.
 // Bass bulges it into lenses, melody notes send ripples through it, chord attacks kink it into chevrons,
 // loudness makes the whole field vibrate so the eye fizzes. Every edge is a warped polyline; one even-odd fill.
-// A sixth knob, how present (the user, 2026-11-01: the sliders only boost): turned down, the two colours sink together
-// toward black and let what is under the field show, the bending and the fizz calm, and only the piece's hardest chords
-// bend it.
+// A sixth knob, how present: moving it writes the widget's other knobs.
 (() => {
   const PAL = [ // [dark, light]
     [[0, 0, 0], [238, 232, 220]],      // 0 black / bone
@@ -22,25 +20,6 @@
     if (!VQ) { const v2 = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b); VQ = v2.length ? Math.max(70, v2[Math.floor(v2.length * 0.93)]) : 100; }
     return v * 100 / VQ;
   };
-  // how present (0..1): which chords the field answers, judged against this piece's own chords (recordings differ a lot in
-  // how hard they are played): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0. Built once the knob is down.
-  let chordVels = null;
-  const hardEnough = (v, pres) => {
-    if (pres >= 1) return true;
-    if (!chordVels) chordVels = (typeof CHORDS !== 'undefined' ? CHORDS.map((c) => c.vel) : (window.NOTES || []).map((n) => n[3])).sort((a, b) => a - b);
-    if (!chordVels.length) return true;
-    let a = 0, b = chordVels.length; while (a < b) { const k = (a + b) >> 1; if (chordVels[k] < v) a = k + 1; else b = k; }
-    return a / chordVels.length >= (1 - pres) * 0.95;
-  };
-  const calmOf = (pres) => 1 - 0.8 * (1 - pres);   // how much of the bending, fizz and drift is left: all of it at 1
-  // Turned down, the field is painted here and laid over the stage at the end, so it can sink as a whole.
-  let sheet = null, sheetG = null;
-  function sheetFor(x) {
-    const c = x.g.canvas;   // at the real canvas's size, so a supersampled picture stays sharp
-    if (!sheet || sheet.width !== c.width || sheet.height !== c.height) { sheet = Object.assign(document.createElement('canvas'), { width: c.width, height: c.height }); sheetG = sheet.getContext('2d'); }
-    sheetG.setTransform(c.width / x.W, 0, 0, c.height / x.H, 0, 0);
-    return sheetG;
-  }
   let bright = 0.5;
   const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
   let act = [], lenses = [], ripples = [], kinks = [], cuts = [], time = 0, drift = 0, bassHold = 0;
@@ -123,7 +102,7 @@
   }
   TOOLS.push({
     id: 'riley', name: 'Op art', tag: 'v2',
-    blurb: 'A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden, until <b>how present</b> is turned down: the colours then sink toward black and let them show, the field calms, and only the hardest chords bend it.',
+    blurb: 'A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden. <b>how present</b> sets how much field there is: turned down, a few broad, clean bands that only loud playing still bends.',
     params: [
       { key: 'pattern', label: 'pattern', min: 0, max: 2, step: 1, value: 0,
         hint: 'What the field is made of. Left: stripes. Middle: a checkerboard. Right: rings around the centre.',
@@ -133,10 +112,10 @@
           else if (k === 1) for (let y = 3, j = 0; y < h - 3; y += 5, j++) for (let x = 3, i = 0; x < w - 3; x += 5, i++) { if ((i + j) % 2) ICON.rect(g, x, y, 5, 5); }
           else for (let r = 2.5; r < 13; r += 3.2) ICON.ring(g, w / 2, h / 2, r, ICON.ink, 1.5);
         } },
-      { key: 'stripe', label: 'stripe width', min: 5, max: 60, step: 1, value: 16,
+      { key: 'stripe', label: 'stripe width', min: 5, max: 60, step: 1, value: 16, less: 36,
         hint: 'How wide each stripe is. Left: fine, dizzying lines. Right: a few broad bands.',
         icon: (g, v, w, h) => { const bw = 1.4 + v * 6.6; for (let x = 3; x < w - 3; x += 2 * bw) ICON.rect(g, x, 3, Math.min(bw, w - 3 - x), h - 6); } },
-      { key: 'bend', label: 'how much the music bends it', min: 0, max: 2.5, value: 1, drive: '+level',
+      { key: 'bend', label: 'how much the music bends it', min: 0, max: 2.5, value: 1, less: 0, drive: '+level',
         hint: 'How hard the notes bend the field: lenses on the bass, ripples on the melody, sharp kinks on chords. Left: almost flat. Right: wild, swelling distortion.',
         icon: (g, v, w, h) => {
           g.strokeStyle = ICON.ink; g.lineWidth = 2;
@@ -144,7 +123,7 @@
             for (let y = 2; y <= h - 2; y += 1) { const b = Math.exp(-((y - h / 2) ** 2) / 40) * (x0 - w / 2) * 0.35; const x = x0 + v * (Math.sin(y * 0.42 + i * 0.3) * 2.2 + b); y === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
             g.stroke(); }
         } },
-      { key: 'shimmer', label: 'shimmer', min: 0, max: 2, value: 0.3, drive: '+rate',
+      { key: 'shimmer', label: 'shimmer', min: 0, max: 2, value: 0.3, less: 0, drive: '+rate',
         hint: 'A fine, fast trembling of every edge, so the eye fizzes. Left: still, clean edges. Right: the whole field buzzes.',
         icon: (g, v, w, h) => {
           const r = ICON.rng(3); g.strokeStyle = ICON.ink; g.lineWidth = 1.8;
@@ -160,21 +139,12 @@
           for (let x = 4; x < w - 4; x += 8) ICON.rect(g, x, 2, 4, h - 4, hex(p[1]));
           g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(1.5, 1.5, w - 3, h - 3);
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim, almost still field that lets what is under it show, and only the hardest chords bend it. Right: the full field, every note bending it (as before).',
-        icon: (g, v, w, h) => {
-          ICON.alpha(g, 0.14 + 0.86 * v, () => {
-            g.strokeStyle = ICON.ink; g.lineWidth = 2.4;
-            for (let i = 0; i < 6; i++) { const x0 = 5 + i * 6; g.beginPath();
-              for (let y = 2; y <= h - 2; y += 1) { const x = x0 + v * Math.sin(y * 0.42 + i * 0.3) * 2; y === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
-              g.stroke(); }
-          });
-        } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much stripe field there is: how many stripes, how hard the notes bend them, how much their edges tremble. Left: a few broad, clean bands that only loud playing still bends. Right: the full fine field, bending and fizzing. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { chordVels = null; bright = 0.5; act = []; lenses = []; ripples = []; kinks = []; cuts = []; time = 0; drift = 0; bassHold = 0; },
+    reset() { bright = 0.5; act = []; lenses = []; ripples = []; kinks = []; cuts = []; time = 0; drift = 0; bassHold = 0; },
     onChord(ch, x) {
-      const pres = x.p('presence');
-      if (!hardEnough(ch.vel, pres)) return;
       const vel = loud(ch.vel);
       // Bass: a lens swells where the low note lands (low = left, higher bass = right).
       let bass = 0, bm = 127; for (const n of ch.notes) if (n.m < 50) { bass += n.v / 127; bm = Math.min(bm, n.m); }
@@ -201,15 +171,15 @@
         // the biggest chords also cut an inverted band straight through the field, along the first kink
         if (vel >= 92 && ch.notes.length >= 4) {
           const k = kinks[kinks.length - cnt];
-          cuts.push({ u: k.u, rot: x.rnd(-0.45, 0.45), w0: (30 + 14 * ch.notes.length) * KINK * vel / 110 * calmOf(pres), age: 0 });
+          cuts.push({ u: k.u, rot: x.rnd(-0.45, 0.45), w0: (30 + 14 * ch.notes.length) * KINK * vel / 110, age: 0 });
           if (cuts.length > 3) cuts.shift();
         }
       }
     },
     frame(x) {
-      const pres = x.p('presence'), calm = calmOf(pres), g = pres < 1 ? sheetFor(x) : x.g, dt = x.dt; time += dt;
+      const g = x.g, dt = x.dt; time += dt;
       const w = x.p('stripe'), th = (ANGLE * Math.PI) / 180, form = Math.round(x.p('pattern'));
-      depth = x.p('bend') * calm;
+      depth = x.p('bend');
       tx = Math.cos(th); ty = Math.sin(th); nx = -ty; ny = tx;
       lensR2 = Math.pow((0.22 + 0.32 * x.feat.bass) * x.H * 0.75, 2);   // more bass, wider lenses
       // lenses: snap open (~70 ms), then slowly let go
@@ -234,11 +204,11 @@
       for (const k of kinks) { k.age += dt; k.a = depth * kk * w * 3 * k.a0 * Math.exp(-k.age / 0.45) * Math.cos(k.age * 9); }
       kinks = kinks.filter((k) => k.age < 2.2);
       // the standing wave along the stripes follows how much is sounding
-      waveK = (2 * Math.PI) / (lam * 2.2); wavePh += dt * 1.3 * calm; waveA = depth * w * (0.25 + 1.2 * x.feat.density);
+      waveK = (2 * Math.PI) / (lam * 2.2); wavePh += dt * 1.3; waveA = depth * w * (0.25 + 1.2 * x.feat.density);
       // fizz: a fine, fast, random-phase wobble scaled by loudness
-      const vib = x.p('shimmer') * calm;
+      const vib = x.p('shimmer');
       vibA = vib * w * 0.45 * (0.3 + x.feat.level); vibK = (2 * Math.PI) / (w * x.rnd(5, 9)); vibPh = x.rnd(0, Math.PI * 2);
-      drift += dt * w * (0.25 + 1.5 * x.feat.rate) * (1 + vib * 0.5) * calm;
+      drift += dt * w * (0.25 + 1.5 * x.feat.rate) * (1 + vib * 0.5);
       // the drone lens lives in the lens list only for this frame
       const drone = { x: x.W / 2, y: x.H / 2, a: depth * 0.7 * bassHold };
       lenses.push(drone);
@@ -275,15 +245,6 @@
       const vg = g.createRadialGradient(x.W / 2, x.H / 2, x.H * 0.35, x.W / 2, x.H / 2, x.W * 0.62);
       vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.75)');
       g.fillStyle = vg; g.fillRect(0, 0, x.W, x.H);
-      if (pres < 1) {
-        // sink the field toward black (a faint field is left at the very end), then lay it over the stage: its black lets the
-        // stage show, more as presence falls, and 'lighten' keeps the level steady under the stage's own slow fade instead of
-        // piling up. Rubbing the stage out on the square of (1 - presence) keeps the dark stripes clean of the last frames' light.
-        g.fillStyle = `rgba(0,0,0,${0.93 * (1 - pres)})`; g.fillRect(0, 0, x.W, x.H);
-        const st = x.g;
-        st.fillStyle = `rgba(0,0,0,${1 - (1 - pres) * (1 - pres)})`; st.fillRect(0, 0, x.W, x.H);
-        st.globalCompositeOperation = 'lighten'; st.drawImage(sheet, 0, 0, x.W, x.H); st.globalCompositeOperation = 'source-over';
-      }
     },
   });
 })();

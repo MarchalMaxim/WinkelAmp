@@ -5,8 +5,6 @@
 // the ones before, lines from the centre and their mirror images. The lines are never erased; they pile up into a dense,
 // systematic drawing (the same note retraces the same lines, so they darken). A new section of the music starts a fresh
 // wall with the next rule, and the rule is written on the wall in pencil, as LeWitt's instructions are.
-// A sixth knob, how present (the user, 2026-11-01: the sliders should dim, not only boost): turned down, the wall and all
-// that is on it fade together, letting through what lies under the wall, and only the hardest notes draw, fewer lines, slower.
 (() => {
   const TAU = Math.PI * 2;
   const WALL = '#e9e6df';
@@ -22,31 +20,16 @@
     { id: 'centre', text: 'Lines from the centre to the notes, and to their mirror images.' },
   ];
   const COLS = 9, ROWS = 5;            // the squares rule's grid
-  let cur = null, prev = null, dimmed = null, prevA = 0, active = [], commits = [], flashes = [], hits = new Map();
+  let cur = null, prev = null, prevA = 0, active = [], commits = [], flashes = [], hits = new Map();
   let rule = 0, autoRule = 0, lastMoment = null, lastSwitch = -9, lastAttack = -1, strokes = 0, lastPts = [], caption = 0, W = 1280, H = 720;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
-  // how present (0..1): which notes draw, judged against this piece's own notes (recordings differ a lot in how hard they
-  // play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
-  let allVels = null;
-  const hardEnough = (v, pres) => {
-    const cut = (1 - pres) * 0.95;
-    if (cut <= 0) return true;
-    if (!allVels) allVels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!allVels.length) return true;
-    let a = 0, b = allVels.length; while (a < b) { const k = (a + b) >> 1; if (allVels[k] < v) a = k + 1; else b = k; }
-    return a / allVels.length >= cut;
-  };
-  // how present: how strongly the picture is laid over the stage each frame. The stage keeps most of the last frame (it only
-  // fades 12% a frame), so a translucent picture builds up to far more than its alpha: alpha 0.14 settles near half brightness.
-  // Dark lines need some wall to show on: 0.026 keeps a wall under a tenth as bright with the lines still readable on it.
-  const showAlpha = (pres) => 0.026 + 0.974 * pres * pres * pres;
 
   function buffers(x) {
     if (cur && cur.width === x.W && cur.height === x.H) return;
     W = x.W; H = x.H;
     const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
-    cur = mk(); prev = mk(); dimmed = null;
+    cur = mk(); prev = mk();
   }
   // a fresh wall: the drawing so far fades out underneath
   function newWall() {
@@ -92,15 +75,14 @@
 
   // the rule, carried out for one attack
   function carry(ch, x) {
-    const pres = x.p('presence');
-    const k = Math.max(1, Math.round(Math.round(x.p('lines')) * pres)), weight = x.p('pencil'), ncol = 1 + Math.round(x.p('colours') * 3);
+    const k = Math.max(1, Math.round(x.p('lines'))), weight = x.p('pencil'), ncol = 1 + Math.round(x.p('colours') * 3);
     const col = (i) => PENCIL[i % ncol];
     const lw = 0.5 + weight * 1.6, al = 0.4 + weight * 0.3;
-    const notes = ch.notes.filter((n) => hardEnough(n.v, pres)).sort((a, b) => a.m - b.m);
+    const notes = ch.notes.slice().sort((a, b) => a.m - b.m);
     const pts = notes.map((n) => point(n.m));
     const id = RULES[rule].id;
     let d = 0, cap = 90;
-    const push = (s, c, delay) => { if (cap-- > 0) { add(s, c, lw * (0.85 + 0.3 * ch.vel / 110), al, delay); s.dur *= 3 - 2 * pres; } };
+    const push = (s, c, delay) => { if (cap-- > 0) add(s, c, lw * (0.85 + 0.3 * ch.vel / 110), al, delay); };
     notes.forEach((n, ni) => {
       const [px, py] = pts[ni], dl = ni * 0.018;
       flashes.push({ x: px, y: py, age: 0, v: n.v });
@@ -177,7 +159,7 @@
           if (i === 0) { ICON.alpha(g, 0.9, () => { g.save(); g.beginPath(); g.rect(2, 2, 18, h - 4); g.clip(); ruleIcon(g, 'corners', w, h, 0.8); g.restore(); g.save(); g.beginPath(); g.rect(20, 2, w - 22, h - 4); g.clip(); ruleIcon(g, 'squares', w, h, 0.8); g.restore(); }); ICON.line(g, 20, 3, 20, h - 3, '#151214', 1.2); }
           else ruleIcon(g, RULES[i - 1].id, w, h);
         } },
-      { key: 'lines', label: 'lines per note', min: 1, max: 4, step: 1, value: 3, drive: '-rate',
+      { key: 'lines', label: 'lines per note', min: 1, max: 4, step: 1, value: 3, less: 1, drive: '-rate',
         hint: 'How many lines each note draws. Left: one line per note, a sparse drawing. Right: four (from every corner, in every direction), a dense web.',
         icon: (g, v, w, h) => { wallIcon(g, w, h); const n = 1 + Math.round(v * 3), C = [[2, 2], [w - 2, h - 2], [w - 2, 2], [2, h - 2]]; for (let i = 0; i < n; i++) ICON.line(g, w / 2, h / 2, C[i][0], C[i][1], PEN[i], 1.1); ICON.dot(g, w / 2, h / 2, 1.8, '#151214'); } },
       { key: 'pencil', label: 'pencil or crayon', min: 0, max: 1, value: 0.15, drive: '+level',
@@ -186,18 +168,18 @@
       { key: 'colours', label: 'how many colours', min: 0, max: 1, value: 1,
         hint: 'Which pencils are used. Left: graphite only, grey on white. Right: all four of LeWitt\'s colours: graphite, red, blue and yellow.',
         icon: (g, v, w, h) => { wallIcon(g, w, h); const n = 1 + Math.round(v * 3); for (let i = 0; i < 8; i++) ICON.line(g, 5 + i * 4, h - 4, 9 + i * 4, 4, PEN[i % n], 1.3); } },
-      { key: 'full', label: 'how full a wall gets', min: 100, max: 3000, value: 700,
+      { key: 'full', label: 'how full a wall gets', min: 100, max: 3000, value: 700, less: 150,
         hint: 'How many lines a wall takes before it is painted over and a fresh wall begins with the next rule (a new section of the music always starts one). Left: a clean wall every few chords. Right: the lines pile up into a dense web.',
         icon: (g, v, w, h) => { wallIcon(g, w, h); const r = ICON.rng(9), n = Math.round(3 + v * 30); for (let i = 0; i < n; i++) { const a = r() * (w - 4) + 2, b = r() * (w - 4) + 2; ICON.line(g, a, 2, b, h - 2, PEN[i % 4], 0.7); } } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim wall you can see through, and only the hardest notes draw a line, slowly. Right: every note draws on the full white wall (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { wallIcon(g, w, h); ICON.line(g, 2, 2, 26, h - 2, PEN[0], 1.1); ICON.line(g, w - 2, 2, 12, h - 2, PEN[1], 1.1); ICON.line(g, 2, h - 2, w - 2, 8, PEN[2], 1.1); }) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much gets drawn: how many lines each note makes and how many a wall takes before a fresh one begins. Left: one line per note, and the wall is repainted early. Right: three lines per note piling up into a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) {
       buffers(x);
       cur.getContext('2d').clearRect(0, 0, W, H); prev.getContext('2d').clearRect(0, 0, W, H);
       active = []; commits = []; flashes = []; lastPts = []; prevA = 0; strokes = 0; caption = 0; hits.clear();
-      lastMoment = x.moment; lastAttack = -1; lastSwitch = x.t; allVels = null;
+      lastMoment = x.moment; lastAttack = -1; lastSwitch = x.t;
       // after a seek, the rule depends on where we are (and on the piece), so different passages open with different rules
       autoRule = (Math.floor(Math.max(0, x.t) / 31) + (window.NOTES?.length ?? 0) + 6) % RULES.length; rule = autoRule;
     },
@@ -207,10 +189,8 @@
       // a new section, a long rest (a fermata) or a full wall starts a fresh wall with the next rule
       const rest = lastAttack >= 0 && x.t - lastAttack > 1.6 && strokes > 60;
       const section = (x.moment !== lastMoment || rest) && x.t - lastSwitch > 4;
-      // how present: a wall turns only on an attack that draws, so a quiet passage keeps the last drawing up, not an empty wall
-      const pres = x.p('presence'), draws = pres >= 1 || ch.notes.some((n) => hardEnough(n.v, pres));
-      if (draws && (section || (strokes > x.p('full') && x.t - lastSwitch > 4))) { lastSwitch = x.t; autoRule = (autoRule + 1) % RULES.length; newWall(); }
-      if (draws) lastMoment = x.moment;
+      if (section || (strokes > x.p('full') && x.t - lastSwitch > 4)) { lastSwitch = x.t; autoRule = (autoRule + 1) % RULES.length; newWall(); }
+      lastMoment = x.moment;
       lastAttack = x.t;
       const want = fixed ? fixed - 1 : autoRule;
       if (want !== rule) { rule = want; caption = 0; }
@@ -218,10 +198,7 @@
     },
     frame(x) {
       buffers(x);
-      // how present: below 1 the picture is drawn aside and laid over the stage faintly, at the end of this function
-      const pres = x.p('presence');
-      if (pres < 1 && !dimmed) { dimmed = document.createElement('canvas'); dimmed.width = W; dimmed.height = H; }
-      const g = pres < 1 ? dimmed.getContext('2d') : x.g, dt = x.dt;
+      const g = x.g, dt = x.dt;
       // the wall
       g.fillStyle = WALL; g.fillRect(0, 0, W, H);
       g.globalCompositeOperation = 'multiply';
@@ -240,7 +217,7 @@
       for (const s of active) {
         s.age += dt; if (s.age <= 0) continue;
         const u = Math.min(1, s.age / s.dur), e = 1 - Math.pow(1 - u, 3), fresh = 1 - u;
-        g.strokeStyle = rgba(s.col, Math.min(1, s.al + 0.4 * fresh * pres)); g.lineWidth = s.lw * (1 + 1.4 * fresh * pres);
+        g.strokeStyle = rgba(s.col, Math.min(1, s.al + 0.4 * fresh)); g.lineWidth = s.lw * (1 + 1.4 * fresh);
         g.beginPath(); pathOf(g, s, e); g.stroke();
         if (u >= 1) commits.push(s);
       }
@@ -263,8 +240,8 @@
         f.age += dt; const k = Math.max(0, 1 - f.age / 0.45);
         if (f.age > 0 && !f.marked) { f.marked = true; const c = cur.getContext('2d'); c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(40,40,46,0.55)'; c.beginPath(); c.arc(f.x, f.y, 1.6, 0, TAU); c.fill(); }
         if (k <= 0) continue;
-        g.fillStyle = `rgba(20,20,26,${(0.8 * k).toFixed(3)})`; g.beginPath(); g.arc(f.x, f.y, 2 + 3 * k * Math.min(1, f.v / 100) * pres, 0, TAU); g.fill();
-        g.strokeStyle = `rgba(196,46,40,${(0.7 * k * k * pres).toFixed(3)})`; g.lineWidth = 1; g.beginPath(); g.arc(f.x, f.y, 4 + 14 * (1 - k) * pres, 0, TAU); g.stroke();
+        g.fillStyle = `rgba(20,20,26,${(0.8 * k).toFixed(3)})`; g.beginPath(); g.arc(f.x, f.y, 2 + 3 * k * Math.min(1, f.v / 100), 0, TAU); g.fill();
+        g.strokeStyle = `rgba(196,46,40,${(0.7 * k * k).toFixed(3)})`; g.lineWidth = 1; g.beginPath(); g.arc(f.x, f.y, 4 + 14 * (1 - k), 0, TAU); g.stroke();
       }
       flashes = flashes.filter((f) => f.age < 0.45);
       // the rule, written on the wall in pencil
@@ -272,7 +249,6 @@
       g.fillStyle = `rgba(70,68,72,${(0.75 * caption).toFixed(3)})`; g.font = 'italic 14px Georgia, "Times New Roman", serif';
       g.textAlign = 'left'; g.textBaseline = 'alphabetic';
       g.fillText(RULES[rule].text, 28, H - 22);
-      if (pres < 1) { x.g.globalAlpha = showAlpha(pres); x.g.drawImage(dimmed, 0, 0); x.g.globalAlpha = 1; }
     },
   });
 })();

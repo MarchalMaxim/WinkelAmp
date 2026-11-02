@@ -14,7 +14,8 @@ import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } fro
 import type { ShowStore } from './api';
 import { addWidgetAt, selectedClip } from './clip-actions';
 import { clipHtml, noClipHtml, syncClip, wireClip } from './clip-panel';
-import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
+import { knobWrites } from './how-present';
+import { knobRow, knobState, type KnobRow } from './knobs';
 import { describePlace, mountLayerControls, partWords } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
@@ -167,7 +168,7 @@ export class Panel {
         const now = performance.now();
         if ((phase === 'step') !== (this.stepAt > 0) || (phase === 'step' && now - this.stepAt > KEY_IDLE)) this.knobDrag++;
         this.stepAt = phase === 'step' ? now : 0;
-        this.edit({ type: 'edit', edit: { kind: 'setKnob', clip: id, key: q.key, value: settingOf(q, st) }, group: `knob:${id}:${q.key}:${this.knobDrag}` });
+        for (const { key, value } of knobWrites(params, q, st, selectedClip(this.d.store.state)?.knobs)) this.edit({ type: 'edit', edit: { kind: 'setKnob', clip: id, key, value }, group: `knob:${id}:${q.key}:${this.knobDrag}` });
         if (phase === 'end') this.knobDrag++;
       });
       this.rows.push({ row });

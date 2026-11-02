@@ -8,10 +8,6 @@
 // are faint broken hairlines, loud ones thick doubled scratches; high notes sit higher on the film; a full chord
 // scratches smaller marks, a lone note in sparse music a bigger one. The light glows softly through the scratches (a
 // blurred quarter-size copy of each film frame, added on top) and the projector lamp flickers a little.
-// A sixth knob, how present (the user: the sliders should dim, not only boost). Turned down, the scratches are fainter,
-// the film is cleaner and boils slower and calmer, and only the hardest notes of the piece scratch a mark or cut a frame
-// (plus now and then an above-average attack, so a quiet passage still has a thin thread of marks instead of going black).
-// At 1 every factor below is exactly 1 and no gate closes, so the picture is the same as before the knob.
 (() => {
   const LW = 1280, LH = 720, TAU = Math.PI * 2;
   const layer = document.createElement('canvas'); layer.width = LW; layer.height = LH; const lg = layer.getContext('2d');
@@ -21,20 +17,6 @@
   const INK = '255,251,243';
 
   let figs = [], dirt = [], acc = 0, cut = false, jump = 0, flash = 0, meanV = 72, lastBurst = -9, lastFlash = -9, time = 0, J = 1, nid = 0, gain = 1;
-  // how present, this frame, and the three things it turns down (each exactly 1 at full presence).
-  let P = 1, CALM = 1, INKA = 1;
-  const dim = (k, pres) => 1 - (1 - pres) * k;
-  // Which notes scratch a mark, judged against this piece's own notes (recordings differ a lot in how hard they are
-  // played): every one at 1, the hardest 80% at 0.5, the hardest half at 0.25, the hardest 5% at 0.
-  let allVels = null, lastMark = -9;
-  const hardEnough = (v, x) => {
-    const cut = Math.pow(1 - x.p('presence'), 2.2) * 0.95;
-    if (cut <= 0) return true;
-    if (!allVels) allVels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!allVels.length) return true;
-    let a = 0, b = allVels.length; while (a < b) { const k = (a + b) >> 1; if (allVels[k] < v) a = k + 1; else b = k; }
-    return a / allVels.length >= cut;
-  };
 
   const p01 = (m) => clamp((m - 30) / 66);
   const pitchX = (m) => LW * (0.07 + 0.86 * p01(m)) + R(-55, 55);
@@ -100,7 +82,7 @@
     return p;
   }
   function drawFig(f, a) {
-    const n = (2 + 7 * J) * (0.45 + 0.55 * f.v) * CALM;
+    const n = (2 + 7 * J) * (0.45 + 0.55 * f.v);
     HAIR = f.v > 0.38 ? 1 : 0;
     if (f.type === 'spark') {
       const s = f.s * (0.8 + 0.4 * Math.random());
@@ -179,7 +161,7 @@
 
   // Film dirt: long vertical scratches that come and go, and dust specks scattered fresh on every frame.
   function drawDirt(x) {
-    const amt = x.p('dirt') * CALM, want = Math.round(amt * (1 + 2.5 * x.feat.density + 2 * x.feat.level));
+    const amt = x.p('dirt'), want = Math.round(amt * (1 + 2.5 * x.feat.density + 2 * x.feat.level));
     if (dirt.length < want && Math.random() < 0.5) dirt.push({ x: R(30, LW - 30), vx: R(-6, 6), age: 0, life: R(0.4, 2.5), a: R(0.18, 0.5), w: R(0.7, 1.8) });
     for (const d of dirt) {
       if (Math.random() < 0.15) continue;                  // it flickers out for a frame
@@ -202,7 +184,7 @@
     lg.globalCompositeOperation = 'source-over';
     lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);
     if (flash > 0.01) { lg.fillStyle = `rgba(${INK},${flash.toFixed(3)})`; lg.fillRect(0, 0, LW, LH); flash *= 0.25; }
-    const weave = (1 + 2.5 * J + jump) * CALM;
+    const weave = 1 + 2.5 * J + jump;
     lg.setTransform(1, 0, 0, 1, R(-weave, weave), R(-weave, weave) * 0.6);
     jump = 0;
     HALO = 0; HAIR = 1;
@@ -219,13 +201,10 @@
     }
     HALO = 0; HAIR = 1;
     lg.setTransform(1, 0, 0, 1, 0, 0);
-    gain = R(0.86, 1); if (P < 1) gain = 1 - (1 - gain) * P;    // the projector lamp flickers frame to frame (steadier when turned down)
+    gain = R(0.86, 1);    // the projector lamp flickers frame to frame
     bg.globalCompositeOperation = 'copy'; bg.filter = 'blur(3px)'; bg.drawImage(layer, 0, 0, BW, BH); bg.filter = 'none';
     lg.globalCompositeOperation = 'lighter'; lg.globalAlpha = 0.4; lg.drawImage(bloom, 0, 0, LW, LH);   // the light glowing through the scratches
     lg.globalCompositeOperation = 'source-over'; lg.globalAlpha = 1;
-    // Turned down, the film frame itself is darkened: the shared background only fades 12% a picture, so a thin alpha at
-    // the drawImage below would build back up to nearly full brightness within a few pictures.
-    if (P < 1) { lg.fillStyle = `rgba(0,0,0,${(1 - INKA).toFixed(3)})`; lg.fillRect(0, 0, LW, LH); }
   }
 
   // Knob pictures.
@@ -238,7 +217,7 @@
 
   TOOLS.push({
     id: 'lenlye', name: 'Len Lye', tag: 'v2',
-    blurb: 'After Len Lye\'s scratched films: white scratches on black film that boil and jump frame by frame, one mark per note across the film by pitch (bass: tall wriggling pillars; middle: zigzags, coils and rings; treble: little sparks), and loud chords burst into a jagged star with a flash. New in v2: a mark now boils for as long as its note is held, and every note lands as an overexposed, glowing strike before it settles; soft notes are faint broken hairlines, loud ones thick doubled scratches, and high notes sit higher up the film. Added since: a <b>how present</b> knob, to tone it right down: fainter, calmer scratches on cleaner film, mostly on the hardest notes.',
+    blurb: 'After Len Lye\'s scratched films: white scratches on black film that boil and jump frame by frame, one mark per note across the film by pitch (bass: tall wriggling pillars; middle: zigzags, coils and rings; treble: little sparks), and loud chords burst into a jagged star with a flash. New in v2: a mark now boils for as long as its note is held, and every note lands as an overexposed, glowing strike before it settles; soft notes are faint broken hairlines, loud ones thick doubled scratches, and high notes sit higher up the film. Added since: a <b>how present</b> knob for how much is on the film: turned down, marks go with their notes, on nearly clean film with small or no bursts.',
     params: [
       { key: 'wriggle', label: 'how much the lines wriggle', min: 0, max: 2, value: 1.2, drive: '+rate',
         hint: 'How wildly each scratch shakes and jumps from frame to frame. Left: almost steady lines. Right: frantic, boiling scrawl.',
@@ -249,12 +228,12 @@
         icon: (g, v, w, h) => { const n = Math.round(2 + v * 3), cw = (w - 4) / n;
           for (let i = 0; i < n; i++) { const x0 = 2 + i * cw; g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(x0 + 0.5, 3.5, cw - 2, h - 7);
             const t = n === 1 ? 0.5 : i / (n - 1); zig(g, x0 + 2 + t * (cw - 6), 6, x0 + 2 + t * (cw - 6) + 1, h - 6, 3, 1.4, ICON.ink, 1.2); } } },
-      { key: 'life', label: 'how long a mark stays after its note', min: 0, max: 2, value: 0.4,
+      { key: 'life', label: 'how long a mark stays after its note', min: 0, max: 2, value: 0.4, less: 0,
         hint: 'How long a scratch keeps boiling once its note has stopped (it always lasts while the note is held). Left: gone with the note. Right: lingers for seconds.',
         icon: (g, v, w, h) => { const n = 5, st = (w - 4) / n;
           zig(g, 2 + st * 0.5, 4, 2 + st * 0.5, h - 4, 4, 2, ICON.ink, 1.5);
           for (let i = 1; i < n; i++) { const a = Math.max(0, 1 - i / (1 + v * (n - 1))); if (a > 0.02) ICON.alpha(g, a, () => zig(g, 2 + st * (i + 0.5), 4, 2 + st * (i + 0.5), h - 4, 4, 2, ICON.ink, 1.2)); } } },
-      { key: 'burst', label: 'bursts on loud chords', min: 0, max: 2, value: 1, drive: '+level',
+      { key: 'burst', label: 'bursts on loud chords', min: 0, max: 2, value: 1, less: 0, drive: '+level',
         hint: 'How big the jagged burst and the flash are when a loud chord is struck. Left: none. Right: a big spiky star.',
         icon: (g, v, w, h) => { if (v < 0.04) { ICON.dot(g, w / 2, h / 2, 1.2, ICON.dim); return; }
           const r = ICON.rng(9), n = Math.round(6 + v * 6), L = 3 + v * 9;
@@ -262,36 +241,28 @@
           g.strokeStyle = ICON.ink; g.lineWidth = 1.2; g.lineJoin = 'miter'; g.beginPath();
           for (let i = 0; i <= n * 2; i++) { const th = (i / (n * 2)) * Math.PI * 2, l = (i % 2 ? 0.4 : 1) * L * (0.8 + r() * 0.4); g.lineTo(w / 2 + Math.cos(th) * l, h / 2 + Math.sin(th) * l); }
           g.stroke(); } },
-      { key: 'dirt', label: 'scratched, dusty film', min: 0, max: 2, value: 1.2,
+      { key: 'dirt', label: 'scratched, dusty film', min: 0, max: 2, value: 1.2, less: 0.15,
         hint: 'How much film dirt runs across the picture: long vertical scratches and dust specks. Left: clean film. Right: battered old print.',
         icon: (g, v, w, h) => { g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(1.5, 1.5, w - 3, h - 3);
           const r = ICON.rng(3), nl = Math.round(v * 4), nd = Math.round(v * 12);
           for (let i = 0; i < nl; i++) { const lx = 4 + r() * (w - 8); ICON.line(g, lx, 2, lx + (r() - 0.5) * 2, h - 2, ICON.ink, 0.8); }
           for (let i = 0; i < nd; i++) ICON.dot(g, 3 + r() * (w - 6), 3 + r() * (h - 6), 0.6 + r() * 0.8, ICON.ink); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint, calm scratches on almost clean film, mostly on the hardest notes. Right: every note scratches at full strength (as before).',
-        icon: (g, v, w, h) => { const n = 1 + Math.round(v * 3), st = (w - 4) / n;
-          ICON.alpha(g, 0.2 + 0.8 * v, () => { for (let i = 0; i < n; i++) zig(g, 2 + st * (i + 0.5), 4, 2 + st * (i + 0.5), h - 4, 4, 1 + v * 1.5, ICON.ink, 1 + v * 0.6); }); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much scratching is on the film: how long a mark lingers after its note, how big the bursts on loud chords are, how much dirt runs across. Every note still scratches its mark while it sounds. Left: marks gone with their notes, small or no bursts, nearly clean film. Right: lingering scrawl, bursts and a battered print. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() {
       lg.setTransform(1, 0, 0, 1, 0, 0); lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);
       lg.lineCap = 'round'; lg.lineJoin = 'miter'; lg.miterLimit = 5;
       bg.globalCompositeOperation = 'copy'; bg.fillStyle = '#000'; bg.fillRect(0, 0, BW, BH);
-      figs = []; dirt = []; acc = 0; cut = false; jump = 0; flash = 0; meanV = 72; lastBurst = -9; lastFlash = -9; time = 0; gain = 1; allVels = null; lastMark = -9;
+      figs = []; dirt = []; acc = 0; cut = false; jump = 0; flash = 0; meanV = 72; lastBurst = -9; lastFlash = -9; time = 0; gain = 1;
     },
     onChord(ch, x) {
-      let heard = false;
-      for (const q of ch.notes) if (hardEnough(q.v, x)) { heard = true; addNote(q, x, ch); }
-      // Turned down, a quiet passage keeps a thin thread: after a while with no mark, an above-average attack scratches its
-      // loudest note, and after twice that any attack does (a long diminuendo never rises above its own recent average).
-      const pres = x.p('presence'), wait = pres < 1 && !heard ? (time - lastMark) / (1 + 2.5 * (1 - pres)) : 0;
-      if (wait >= 2 || (wait >= 1 && ch.vel >= meanV)) { heard = true; addNote(ch.notes.reduce((a, q) => (q.v > a.v ? q : a)), x, ch); }
-      if (heard) lastMark = time;
+      for (const q of ch.notes) addNote(q, x, ch);
       // Loud against the recent music (Beethoven's transcription runs quieter than the Prelude's).
       const loud = ch.vel >= 86 && (ch.vel >= meanV + 14 || (ch.vel >= 95 && ch.notes.length >= 3) || ch.vel >= 104);
       meanV += (ch.vel - meanV) * 0.06;
-      if (!heard) return;                                       // turned down: this attack passes the film by
-      const b = x.p('burst') * dim(0.5, pres);
+      const b = x.p('burst');
       if (loud && b > 0.05 && time - lastBurst > 0.3) {
         lastBurst = time;
         const k = clamp((ch.vel - 80) / 30), mid = ch.notes.reduce((s, q) => s + q.m, 0) / ch.notes.length;
@@ -306,8 +277,7 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt; time += dt;
-      P = x.p('presence'); CALM = dim(0.85, P); INKA = dim(0.86, P);
-      J = x.p('wriggle') * CALM;
+      J = x.p('wriggle');
       for (const f of figs) {
         f.age += dt; f.ph += (f.spd || 0) * dt * (0.6 + J);
         if (f.type !== 'pillar') { f.x = clamp(f.x, 30, LW - 30); f.y = clamp(f.y, 30, LH - 30); } else f.x = clamp(f.x, 20, LW - 20);
@@ -317,7 +287,7 @@
       for (const d of dirt) { d.age += dt; d.x += d.vx * dt; }
       dirt = dirt.filter((d) => d.age < d.life);
       acc += dt;
-      const per = 1 / (x.p('fps') * dim(0.7, P));
+      const per = 1 / x.p('fps');
       if (cut || (dt > 0 && acc >= per)) { cut = false; acc = acc >= per ? acc % per : 0; filmFrame(x); }
       g.globalCompositeOperation = 'lighten'; g.globalAlpha = gain;
       g.drawImage(layer, 0, 0, x.W, x.H);

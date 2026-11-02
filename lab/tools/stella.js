@@ -170,13 +170,13 @@
     id: 'stella', name: 'Stella', tag: 'new',
     blurb: 'A rhythm layer made to sit on other widgets: it paints no ground, only thin frames, after Frank Stella’s stripe paintings. Every attack adds one frame a step further in from the edge and older ones fade, so fast playing piles up concentric stripes and slow playing leaves one or two lone frames; loud attacks give square frames, soft ones rounded. The centre stays open, and it inverts whatever is under it (dark on paper, light on black, cyan over red). Try it on score with squares, horizon with murmuration, current with squares, or Miró with Rorschach.',
     params: [
-      { key: 'life', label: 'how long they stay', min: 0.15, max: 5, value: 1.4,
+      { key: 'life', label: 'how long they stay', min: 0.15, max: 5, value: 1.4, less: 0.5,
         hint: 'How long a frame stays before it fades. Left: one blink. Right: lingering stripes that pile up.',
         icon: (g, v, w, h) => { const L = 0.15 + v * 0.85; nest(g, w, h, [0, 3, 6, 9], IB, 1.3, [0, 1, 2, 3].map((i) => Math.max(0, 1 - i / (L * 4)))); } },
       { key: 'thick', label: 'how thick', min: 1, max: 14, value: 3.5, drive: '+level',
         hint: 'How wide each stripe is (loud attacks a little wider). Left: hairlines. Right: heavy bands.',
         icon: (g, v, w, h) => { const lw = 0.8 + v * 4.5; g.strokeStyle = IB; g.lineWidth = lw; g.strokeRect(3 + lw / 2, 3 + lw / 2, w - 6 - lw, h - 6 - lw); } },
-      { key: 'reach', label: 'how far in', min: 0, max: 1, value: 0.45,
+      { key: 'reach', label: 'how far in', min: 0, max: 1, value: 0.45, less: 0.08,
         hint: 'How deep the stripes pile up before starting again at the edge. Left: they hug the edge. Right: they reach halfway to the centre.',
         icon: (g, v, w, h) => { const n = 1 + Math.round(v * 3); nest(g, w, h, Array.from({ length: n }, (_, i) => i * 2.6), IB, 1.1); } },
       { key: 'which', label: 'which notes count', min: 0, max: 1, value: 0.5,
@@ -190,6 +190,9 @@
           irr.forEach((p, i) => { const grid = (Math.floor(i / 2) + 0.5) / 4, f = p + (grid - p) * v, x0 = 3 + f * (w - 6);
             ICON.line(g, x0, 4, x0, h - 6, IB, 1.5); });
         } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How many frames you see: how long each stays and how deep the stripes pile up before restarting at the edge. Left: a lone frame at the edge that soon fades. Right: lingering concentric stripes reaching in. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { latest = { t: 0, dt: 0, k: null }; frames = []; pending = []; queued = false; cursor = 4; lastBorn = -99; prevD = 0; wanted.clear(); lastFired = -1; lastMode = ''; dirty = false; },
     onChord(ch, x) {

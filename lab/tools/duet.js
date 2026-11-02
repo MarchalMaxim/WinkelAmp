@@ -34,16 +34,8 @@
     return { thick, x: 0, y: 0, vx: 0, vy: 0, rot: Math.random() * TAU, drops, loose: [], lit: 0, swell: 0, swellTo: 0, swellEnd: 0 };
   };
   let A = newMass(true), B = newMass(false), ready = false, time = 0;
-  let lastCons = true, mood = 0.3, flash = 0, spin = 1, holdEnd = 0, vels = null, velAvg = 0.4, jolt = 0;
+  let lastCons = true, mood = 0.3, flash = 0, spin = 1, holdEnd = 0, velAvg = 0.4, jolt = 0;
 
-  // how present: only the piece's hardest attacks move them as it goes down (as in Rorschach)
-  const hardEnough = (v, x) => {
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((p, q) => p - q);
-    const cut = (1 - x.p('presence')) * 0.95;
-    if (cut <= 0 || !vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
   // The verdict: this attack's notes against everything sounding, by interval class. +1 all consonant, -1 all dissonant.
   function verdict(ch, x) {
     let c = 0, d = 0; const snd = x.sounding();
@@ -56,11 +48,11 @@
 
   // One mass's answer. It moves as a whole and its drops take the push unevenly, so it sloshes; a lean goes through all of it,
   // never one part: what faces the other spreads sideways, which keeps its front broad.
-  function answer(f, o, cons, power, count, hold, x, motion) {
+  function answer(f, o, cons, power, count, hold, x) {
     const dx = o.x - f.x, dy = o.y - f.y, D = Math.hypot(dx, dy) || 1, nx = dx / D, ny = dy / D;
     const R = x.p('size') * 92, sign = cons ? 1 : -1;
     const dense = Math.max(1 / (1 + 2.2 * x.feat.rate), jolt);                        // fast music damps the hits, but an accent well above its neighbours still lands
-    const J = (cons ? x.p('pull') * (120 + 460 * power) : x.p('push') * (190 + 820 * power)) * (0.35 + 0.65 * dense) * motion;
+    const J = (cons ? x.p('pull') * (120 + 460 * power) : x.p('push') * (190 + 820 * power)) * (0.35 + 0.65 * dense);
     f.vx += nx * J * sign; f.vy += ny * J * sign;
     f.x += nx * sign * J * 0.012; f.y += ny * sign * J * 0.012;                       // seen in the attack's own frame
     f.lit = Math.max(f.lit, 0.35 + 0.65 * power);
@@ -72,7 +64,7 @@
     }
     if (!cons) {
       // it spatters, away from the other: small round drops that start clear of the surface and evaporate as they fly
-      const m = Math.min(7, Math.round((1 + 3 * power + count * 0.5) * dense * motion));
+      const m = Math.min(7, Math.round((1 + 3 * power + count * 0.5) * dense));
       for (let i = 0; i < m; i++) {
         const a = Math.atan2(-ny, -nx) + x.rnd(-1.1, 1.1), sp = x.rnd(0.5, 1) * x.p('push') * (110 + 260 * power);
         f.loose.push({ x: f.x + Math.cos(a) * R * 1.45, y: f.y + Math.sin(a) * R * 1.45, vx: Math.cos(a) * sp + f.vx * 0.3, vy: Math.sin(a) * sp + f.vy * 0.3, r: R * x.rnd(0.09, 0.2), age: 0, life: x.rnd(0.5, 1.1), shade: x.rnd(0, TAU) });
@@ -186,10 +178,10 @@
       { key: 'pull', label: 'how strongly they want each other', min: 0, max: 2, value: 1,
         hint: 'How strongly they want each other. Left: they keep their distance. Right: always pressed together.',
         icon: (g, v, w, h) => { const d = 13 - v * 6; blobIcon(g, w / 2 - d, h / 2, 6, '#ff4a1c'); blobIcon(g, w / 2 + d, h / 2, 5, '#1f6bff'); } },
-      { key: 'push', label: 'how hard a clash throws them apart', min: 0.2, max: 2, value: 1,
+      { key: 'push', label: 'how hard a clash throws them apart', min: 0.2, max: 2, value: 1, less: 0.4,
         hint: 'How hard a clash throws them apart. Left: a flinch. Right: flung to opposite corners, spattering.',
         icon: (g, v, w, h) => { const d = 4 + v * 10; ICON.arrow(g, w / 2 - 1, h / 2, w / 2 - 2 - d, h / 2, '#ff4a1c'); ICON.arrow(g, w / 2 + 1, h / 2, w / 2 + 2 + d, h / 2, '#1f6bff'); } },
-      { key: 'size', label: 'how big they are', min: 0.5, max: 2.2, value: 1,
+      { key: 'size', label: 'how big they are', min: 0.5, max: 2.2, value: 1, less: 0.5,
         hint: 'How big they are. Left: small and agile. Right: filling the screen.',
         icon: (g, v, w, h) => { const r = 2.5 + v * 5.5; blobIcon(g, w / 2 - r - 1, h / 2, r, '#ff4a1c'); blobIcon(g, w / 2 + r + 1, h / 2, r * 0.9, '#1f6bff'); } },
       { key: 'split', label: 'where the keyboard divides them', min: 30, max: 90, step: 1, value: 60,
@@ -198,18 +190,16 @@
       { key: 'pair', label: 'the two colours', min: 0, max: 2, step: 1, value: 0,
         hint: 'The two colours. Left: vermilion and cobalt. Middle: magenta and lime. Right: gold and teal.',
         icon: (g, v, w, h) => { const p = PAIRS[Math.round(v * 2)]; ICON.dot(g, w / 2 - 6, h / 2, 7, rgb(p.a)); ICON.dot(g, w / 2 + 6, h / 2, 7, rgb(p.b)); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: almost gone, barely moving, and only the hardest attacks reach them. Right: fully there, answering everything.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => { blobIcon(g, w / 2 - 6, h / 2, 2 + 4 * v, '#ff4a1c'); blobIcon(g, w / 2 + 6, h / 2, 2 + 3.4 * v, '#1f6bff'); }) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much liquid there is and how far it goes: how big the two masses are, how hard a clash throws them and their spatter apart. Left: two small drops that flinch. Right: the two full masses, flung apart. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() {
-      time = 0; A = newMass(true); B = newMass(false); ready = false; vels = null;
+      time = 0; A = newMass(true); B = newMass(false); ready = false;
       lastCons = true; mood = 0.3; flash = 0; spin = 1; holdEnd = 0; velAvg = 0.4; jolt = 0;
     },
     onChord(ch, x) {
-      if (!hardEnough(ch.vel, x)) return;
       const score = verdict(ch, x), cons = score >= 0, split = x.p('split');
-      const pres = x.p('presence'), motion = 0.2 + 0.8 * pres;
       const loud = clamp((ch.vel - 30) / 85, 0.05, 1);
       jolt = clamp((loud - velAvg - 0.06) / 0.2, 0, 1); velAvg += (loud - velAvg) * 0.12;
       let la = 0, lb = 0, ha = 0, hb = 0, va = 0, vb = 0;
@@ -226,8 +216,8 @@
       const hold = Math.max(ha, hb);
       if (hold > 0.6) holdEnd = Math.max(holdEnd, time + Math.min(cons ? 4 : 1.2, hold));   // an embrace holds longer than a flinch
       const pa = clamp((va - 30) / 85, 0.05, 1), pb = clamp((vb - 30) / 85, 0.05, 1);
-      if (la) answer(A, B, cons, pa, la, ha, x, motion);
-      if (lb) answer(B, A, cons, pb, lb, hb, x, motion);
+      if (la) answer(A, B, cons, pa, la, ha, x);
+      if (lb) answer(B, A, cons, pb, lb, hb, x);
     },
     frame(x) {
       const g = x.g, dt = x.dt, W = x.W, H = x.H;
@@ -242,14 +232,11 @@
         age(dt, x);
         for (let i = 0; i < n; i++) sim(h, x);
       }
-      // What is painted every frame builds up under the harness's fade (12% a frame), so ask for the alpha whose steady
-      // state is how present it should look; plain alpha would leave it nearly solid when turned down.
-      const seen = 0.1 + 0.9 * x.p('presence'), alpha = 0.12 * seen / (1 - 0.88 * seen);
       paintField(PAIRS[Math.round(x.p('pair'))]);
       const was = g.imageSmoothingQuality;
       g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-      g.globalAlpha = alpha; g.drawImage(field, 0, 0, W, H);
-      g.globalAlpha = 1; g.imageSmoothingQuality = was;
+      g.drawImage(field, 0, 0, W, H);
+      g.imageSmoothingQuality = was;
     },
   });
 })();

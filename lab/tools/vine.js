@@ -24,7 +24,6 @@
 
   let stems = [], tips = [], dust = [], buds = [], occ = null, cols = 0, rows = 0;
   let startIn = 0, live = 0, health = 0.3, clock = 0, sinceRepaint = 0, dirty = true, born = 0, settled = null, sg = null, ctxW = 1280, ctxH = 720;
-  let hardVels = null;
 
   const cell = (px, py) => {
     const c = Math.floor(px / CELL), r = Math.floor(py / CELL);
@@ -32,16 +31,6 @@
   };
   const occAt = (px, py) => { const i = cell(px, py); return i < 0 ? 0 : occ[i]; };
   const mark = (px, py, d) => { const i = cell(px, py); if (i >= 0) occ[i] = Math.max(0, occ[i] + d); };
-  // how present: which notes make it grow, judged against this piece's own notes (the hardest few at the bottom).
-  const hardEnough = (v, x) => {
-    const cut = (1 - x.p('presence')) * 0.95;
-    if (cut <= 0) return true;
-    if (!hardVels) hardVels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!hardVels.length) return true;
-    let a = 0, b = hardVels.length; while (a < b) { const k = (a + b) >> 1; if (hardVels[k] < v) a = k + 1; else b = k; }
-    return a / hardVels.length >= cut;
-  };
-  const speedK = (x) => x.p('spread') * (0.25 + 0.75 * x.p('presence'));
   const pitchT = (m) => Math.max(0, Math.min(1, (m - 33) / 63));              // the usual range of the keyboard, across the picture
 
   function newStem(px, py, w) {
@@ -152,7 +141,7 @@
   }
 
   function growTips(x, dt) {
-    const S = speedK(x), b = x.p('branch');
+    const S = x.p('spread'), b = x.p('branch');
     const crawl = (9 + 26 * health) * S;
     const k1 = Math.exp(-dt / 0.09), k2 = Math.exp(-dt / 1.1);
     const full = live > CAP;
@@ -290,13 +279,13 @@
     id: 'vine', name: 'Vine', tag: 'new',
     blurb: 'Thin stems creep out, fork and curl on the notes and stay. When the music thins out they wither from their oldest ends, sag and crumble, and the next theme grows out of what is left.',
     params: [
-      { key: 'spread', label: 'how fast it spreads', min: 0.05, max: 3, value: 1,
+      { key: 'spread', label: 'how fast it spreads', min: 0.05, max: 3, value: 1, less: 0.2,
         hint: 'How fast the tips travel; richer music always pushes them on. Left: it barely creeps. Right: it races across the screen.',
         icon: (g, v, w, h) => stemIcon(g, w, h, 0.08 + 0.92 * v, '#8fd63f') },
-      { key: 'wither', label: 'how fast it withers', min: 0, max: 2, value: 1, drive: '-level',
+      { key: 'wither', label: 'how fast it withers', min: 0, max: 2, value: 1, less: 1.6, drive: '-level',
         hint: 'How quickly old stems die back from their oldest ends. Left: nothing ever dies. Right: it dies back as fast as it grows.',
         icon: (g, v, w, h) => { stemIcon(g, w, h, 1, '#2a8a5c'); g.save(); g.beginPath(); g.rect(0, 0, v * w, h); g.clip(); stemIcon(g, w, h, 1, '#b08a2e'); g.restore(); } },
-      { key: 'branch', label: 'how readily it forks', min: 0, max: 1, value: 0.45,
+      { key: 'branch', label: 'how readily it forks', min: 0, max: 1, value: 0.45, less: 0.04,
         hint: 'How many stems grow at once. Left: a few long stems. Right: a dense thicket.',
         icon: (g, v, w, h) => { const n = 1 + Math.round(v * 6); for (let i = 0; i < n; i++) { const d = n === 1 ? 0 : (i / (n - 1) - 0.5) * (h - 6); ICON.line(g, 4, h / 2, w - 4, h / 2 + d, '#8fd63f', 1.2); } } },
       { key: 'curl', label: 'how much it curls', min: 0, max: 1, value: 0.5,
@@ -305,13 +294,12 @@
       { key: 'weight', label: 'how thick the stems are', min: 0.3, max: 4.5, value: 1,
         hint: 'How thick the lines are drawn. Left: hair. Right: heavy ropes.',
         icon: (g, v, w, h) => stemIcon(g, w, h, 1, '#8fd63f', 0.6 + v * 5) },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, slow network that only the hardest attacks make grow. Right: every note feeds it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => stemIcon(g, w, h, 1, '#8fd63f')) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much vine it grows: how fast the tips run, how readily they fork, how soon old stems die back. Left: one or two slow stems that do not last. Right: the whole network. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) {
       stems = []; tips = []; dust = []; buds = []; live = 0; startIn = 0; health = 0.3; clock = 0; sinceRepaint = 0; dirty = true;
-      hardVels = null;
       if (x) { ctxW = x.W; ctxH = x.H; }
       cols = Math.ceil(ctxW / CELL); rows = Math.ceil(ctxH / CELL); occ = new Float32Array(cols * rows);
       if (!settled) { settled = document.createElement('canvas'); settled.width = ctxW; settled.height = ctxH; sg = settled.getContext('2d'); }
@@ -319,9 +307,9 @@
     },
     onChord(ch, x) {
       if (!occ) this.reset(x);
-      const notes = ch.notes.filter((n) => hardEnough(n.v, x));
+      const notes = ch.notes;
       if (!notes.length) return;
-      const S = speedK(x), b = x.p('branch'), maxTips = 3 + Math.round(46 * b * b);
+      const S = x.p('spread'), b = x.p('branch'), maxTips = 3 + Math.round(46 * b * b);
       // Every tip jerks forward in the same frame. Fast music gets smaller jerks, or a run would fill the page in seconds.
       // While there is hardly anything yet, a loud attack shoots much further, so a piece's first chords look as big as they sound.
       const hard = (ch.vel / 127) ** 2, young = Math.max(0, 1 - live / 1500);
@@ -356,7 +344,7 @@
     },
     frame(x) {
       if (!occ) this.reset(x);
-      const g = x.g, dt = x.dt, pres = x.p('presence');
+      const g = x.g, dt = x.dt;
       if (dt > 0) {
         clock += dt;
         const f = x.feat, want = Math.min(1, 0.55 * f.rate + 0.3 * f.level + 0.25 * f.density);
@@ -371,9 +359,7 @@
         for (const q of buds) q.a += dt;
         if (buds.some((q) => q.a > 0.5)) buds = buds.filter((q) => q.a <= 0.5);
       }
-      const alpha = Math.max(0.05, Math.pow(pres, 1.3));
-      g.globalAlpha = pres; g.fillStyle = '#14100f'; g.fillRect(0, 0, x.W, x.H);
-      g.globalAlpha = alpha;
+      g.globalAlpha = 1; g.fillStyle = '#14100f'; g.fillRect(0, 0, x.W, x.H);
       g.drawImage(settled, 0, 0);
       // Live: everything the offscreen canvas left out, that is the dying stretches and the newest growth.
       const paths = [], weight = x.p('weight');
@@ -390,15 +376,15 @@
         g.strokeStyle = COLS[0]; g.lineWidth = Math.max(0.5, t.w * weight); g.lineCap = 'round';
         g.beginPath(); g.moveTo(s.xs[n], s.ys[n]); g.lineTo(hx, hy); g.stroke();
         const r = (0.5 + Math.min(4, t.w * weight) * 0.42) * (1 + t.flash * 1.3);
-        if (t.flash > 0.05) { g.globalAlpha = alpha * 0.4 * t.flash; g.fillStyle = '#b6e85a'; g.beginPath(); g.arc(hx, hy, r * 2.4, 0, 6.2832); g.fill(); }
-        g.globalAlpha = alpha; g.fillStyle = '#f4ffd8'; g.beginPath(); g.arc(hx, hy, r, 0, 6.2832); g.fill();
+        if (t.flash > 0.05) { g.globalAlpha = 0.4 * t.flash; g.fillStyle = '#b6e85a'; g.beginPath(); g.arc(hx, hy, r * 2.4, 0, 6.2832); g.fill(); }
+        g.globalAlpha = 1; g.fillStyle = '#f4ffd8'; g.beginPath(); g.arc(hx, hy, r, 0, 6.2832); g.fill();
       }
       for (const q of buds) {
         const k = 1 - q.a / 0.5, r = q.r * (0.9 + k * 0.6) * Math.min(1.8, 0.6 + weight * 0.4);
-        g.globalAlpha = alpha * k * k; g.fillStyle = '#fbffe8'; g.beginPath(); g.arc(q.x, q.y, r, 0, 6.2832); g.fill();
+        g.globalAlpha = k * k; g.fillStyle = '#fbffe8'; g.beginPath(); g.arc(q.x, q.y, r, 0, 6.2832); g.fill();
       }
       for (const d of dust) {
-        g.globalAlpha = alpha * Math.max(0, 1 - d.a / d.l) * 0.9; g.fillStyle = COLS[d.c];
+        g.globalAlpha = Math.max(0, 1 - d.a / d.l) * 0.9; g.fillStyle = COLS[d.c];
         g.fillRect(d.x - d.r, d.y - d.r, d.r * 2, d.r * 2);
       }
       g.globalAlpha = 1;

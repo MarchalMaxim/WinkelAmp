@@ -169,37 +169,35 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
       { key: 'range', label: 'how far the colours wander', min: 0, max: 1, value: 0.2,
         hint: 'How far from that colour a burst may go, by its pitch, so a note keeps its colour. Left: all one colour. Right: the whole rainbow.',
         icon: (g, v, w, h) => { for (let i = 0; i < 5; i++) ICON.dot(g, 6 + i * 7, h / 2, 3, rgbOf(0.08 + (i - 2) / 4 * v * 0.5)); } },
-      { key: 'size', label: 'how big the bursts are', min: 0.4, max: 2.4, value: 1,
+      { key: 'size', label: 'how big the bursts are', min: 0.4, max: 2.4, value: 1, less: 0.55,
         hint: 'How big a burst is. Left: small, many fit. Right: one fills the sky.',
         icon: (g, v, w, h) => shell(g, w, h, 4 + v * 8, '#ffb040') },
       { key: 'swirl', label: 'how much it stirs the air', min: 0, max: 1, value: 0.55,
         hint: 'How hard a blast stirs the fluid. Left: the smoke barely moves. Right: every burst tears the smoke into curling eddies.',
         icon: (g, v, w, h) => { g.save(); g.strokeStyle = '#ffb040'; g.lineWidth = 1.5; g.beginPath(); for (let i = 0; i <= 40; i++) { const t = i / 40, a = t * (1 + 5 * v) * TAU, r = t * 11; const X = w / 2 + Math.cos(a) * r, Y = h / 2 + Math.sin(a) * r; if (i) g.lineTo(X, Y); else g.moveTo(X, Y); } g.stroke(); g.restore(); } },
-      { key: 'linger', label: 'how long the smoke hangs', min: 0, max: 1, value: 0.45,
+      { key: 'linger', label: 'how long the smoke hangs', min: 0, max: 1, value: 0.45, less: 0.08,
         hint: 'How long the coloured smoke stays. Left: gone in a moment. Right: it hangs for seconds and builds up.',
         icon: (g, v, w, h) => { for (let i = 0; i < 6; i++) ICON.dot(g, 5 + i * 6, h / 2, 3, css([1, 0.69, 0.25], Math.max(0.05, 1 - i / (1 + 5.5 * v)))); } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, and only the hardest attacks of the piece go off. Right: all of it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => shell(g, w, h, 3 + 8 * v, '#ffb040')) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much firework it throws: how big each burst is and how long its smoke hangs. Left: small bursts with few sparks, and the smoke gone in a moment. Right: big bursts and smoke that builds up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { sparks = []; pend = []; lastBurst = -9; clock = 0; vels = null; pitches = null; clearFluid(); },
     onChord(ch, x) {
-      const v = rank(ch.vel), pres = x.p('presence');
-      if (v < (1 - pres) * 0.95) return;
+      const v = rank(ch.vel);
       // in busy music not every note gets a shell: the harder ones still do
       const rate = x.feat.rate, gap = 0.16 + 0.75 * rate * (1 - v * 0.8);
       if (clock - lastBurst < gap) return;
       lastBurst = clock;
-      const top = ch.notes.reduce((a, n) => Math.max(a, n.m), 0), p = pitchRank(top), power = Math.pow(v, 1.3) * (1 - 0.35 * rate) * (0.4 + 0.6 * pres) + 0.08;
+      const top = ch.notes.reduce((a, n) => Math.max(a, n.m), 0), p = pitchRank(top), power = Math.pow(v, 1.3) * (1 - 0.35 * rate) + 0.08;
       const hue = x.p('hue') + x.p('range') * (p - 0.5), col = hsv(hue, 0.86, 1);
       // low on the left, high on the right; the harder, the higher up
       const cx = x.W * (0.12 + 0.76 * p) + x.rnd(-130, 130), cy = x.H * (0.66 - 0.4 * v) + x.rnd(-110, 110);
       pend.push({ cx: Math.max(60, Math.min(x.W - 60, cx)), cy: Math.max(70, Math.min(x.H - 70, cy)), power, col });
     },
     frame(x) {
-      const g = x.g, dt = x.dt, pres = x.p('presence');
+      const g = x.g, dt = x.dt;
       if (!F && !broken) { F = makeFluid(); if (!F) broken = true; else clearFluid(); }
-      const seen = 0.1 + 0.9 * pres, alpha = 0.12 * seen / (1 - 0.88 * seen);
       // The bursts wait for this frame so they enter the fluid before it steps, and show at once.
       for (const b of pend) burst(b.cx, b.cy, b.power, b.col, x);
       pend = [];
@@ -229,12 +227,12 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
         bindTex(gl, 0, dye.a, P.show.u.q); quad(gl);
         const was = g.imageSmoothingQuality;
         g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-        g.globalAlpha = alpha; g.drawImage(cv, 0, 0, x.W, x.H);
+        g.drawImage(cv, 0, 0, x.W, x.H);
         g.imageSmoothingQuality = was;
       }
       g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
       for (const s of sparks) {
-        const t = s.age / s.life, a = (1 - t * t) * alpha;
+        const t = s.age / s.life, a = 1 - t * t;
         g.globalAlpha = a; g.strokeStyle = t < 0.2 ? '#fff4e0' : css(s.col, 1); g.lineWidth = 1.2 + 1.6 * (1 - t);
         g.beginPath(); g.moveTo(s.px, s.py); g.lineTo(s.x, s.y); g.stroke();
       }

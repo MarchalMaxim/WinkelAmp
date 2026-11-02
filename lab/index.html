@@ -278,6 +278,7 @@ document.write(`<script src="${SONG.notes}"><\/script>`);
 <script src="layers/automation.js"></script>
 <script src="layers/lines.js"></script>
 <script src="layers/persist.js"></script>
+<script src="layers/present.js"></script>
 <script src="layers/region.js"></script>
 <script src="layers/slot.js"></script>
 <!-- The cards' layer controls and the place overlay on the stage (the studio evaluates the same region-ui.js). -->
@@ -373,6 +374,8 @@ window.ICON = (() => {
       }
     },
     /** The fallback for a knob without an icon: a bar filled to v. */
+    /** How present: more little marks the further right. */
+    much(g, v, w, h) { const r = I.rng(5), n = 1 + Math.round(v * 13); for (let i = 0; i < n; i++) I.dot(g, 4 + r() * (w - 8), 4 + r() * (h - 8), 1.5); },
     gauge(g, v, w, h) { I.rect(g, 3, h / 2 - 3, w - 6, 6, '#2c2428'); I.rect(g, 3, h / 2 - 3, (w - 6) * v, 6, I.dim); },
   };
   /* Ready-made icons for common knob kinds (each returns an icon function): icon: ICON.of.size('dot', ICON.gold). */
@@ -592,6 +595,17 @@ function drawIcon(cv, q, v) {
 const norm = (q, x) => (q.max > q.min ? (x - q.min) / (q.max - q.min) : 0);
 let LIVE = []; // [{ tool, q, cv }] live icons on the page, redrawn as sliders move and (while playing) as the music drives them
 function drawLive(item) { const keep = ctx.tool; ctx.tool = item.tool; try { drawIcon(item.cv, item.q, norm(item.q, ctx.p(item.q.key))); } finally { ctx.tool = keep; } }
+/** How present moved: it decides the knobs that follow it, on the card as well if the card is showing. */
+function setPresent(tool, s) {
+  const q = tool.params?.find((x) => x.leads); if (!q) return;
+  pst(tool, q).base = s;
+  const vals = WA_LAYERS.presentValues(tool.params, s), card = document.querySelector(`.tool[data-id="${CSS.escape(tool.id)}"]`);
+  for (const [key, v] of Object.entries(vals)) {
+    pst(tool, tool.params.find((x) => x.key === key)).base = v;
+    const el = card?.querySelector(`.prm[data-p="${CSS.escape(key)}"] input[type=range]`); if (el) el.value = v;
+  }
+  for (const it of LIVE) if (it.tool === tool && it.q.key in vals) drawLive(it);
+}
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
 function verdictTag(tool) {
@@ -603,7 +617,8 @@ function verdictTag(tool) {
 }
 function paramHTML(tool, q) {
   const st = pst(tool, q), label = esc(q.label ?? q.key);
-  const select = `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
+  // How present only moves the other knobs: there is nothing for the music to drive.
+  const select = q.leads ? '<span></span>' : `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
   const slider = `<input type="range" data-k="${esc(q.key)}" aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}">`;
   // Older tools' knobs (no picture, no hint) keep the compact one-line row.
   if (!q.icon && !q.hint) return `<div class="prm plain" data-p="${esc(q.key)}"><span class="name">${label}</span>${slider}${select}</div>`;
@@ -640,7 +655,7 @@ function render() {
       if (live) { drawIcon(i0, q, 0); drawIcon(i1, q, 1); LIVE.push(item); drawLive(item); }
       row.querySelector('[data-info]')?.addEventListener('click', () => row.classList.toggle('open'));
       row.querySelectorAll('[data-k]').forEach((el) => {
-        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
+        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else if (q.leads) setPresent(tool, Number(el.value)); else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
       });
     });
     d.onclick = (ev) => {
@@ -994,6 +1009,8 @@ if (RENDER) {
     for (let i = 1; i <= n; i++) { const t = t0 + (dt * i) / n; const d = t - lastT; lastT = t; ctx.now += d; step(t, d); }
     return lastT;
   };
+  /** How present, as the slider sets it, for a render at another value. */
+  window.renderPresent = (id, s) => setPresent(toolOf(id), s);
   /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
   window.renderTo = (t) => window.renderStep(t - lastT);
 }

@@ -48,7 +48,7 @@ function catalogueBlock({ widgets, failed }: Catalogue): string {
       if (!m.params.length) { out.push('No knobs.', ''); continue; }
       out.push('| knob | label | range | default | driven by | what it does |', '|---|---|---|---|---|---|');
       for (const q of m.params) {
-        out.push(`| \`${q.key}\` | ${cell(q.label ?? q.key)} | ${num(q.min)}..${num(q.max)} | ${num(q.value)} | ${cell(drives.get(q.drive ?? '') ?? q.drive ?? 'fixed')} | ${cell(q.hint ?? '')} |`);
+        out.push(`| \`${q.key}\` | ${cell(q.label ?? q.key)} | ${num(q.min)}..${num(q.max)} | ${num(q.value)} | ${cell(drives.get(q.drive ?? '') ?? q.drive ?? 'fixed')} | ${cell(q.hint ?? '')}${typeof q.less === 'number' ? ` Follows how present: ${num(q.less)} at its left end.` : ''} |`);
       }
       out.push('');
     }

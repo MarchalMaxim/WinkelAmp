@@ -3,7 +3,7 @@
 // v2 (the user, 2026-11-01: "a one-time applied widget i think... Apply it once on some attacks, instead of continuously"):
 // on some attacks, the hardest of what this instance hears, with room between them, one melt, its drips and one cut land
 // once and finish; between them the casket leaves the picture alone (and costs nothing). keep = 1 is the old casket,
-// frame for frame, for the shows composed on it; between 0 and 1 the two ways cross over. presence = 1 changes nothing.
+// frame for frame, for the shows composed on it; between 0 and 1 the two ways cross over.
 (() => {
   // snap: a copy of the shared canvas at its real size (1280×720 at scale 1, ×S in a supersampled render)
   let snap = null, sg = null, S = 1;
@@ -26,8 +26,8 @@
     const span = n > 1 ? c[n - 1].t - c[0].t : 0, rate = n / Math.max(span, 1);
     return (song = { vels: c.map((ch) => ch.vel).sort((a, b) => a - b), rate, sparse: n <= 4 || rate <= 1 / 1.5 });
   }
-  // How far apart the landings are meant to be (s): cutAt from every 3 s to every 20 s, how present stretching it up to x4.
-  const spacing = (x) => 3 * Math.pow(20 / 3, (x.p('cutAt') - 80) / 38) * (1 + 3 * (1 - x.p('presence')));
+  // How far apart the landings are meant to be (s): cutAt from every 3 s to every 20 s.
+  const spacing = (x) => 3 * Math.pow(20 / 3, (x.p('cutAt') - 80) / 38);
   function lands(ch, x) {
     const h = heard(), gap = ch.t - lastHeard, since = ch.t - lastHit;
     lastHeard = ch.t;
@@ -39,28 +39,28 @@
     const starved = since > 0 ? Math.max(0, Math.min(1, since / sp - 2)) : 1;
     return ch.vel >= bar * (1 - starved);
   }
-  function land(ch, x, s, keep) {
+  function land(ch, x, keep) {
     lastHit = ch.t; meltAge = 0; phase = x.rnd(0, 100);
-    const n = Math.round(x.p('drips') * s * (1 - keep) * (8 + 2 * Math.min(6, ch.notes.length)));
-    for (let i = 0; i < n; i++) drips.push({ x: x.rnd(0, x.W), y: x.rnd(-140, -10), w: x.rnd(6, 26) * Math.max(ch.vel, 90) / 100, v: x.rnd(200, 420), red: Math.random() < 0.7, k: s });
-    cut(x, Math.max(ch.vel, 100), s);
+    const n = Math.round(x.p('drips') * (1 - keep) * (8 + 2 * Math.min(6, ch.notes.length)));
+    for (let i = 0; i < n; i++) drips.push({ x: x.rnd(0, x.W), y: x.rnd(-140, -10), w: x.rnd(6, 26) * Math.max(ch.vel, 90) / 100, v: x.rnd(200, 420), red: Math.random() < 0.7 });
+    cut(x, Math.max(ch.vel, 100));
     // The struck picture, cut, held to melt away over the live one: on a widget that repaints itself every frame (Rorschach)
     // a shift of the canvas lasts one frame, so without it the strike would hardly show.
     if (!held || held.width !== snap.width || held.height !== snap.height) { held = document.createElement('canvas'); held.width = snap.width; held.height = snap.height; hg = held.getContext('2d'); }
     hg.drawImage(x.canvas, 0, 0);
   }
   const SCAR = '#ebf0aa', RED = '#a0141a', OLIVE = '#969628';
-  function cut(x, vel, s) {
+  function cut(x, vel) {
     const g = x.g; grab(x);
     const ang = x.rnd(-1.2, 1.2) + (Math.random() < 0.5 ? 0 : Math.PI / 2), cx = x.rnd(x.W * 0.25, x.W * 0.75), cy = x.rnd(x.H * 0.25, x.H * 0.75);
-    const dx = Math.cos(ang), dy = Math.sin(ang), d = (14 + (vel - 90) * 2.2) * x.p('gap') * s;
+    const dx = Math.cos(ang), dy = Math.sin(ang), d = (14 + (vel - 90) * 2.2) * x.p('gap');
     for (const side of [1, -1]) {
       g.save(); g.beginPath(); const nx = -dy * side, ny = dx * side;
       g.moveTo(cx - dx * 3000, cy - dy * 3000); g.lineTo(cx + dx * 3000, cy + dy * 3000);
       g.lineTo(cx + dx * 3000 + nx * 3000, cy + dy * 3000 + ny * 3000); g.lineTo(cx - dx * 3000 + nx * 3000, cy - dy * 3000 + ny * 3000);
       g.closePath(); g.clip(); g.drawImage(snap, dx * d * side, dy * d * side, x.W, x.H); g.restore();
     }
-    scars.push({ cx, cy, dx, dy, age: 0, k: s }); shake = 14 * x.p('shake') * s;
+    scars.push({ cx, cy, dx, dy, age: 0 }); shake = 14 * x.p('shake');
   }
   // Knob pictures.
   const meltIcon = (g, v, w, h) => {      // a striped block cut into columns, each sliding down by its own amount
@@ -100,13 +100,13 @@
     id: 'casket', name: 'The casket', tag: 'v2',
     blurb: 'New in v2: it strikes once and lets go. On the hardest attacks the picture melts, paint drips from the top and one cut slashes through, then it leaves the picture alone until the next. It works on whatever is under it. <b>keep melting between</b>, all the way right, is the old casket that never stops.',
     params: [
-      { key: 'melt', label: 'melt', min: 0, max: 6, value: 2.2,
+      { key: 'melt', label: 'melt', min: 0, max: 6, value: 2.2, less: 0.7,
         hint: 'How far the whole picture slides down and melts when it strikes. Left: it holds still. Right: it runs a long way down.',
         icon: meltIcon },
-      { key: 'drips', label: 'drips', min: 0, max: 1, value: 0.5,
+      { key: 'drips', label: 'drips', min: 0, max: 1, value: 0.5, less: 0.1,
         hint: 'How much paint drips from the top when it strikes. Left: no drips. Right: a curtain of them.',
         icon: dripIcon },
-      { key: 'cutAt', label: 'which attacks strike', min: 80, max: 118, step: 1, value: 92,
+      { key: 'cutAt', label: 'which attacks strike', min: 80, max: 118, step: 1, value: 92, less: 108,
         hint: 'How hard an attack must be to set it off, against this piece. Left: a strike every few seconds. Right: only the very hardest, far apart.',
         icon: slashIcon },
       { key: 'gap', label: 'how far a cut slides', min: 0, max: 3, value: 1,
@@ -121,28 +121,28 @@
           ICON.line(g, 2, h - 3, w - 2, h - 3, ICON.dim, 1);
           for (let i = 0; i < 8; i++) { const b = i === 3 ? (1 - v) * 16 : 0, l = v * 11 + b; if (l > 0.5) ICON.rect(g, 4 + i * 4.3, h - 3 - l, 3, l, i === 3 ? SCAR : RED); }
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint melt and a hairline cut, and far fewer strikes. Right: at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.line(g, w / 2 - 4 - 7 * v, h - 3, w / 2 + 4 + 7 * v, 3, SCAR, 0.8 + 1.6 * v)) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much it destroys: how often it strikes, how much paint drips, how far the picture melts. Left: a strike about every twelve seconds in busy music, with a short melt and a drip or two. Right: a strike every five or six seconds, several drips, a long melt. Very sparse music strikes on every attack at any setting. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { drips = []; scars = []; shake = 0; meltAge = 9; phase = 0; lastHit = -Infinity; lastHeard = -Infinity; },
     onChord(ch, x) {
-      const keep = x.p('keep'), s = 0.1 + 0.9 * x.p('presence');
+      const keep = x.p('keep');
       // The old way, in proportion to keep (whole at 1, where no extra random number is drawn).
       if (keep > 0) {
-        const pd = x.p('drips') * s * keep;
-        for (const n of ch.notes) if (Math.random() < pd) drips.push({ x: x.rnd(0, x.W), y: -10, w: x.rnd(6, 26) * n.v / 100, v: x.rnd(80, 260), red: Math.random() < 0.7, k: s });
-        if (ch.vel >= x.p('cutAt') && ch.notes.length >= 3 && (keep >= 1 || Math.random() < keep)) cut(x, ch.vel, s);
+        const pd = x.p('drips') * keep;
+        for (const n of ch.notes) if (Math.random() < pd) drips.push({ x: x.rnd(0, x.W), y: -10, w: x.rnd(6, 26) * n.v / 100, v: x.rnd(80, 260), red: Math.random() < 0.7 });
+        if (ch.vel >= x.p('cutAt') && ch.notes.length >= 3 && (keep >= 1 || Math.random() < keep)) cut(x, ch.vel);
       }
       // The new way: at keep = 1 there is no strike.
-      if (keep < 1 && lands(ch, x)) land(ch, x, s, keep);
+      if (keep < 1 && lands(ch, x)) land(ch, x, keep);
     },
     frame(x) {
       const g = x.g; time += x.dt;
-      const keep = x.p('keep'), s = 0.1 + 0.9 * x.p('presence');
+      const keep = x.p('keep');
       // The steady melt (keep) and a strike's: fast at the attack, spent after MELT_LONG. At rest nothing is copied at all.
-      let melt = x.p('melt') * s * keep, ghost = 0;
-      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * s * (1 - keep) * MELT_KICK * u * u; ghost = 0.95 * s * (1 - keep) * u * u * Math.min(1, x.p('melt') / 2.2); meltAge += x.dt; }   // no melt, no held picture: the left end of "melt" holds still
+      let melt = x.p('melt') * keep, ghost = 0;
+      if (meltAge < MELT_LONG) { const u = 1 - meltAge / MELT_LONG; melt += x.p('melt') * (1 - keep) * MELT_KICK * u * u; ghost = 0.95 * (1 - keep) * u * u * Math.min(1, x.p('melt') / 2.2); meltAge += x.dt; }   // no melt, no held picture: the left end of "melt" holds still
       if (melt > 0 || keep >= 1) {
         grab(x);
         for (let i = 0; i < x.W; i += 10) {
@@ -153,20 +153,20 @@
       if (shake > 0.3 && x.dt > 0) { g.translate(x.rnd(-shake, shake), x.rnd(-shake, shake)); shake *= Math.pow(0.86, x.dt * 60); }   // per song-second, so it decays the same on any screen
       if (ghost > 0 && held) {
         // how far each column has run by now (the steady melt's own column shape), and the held picture letting go
-        const u = Math.min(1, meltAge / MELT_LONG), run = x.p('melt') * s * (1 - keep) * MELT_KICK * 60 * MELT_LONG / 3 * (1 - Math.pow(1 - u, 3));
+        const u = Math.min(1, meltAge / MELT_LONG), run = x.p('melt') * (1 - keep) * MELT_KICK * 60 * MELT_LONG / 3 * (1 - Math.pow(1 - u, 3));
         g.globalAlpha = ghost;
         for (let i = 0; i < x.W; i += 20) g.drawImage(held, i * S, 0, 20 * S, x.H * S, i, run * (1 + Math.sin(i * 0.037 + phase) * 0.5 + Math.sin(i * 0.11 + phase * 1.7) * 0.5), 20, x.H);
         g.globalAlpha = 1;
       }
       for (const d of drips) {
         d.y += d.v * x.dt; d.v *= 1 + 0.6 * x.dt;
-        g.fillStyle = d.red ? `rgba(120,8,10,${0.85 * d.k})` : `rgba(150,160,40,${0.7 * d.k})`;
+        g.fillStyle = d.red ? 'rgba(120,8,10,0.85)' : 'rgba(150,160,40,0.7)';
         g.fillRect(d.x - d.w / 2, d.y - 40, d.w, 40); g.beginPath(); g.arc(d.x, d.y, d.w / 2, 0, Math.PI * 2); g.fill();
       }
       drips = drips.filter((d) => d.y < x.H + 60);
       for (const s of scars) {
         s.age += x.dt; const al = Math.max(0, 1 - s.age / 0.9);
-        g.strokeStyle = `rgba(235,240,170,${al * s.k})`; g.lineWidth = 1 + 5 * al * s.k;
+        g.strokeStyle = `rgba(235,240,170,${al})`; g.lineWidth = 1 + 5 * al;
         g.beginPath(); g.moveTo(s.cx - s.dx * 3000, s.cy - s.dy * 3000); g.lineTo(s.cx + s.dx * 3000, s.cy + s.dy * 3000); g.stroke();
       }
       scars = scars.filter((s) => s.age < 0.9);

@@ -109,19 +109,22 @@
       { key: 'home', label: 'home colour', min: -1, max: 1, value: -0.2, drive: '+level',
         hint: 'The colour it returns to on the home chord. Left: deep blues and plums. Right: oxblood and burnt orange. Follows the loudness at first: loud = warmer.',
         icon: (g, v, w, h) => fieldIcon(g, 3, 4, w - 6, h - 8, rampCss(homeT(v * 2 - 1), 1.5), 0.4) },
-      { key: 'dyn', label: 'the playing shows', min: 0, max: 1, value: 0.75,
+      { key: 'dyn', label: 'the playing shows', min: 0, max: 1, value: 0.75, less: 0.2,
         hint: 'How much the notes and the loudness show. Left: a still painting whose colours only drift. Right: every note lights its field from inside, loud passages blaze and sharpen, quiet ones sink and blur.',
         icon: (g, v, w, h) => {
           fieldIcon(g, 3, 5, 15, h - 10, ICON.lerp('#b4522c', '#3a1810', v), 0.3 + 2.2 * v);
           fieldIcon(g, 22, 5, 15, h - 10, ICON.lerp('#b4522c', '#d86a3a', v), 0.3);
           ICON.alpha(g, v, () => ICON.blur(g, 2, () => ICON.dot(g, 31, h / 2, 1.5 + 3 * v, '#ffd0a0')));
         } },
-      { key: 'n', label: 'how many fields', min: 1, max: 4, step: 1, value: 3,
+      { key: 'n', label: 'how many fields', min: 1, max: 4, step: 1, value: 3, less: 1,
         hint: 'How many fields are stacked. Left: one enormous field. Right: four, one per register, bass at the bottom.',
         icon: (g, v, w, h) => {
           const n = 1 + Math.round(v * 3), gap = 2, fh = (h - 4 - gap * (n - 1)) / n, cols = ['#d0602e', '#8a2a24', '#4a5f96', '#c8903a'];
           for (let i = 0; i < n; i++) ICON.rect(g, 4, 2 + i * (fh + gap), w - 8, fh, cols[i]);
         } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much is going on in the painting: how many fields are stacked and how much each note lights its field. Left: one big field that hardly reacts. Right: several fields, every note blooming inside. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() {
       prior(); F = []; washes = []; time = 0; warm = null; loudEnv = 0; loudN = 0.4; hard = 0; cool = 0; emax = 0.6; layout = [];

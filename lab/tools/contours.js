@@ -35,13 +35,13 @@
     // At most 5 knobs (lab/README.md). Fixed now: line width 1.4, grid 9 px, turbulence 0.35, the mirrored fifths map,
     // pits for softer-than-average notes. 'lines' is a new key (its range changed), so an old saved 'count' doesn't apply.
     params: [
-      { key: 'lines', label: 'how many lines', min: 3, max: 24, step: 1, value: 7, drive: '+level',
+      { key: 'lines', label: 'how many lines', min: 3, max: 24, step: 1, value: 7, less: 3, drive: '+level',
         hint: 'How many contour lines a hill gets. Left: a few calm rings. Right: dense, tightly packed rings.',
         icon: (g, v, w, h) => { const n = Math.round(2 + v * 7), c = rampHex(0.72, 0.6); for (let i = 1; i <= n; i++) ICON.ring(g, w / 2, h / 2, (i / n) * (h / 2 - 1.5), c, 1); } },
       { key: 'size', label: 'how wide the hills', min: 0.4, max: 1.8, value: 0.9, drive: '+bass',
         hint: 'How wide each note\'s hill spreads. Left: small, separate peaks. Right: broad hills that merge into ridges.',
         icon: (g, v, w, h) => { const R = 3 + v * (h / 2 - 3), c = rampHex(0.72, 0.6); for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, (i / 4) * R, c, 1.1); } },
-      { key: 'decay', label: 'how long hills stay', min: 0.5, max: 10, value: 2.4,
+      { key: 'decay', label: 'how long hills stay', min: 0.5, max: 10, value: 2.4, less: 0.8,
         hint: 'How long a hill stays before it sinks back. Left: a short pulse. Right: the map remembers for many seconds.',
         icon: (g, v, w, h) => { const life = 0.12 + v * 0.88, c = rampHex(0.72, 0.65);
           for (let i = 0; i < 3; i++) { const a = Math.max(0, 1 - (i / 2) / life); if (a > 0) ICON.alpha(g, a, () => { for (let k = 1; k <= 3; k++) ICON.ring(g, 7 + i * 13, h / 2, k * 2.1, c, 1); }); } } },
@@ -54,6 +54,9 @@
       { key: 'tint', label: 'colour', min: 0, max: 1, value: 0.72,
         hint: 'The colour of the hills. Left: icy blue. Middle: bone. Right: blood red and ember.',
         icon: (g, v, w, h) => { for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, i * 2.9, rampHex(v, 0.15 + 0.22 * (4 - i)), 1.6); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much map it draws: how many contour lines and how long the hills stay. Left: a few lines round hills that fade fast. Right: the full, dense map. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { hills = []; time = Math.random() * 500; phase = 0; flash = 0; },
     onChord(ch, x) {

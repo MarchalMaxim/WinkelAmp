@@ -10,7 +10,6 @@
 (() => {
   const PTS = 12, SUB = 6, TAU = Math.PI * 2, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
-  const [lay, lg] = mk(1280, 720);
   // The stains are painted small and enlarged smoothly, so no edge is ever cut out and a tight bend can't show its workings.
   const K = 4, [wash, wg] = mk(320, 180);
   const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
@@ -84,13 +83,13 @@
 
   // A hard note asks this limb to get up. Returns false if it won't, which is usual.
   function ask(l, n, v01, x) {
-    const rate = x.feat.rate, lazy = x.p('lazy'), pres = x.p('presence');
+    const rate = x.feat.rate, lazy = x.p('lazy');
     if (l.state !== 'rest' || clock < l.free || clock < gapUntil) return false;
     if (v01 < 0.35 + 0.4 * lazy) return false;
     let up = 0; for (const o of limbs) if (o.state !== 'rest') up++;
     if (up >= (rate < 0.25 ? 2 : 1)) return false;
     if (x.rnd(0, 1) < Math.min(0.95, Math.max(0, rate * 1.15 - 0.05) + (lazy - 0.5) * 0.3)) return false;
-    const liftH = 180 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy) * (0.35 + 0.65 * pres);
+    const liftH = 180 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy);
     const T = (3.2 + 3 * l.f) * (0.6 + 1.4 * lazy) * (1 + 0.6 * rate) * x.rnd(0.85, 1.15);
     const e = PTS - 1;
     l.state = 'lift'; l.lp = 0; l.T = T; l.sink *= 0.35;
@@ -121,7 +120,7 @@
 
   // It lands: every limb under it takes the weight as a push where it was hit, and gives slowly.
   function squash(l, x) {
-    const at = order.indexOf(l), amt = (9 + 26 * l.f) * x.p('fat') * x.p('presence');
+    const at = order.indexOf(l), amt = (9 + 26 * l.f) * x.p('fat');
     for (let o = 0; o < at; o++) {
       const b = order[o];
       for (let k = 0; k < PTS; k++) for (let j = PTS - 1; j >= 0; j -= 2) {
@@ -316,34 +315,34 @@
       { key: 'lazy', label: 'how lazy it is', min: 0, max: 1, value: 0.5,
         hint: 'How heavy it is, and how much it takes to get it moving. Left: lighter, and gets up now and then. Right: a dead weight that hardly ever stirs.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 15 - 12 * v, 3.5, '#7c9a2f') },
-      { key: 'lift', label: 'how high it bothers to lift', min: 0.1, max: 1, value: 0.75,
+      { key: 'lift', label: 'how high it bothers to lift', min: 0.1, max: 1, value: 0.75, less: 0.3,
         hint: 'How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 1 + 15 * v, 3.5, '#7c9a2f') },
-      { key: 'fat', label: 'how fat the masses are', min: 0.5, max: 1.7, value: 1,
+      { key: 'fat', label: 'how fat the masses are', min: 0.5, max: 1.7, value: 1, less: 0.6,
         hint: 'How thick the stains are. Left: slim. Right: huge, overlapping everything.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 6, 1.5 + 9 * v, '#7c9a2f') },
-      { key: 'limbs', label: 'how many masses', min: 4, max: 15, step: 1, value: 12,
+      { key: 'limbs', label: 'how many masses', min: 4, max: 15, step: 1, value: 12, less: 4,
         hint: 'How many masses lie in the heap. Left: a few. Right: a big heap.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5); for (let i = 0; i < n; i++) ICON.line(g, 4 + (i % 2) * 6, h - 4 - i * 3.4, w - 4 - ((i + 1) % 2) * 6, h - 5 - i * 3.4, i % 2 ? '#7c9a2f' : '#4f6b22', 2.6); } },
       { key: 'green', label: 'which green', min: 0, max: 1, value: 0.5,
         hint: 'Which greens it lies in. Left: a dark pond. Right: sour acid.',
         icon: (g, v, w, h) => ICON.palette(g, paletteAt(v).map((c) => css(c)), w, h) },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => limbIcon(g, w, h, 2 + 9 * v, 2 + 4 * v, '#7c9a2f')) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much green lies there: how many masses, how fat they are, how high one bothers to lift. Left: a few slim masses that barely stir. Right: the whole slumped heap. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) { vels = null; built = 0; limbs = []; order = []; marks = []; flush = 0; swell = 0; swellT = 0; nextJolt = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
     onChord(ch, x) {
       const n0 = Math.round(x.p('limbs'));
       if (built !== n0) build(n0, x.W, x.H);
       lastAttack = clock; if (yawnT < 0) yawned = false;
-      const pres = x.p('presence'), cut = (1 - pres) * 0.95, rate = x.feat.rate;
+      const rate = x.feat.rate;
       const notes = ch.notes.slice().sort((a, b) => b.v - a.v);
       let jolt = false;
-      if (notes.length && rank(notes[0].v) >= cut) {
+      if (notes.length) {
         // The push, if it has the patience: not while it is still getting over the last one, unless the note is one of the
         // piece's hard ones. Anything it ignores only feeds one slow swell. The colour lands in this very frame; the bodies don't.
-        const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate) * (0.3 + 0.7 * pres);
+        const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate);
         const pr = Math.max(0, Math.min(1, (notes[0].m - pitchLo) / (pitchHi - pitchLo)));
         jolt = clock >= nextJolt || (v >= 0.85 && clock >= nextJolt - 0.3);
         if (jolt) {
@@ -373,12 +372,8 @@
         else if (!yawned && clock - lastAttack > 5) { yawned = true; yawnT = 0; }
       }
       const yawn = yawnT >= 0 ? Math.pow(Math.sin(Math.PI * yawnT / 8), 2) : 0;
-      const pal = paletteAt(x.p('green')), pres = x.p('presence');
-      if (pres >= 0.999) { picture(x.g, x, pal, yawn); return; }
-      // Quiet: the whole picture, heap and ground, at low opacity, so what lies under it shows and alone it stays near dark.
-      lg.setTransform(1, 0, 0, 1, 0, 0);
-      picture(lg, x, pal, yawn);
-      const g = x.g; g.globalAlpha = 0.06 + 0.94 * pres * pres * pres; g.drawImage(lay, 0, 0); g.globalAlpha = 1;
+      const pal = paletteAt(x.p('green'));
+      picture(x.g, x, pal, yawn);
     },
   });
 })();

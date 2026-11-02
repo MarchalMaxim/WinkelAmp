@@ -12,9 +12,6 @@
 // and a faint thread across the screen for each sounding note (red at its attack), drawn into the picture like any
 // widget's, so the slit-scan writes it out from the now line as a piano roll running both ways out of the present.
 // It draws AFTER all the other widgets each frame (a microtask queued from frame(), like pixelsort), with drawImage only.
-// How present (the user, 2026-11-01: sliders should dim, not only boost; the live knob only reached half): a sixth
-// knob. Turned down, the slit-scan and its marks sink toward nothing, the delay shortens, the now line glides slower, and
-// only the song's hardest attacks still cut, stretch and flash, each one briefly lifting the slit-scan. At 1 it is as before.
 (() => {
   const W = 1280, H = 720, Q = 2, QW = W / Q, QH = H / Q;
   const N = 48;                                                     // ring size; copies are taken every far/44 s of song time
@@ -26,18 +23,6 @@
     if (!VQ) { const v2 = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b); VQ = v2.length ? Math.max(70, v2[Math.floor(v2.length * 0.93)]) : 100; }
     return clamp((v * 100 / VQ - 45) / 58, 0, 1);
   };
-  // how present (0..1): which attacks it answers, judged against this recording's own notes: all at 1, the hardest 43% at
-  // 0.4, the hardest 5% at 0 (as rorschach). The value is passed in: post() runs after the harness has left this widget.
-  let VELS = null;
-  const hard = (v, pres) => {
-    const cut = (1 - pres) * 0.95;
-    if (cut <= 0) return true;
-    if (!VELS) VELS = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!VELS.length) return true;
-    let a = 0, b = VELS.length; while (a < b) { const m = (a + b) >> 1; if (VELS[m] < v) a = m + 1; else b = m; }
-    return a / VELS.length >= cut;
-  };
-  const dimTo = (pres, floor) => pres + (1 - pres) * floor;          // exactly 1 at pres = 1, floor at pres = 0
 
   // the history: copies in song-time order (oldest first), each { c, cg, t }; spare canvases are reused
   // The copies stay QW × QH at any picture size. In a supersampled render (the shared canvas RS times 1280×720) the
@@ -106,7 +91,7 @@
     cg.globalCompositeOperation = 'copy'; cg.drawImage(x.canvas, 0, 0); owner = x.canvas; armed = true;
   }
 
-  let nowP = 0.5, cuts = [], stretch = 0, calm = 1, quiet = 0, range = 0, queued = false, pending = [], swell = 0;
+  let nowP = 0.5, cuts = [], stretch = 0, calm = 1, quiet = 0, range = 0, queued = false, pending = [];
   // where a pitch sits along the slicing axis, in pixels: columns low left → high right, rows low bottom → high top,
   // rings low small → high large
   const posOf = (p, mode) => (mode === 0 ? (0.06 + 0.88 * p) * W : mode === 1 ? (0.94 - 0.88 * p) * H : (0.03 + 0.8 * p) * RMAX);
@@ -121,7 +106,7 @@
     if (snd.length) {
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
       for (const n of snd.slice(-10)) {
-        const p = x.pitch01(n.m), age = x.t - n.start, hit = age < 0.12 && hard(n.v, k.presence), a = (hit ? 0.45 : 0.06) * Math.min(1, n.v / 90) * dimTo(k.presence, hit ? 0.35 : 0.08);
+        const p = x.pitch01(n.m), age = x.t - n.start, hit = age < 0.12, a = (hit ? 0.45 : 0.06) * Math.min(1, n.v / 90);
         g.fillStyle = hit ? `rgba(200,36,30,${a.toFixed(3)})` : `rgba(236,226,200,${a.toFixed(3)})`;
         const th = hit ? 2.5 : 1.5;
         if (k.mode === 0) g.fillRect(0, (0.92 - 0.84 * p) * H - th / 2, W, th);
@@ -135,7 +120,7 @@
   function post(x, dt, k) {
     queued = false;
     try {
-      const g = x.g, t = x.t, mode = k.mode, pres = k.presence;
+      const g = x.g, t = x.t, mode = k.mode;
       threads(x, k);                                                  // its own trace, then the picture as it stands
       sizeTo(x); hook(g); keep(x);
       IV = Math.min(0.07, Math.max(1 / 60, k.far * 1.08 / (N - 4)));
@@ -143,9 +128,8 @@
       // attacks: each note cuts a band of the present through the smear
       for (const ch of pending) {
         const pw = loud(ch.vel);
-        if (hard(ch.vel, pres)) { stretch = Math.max(stretch, Math.pow(pw, 1.3)); swell = Math.max(swell, pw); }
+        stretch = Math.max(stretch, Math.pow(pw, 1.3));
         for (const n of ch.notes) {
-          if (!hard(n.v, pres)) continue;
           const half = (2 + 150 * k.cut * k.cut) * (0.75 + 0.5 * pw);
           cuts.push({ p: x.pitch01(n.m), half, t0: t, hold: 0.06 + 0.1 * pw, relax: 0.35 + 0.45 * clamp(n.d / 1.5, 0, 1) + 0.25 * pw });
         }
@@ -155,12 +139,11 @@
       cuts = cuts.filter((c) => t - c.t0 < c.hold + c.relax * 4);
       // the music: loud chords stretch time (fading over ~1.5 s), silence lets it catch up
       stretch *= Math.exp(-dt / 1.5);
-      swell *= Math.exp(-dt / 0.6);                                   // only felt below full presence
       quiet = x.sounding().length ? 0 : quiet + dt;
       calm += ((quiet > 0.3 ? 0 : 1) - calm) * (1 - Math.exp(-dt / (quiet > 0.3 ? 0.5 : 0.2)));
-      const target = k.far * calm * (1 - 0.65 * k.stretch * (1 - stretch)) * (1 - 0.7 * (1 - pres));
+      const target = k.far * calm * (1 - 0.65 * k.stretch * (1 - stretch));
       range += (target - range) * (1 - Math.exp(-dt / 0.12));
-      const top = x.top(); if (top) nowP += (x.pitch01(top.m) - nowP) * (1 - Math.exp(-dt / (0.3 * (1 + 3 * (1 - pres)))));
+      const top = x.top(); if (top) nowP += (x.pitch01(top.m) - nowP) * (1 - Math.exp(-dt / 0.3));
       const now = posOf(nowP, mode), span = (mode === 0 ? W : mode === 1 ? H : RMAX) * 0.8;
       const fresh = (c) => { const a = t - c.t0; return a < c.hold ? 1 : Math.exp(-(a - c.hold) / c.relax); };
       const delay = (s) => {
@@ -172,7 +155,7 @@
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.shadowBlur = 0;
       g.imageSmoothingEnabled = true;
-      g.globalAlpha = (1 - 0.5 * k.live) * dimTo(pres, 0.05 + 0.25 * swell);   // how much of the live picture shows through, and how present
+      g.globalAlpha = 1 - 0.5 * k.live;   // how much of the live picture shows through
       if (hist.length) {
         // strips 8 px wide (rings 12 px); neighbours from the same copy are drawn in one go; delay ~0 keeps the live,
         // full-size picture
@@ -213,9 +196,9 @@
       g.lineWidth = 2;
       for (const c of cuts) {
         const f = fresh(c); if (f < 0.05) continue;
-        g.strokeStyle = `rgba(200,36,30,${(0.6 * f * dimTo(pres, 0.35)).toFixed(3)})`; tick(posOf(c.p, mode), 10 + 18 * f);
+        g.strokeStyle = `rgba(200,36,30,${(0.6 * f).toFixed(3)})`; tick(posOf(c.p, mode), 10 + 18 * f);
       }
-      g.strokeStyle = `rgba(236,226,200,${((0.35 + 0.35 * calm) * dimTo(pres, 0.08)).toFixed(3)})`; mark(now, 1.5);
+      g.strokeStyle = `rgba(236,226,200,${(0.35 + 0.35 * calm).toFixed(3)})`; mark(now, 1.5);
       g.restore();
     } catch (e) { console.warn('timeslice', e); }
   }
@@ -228,9 +211,9 @@
 
   TOOLS.push({
     id: 'timeslice', name: 'Time slice', tag: 'new',
-    blurb: 'A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line. Turn <b>how present</b> down to dim it: fainter and calmer, and only the hardest attacks still cut.',
+    blurb: 'A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line. <b>how present</b> sets how much it smears: turned down, a short lean with hairline cuts.',
     params: [
-      { key: 'far', label: 'how far back', min: 0.25, max: 3, value: 1.5,
+      { key: 'far', label: 'how far back', min: 0.25, max: 3, value: 1.5, less: 0.3,
         hint: 'How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons.',
         icon: (g, v, w, h) => { ICON.alpha(g, 0.35, () => lean(g, 6, 5, 15, 0, ICON.dim)); lean(g, 6, 5, 15, 2 + v * 16, IAMB); } },
       { key: 'mode', label: 'which way it slices', min: 0, max: 2, step: 1, value: 0,
@@ -241,13 +224,13 @@
           else if (m === 1) ICON.lines(g, 5, w, h, { dir: 'h', col: IBONE, lw: 1.2 });
           else for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, i * 2.9, IBONE, 1.1);
         } },
-      { key: 'cut', label: 'how wide a note’s fresh cut is', min: 0, max: 1, value: 0.35,
+      { key: 'cut', label: 'how wide a note’s fresh cut is', min: 0, max: 1, value: 0.35, less: 0.05,
         hint: 'How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present.',
         icon: (g, v, w, h) => {
           ICON.lines(g, 9, w, h, { dir: 'v', col: ICON.dim, lw: 1 });
           const bw = 1.5 + v * 18; ICON.rect(g, w / 2 - bw / 2, 3, bw, h - 6, IBONE);
         } },
-      { key: 'live', label: 'how much of the live picture shows through', min: 0, max: 1, value: 0.2,
+      { key: 'live', label: 'how much of the live picture shows through', min: 0, max: 1, value: 0.2, less: 0.6,
         hint: 'How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past.',
         icon: (g, v, w, h) => { lean(g, 7, 5, 15, 12, IAMB); ICON.alpha(g, v * 0.85, () => ICON.rect(g, 13, 5, 15, 15, IBONE)); } },
       { key: 'stretch', label: 'how hard loud chords stretch time', min: 0, max: 1, value: 0.6,
@@ -256,15 +239,15 @@
           const L = 8 + v * 24;
           for (let i = 0; i < 8; i++) ICON.alpha(g, 1 - i / 9, () => ICON.rect(g, 4 + (L * i) / 8, 9 + i * 0.6, L / 8 + 0.6, 8, i ? IRED : IAMB));
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, short smear that wakes only on the hardest attacks, close to nothing. Right: every note cuts at full strength (as before).',
-        icon: (g, v, w, h) => { ICON.alpha(g, 0.12 + 0.88 * v, () => { lean(g, 6, 5, 15, 2 + v * 8, IAMB); ICON.rect(g, 16, 2, 1.5, h - 4, IBONE); }); } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much smear it makes: how far back the strips reach, how wide each note cuts the present through, how much of the picture is smear rather than live. Left: a short lean with hairline cuts, mostly the live picture. Right: long ribbons and wide cuts. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { VELS = null; swell = 0; armed = false; owner = null; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
+    reset() { armed = false; owner = null; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
     onChord(ch) { pending.push(ch); if (pending.length > 8) pending.shift(); },
     frame(x) {
       // knobs are read here (they only resolve while the harness is running this widget), then used after the others drew
-      const k = { far: x.p('far'), mode: Math.round(x.p('mode')), cut: x.p('cut'), live: x.p('live'), stretch: x.p('stretch'), presence: x.p('presence') }, dt = x.dt;
+      const k = { far: x.p('far'), mode: Math.round(x.p('mode')), cut: x.p('cut'), live: x.p('live'), stretch: x.p('stretch') }, dt = x.dt;
       if (!queued) { queued = true; queueMicrotask(() => post(x, dt, k)); }
     },
   });

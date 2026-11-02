@@ -220,22 +220,22 @@
     id: 'pixelsort', name: 'Pixel sort', tag: 'v2',
     blurb: 'Now a real pixel sort: each chord sorts the shapes under it by brightness, in place, so whatever the other widgets drew melts in the chord’s direction (bass down, treble up, the melody sideways). Soft chords shimmer a few thin lines, loud ones melt a wide sheet, the loudest tear a band right across the screen, and held chords hold their melt.',
     params: [
-      { key: 'len', label: 'how far it smears', min: 0.2, max: 1.6, value: 0.75, drive: '+level',
+      { key: 'len', label: 'how far it smears', min: 0.2, max: 1.6, value: 0.75, less: 0.2, drive: '+level',
         hint: 'How far each chord pulls the picture out. Left: short nicks at the attack. Right: long streaks across the screen.',
         icon: (g, v, w, h) => {
           ICON.rect(g, 3, 6, 4, 14, IAMB);
           const R = ICON.rng(4); for (let i = 0; i < 5; i++) smear(g, 7, 7.5 + i * 2.8, (3 + v * 28) * (0.55 + 0.45 * R()), i % 2 ? IRED : IAMB, 2);
         } },
-      { key: 'life', label: 'how long it stays', min: 0.2, max: 3, value: 1.3, drive: '-rate',
+      { key: 'life', label: 'how long it stays', min: 0.2, max: 3, value: 1.3, less: 0.2, drive: '-rate',
         hint: 'How long a smear hangs before it shrinks back into the attack. Left: a flicker. Right: lingers for seconds.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, IAMB) },
-      { key: 'band', label: 'how wide each smear', min: 0.3, max: 2.5, value: 1,
+      { key: 'band', label: 'how wide each smear', min: 0.3, max: 2.5, value: 1, less: 0.3,
         hint: 'How many lines of pixels each chord grabs (big and loud chords grab more). Left: a thin thread. Right: a wide sheet.',
         icon: (g, v, w, h) => {
           const n = 1 + Math.round(v * 6), R = ICON.rng(2);
           for (let i = 0; i < n; i++) smear(g, 4, h / 2 + (i - (n - 1) / 2) * 3, 18 + R() * 14, i % 2 ? IRED : IAMB, 2.2);
         } },
-      { key: 'pick', label: 'what gets smeared', min: 0, max: 0.7, value: 0.12,
+      { key: 'pick', label: 'what gets smeared', min: 0, max: 0.7, value: 0.12, less: 0.6,
         hint: 'Which parts of the picture get sorted. Left: everything, dark parts too, into solid bars that cut through. Right: only the brightest bits, as thin glowing threads.',
         icon: (g, v, w, h) => {
           const lit = [0.9, 0.25, 0.6, 0.12, 0.8, 0.4];
@@ -245,7 +245,7 @@
             v < 0.3 ? ICON.rect(g, 4, y - 1.6, 32, 3.3, col) : smear(g, 4, y, 30, col, 1.4);
           });
         } },
-      { key: 'own', label: 'its own colour', min: 0, max: 1, value: 0.6,
+      { key: 'own', label: 'its own colour', min: 0, max: 1, value: 0.6, less: 0.2,
         hint: 'How much colour it adds at each chord. Left: none, it only sorts what other widgets drew. Right: bright streaks of its own.',
         icon: (g, v, w, h) => {
           [IRED, IAMB, IBONE].forEach((c, i) => {
@@ -253,6 +253,9 @@
             ICON.alpha(g, v, () => ICON.rect(g, 4 + i * 11.5, 6, 8, 14, c));
           });
         } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much it smears: how far each chord pulls the picture out, how wide a sheet it grabs, how long it hangs, how much of the picture gets sorted, how much of its own paint it adds. Left: short thin flicks of the brightest bits only. Right: long wide sheets of nearly everything. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { for (const s of streaks) pool.push(s.t); streaks = []; pending = []; pix = EMPTY; lastKick = -1; gen++; busy = false; queued = false; lastTear = -9; },
     onChord(ch) { pending.push(ch); if (pending.length > 6) pending.shift(); },

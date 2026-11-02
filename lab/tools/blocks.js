@@ -89,25 +89,28 @@
           if (v < 0.4) ICON.arrow(g, w / 2 + rw / 2 + 5, h / 2 + 7, w / 2 + rw / 2 + 5, h / 2 - 8, ICON.ink, 1.3);
           else if (v > 0.6) ICON.arrow(g, w / 2 - 9, h / 2 + rh / 2 + 3.5, w / 2 + 9, h / 2 + rh / 2 + 3.5, ICON.ink, 1.3);
         } },
-      { key: 'jump', label: 'how far they jump', min: 0, max: 2, value: 0.9, drive: '+level',
+      { key: 'jump', label: 'how far they jump', min: 0, max: 2, value: 0.9, less: 0.35, drive: '+level',
         hint: 'How far a torn piece is thrown out of place. Left: a small shiver. Right: flung far across the picture.',
         icon: (g, v, w, h) => {
           g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(4.5, 7.5, 10, 11);
           ICON.rect(g, 4 + v * 21, 7, 11, 12, IR);
           if (v > 0.25) ICON.arrow(g, 9, 3, 9 + v * 21, 3, ICON.ink, 1.1);
         } },
-      { key: 'amount', label: 'how many tears', min: 0, max: 3, value: 1.2,
+      { key: 'amount', label: 'how many tears', min: 0, max: 3, value: 1.2, less: 0.2,
         hint: 'How many pieces each attack tears. Left: hardly any, only the biggest chords. Right: a storm of fragments on every chord.',
         icon: (g, v, w, h) => {
           const r = ICON.rng(9), n = Math.round(1 + v * 9);
           for (let i = 0; i < n; i++) ICON.rect(g, 2 + r() * (w - 12), 2 + r() * (h - 6), 6 + r() * 4, 2.5, i % 3 ? IR : '#ece2cc');
         } },
-      { key: 'settle', label: 'how long until it heals', min: 0.15, max: 5, value: 1.6,
+      { key: 'settle', label: 'how long until it heals', min: 0.15, max: 5, value: 1.6, less: 0.4,
         hint: 'How long a torn piece takes to snap back into place. Left: a split-second stutter. Right: the broken picture hangs for seconds.',
         icon: (g, v, w, h) => {
           ICON.line(g, 2, h / 2 + 4, w - 2, h / 2 + 4, ICON.dim, 1);
           for (let i = 0; i < 5; i++) { const off = 10 * Math.exp(-i / (0.25 + v * 5)); ICON.rect(g, 3 + i * 7.2, h / 2 - 1 - off, 5.5, 5, IR); }
         } },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
+        hint: 'How much tearing it does: how many pieces each attack tears, how far they are thrown, how long the broken picture hangs before it heals. Left: a rare small shiver that heals at once. Right: a storm of far-flung fragments that linger. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) { blocks = []; flashes = []; energy = 0; lastT = x.t; bg.clearRect(0, 0, W, H); },
     onChord(ch, x) {
