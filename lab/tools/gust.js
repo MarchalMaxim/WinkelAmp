@@ -89,8 +89,7 @@
   }
 
   function blow(ch, x) {
-    const pres = x.p('presence'), raw = percentile(ch.vel), t = ch.t ?? x.t, { rank, dense } = local(t, ch.vel);
-    if (raw < (1 - pres) * 0.95) return;          // turned down, only the piece's hardest attacks blow
+    const raw = percentile(ch.vel), t = ch.t ?? x.t, { rank, dense } = local(t, ch.vel);
     const pow = x.p('power');
     const lift = (v) => (pow < 0.5 ? v * pow * 2 : v + (1 - v) * (pow - 0.5) * 2);
     const W = x.W, H = x.H, full = raw >= 0.98 && sinceFull > 1.1 && pow > 0.04;
@@ -131,11 +130,11 @@
     const most = jab && dense > 0.3 ? 2 : 5;      // a jab is a jab, however many notes the chord has: its outer two
     const keep = sorted.length <= most ? sorted : Array.from({ length: most }, (_, i) => sorted[Math.round(i * (sorted.length - 1) / (most - 1))]);
     const spread = x.p('fan') * 2 * 7.5 * (jab ? 1 - 0.7 * dense : 1) * Math.PI / 180;
-    const presK = 0.5 + 0.5 * pres, reach = x.p('reach');
+    const reach = x.p('reach');
     keep.forEach((n, i) => {
       const off = (i - (keep.length - 1) / 2) * spread, a = centre + off, s = span(n.m);
       const own = clamp(p * (0.75 + 0.25 * n.v / Math.max(1, ch.vel)), 0, 1);
-      const L = (0.2 + 0.8 * Math.pow(Math.min(1, own / 0.9), 1.5 + 1.5 * dense)) * W * 1.3 * reach * presK;
+      const L = (0.2 + 0.8 * Math.pow(Math.min(1, own / 0.9), 1.5 + 1.5 * dense)) * W * 1.3 * reach;
       const hw = (10 + 92 * Math.pow(1 - s, 1.5)) * (0.4 + 0.6 * own) * (full ? 1.2 : 1);
       const held = n.d > 0.25 ? Math.min(n.d, 0.6 + 3 * own) : 0.05;
       // A note held under a dense run keeps nothing lit: only an accent burns on, and not for long.
@@ -148,10 +147,10 @@
       // The front is a rank of needles at uneven distances, not a plane: force, with no edge to it.
       const rank = [];
       for (let i = 0; i < 44; i++) rank.push({ o: x.rnd(-1, 1), lag: x.rnd(0, 420), len: x.rnd(140, 620), wd: x.rnd(0.8, 3.4), heat: x.rnd(0, 1) < 0.2 ? 7 : Math.round(x.rnd(4, 6)) });
-      fronts.push({ mx, my, ax: Math.cos(centre), ay: -Math.sin(centre), nx: Math.sin(centre), ny: Math.cos(centre), s: 0, V: 2900 * presK, end: W * 1.6, age: 0, rank });
+      fronts.push({ mx, my, ax: Math.cos(centre), ay: -Math.sin(centre), nx: Math.sin(centre), ny: Math.cos(centre), s: 0, V: 2900, end: W * 1.6, age: 0, rank });
     }
     // A shove, not a shake: the picture lurches downwind and springs back.
-    const lurch = Math.pow(p, 3) * (full ? 34 : 15) * (0.2 + 0.8 * pres) * 26;
+    const lurch = Math.pow(p, 3) * (full ? 34 : 15) * 26;
     if (p > 0.5) { shoveVX += Math.cos(centre) * lurch; shoveVY -= Math.sin(centre) * lurch; }
   }
 
@@ -233,11 +232,11 @@
     onChord(ch, x) { gridReady(); blow(ch, x); },
     frame(x) {
       gridReady();
-      const g = x.g, dt = Math.min(0.05, x.dt), W = x.W, H = x.H, cw = W / GW, chh = H / GH, pres = x.p('presence'), bright = 0.03 + 0.97 * pres * pres;
+      const g = x.g, dt = Math.min(0.05, x.dt), W = x.W, H = x.H, cw = W / GW, chh = H / GH;
       // The ground: the harness fades to black each frame; a floor of aubergine (#12091e) holds it there without covering
       // anything brighter underneath, and leaves no stains where an old blast faded a few levels past it.
-      g.globalCompositeOperation = 'lighten'; g.globalAlpha = pres;
-      g.fillStyle = 'rgb(18,9,30)'; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+      g.globalCompositeOperation = 'lighten'; g.globalAlpha = 1;
+      g.fillStyle = 'rgb(18,9,30)'; g.fillRect(0, 0, W, H);
 
       if (dt > 0) {
         time += dt; sinceFull += dt;
@@ -299,7 +298,7 @@
         const p = paths[b]; p.moveTo(d.x, d.y);
         p.quadraticCurveTo(d.x - c * len * 0.5 - s * hook, d.y - s * len * 0.5 + c * hook, d.x - c * len, d.y - s * len);
       }
-      g.lineCap = 'round'; g.globalAlpha = bright;
+      g.lineCap = 'round';
       AIR.forEach(([col, lw], i) => { g.globalCompositeOperation = i >= PLAIN_AIR ? 'source-over' : 'lighten'; g.strokeStyle = col; g.lineWidth = lw; g.stroke(paths[i]); });
 
       // The wedges, batched by heat. A strand runs to its front fast, burns while its note holds, then its back catches up.
@@ -338,7 +337,7 @@
         }
         if (!live && gone > 0) wedges.splice(i, 1);
       }
-      painting = painted; g.globalAlpha = bright;
+      painting = painted;
       buckets.forEach((b, i) => { g.globalCompositeOperation = i >= PLAIN_HEAT ? 'source-over' : 'lighten'; g.fillStyle = HEAT[i]; for (const p of b) g.fill(p); });
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     },

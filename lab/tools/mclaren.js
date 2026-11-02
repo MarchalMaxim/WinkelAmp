@@ -16,28 +16,13 @@
 // film); in busy music the light is shared out so it never strobes. Neighbouring panels swap a pair of flat colours that
 // follow the harmony; busy music splits the screen into more panels (1, 3, 5, 7, 9, from the middle out), calm music
 // merges them.
-// The how present knob (the user: sliders should dim, not only boost; added without a new version, the tag stays v2): turned
-// down, the picture sinks toward nothing and lets what is under it show, the film slows, cards are smaller and echo less,
-// the panels stop flashing, and only the hardest notes of the piece print a card. The hue still follows every note.
 (() => {
   const SLOTS = 9, MID = 4, CAP = 40;
   // the order panels appear in: the middle first, then a pair either side, and so on
   const RANK = Array.from({ length: SLOTS }, (_, s) => Math.abs(s - MID) * 2 - (s < MID ? 1 : 0));
-  let wgt, prints, chroma, hue, glow, flash, heat, vels = null, layer = null, lg = null;
+  let wgt, prints, chroma, hue, glow, flash, heat;
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const lerp = (a, b, k) => a + (b - a) * k;
-  // a factor for how present: a at 0, exactly 1 at 1, so the full-strength picture is untouched
-  const toward1 = (a, pres) => (pres >= 1 ? 1 : a + (1 - a) * pres);
-  // how present: which notes print, judged against this piece's own notes (recordings differ a lot in how hard they
-  // play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
-  const hardEnough = (v, pres) => {
-    const cut = (1 - pres) * 0.95;
-    if (cut <= 0) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
   // HSL → [r,g,b]
   function hsl(h, s, l) {
     h = ((h % 360) + 360) % 360 / 360;
@@ -88,10 +73,6 @@
       strip(g, 4, 14, h, 4, 0.8, '#2a2240', ICON.gold);
       ICON.arrow(g, 29, 5, 29, 9 + v * 12, ICON.ink, 1.2 + v);
     },
-    presence(g, v, w, h) {                                // three strips, faint with short bars, or solid with long ones
-      const cw = (w - 4) / 3;
-      for (let i = 0; i < 3; i++) { const [gr, ink] = pair(250 + (i - 1) * 16, i % 2 === 1, 0.4, 1); ICON.alpha(g, 0.15 + 0.85 * v, () => strip(g, 2 + i * cw + 0.5, cw - 1, h, 4, 0.3 + 0.5 * v, rgb(gr), rgb(ink))); }
-    },
   };
 
   TOOLS.push({
@@ -119,19 +100,18 @@
     ],
     reset() {
       wgt = RANK.map((r) => (r < 3 ? 1 : 0)); prints = Array.from({ length: SLOTS }, () => []);
-      vels = null; chroma = new Array(12).fill(0); hue = 250; glow = 0; flash = new Array(SLOTS).fill(0); heat = new Array(SLOTS).fill(0);
+      chroma = new Array(12).fill(0); hue = 250; glow = 0; flash = new Array(SLOTS).fill(0); heat = new Array(SLOTS).fill(0);
     },
     onChord(ch, x) {
       const N = Math.max(1, Math.min(SLOTS, 1 + 2 * Math.round((x.p('panels') - 1) / 2)));
       // the panels the music can print into: the target ones, left to right
       const act = []; for (let s = 0; s < SLOTS; s++) if (RANK[s] < N) act.push(s);
-      const pres = clamp01(x.p('presence'));
-      const reach = x.p('spread') * (act.length - 1) * pres + 0.5;
+      const reach = x.p('spread') * (act.length - 1) + 0.5;
       // at most five notes per attack: the loudest of each pitch class
       const by = new Map(); for (const n of ch.notes) { const pc = n.m % 12; if (!by.has(pc) || by.get(pc).v < n.v) by.set(pc, n); }
-      const notes = [...by.values()].sort((a, b) => b.v - a.v).slice(0, 5).filter((n) => hardEnough(n.v, pres));
+      const notes = [...by.values()].sort((a, b) => b.v - a.v).slice(0, 5);
       for (const n of ch.notes) chroma[n.m % 12] += n.v / 127;
-      if (notes.length) glow = Math.max(glow, ch.vel / 115);
+      glow = Math.max(glow, ch.vel / 115);
       const H = x.H;
       for (const n of notes) {
         const pc = n.m % 12, f5 = (pc * 7) % 12;
@@ -139,14 +119,14 @@
         const P = period(n.m), vel = clamp01(n.v / 110), hi = clamp01((n.m - 30) / 66);
         const hold = Math.max(0.05, Math.min(n.d, 6));
         // how deep the strike punches into the film at once: loud notes reach far down the panel
-        const D = Math.max(P * 1.15 + 4, H * (0.05 + 0.42 * Math.pow(vel, 1.6) * toward1(0.25, pres)));
+        const D = Math.max(P * 1.15 + 4, H * (0.05 + 0.42 * Math.pow(vel, 1.6)));
         for (let i = 0; i < act.length; i++) {
           const d = Math.abs(i - home), a = 1 - d / reach;
           if (a <= 0.05) continue;
           const L = prints[act[i]];
           L.push({
             P, th: P * lerp(0.56, 0.42, hi), hi, vel, a,
-            wide: (0.2 + 0.72 * vel) * (0.4 + 0.6 * a) * toward1(0.6, pres),     // bar width, as a share of the panel
+            wide: (0.2 + 0.72 * vel) * (0.4 + 0.6 * a),     // bar width, as a share of the panel
             D: D * (0.45 + 0.55 * a), y: -1, len: 0,          // y: how far the struck edge has run down (set on landing)
             age: -d * 0.045, hold, home: d === 0,
           });
@@ -159,15 +139,8 @@
       }
     },
     frame(x) {
-      const dt = x.dt, W = x.W, H = x.H, pres = clamp01(x.p('presence'));
-      // below full presence the picture is built on its own canvas, so it can sink as a whole (the cards stay opaque to
-      // each other) and be laid over the stage at the end
-      if (pres < 1) {   // at the real canvas's size, so a supersampled picture stays sharp
-        const c = x.g.canvas;
-        if (!layer || layer.width !== c.width || layer.height !== c.height) { layer = Object.assign(document.createElement('canvas'), { width: c.width, height: c.height }); lg = layer.getContext('2d'); }
-        lg.setTransform(c.width / W, 0, 0, c.height / H, 0, 0);
-      }
-      const g = pres < 1 ? lg : x.g;
+      const dt = x.dt, W = x.W, H = x.H;
+      const g = x.g;
       // the panels split from the middle out as the target count grows, and merge back
       const N = Math.max(1, Math.min(SLOTS, 1 + 2 * Math.round((x.p('panels') - 1) / 2)));
       const kk = 1 - Math.pow(0.5, dt / 0.18);
@@ -181,7 +154,7 @@
       }
       glow *= Math.pow(0.5, dt / 1.2);
       const fd = Math.pow(0.5, dt / 0.07), hd = Math.pow(0.5, dt / 0.6);
-      const field = clamp01(x.p('field')), life = x.p('life'), run = speedOf(clamp01(x.p('scroll'))) * dt * toward1(0.2, pres);
+      const field = clamp01(x.p('field')), life = x.p('life'), run = speedOf(clamp01(x.p('scroll'))) * dt;
       const tot = wgt.reduce((a, b) => a + b, 0) || 1, gap = 3;
       let px = 0, j = 0; const vis = wgt.filter((w) => w > 0.004).length;
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
@@ -197,7 +170,7 @@
             // the strike lands: it punches its first run of bars into the film and lifts the panel's ground; a panel
             // that has just been struck a lot takes a smaller lift, so busy music shimmers instead of strobing
             p.y = p.D; p.len = p.D;
-            const lift = p.vel * p.vel * (p.home ? 1 : 0.45) * p.a / (1 + 1.6 * heat[s]) * pres;
+            const lift = p.vel * p.vel * (p.home ? 1 : 0.45) * p.a / (1 + 1.6 * heat[s]);
             flash[s] = Math.max(flash[s], lift); heat[s] += p.home ? 0.6 + p.vel : 0.2;
           } else {
             p.y += run; if (p.age < p.hold) p.len += run;
@@ -254,14 +227,6 @@
             g.fillStyle = rgb(mix(col, WHITE, 0.55 * born)); g.fillRect(cxp - bw2 / 2, yA - bh, bw2, bh);
           }
         }
-      }
-      if (pres < 1) {
-        // sink the picture toward black, then lay it over the stage: its black lets the stage show as far as presence
-        // allows, and 'lighten' keeps the level steady under the stage's own slow fade instead of piling up
-        lg.fillStyle = `rgba(0,0,0,${0.88 * (1 - pres)})`; lg.fillRect(0, 0, W, H);
-        const st = x.g;
-        st.fillStyle = `rgba(0,0,0,${pres})`; st.fillRect(0, 0, W, H);
-        st.globalCompositeOperation = 'lighten'; st.drawImage(layer, 0, 0, W, H); st.globalCompositeOperation = 'source-over';
       }
     },
   });

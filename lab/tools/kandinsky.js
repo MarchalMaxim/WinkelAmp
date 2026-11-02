@@ -4,8 +4,6 @@
 // constellation around a wandering focus, the melody is a line, and big chords throw long straight lines across the canvas.
 // v2 (2026-10-31): the low register no longer paints red squares (that is Dread squares' job), everything is a notch
 // smaller and quieter, and 10 knobs became 5 with new keys, so earlier slider settings no longer apply (our defaults).
-// A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, shapes and lines fade
-// together, the painting scatters and drifts less, and only the song's hardest notes add a shape.
 (() => {
   const TAU = Math.PI * 2;
   let els = [], lines = [], rings = [], planes = [], lastTop = null, crossCool = 0, planeCool = 0, fx = 640, fy = 360, wx = 0, wy = 0;
@@ -19,16 +17,6 @@
   const CORONA = [[52, 70, 190], [110, 60, 170]];
   const CREAM = '238,230,212', INK = '9,8,11';
   const rgb = (c) => c.map(Math.round).join(',');
-  // how present (0..1): which notes paint, judged against this piece's own notes (recordings differ a lot in how hard
-  // they play): every one at 1, the hardest 75% at 0.5, half at 0.25, the hardest 5% at 0 (so a soft passage stays alive until far left)
-  let vels = null;
-  const hardEnough = (v, pres) => {
-    if (pres >= 1) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= (1 - pres) * (1 - pres) * 0.95;
-  };
 
   // a polygon with rounded corners (rr = 0: sharp)
   function poly(g, pts, rr) {
@@ -53,10 +41,10 @@
     poly(g, [[h * 0.62, 0], [-h * 0.38, -b / 2], [-h * 0.38, b / 2]], rr);   // points along +x
   }
   function line(a, b, kind, life, w) { lines.push({ a, b, kind, life, w, age: 0 }); }
-  // the six knobs, plus what the old knobs became (how present takes most of the restlessness away as it goes down)
+  // the six knobs, plus what the old knobs became
   function knobs(x) {
-    const pres = x.p('presence'), r = x.p('restless') * (1 - 0.75 * (1 - pres)), paint = x.p('paint');
-    return { sharp: x.p('edges'), hollow: x.p('rings'), L: x.p('web'), order: 0.85 - 0.6 * r, drift: 0.05 + 0.6 * r, paint, pres };
+    const r = x.p('restless'), paint = x.p('paint');
+    return { sharp: x.p('edges'), hollow: x.p('rings'), L: x.p('web'), order: 0.85 - 0.6 * r, drift: 0.05 + 0.6 * r, paint };
   }
 
   // icon helpers (drawn on the knob's 40x26 canvas)
@@ -96,13 +84,6 @@
         }
       });
     },
-    presence(g, v, w, h) {                            // one faint form, or the bright painting with more on it
-      ICON.alpha(g, 0.15 + 0.85 * v, () => {
-        ICON.dot(g, 13, h / 2 + 1, 3 + 4 * v, ICON.blue);
-        if (v > 0.3) ICON.shape(g, 'triangle', 28, 8, 5 + 4 * v, ICON.gold);
-        if (v > 0.65) ICON.square(g, 28, 19, 5, '#b8802a', 0.5);
-      });
-    },
   };
 
   TOOLS.push({
@@ -128,9 +109,9 @@
         hint: 'How much painting it makes: how big the shapes get and how long they stay, and how many lines join them. Left: small shapes that leave soon, almost no lines. Right: big shapes that stay for seconds in a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { els = []; lines = []; rings = []; planes = []; lastTop = null; crossCool = 0; planeCool = 0; fx = 640; fy = 360; wx = 0; wy = 0; vels = null; },
+    reset() { els = []; lines = []; rings = []; planes = []; lastTop = null; crossCool = 0; planeCool = 0; fx = 640; fy = 360; wx = 0; wy = 0; },
     onChord(ch, x) {
-      const { order, L, paint, pres } = knobs(x);
+      const { order, L, paint } = knobs(x);
       const life = lerp(2.5, 7.5, paint) * (1 - 0.35 * (x.feat?.density ?? 0)), scale = lerp(0.55, 1.1, paint);
       // the focus wanders over the canvas on its own slow path
       const roam = 0.17, T = x.t;
@@ -141,7 +122,7 @@
       fx += wx; fy += wy;
       fx = Math.max(x.W * 0.25, Math.min(x.W * 0.75, fx)); fy = Math.max(x.H * 0.32, Math.min(x.H * 0.62, fy));
       // a loud low note now and then lays a faint field of blue or yellow far behind everything
-      if (ch.lo < SPLIT - 6 && ch.vel >= 84 && planeCool <= 0 && hardEnough(ch.vel, pres) && Math.random() < 0.3 + 0.6 * paint) {
+      if (ch.lo < SPLIT - 6 && ch.vel >= 84 && planeCool <= 0 && Math.random() < 0.3 + 0.6 * paint) {
         planeCool = 2.5;
         planes.push({ x: fx + R(-1, 1) * 120 * (1 - order), y: fy + R(-1, 1) * 70, r: (120 + (ch.vel - 84) * 5) * lerp(0.75, 1.2, paint), age: 0, life: life * 1.2,
           col: Math.random() < 0.65 ? MID : HIGH, a: 0.025 + 0.03 * paint, sq: Math.random() < 0.35, rot: lerp(R(-0.6, 0.6), 0, order) });
@@ -153,7 +134,6 @@
       // the bass of a chord is one weight, not a pile: its low notes merge into a single, longer bar
       const lows = notes.filter((n) => n.m < SPLIT - 10);
       if (lows.length > 1) notes = [{ ...lows[0], v: Math.max(...lows.map((n) => n.v)), k: 1 + 0.15 * (lows.length - 1) }, ...notes.slice(lows.length)];
-      if (pres < 1) { notes = notes.filter((n) => hardEnough(n.v, pres)); if (!notes.length) return; }
       for (const n of notes) {
         const cls = n.m < SPLIT - 10 ? 0 : n.m < SPLIT + 10 ? 1 : 2;
         const a = (((n.m * 7) % 12) / 12) * TAU + R(-1, 1) * (1 - order) * 0.9;     // circle of fifths: a chord is a figure
@@ -197,7 +177,7 @@
       if (lastTop && lastTop.age < lastTop.life && L > 0.08 && lastTop !== top) line(lastTop, top, 'm', life * 0.9, 1.3 + 2 * L);
       lastTop = top;
       // big chords: long straight lines across the canvas, snapped to a few directions when ordered
-      if (ch.vel >= 92 && ch.notes.length >= 2 && crossCool <= 0 && L > 0.05 && hardEnough(ch.vel, pres)) {
+      if (ch.vel >= 92 && ch.notes.length >= 2 && crossCool <= 0 && L > 0.05) {
         const k = Math.max(1, Math.round(L * 2.4 * (ch.vel - 84) / 30));
         for (let i = 0; i < k; i++) {
           const raw = R(0, Math.PI), snap = Math.round(raw / (Math.PI / 4)) * (Math.PI / 4);
@@ -210,9 +190,8 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt;
-      const { sharp, hollow, drift, paint, pres } = knobs(x);
-      const stageAlpha = g.globalAlpha;                // turned down, everything drawn below is fainter by the same factor
-      if (pres < 1) g.globalAlpha = stageAlpha * (0.12 + 0.88 * Math.pow(pres, 1.5));
+      const { sharp, hollow, drift, paint } = knobs(x);
+      const stageAlpha = g.globalAlpha;
       const fillA = lerp(0.5, 0.9, paint);
       crossCool -= dt; planeCool -= dt;
       // the painting slowly turns about the centre: each living form orbits by this frame's step

@@ -35,7 +35,7 @@
 
   // ---- state
   let nodes = [], links = [], time = 0, lastBud = -9, vels = null, pLo = 30, pHi = 96, seeded = false, lvl = 0.5, lvlT = 0;
-  let bx0 = FW, bx1 = 0, by0 = FH, by1 = 0, lay = null, lg = null;
+  let bx0 = FW, bx1 = 0, by0 = FH, by1 = 0;
 
   // A metaball with a wide soft kernel, so outlines stay smooth: at distance R it reaches CUT.
   function disc(cx, cy, R, gl = 0, A = 0.54) {
@@ -84,9 +84,9 @@
     }
     return best;
   }
-  function seed(x, pres) {
+  function seed(x) {
     seeded = true;
-    const n = 3 + Math.round(3 * pres);
+    const n = 6;
     for (let i = 0; i < n; i++) {
       const [cx, cy] = emptyPlace(LW * ((i + 0.5) / n), LH * 0.08, LH * 0.8, x);
       const sz = x.rnd(0, 1), o = mkNode(cx, cy, 25 + sz * sz * 420, x); o.R = Math.sqrt(o.vol);
@@ -163,20 +163,17 @@
     ],
     reset() { nodes = []; links = []; time = 0; lastBud = -9; vels = null; seeded = false; lvl = 0.5; lvlT = 0; },
     onChord(ch, x) {
-      const pres = x.p('presence'); if (pres < 0.005) return;       // gone: nothing piles up behind the knob
       const load = x.p('load'), busy = x.p('busy');
-      if (!seeded) seed(x, pres);
-      const q = quantile(ch.vel), hardCut = (1 - pres) * 0.95;
-      const attackK = pres >= 0.999 ? 1 : pres * sstep(hardCut - 0.25, hardCut, q);
-      const matK = (0.1 + 0.9 * pres) * sstep(hardCut - 0.4, hardCut, q + 0.001);
-      const cut = Math.max((1 - busy) * 0.9, hardCut), cap = Math.round(3 + (MAX_NODES - 3) * pres);
+      if (!seeded) seed(x);
+      quantile(ch.vel);                                  // learns the song's pitch range, for noteX
+      const cut = (1 - busy) * 0.9;
       let started = 0;
       for (const n of ch.notes) {
         const nx = noteX(n.m, x), w = Math.pow(n.v / 105, 1.6) * load, pitch = clamp((n.m - 30) / 66, 0, 1), fat = 1.45 - 0.95 * pitch;
         // In the same frame: the nearest mass begins to drop under the weight and flushes, its threads flush and dip with it.
         // The flush answers to how loud the note is, and to how loud it is against the last few seconds.
         lvl += (w - lvl) * Math.max(0.02, 1 - Math.exp(-(time - lvlT) / 3)); lvlT = time;
-        const T = (0.3 + 0.6 * Math.min(1, 0.5 * w + 0.5 * w / Math.max(lvl, 0.2))) * attackK;
+        const T = 0.3 + 0.6 * Math.min(1, 0.5 * w + 0.5 * w / Math.max(lvl, 0.2));
         let near = null, nd = 1e9, count = 0, upper = 0, moving = 0, left = 0;
         for (const o of nodes) {
           if (o.melt) continue;
@@ -184,51 +181,49 @@
           const d = Math.abs(o.x - nx) + Math.abs(o.y - LH * 0.45) * 0.12; if (d < nd) { nd = d; near = o; }
         }
         if (near) {
-          near.swell += w * fat * fat * 7 * matK;
-          weigh(near, (2 + 6 * w * fat) * attackK, T);
+          near.swell += w * fat * fat * 7;
+          weigh(near, 2 + 6 * w * fat, T);
           for (const l of links) {
             if (l.broken) continue;
             const at = l.a === near ? 1 : l.b === near ? -1 : 0;
             if (at) {
-              l.dipT = Math.min(7, l.dipT + (1 + 2.5 * w) * attackK); l.V = Math.min(260, l.V + w * fat * 2.5 * matK);
+              l.dipT = Math.min(7, l.dipT + (1 + 2.5 * w)); l.V = Math.min(260, l.V + w * fat * 2.5);
               l.glow = Math.max(l.glow, T / (1 + 0.05 * near.rate));
-            } else if (Math.abs((l.a.x + l.b.x) / 2 - nx) < 46) l.dipT = Math.min(7, l.dipT + (0.5 + 1.2 * w) * attackK);
+            } else if (Math.abs((l.a.x + l.b.x) / 2 - nx) < 46) l.dipT = Math.min(7, l.dipT + (0.5 + 1.2 * w));
           }
         }
         // A mass with no thread, once struck, spins a hair to its nearest neighbour; it will not stay alone.
-        if (near && attackK > 0.1 && links.length < MAX_LINKS && !links.some((l) => !l.broken && (l.a === near || l.b === near))) {
+        if (near && links.length < MAX_LINKS && !links.some((l) => !l.broken && (l.a === near || l.b === near))) {
           let o = null, od = LW * 0.28;
           for (const c of nodes) { if (c === near || c.dead || c.melt) continue; const d = Math.hypot(c.x - near.x, c.y - near.y); if (d < od) { od = d; o = c; } }
           if (o) { const l = mkLink(near, o, 36, 1.6, 1.6, x); l.grow = 0; links.push(l); }
         }
         // High notes: a bead sets off down the nearest thread that hangs.
-        if (n.m >= 74 && attackK > 0.1) {
+        if (n.m >= 74) {
           let best = null, bd = 90;
           for (const l of links) { if (l.broken || l.grow < 1 || l.beads.length > 2 || l.n < 2) continue; const d = Math.abs(l.X[l.n >> 1] / l.SX - nx); if (d < bd) { bd = d; best = l; } }
-          if (best) { const from = best.tLow > 0.5 ? 0 : 1; best.beads.push({ t: from, end: from, r: 0.9 + 1.5 * clamp(w, 0, 1.5) * attackK }); if (quantile(n.v) < 0.75) continue; }
+          if (best) { const from = best.tLow > 0.5 ? 0 : 1; best.beads.push({ t: from, end: from, r: 0.9 + 1.5 * clamp(w, 0, 1.5) }); if (quantile(n.v) < 0.75) continue; }
         }
         // Weight enough, and it pushes out a bud; a mass already budding gets fatter instead.
         const far = !near || nd > 75 + near.R * 0.5, lop = count > 0 && (left === 0 || left === count);       // nothing near this note; half the canvas empty
-        const waited = time - lastBud > (count < 5 || far || lop ? 3 : 7) * (1.6 - busy) && q >= hardCut;     // a passage quiet for this song still grows, slowly
+        const waited = time - lastBud > (count < 5 || far || lop ? 3 : 7) * (1.6 - busy);     // a passage quiet for this song still grows, slowly
         if ((quantile(n.v) < cut && !waited) || started >= 2) continue;
-        if (!far && !lop && near.bud && near.bud.travel && !near.bud.dead) { near.bud.swell += (2 + 18 * w) * fat * fat * matK; continue; }
+        if (!far && !lop && near.bud && near.bud.travel && !near.bud.dead) { near.bud.swell += (2 + 18 * w) * fat * fat; continue; }
         if (time - lastBud < (ch.notes.length > 1 ? 0.5 : 1.1) * (1.5 - busy) || moving >= 4 || links.length >= MAX_LINKS + 6) continue;
-        if (count > cap) continue;
+        if (count > MAX_NODES) continue;
         if (lop) grow(left === 0 ? LW * 0.25 : LW * 0.75, LH * 0.1, LH * 0.65, w, fat, 60, x);
         else if (far) grow(nx, LH * 0.1, LH * 0.65, w, fat, 30, x);
-        else if (upper < 1 + Math.round(pres) && count > 1) grow(nx, LH * 0.06, LH * 0.3, w, fat, 85, x);
+        else if (upper < 2 && count > 1) grow(nx, LH * 0.06, LH * 0.3, w, fat, 85, x);
         else bud(near, nx, w, fat, x);
         started++;
       }
     },
     frame(x) {
-      const g = x.g, dt = x.dt, pres = x.p('presence');
-      if (pres < 0.005) return;
+      const g = x.g, dt = x.dt;
       buildLut(x.p('colour'));
-      if (!seeded) seed(x, pres);
+      if (!seeded) seed(x);
       const stretch = x.p('stretch'), W = x.W, H = x.H, SX = W / LW, SY = H / LH;
-      const tk = Math.pow(2, (0.5 - x.p('thick')) * 3.4) * (0.5 + 0.5 * pres);   // how quick everything is
-      const RK = 0.4 + 0.6 * Math.pow(pres, 0.7), cap = Math.round(3 + (MAX_NODES - 3) * pres);
+      const tk = Math.pow(2, (0.5 - x.p('thick')) * 3.4);   // how quick everything is
       time += dt;
 
       // ---- the masses
@@ -260,7 +255,7 @@
             const L = p ? Math.hypot(n.x - p.x, n.y - p.y) : 0;
             const v = ((3 + 0.03 * Math.min(300, n.vol)) * tk / (1 + L / 170)) * sstep(0, 14, d) + 0.12;     // slower the longer it stretches
             if (d > 1) { n.x += dx / d * v * dt; n.y += dy / d * v * dt; } else n.travel = false;
-          } else n.y += (0.2 + 0.0022 * Math.min(800, n.vol)) * tk * (n === lowest && count > cap - 1 ? 3 : 1) * dt;   // the heavy ones sink; over the limit the lowest goes first
+          } else n.y += (0.2 + 0.0022 * Math.min(800, n.vol)) * tk * (n === lowest && count > MAX_NODES - 1 ? 3 : 1) * dt;   // the heavy ones sink; over the limit the lowest goes first
           if (n.from && Math.hypot(n.x - n.from.x, n.y - n.from.y) > n.R + n.from.R + 4) n.from = null;
           if (n.y - n.R > LH + 34 || n.vol < 5) n.dead = true;
         }
@@ -277,7 +272,7 @@
           }
         }
       }
-      for (const n of nodes) n.R = Math.sqrt(Math.max(1, n.vol)) * RK;
+      for (const n of nodes) n.R = Math.sqrt(Math.max(1, n.vol));
 
       // ---- the threads
       F.fill(0); G.fill(0); px.fill(0); bx0 = FW; bx1 = 0; by0 = FH; by1 = 0;
@@ -313,9 +308,9 @@
         // A thread near the vertical cannot sag, so it leans to one side; nothing is ever a straight wire.
         const cy = (a.y + b.y) / 2 + l.sag * 2 + l.dip * 2 * Math.min(1, L / 70) / (1 + 0.4 * Math.sqrt(l.V / (L + 7))), cx = (a.x + b.x) / 2 + l.bow * L * (1 - hs), den = a.y - 2 * cy + b.y;
         const tl = Math.abs(den) > 1e-3 ? (a.y - cy) / den : 0.5; l.tLow = tl > 0.02 && tl < 0.98 ? tl : b.y > a.y ? 1 : 0;
-        const r = Math.max(0.22, Math.sqrt(l.V / (L + 7))) * RK, n = Math.max(8, Math.min(MAX_S, Math.round(L / 4.5)));
+        const r = Math.max(0.22, Math.sqrt(l.V / (L + 7))), n = Math.max(8, Math.min(MAX_S, Math.round(L / 4.5)));
         const funA = 5 + l.rootA * 1.6, funB = 5 + l.rootB * 1.6, ra = a.R * 0.8, rb = b.R * 0.8, ux = dx / L, uy = dy / L;
-        const brR = Math.sqrt(l.belly) * RK, brW = brR * 1.7 + 3, sw = 2.2 * Math.min(1, L / 60);
+        const brR = Math.sqrt(l.belly), brW = brR * 1.7 + 3, sw = 2.2 * Math.min(1, L / 60);
         const bphase = time * l.swayS + l.sway;
         l.n = n;
         for (let i = 0; i <= n; i++) {
@@ -323,7 +318,7 @@
           l.X[i] = (u * u * a.x + 2 * u * t * cx + t * t * b.x - uy * off) * SX;
           l.Y[i] = (u * u * a.y + 2 * u * t * cy + t * t * b.y + ux * off) * SY;
           const da = Math.max(0, t * L - ra), db = Math.max(0, u * L - rb), dB = (t - l.tLow) * L / brW;
-          const wd = r + RK * (l.rootA * Math.exp(-da / funA) + l.rootB * Math.exp(-db / funB)), lim = Math.min(a.R * 0.8 + t * L * 0.5, b.R * 0.8 + u * L * 0.5);   // never wider than the body it leaves
+          const wd = r + (l.rootA * Math.exp(-da / funA) + l.rootB * Math.exp(-db / funB)), lim = Math.min(a.R * 0.8 + t * L * 0.5, b.R * 0.8 + u * L * 0.5);   // never wider than the body it leaves
           l.W[i] = (wd < lim ? wd : lim) + brR * Math.exp(-dB * dB);
         }
         if (pdt && !l.broken) {
@@ -334,7 +329,7 @@
           }
           if (l.beads.length) l.beads = l.beads.filter((c) => !c.done);
           // A belly that has grown heavy becomes a mass of its own, hung from both ends.
-          if (l.belly > 46 && l.grow >= 1 && links.length < MAX_LINKS && nodes.length < cap + 2) {
+          if (l.belly > 46 && l.grow >= 1 && links.length < MAX_LINKS && nodes.length < MAX_NODES + 2) {
             const i = Math.round(l.tLow * n), m = mkNode(l.X[i] / SX, l.Y[i] / SY, l.belly, x);
             m.travel = true; m.tx = m.x + x.rnd(-6, 6); m.ty = m.y + x.rnd(12, 40); m.R = Math.sqrt(m.vol); nodes.push(m);
             const l2 = mkLink(m, b, l.V * 0.5, 2, l.rootB, x); l.V *= 0.5; l.b = m; l.rootB = 2; l.belly = 0; l2.sag = l.sag * 0.5; l.sag *= 0.5; l.beads.length = 0;
@@ -354,7 +349,7 @@
         if (a.gl !== b.gl && Math.hypot(a.x - b.x, a.y - b.y) < a.R + b.R) a.gl = b.gl = Math.max(a.gl, b.gl);
       }
       for (const n of nodes) {
-        const R = n.R, sq = n.sq * RK, gl = n.gl;
+        const R = n.R, sq = n.sq, gl = n.gl;
         for (const l of n.lobes) {
           const an = l.a + 0.22 * Math.sin(time * l.s + l.p), d = l.d * R * (1 + 0.4 * n.droop * l.w), off = (R * 0.28 * n.droop + sq + n.hang) * l.w;
           const lx = n.x + Math.cos(an) * d, ly = n.y + Math.sin(an) * d + off, lr = l.r * R * (1 + 0.05 * Math.sin(time * l.s * 1.7 + l.p));
@@ -367,8 +362,8 @@
         const lgl = Math.max(l.glow, l.a.gl, l.b.gl);       // what lies on a thread flushes with it, or it shows as a dark spot inside a body
         if (l.broken) for (const t of [l.ca, l.cb]) if (t > 0.02 && t < 0.98) { const i = Math.round(t * l.n); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1.1, l.W[i] * 0.9), lgl); }
         if (l.grow < 1) { const i = Math.max(1, Math.floor(l.grow * l.n)); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1.1, l.W[i] * 0.9), lgl); }
-        if (l.belly > 1.5) { const i = Math.round(l.tLow * l.n), R = Math.sqrt(l.belly) * RK; if (R >= 1) disc(l.X[i] / SX, l.Y[i] / SY + R * 0.3, R, lgl); }
-        for (const c of l.beads) { const i = Math.round(clamp(c.t, 0, 1) * l.n); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1, c.r * RK), lgl); }
+        if (l.belly > 1.5) { const i = Math.round(l.tLow * l.n), R = Math.sqrt(l.belly); if (R >= 1) disc(l.X[i] / SX, l.Y[i] / SY + R * 0.3, R, lgl); }
+        for (const c of l.beads) { const i = Math.round(clamp(c.t, 0, 1) * l.n); disc(l.X[i] / SX, l.Y[i] / SY, Math.max(1, c.r), lgl); }
       }
 
       // ---- cut at one level, with an edge true to the distance so it stays clean at any size. One flat tone; the flush is the
@@ -389,16 +384,10 @@
       }
       fg.putImageData(img, 0, 0);
 
-      // ---- on the stage: threads under the bodies, in the same flat colour. For the 12% fade of the harness a steady
-      // brightness s takes alpha 0.12 s / (1 - 0.88 s), so the knob's low end really is quiet.
-      // Dimmed, threads and bodies are first joined on a layer, so where they overlap does not show through.
-      const s = pres >= 0.999 ? 1 : Math.pow(pres, 0.75), alpha = 0.12 * s / (1 - 0.88 * s), dim = s < 1;
-      if (dim && (!lay || lay.width !== W || lay.height !== H)) [lay, lg] = mk(W, H);
-      const stage = g, c = dim ? lg : g;
-      if (dim) c.clearRect(0, 0, W, H);
-      c.save();
-      c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.fillStyle = threadCol;
-      c.beginPath();
+      // ---- on the stage: threads under the bodies, in the same flat colour.
+      g.save();
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = threadCol;
+      g.beginPath();
       const side = (l, i0, i1, tip0, tip1) => {     // a tapered ribbon from sample i0 to i1 (all ribbons wound alike, so one fill unites them)
         const X = l.X, Y = l.Y, Wd = l.W, m = l.n;
         const off = (i, sgn) => {
@@ -406,10 +395,10 @@
           const taper = (i === i0 && tip0) || (i === i1 && tip1) ? 0.25 : 1, w = Math.max(0.55, Wd[i] * SX) * taper * sgn;
           return [X[i] - ty * w, Y[i] + tx * w];
         };
-        let P = off(i0, 1); c.moveTo(P[0], P[1]);
-        for (let i = i0 + 1; i <= i1; i++) { P = off(i, 1); c.lineTo(P[0], P[1]); }
-        for (let i = i1; i >= i0; i--) { P = off(i, -1); c.lineTo(P[0], P[1]); }
-        c.closePath();
+        let P = off(i0, 1); g.moveTo(P[0], P[1]);
+        for (let i = i0 + 1; i <= i1; i++) { P = off(i, 1); g.lineTo(P[0], P[1]); }
+        for (let i = i1; i >= i0; i--) { P = off(i, -1); g.lineTo(P[0], P[1]); }
+        g.closePath();
       };
       for (const l of links) {
         if (!l.n) continue;
@@ -420,21 +409,20 @@
           if (i1 <= l.n - 1) side(l, i1, l.n, true, false);
         }
       }
-      c.fill();
+      g.fill();
       // The threads of a struck mass flush with it, along their whole length.
       let glowing = false;
       for (const l of links) if (l.n && !l.broken && l.glow > 0.03) { glowing = true; break; }
       if (glowing) {
-        c.fillStyle = `rgb(${paleRGB})`;
+        g.fillStyle = `rgb(${paleRGB})`;
         for (const l of links) {
           if (!l.n || l.broken || l.glow <= 0.03) continue;
-          c.globalAlpha = 0.6 * l.glow; c.beginPath(); side(l, 0, l.grow < 1 ? Math.max(1, Math.floor(l.grow * l.n)) : l.n, false, l.grow < 1); c.fill();
+          g.globalAlpha = 0.6 * l.glow; g.beginPath(); side(l, 0, l.grow < 1 ? Math.max(1, Math.floor(l.grow * l.n)) : l.n, false, l.grow < 1); g.fill();
         }
       }
-      c.globalAlpha = 1; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'medium';
-      c.drawImage(fc, 0, 0, W, H);
-      c.restore();
-      if (dim) { stage.save(); stage.globalCompositeOperation = 'source-over'; stage.globalAlpha = alpha; stage.drawImage(lay, 0, 0); stage.restore(); }
+      g.globalAlpha = 1; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'medium';
+      g.drawImage(fc, 0, 0, W, H);
+      g.restore();
     },
   });
 })();

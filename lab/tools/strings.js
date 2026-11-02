@@ -2,7 +2,7 @@
 // Threads lean toward consonant partners and knot up against dissonant ones; each chord braids its
 // notes together at the shuttle's spot and sends bright kinks running away from it; held notes
 // thicken and glow; the hardest, most crowded chords snap a thread and whip the whole weave.
-// The "bend" knob curls the flat loom into arcs and, at 1, into closed woven rings. "How present" tones the whole weave down. Six knobs;
+// The "bend" knob curls the flat loom into arcs and, at 1, into closed woven rings. Six knobs;
 // the others are fixed at the defaults the user accepted (FIX below).
 (() => {
   const SEG = 200, TAU = Math.PI * 2, LINGER = 0.9, MAXT = 22;
@@ -17,24 +17,6 @@
   const FIX = { spread: 0.7, weight: 1.1, snap: 0.5 };
   const flowOf = (x) => Math.max(0, Math.min(2, 0.45 + 1 * 0.5 * (2 - 0) * x.feat.rate));     // faster → the weave flows quicker
   const pullOf = (x) => Math.max(0, Math.min(1, 0.4 + 1 * 0.5 * (1 - 0) * x.feat.level));     // louder → consonant notes lean closer
-  // how present (0..1): which notes pluck a thread. A note counts by its rank among this piece's notes (recordings differ
-  // a lot in how hard they play): every one at 1, the hardest half at 0.47, the hardest 5% at 0. Threads don't last like
-  // Rorschach's ink, so that alone would leave quiet passages dead; a note also counts by its rank among the notes within
-  // 3 s of it, so each passage keeps answering its own peaks.
-  let vels = null;
-  const hardEnough = (v, x) => {
-    const cut = (1 - x.p('presence')) * 0.95, N = window.NOTES || [];
-    if (cut <= 0 || !N.length) return true;
-    if (!vels) vels = N.map((n) => n[3]).sort((a, b) => a - b);
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    if (a / vels.length >= cut) return true;
-    a = 0; b = N.length; while (a < b) { const k = (a + b) >> 1; if (N[k][0] < x.t - 3) a = k + 1; else b = k; }
-    let peers = 0, near = 0;                             // notes this one is at least as hard as, itself included: a shared peak still counts
-    for (let i = a; i < N.length && N[i][0] <= x.t + 3; i++) { near++; if (N[i][3] <= v) peers++; }
-    return near < 2 || (peers - 1) / (near - 1) >= cut;  // a lone note is its own peak
-  };
-  const calmOf = (x) => 1 - 0.82 * (1 - x.p('presence'));  // how much of the motion is left: exactly 1 at full presence
-  const inkOf = (x) => 1 - 0.84 * (1 - x.p('presence'));   // how much of the light is left: exactly 1 at full presence
   let th = new Map(), phase = 0, centre = 0.5, shuttle = 0.3, whip = 0, time = 0;
   const hash = (m, k) => { const s = Math.sin(m * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -75,17 +57,17 @@
         hint: 'How much the weave holds: how many crossings the threads make, how far they sway, how much clashing notes knot. Every sounding note is still a thread. Left: a calm, smooth band with one long crossing and no knots. Right: the dense, knotted, swaying band. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { vels = null; th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
+    reset() { th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
     onChord(ch, x) {
       shuttle = (shuttle + 0.19 + x.rnd(0, 0.2)) % 1;    // the shuttle steps across the loom, one stop per attack
-      const u0 = shuttle, notes = [...ch.notes].sort((a, b) => a.m - b.m).filter((q) => hardEnough(q.v, x)), n = notes.length;
-      if (!n) return;                                     // too soft for this presence: the weave doesn't answer
+      const u0 = shuttle, notes = [...ch.notes].sort((a, b) => a.m - b.m), n = notes.length;
+      if (!n) return;
       let cp = 0; for (const q of notes) cp += q.m; cp = Math.max(0, Math.min(1, (cp / n - 21) / 87));
       notes.forEach((q, idx) => {
         let s = th.get(q.m);
         if (!s) { if (th.size >= MAXT) { let old = null; for (const o of th.values()) if (!old || o.end < old.end) old = o; th.delete(old.m); } th.set(q.m, (s = make(q.m))); }
         s.end = Math.max(s.end, x.t + Math.max(0.35, q.d)); s.after = 0; s.held = 0; s.v = q.v; s.flash = 1;
-        const A = (6 + 46 * Math.pow(q.v / 115, 2)) * (1 - s.p * 0.45) * calmOf(x), tau = Math.min(1.8, 0.45 + q.d * 0.35);
+        const A = (6 + 46 * Math.pow(q.v / 115, 2)) * (1 - s.p * 0.45), tau = Math.min(1.8, 0.45 + q.d * 0.35);
         for (const dir of [1, -1]) s.pulses.push({ pos: u0 + x.rnd(-0.01, 0.01), dir, A, tau, age: 0 });
         if (s.pulses.length > 8) s.pulses.splice(0, s.pulses.length - 8);
         if (n >= 2) s.braid = { u0, cp, idx, n, age: 0, spin: x.rnd(3, 6) * (Math.random() < 0.5 ? 1 : -1) };
@@ -93,7 +75,7 @@
       // Snap: force times crowding, so the lone fff tolls ring clean and the climax's barrage tears.
       const loud = (ch.vel - 84) / 24, crowd = 0.35 + x.feat.rate * 1.6;
       const score = loud * crowd * (n >= 3 ? 1 : 0.5), ease = FIX.snap;
-      if (ease > 0 && score * x.p('presence') > 1.2 - ease) {
+      if (ease > 0 && score > 1.2 - ease) {
         const k = Math.min(n, 1 + Math.floor(score * 1.5));
         for (let i = 0; i < k; i++) { const s = th.get(notes[Math.floor(Math.random() * n)].m); if (s && !s.snap) s.snap = { u: (u0 + x.rnd(-0.15, 0.15) + 1) % 1, age: 0, A: x.rnd(60, 120) * (Math.random() < 0.5 ? 1 : -1) }; }
         whip = Math.min(1, whip + 0.35 + score * 0.15);
@@ -104,9 +86,8 @@
       time += dt;
       const bend = x.p('bend'), spread = FIX.spread, weave = Math.round(x.p('weave')), sway = x.p('sway'), flow = flowOf(x);
       const pull = pullOf(x), tangle = x.p('tangle'), weight = FIX.weight, heat = x.p('heat');
-      const calm = calmOf(x), ink = inkOf(x), thin = 1 - 0.4 * (1 - x.p('presence'));
       whip *= Math.exp(-dt / 0.55);
-      phase += dt * TAU * (0.08 + flow * 0.3) * calm + whip * calm * dt * 5;
+      phase += dt * TAU * (0.08 + flow * 0.3) + whip * dt * 5;
       // geometry: a strip of length L, rolled around a centre by angle th0 (0 = flat loom, 2π = rings)
       const L = W * 1.12, th0 = bend * TAU, flat = th0 < 0.02;
       const Rc = flat ? 0 : L / th0, cx = W / 2, cy = flat ? 0 : H / 2 + Rc * (1 + Math.cos(th0 / 2)) / 2;
@@ -115,7 +96,7 @@
       // the band stays centred on whatever register is sounding
       const ring = bend > 0.97;
       let pm = 0, pw = 0; for (const s of list) if (x.t < s.end) { pm += s.p; pw++; }
-      if (pw) centre += (pm / pw - centre) * (1 - Math.exp(-dt * calm / 0.6));
+      if (pw) centre += (pm / pw - centre) * (1 - Math.exp(-dt / 0.6));
       const homeOf = (p) => Math.max(-H * 0.42, Math.min(H * 0.42, (p - centre) * spread * H * 1.7));
       // consonance pulls partners together, dissonance builds knots
       const snd = list.filter((s) => x.t < s.end);
@@ -126,10 +107,10 @@
           const ic = Math.abs(o.m - s.m) % 12, d = DISS[Math.min(ic, 12 - ic)];
           const c = 1 - d; num += c * (homeOf(o.p) - homeOf(s.p)); den += c; rough += d; cnt++;
         }
-        const tgt = den ? pull * 0.6 * num / (1 + den) * calm : 0;
+        const tgt = den ? pull * 0.6 * num / (1 + den) : 0;
         s.shift += (tgt - s.shift) * (1 - Math.exp(-dt / 0.35));
         const harsh = cnt ? Math.max(0, Math.min(1, (rough / cnt - 0.12) / 0.3)) : 0; // average roughness, so big consonant chords stay smooth
-        s.tangle += (harsh * tangle * calm - s.tangle) * (1 - Math.exp(-dt / (harsh ? 0.25 : 0.8)));
+        s.tangle += (harsh * tangle - s.tangle) * (1 - Math.exp(-dt / (harsh ? 0.25 : 0.8)));
       }
       g.lineCap = 'round'; g.lineJoin = 'round';
       for (const s of list) {
@@ -138,17 +119,17 @@
         const rel = Math.min(1, s.after / LINGER), fade0 = 1 - rel;
         if (fade0 <= 0) { th.delete(s.m); continue; }
         s.flash = Math.max(0, s.flash - dt / 0.22);
-        for (const q of s.pulses) { q.age += dt; q.pos += q.dir * dt * (0.18 + flow * 0.42) * calm; q.A *= Math.exp(-dt / q.tau); }
+        for (const q of s.pulses) { q.age += dt; q.pos += q.dir * dt * (0.18 + flow * 0.42); q.A *= Math.exp(-dt / q.tau); }
         s.pulses = s.pulses.filter((q) => q.A > 0.6);
         const b = s.braid; if (b) { b.age += dt; if (b.age > 2.2) s.braid = null; }
         const sn = s.snap; if (sn) { sn.age += dt; if (sn.age > 1.8) s.snap = null; }
         const glow = sounding ? Math.min(1, s.held / 1.6) : glowOf(s);
         const dim = Math.max(0.4, Math.exp(-Math.max(0, s.held - 2.5) / 3)); // a long-held note glows, then slowly sinks back like a piano tone
         s.glowLast = glow;
-        const fade = fade0 * dim * ink;
-        const home = homeOf(s.p) * (1 + rel * 0.5 * calm), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8) * calm;
-        const kw = 0.03, bw = b ? 0.06 + b.age * 0.08 : 0, bfade = b ? Math.exp(-b.age / 0.7) * Math.min(1, b.age / 0.06) * calm : 0;
-        const bR = b ? (10 + 4 * Math.min(6, b.n)) * calm : 0, bHome = b ? homeOf(b.cp) : 0;
+        const fade = fade0 * dim;
+        const home = homeOf(s.p) * (1 + rel * 0.5), amp = sway * (1 - s.p * 0.35) * (1 + whip * 0.9 + rel * 0.8);
+        const kw = 0.03, bw = b ? 0.06 + b.age * 0.08 : 0, bfade = b ? Math.exp(-b.age / 0.7) * Math.min(1, b.age / 0.06) : 0;
+        const bR = b ? 10 + 4 * Math.min(6, b.n) : 0, bHome = b ? homeOf(b.cp) : 0;
         const gapH = sn ? 0.035 * (sn.age < 0.06 ? sn.age / 0.06 : Math.exp(-(sn.age - 0.06) / 0.6)) : 0;
         const pts = s.pts;
         for (let i = 0; i <= SEG; i++) {
@@ -168,8 +149,8 @@
           if (sn) {
             const d = wrap(u - sn.u), ad = Math.abs(d), sg = d < 0 ? -1 : 1;
             if (ad < gapH) { pts[i * 2] = NaN; continue; }
-            Y += sn.A * calm * Math.exp(-ad / 0.09) * Math.exp(-sn.age / 0.45) * Math.sin(sn.age * 24 - ad * 50) * sg;
-            X -= sg * 70 * calm * Math.exp(-ad / 0.06) * Math.exp(-sn.age / 0.35);
+            Y += sn.A * Math.exp(-ad / 0.09) * Math.exp(-sn.age / 0.45) * Math.sin(sn.age * 24 - ad * 50) * sg;
+            X -= sg * 70 * Math.exp(-ad / 0.06) * Math.exp(-sn.age / 0.35);
           }
           if (flat) { pts[i * 2] = cx + X - L / 2; pts[i * 2 + 1] = H / 2 + Y; }
           else { const a = (X / L - 0.5) * th0, r = Rc - Y * sc; pts[i * 2] = cx + r * Math.sin(a); pts[i * 2 + 1] = cy - r * Math.cos(a); }
@@ -187,7 +168,7 @@
         };
         const base = palette(s.p, heat), exc = Math.min(1, s.flash * 0.7 + glow * 0.2);
         const col = `rgb(${Math.round(lerp(base[0], 255, exc * 0.55))},${Math.round(lerp(base[1], 244, exc * 0.55))},${Math.round(lerp(base[2], 228, exc * 0.55))})`;
-        const w = lerp(5, 0.9, Math.pow(s.p, 0.6)) * (0.35 + 0.65 * Math.min(1.1, s.v / 105)) * weight * (1 + 1.1 * glow) * (1 + s.flash * 0.4) * thin;
+        const w = lerp(5, 0.9, Math.pow(s.p, 0.6)) * (0.35 + 0.65 * Math.min(1.1, s.v / 105)) * weight * (1 + 1.1 * glow) * (1 + s.flash * 0.4);
         trace(0, SEG);
         // held notes swell and glow
         g.globalCompositeOperation = 'lighter';
@@ -203,7 +184,7 @@
         }
         // the torn ends spark
         if (sn && sn.age < 0.7) {
-          g.fillStyle = 'rgb(255,240,210)'; g.globalAlpha = (1 - sn.age / 0.7) * ink;
+          g.fillStyle = 'rgb(255,240,210)'; g.globalAlpha = 1 - sn.age / 0.7;
           for (const sg of [-1, 1]) {
             const i = ((Math.round((sn.u + sg * (gapH + 0.004)) * SEG) % SEG) + SEG) % SEG, px = pts[i * 2];
             if (px === px) { g.beginPath(); g.arc(px, pts[i * 2 + 1], 2 + w * 0.8, 0, TAU); g.fill(); }

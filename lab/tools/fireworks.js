@@ -184,22 +184,20 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
     ],
     reset() { sparks = []; pend = []; lastBurst = -9; clock = 0; vels = null; pitches = null; clearFluid(); },
     onChord(ch, x) {
-      const v = rank(ch.vel), pres = x.p('presence');
-      if (v < (1 - pres) * 0.95) return;
+      const v = rank(ch.vel);
       // in busy music not every note gets a shell: the harder ones still do
       const rate = x.feat.rate, gap = 0.16 + 0.75 * rate * (1 - v * 0.8);
       if (clock - lastBurst < gap) return;
       lastBurst = clock;
-      const top = ch.notes.reduce((a, n) => Math.max(a, n.m), 0), p = pitchRank(top), power = Math.pow(v, 1.3) * (1 - 0.35 * rate) * (0.4 + 0.6 * pres) + 0.08;
+      const top = ch.notes.reduce((a, n) => Math.max(a, n.m), 0), p = pitchRank(top), power = Math.pow(v, 1.3) * (1 - 0.35 * rate) + 0.08;
       const hue = x.p('hue') + x.p('range') * (p - 0.5), col = hsv(hue, 0.86, 1);
       // low on the left, high on the right; the harder, the higher up
       const cx = x.W * (0.12 + 0.76 * p) + x.rnd(-130, 130), cy = x.H * (0.66 - 0.4 * v) + x.rnd(-110, 110);
       pend.push({ cx: Math.max(60, Math.min(x.W - 60, cx)), cy: Math.max(70, Math.min(x.H - 70, cy)), power, col });
     },
     frame(x) {
-      const g = x.g, dt = x.dt, pres = x.p('presence');
+      const g = x.g, dt = x.dt;
       if (!F && !broken) { F = makeFluid(); if (!F) broken = true; else clearFluid(); }
-      const seen = 0.1 + 0.9 * pres, alpha = 0.12 * seen / (1 - 0.88 * seen);
       // The bursts wait for this frame so they enter the fluid before it steps, and show at once.
       for (const b of pend) burst(b.cx, b.cy, b.power, b.col, x);
       pend = [];
@@ -229,12 +227,12 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
         bindTex(gl, 0, dye.a, P.show.u.q); quad(gl);
         const was = g.imageSmoothingQuality;
         g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-        g.globalAlpha = alpha; g.drawImage(cv, 0, 0, x.W, x.H);
+        g.drawImage(cv, 0, 0, x.W, x.H);
         g.imageSmoothingQuality = was;
       }
       g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
       for (const s of sparks) {
-        const t = s.age / s.life, a = (1 - t * t) * alpha;
+        const t = s.age / s.life, a = 1 - t * t;
         g.globalAlpha = a; g.strokeStyle = t < 0.2 ? '#fff4e0' : css(s.col, 1); g.lineWidth = 1.2 + 1.6 * (1 - t);
         g.beginPath(); g.moveTo(s.px, s.py); g.lineTo(s.x, s.y); g.stroke();
       }

@@ -9,9 +9,6 @@
 // slapped down with a gust that pushes the pieces around it aside (they sway back, heavy low pieces slowly, light high
 // ones quickly), and while its note sounds it stands off the wall on a deep shadow, trembling. A fortissimo chord gusts
 // the whole wall. So a still shows what sounds (the lifted pieces) and a loud bar shakes everything.
-// How present (a sixth knob, 2026-11-01, so the card can dim and not only boost): turned down, wall and paper sink toward
-// black together, gusts, lifts and slaps calm, new paper eases on, and only this piece's hardest notes cut any. At 1 it
-// draws what it always drew.
 (() => {
   const TAU = Math.PI * 2;
   const R = Math.random;
@@ -141,17 +138,6 @@
   }
 
   let pieces = [], panels = [], ground = GROUNDS[0], wipe = null, moveCool = 0, groundCool = 0, trimCool = 0;
-  // how present (0..1): which notes still cut paper, judged against this piece's own notes (recordings differ a lot in how
-  // hard they play): every one at 1, about the hardest 40% at 0.4, the hardest 5% at 0
-  let vels = null;
-  const hardEnough = (v, x) => {
-    const cutoff = (1 - x.p('presence')) * 0.95;
-    if (cutoff <= 0) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cutoff;
-  };
   const live = () => pieces.filter((p) => p.die == null);
   // the colours of the pieces a piece of size s at (px, py) would touch (two same-coloured pieces would melt into one)
   const nearCols = (px, py, s, self) => new Set(live().filter((o) => o !== self && Math.hypot(o.x - px, o.y - py) < 0.55 * (o.s * o.grow + s)).map((o) => o.col));
@@ -278,9 +264,6 @@
       ICON.alpha(g, v, () => { ICON.rect(g, 3, 3, 9, h - 6, C.magenta); ICON.rect(g, w - 12, 3, 9, 9, C.lemon); });
       leafIcon(g, w / 2, h / 2, 15, v < 0.5 ? C.cobalt : C.white, 12, 0.3);
     },
-    presence(g, v, w, h) {
-      ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.rect(g, 3, 3, w - 6, h - 6, '#f3ecdc'); leafIcon(g, 14, h / 2, 16, C.cobalt, 4, 0.4); cutIcon(g, 'star', 28, h / 2, 12, C.vermilion, 8); });
-    },
   };
 
   TOOLS.push({
@@ -306,10 +289,10 @@
         hint: 'How much paper is on the wall: how many pieces it holds and how big they are cut. Left: a few small scraps. Right: a crowded collage of big sheets. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { vels = null; pieces = []; panels = []; ground = GROUNDS[0]; wipe = null; moveCool = 0; groundCool = 0; trimCool = 0; },
+    reset() { pieces = []; panels = []; ground = GROUNDS[0]; wipe = null; moveCool = 0; groundCool = 0; trimCool = 0; },
     onChord(ch, x) {
       // a loud, deep chord can change the ground
-      if (ch.vel >= 92 && ch.lo < 50 && groundCool <= 0 && !wipe && R() < x.p('ground') * 0.9 * x.p('presence')) { newGround(x); groundCool = 5; }
+      if (ch.vel >= 92 && ch.lo < 50 && groundCool <= 0 && !wipe && R() < x.p('ground') * 0.9) { newGround(x); groundCool = 5; }
       else if (x.p('ground') < 0.15 && ground !== GROUNDS[0] && !wipe && ch.vel >= 80) newGround(x);
       // the chord's lowest, highest and (in a full chord) one middle note each cut a piece
       const ns = [...ch.notes].sort((a, b) => a.m - b.m);
@@ -319,7 +302,6 @@
       const cap = Math.round(x.p('pieces'));
       const fresh = [];
       for (const n of chosen) {
-        if (!hardEnough(n.v, x)) continue;
         const lv = live();
         let at = null;
         if (lv.length >= cap) {
@@ -330,10 +312,9 @@
         }
         fresh.push(cut(x, n, at));
       }
-      if (!fresh.length) return;
       // each new piece is slapped down: a gust as strong as its note pushes its neighbours aside (busy music gusts less
       // per note, or the wall would never settle); a fortissimo chord gusts the whole wall from where it landed
-      const stir = x.p('move') * x.p('presence'), calm = lerp(1, 0.5, Math.min(1, (x.feat?.rate ?? 0) * 1.4));
+      const stir = x.p('move'), calm = lerp(1, 0.5, Math.min(1, (x.feat?.rate ?? 0) * 1.4));
       let cx = 0, cy = 0;
       // (the reach has a floor: new pieces are laid in free spots, so a gust only as wide as the piece would touch nothing)
       for (const p of fresh) { gust(p.x, p.y, Math.max(x.W * 0.13, p.s * (0.9 + 1.4 * p.loud)), stir * calm * (0.25 + 0.75 * p.loud), p); cx += p.x / fresh.length; cy += p.y / fresh.length; }
@@ -347,7 +328,7 @@
       }
     },
     frame(x) {
-      const g = x.g, dt = x.dt, W = x.W, H = x.H, pres = x.p('presence'), stir = x.p('move') * pres;
+      const g = x.g, dt = x.dt, W = x.W, H = x.H, stir = x.p('move');
       moveCool -= dt; groundCool -= dt; trimCool -= dt;
       // fewer pieces allowed now (the knob moved, or the music slowed): the oldest peel off, one at a time
       const lv = live(), cap = Math.round(x.p('pieces'));
@@ -406,15 +387,13 @@
         if (Math.abs(p.or) > 0.6) { p.or = Math.sign(p.or) * 0.6; p.vr = 0; }
         // slapped down on the attack: lifted high and too big, settling flat (loud notes from higher, low ones slower)
         const ldur = p.reg === 0 ? 0.24 : p.reg === 1 ? 0.18 : 0.13, land = Math.max(0, 1 - p.age / ldur);
-        const k = 1 + (0.1 + 0.32 * p.loud) * (0.4 + 0.6 * stir) * land * land * pres;
+        const k = 1 + (0.1 + 0.32 * p.loud) * (0.4 + 0.6 * stir) * land * land;
         // while its note sounds the piece stands off the wall, as far as the note is loud, and trembles; it settles on release
-        const sounding = p.end > x.t && p.die == null ? (0.35 + 0.65 * p.loud) * (0.35 + 0.65 * stir) * pres : 0;
+        const sounding = p.end > x.t && p.die == null ? (0.35 + 0.65 * p.loud) * (0.35 + 0.65 * stir) : 0;
         p.lift += (sounding - p.lift) * (1 - Math.exp(-dt / (sounding > p.lift ? 0.05 : 0.22)));
         p.ph += dt * (3 + 2.5 * p.reg);
-        lift = Math.max(lift, land * pres, p.lift);
+        lift = Math.max(lift, land, p.lift);
         const tremble = Math.sin(p.ph) * 0.03 * p.lift;
-        // turned down, new paper eases on instead of landing with a slap
-        if (pres < 1) g.globalAlpha = lerp(1, Math.min(1, p.age / 0.5), 1 - pres);
         // its shadow on the wall (always down and to the right): a soft wide one once lifted, a crisp one under it; then the paper
         const px = p.x + p.ox, py = p.y + p.oy, rot = p.rot + p.or + tremble;
         const lk = 1 + 0.05 * p.lift, off = 2.5 + lift * 17, scx = k * lk * p.grow * Math.max(0.02, sx), scy = k * lk * p.grow * sy;
@@ -429,8 +408,6 @@
         g.restore();
       }
       pieces = pieces.filter((p) => p.die == null || p.die < 1);
-      // how present: wall and paper sink toward black together (the wall is opaque, so nothing builds up from frame to frame)
-      if (pres < 1) { g.globalAlpha = 1; g.fillStyle = `rgba(0,0,0,${1 - lerp(0.06, 1, pres)})`; g.fillRect(0, 0, W, H); }
     },
   });
 })();

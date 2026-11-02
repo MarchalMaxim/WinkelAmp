@@ -9,8 +9,6 @@
 // sinking toward crimson and drifting a little outward, so past chords lie as lace behind the notes sounding now.
 // A small star at the centre has as many points as the last chord had copies.
 // Notes that clash with what is sounding (semitones, tritones) grow torn, spiky edges and a colder colour.
-// How present (a sixth knob, the user 2026-11-01: sliders should dim, not only boost): turned down, all the ink is fainter,
-// the figure turns, breathes and kicks less, and only the hardest notes of this piece land. At 1 it changes nothing.
 (() => {
   const TAU = Math.PI * 2;
   let els = [], flashes = [], rot = 0, breath = 0.86, core = 0, kick = 0, star = 6;
@@ -32,19 +30,6 @@
   const openOf = (age) => { const t = Math.min(1, age / 0.22) - 1; return 1 + 3.4 * t * t * t + 2.4 * t * t; };
   // loudness → how solid a shape is: soft notes are outlines only, loud ones are filled jewels
   const solidOf = (v) => clamp01((v - 38) / 52);
-  // how present (0..1): which notes land, judged against this piece's own notes (recordings differ a lot in how hard they
-  // are played): every one at 1, the hardest 88% at 0.5, the hardest 60% at 0.25, the hardest 5% at 0
-  let vels = null, sinceHit = 9;
-  const hardEnough = (v, cut) => {
-    if (cut <= 0) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
-  // how present → the multiplier on every alpha. A shape is redrawn each frame over a ground that only fades 12% a frame, so
-  // alpha piles up (0.11 a frame still settles at half brightness): it must fall with the cube to look evenly dimmed.
-  const inkOf = (pres) => (pres < 1 ? 0.06 + 0.94 * pres * pres * pres : 1);
 
   // A shape's outline as polar points [radius, angle offset]; drawn once per copy round the circle.
   function outline(e, s, jagK, R) {
@@ -142,23 +127,13 @@
         hint: 'How much mandala it builds: how far the figure reaches, how many mirrored copies a chord gets, how long the shapes stay after their notes. Left: a small figure of a few spokes that are soon gone. Right: the full circle with lace piling up behind the notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { vels = null; sinceHit = 9; els = []; flashes = []; rot = 0; breath = 0.86; core = 0; kick = 0; star = 6; },
+    reset() { els = []; flashes = []; rot = 0; breath = 0.86; core = 0; kick = 0; star = 6; },
     onChord(ch, x) {
-      const off = 1 - x.p('presence'), cut = off * off * off * 0.95;
-      let hit = ch.notes;
-      if (cut > 0) {
-        hit = ch.notes.filter((nt) => hardEnough(nt.v, cut));
-        // a soft passage can hold nothing hard enough for a minute or more: after a while without a shape (3 s at the far
-        // left) the chord's loudest note lands anyway, so the figure still follows the music and never looks switched off
-        if (!hit.length && sinceHit > 3 * off) hit = [ch.notes.reduce((a, b) => (b.v > a.v ? b : a))];
-        if (!hit.length) return;
-      }
-      sinceHit = 0;
-      const k = hit.length, n = Math.max(3, Math.min(16, Math.round((k + 1) * x.p('mirrors'))));
+      const k = ch.notes.length, n = Math.max(3, Math.min(16, Math.round((k + 1) * x.p('mirrors'))));
       // pitch classes heard around this attack (recent notes only, so a long pedal doesn't make everything clash)
       const near = new Set(ch.notes.map((nt) => nt.m % 12));
       for (const s of x.sounding()) if (x.t - s.start < 1.2) near.add(s.m % 12);
-      for (const nt of hit) {
+      for (const nt of ch.notes) {
         const pc = nt.m % 12; let d = 0;   // (below: a velocity floor so whisper-quiet transcribed notes, like the b5 oboe, still show)
         for (const o of near) if (o !== pc) d += ROUGH[(pc - o + 12) % 12];
         els.push({ kind: nt.m < 48 ? 'arc' : nt.m < 76 ? 'petal' : 'bead', a0: (pc * TAU) / 12, f: radiusOf(nt.m), v: Math.max(nt.v, 40),
@@ -175,15 +150,13 @@
     },
     frame(x) {
       const g = x.g, dt = x.dt, R = x.H * 0.47;
-      sinceHit += dt;
-      const pres = x.p('presence'), ink = inkOf(pres);             // calm: the turning and the swell slow down, the kick shrinks
-      rot += dt * x.p('spin') * 0.55 * (pres < 1 ? 0.1 + 0.9 * pres : 1);
-      breath += (x.p('size') - breath) * (1 - Math.exp(-dt / (0.3 + 2.2 * (1 - pres))));
+      rot += dt * x.p('spin') * 0.55;
+      breath += (x.p('size') - breath) * (1 - Math.exp(-dt / 0.3));
       core *= Math.exp(-dt / 0.5);
       kick *= Math.exp(-dt / 0.12);
       const life = x.p('life'), jagK = x.p('jag'), s = breath / 0.86;
       const edge = (b) => (b > 0.95 ? 0.95 + (b - 0.95) * 0.4 : b);   // a fortissimo swells to the screen's edge, not far past it
-      const Rb = R * edge(breath * (1 + kick * pres)), Rs = R * edge(breath);
+      const Rb = R * edge(breath * (1 + kick)), Rs = R * edge(breath);
       // only the sounding notes kick: the lingering lace holds still (kicking it too smears it into a radial haze)
       const radOf = (rel) => (rel <= 0 ? Rb : Rs + (Rb - Rs) * Math.exp(-rel / 0.15));
       g.translate(x.W / 2, x.H / 2);
@@ -225,9 +198,9 @@
         // in a moment and only its fine outline lingers, so the past lies as lace behind the notes that sound now.
         // (the shared background only fades 12% a frame, so a fill builds up over frames: a soft one must be very faint to
         // stay see-through, and paler rather than darker so it reads as glass, not brown)
-        const fillA = (rel <= 0 ? 1 : Math.exp(-rel / 0.16)) * a * Math.max(0.02 + 0.9 * solid * solid, 0.85 * hot) * ink;
+        const fillA = (rel <= 0 ? 1 : Math.exp(-rel / 0.16)) * a * Math.max(0.02 + 0.9 * solid * solid, 0.85 * hot);
         if (fillA > 0.01) { g.fillStyle = rgba(mix(c, HOT, 0.35 * (1 - solid)), fillA); g.fill(); }
-        g.strokeStyle = rgba(mix(c, HOT, 0.25 + 0.3 * solid), a * (rel > 0 ? 0.42 * crowd : 0.5 + 0.4 * hot) * ink);
+        g.strokeStyle = rgba(mix(c, HOT, 0.25 + 0.3 * solid), a * (rel > 0 ? 0.42 * crowd : 0.5 + 0.4 * hot));
         g.lineWidth = (0.6 + 1 * solid) * Math.max(0.7, s); g.stroke();
       }
       els = els.filter((e) => e.alpha >= 0.02 || e.age < e.d);
@@ -237,7 +210,7 @@
         if (e.age > 0.32) continue;
         const k = e.age / 0.32, r1 = e.f * Rb, r0 = Math.max(4, r1 * (0.12 + 0.75 * k * k));
         const c = mix(tone(e.f), HOT, 0.55);
-        g.strokeStyle = rgba(c, Math.pow(1 - k, 1.5) * (0.12 + 0.45 * e.v / 127) * e.share * ink);   // a big chord shares its brightness
+        g.strokeStyle = rgba(c, Math.pow(1 - k, 1.5) * (0.12 + 0.45 * e.v / 127) * e.share);   // a big chord shares its brightness
         g.lineWidth = (0.6 + 1.4 * e.v / 127) * Math.max(0.7, s);
         g.beginPath();
         for (const [th] of angles(e)) { const cs = Math.cos(th), sn = Math.sin(th); g.moveTo(r0 * cs, r0 * sn); g.lineTo(r1 * cs, r1 * sn); }
@@ -246,15 +219,15 @@
       // part two: thin rings flash at each struck note's radius and widen a little
       for (const fl of flashes) {
         fl.age += dt; const k = fl.age / 0.5; if (k >= 1) continue;
-        g.strokeStyle = rgba(mix(tone(fl.f), HOT, 0.6), Math.pow(1 - k, 2) * (0.25 + 0.6 * fl.v / 127) * ink);
+        g.strokeStyle = rgba(mix(tone(fl.f), HOT, 0.6), Math.pow(1 - k, 2) * (0.25 + 0.6 * fl.v / 127));
         g.lineWidth = (0.8 + 2 * fl.v / 127) * (1 - k * 0.5);
         g.beginPath(); g.arc(0, 0, fl.f * Rb * (1 + 0.07 * k), 0, TAU); g.stroke();
       }
       flashes = flashes.filter((fl) => fl.age < 0.5);
       g.globalCompositeOperation = 'source-over';
       // the bindu at the centre: a small star with as many points as the last chord had copies, lit by attacks and the bass
-      const cr = (4 + 8 * x.feat.bass * pres + 7 * core * pres) * s * (1 + 3 * kick * pres), cc = mix(tone(0.05 + 0.3 * core), HOT, core * 0.4), sp = Math.max(3, star);
-      g.fillStyle = rgba(cc, (0.4 + 0.55 * core) * ink);
+      const cr = (4 + 8 * x.feat.bass + 7 * core) * s * (1 + 3 * kick), cc = mix(tone(0.05 + 0.3 * core), HOT, core * 0.4), sp = Math.max(3, star);
+      g.fillStyle = rgba(cc, 0.4 + 0.55 * core);
       g.beginPath();
       for (let i = 0; i < sp * 2; i++) { const q = rot * 1.5 + (i * Math.PI) / sp, rr = i % 2 ? cr * 0.45 : cr; i ? g.lineTo(rr * Math.cos(q), rr * Math.sin(q)) : g.moveTo(rr * Math.cos(q), rr * Math.sin(q)); }
       g.closePath(); g.fill();

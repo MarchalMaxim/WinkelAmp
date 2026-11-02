@@ -10,7 +10,6 @@
 (() => {
   const PTS = 12, SUB = 6, TAU = Math.PI * 2, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
-  const [lay, lg] = mk(1280, 720);
   // The stains are painted small and enlarged smoothly, so no edge is ever cut out and a tight bend can't show its workings.
   const K = 4, [wash, wg] = mk(320, 180);
   const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
@@ -84,13 +83,13 @@
 
   // A hard note asks this limb to get up. Returns false if it won't, which is usual.
   function ask(l, n, v01, x) {
-    const rate = x.feat.rate, lazy = x.p('lazy'), pres = x.p('presence');
+    const rate = x.feat.rate, lazy = x.p('lazy');
     if (l.state !== 'rest' || clock < l.free || clock < gapUntil) return false;
     if (v01 < 0.35 + 0.4 * lazy) return false;
     let up = 0; for (const o of limbs) if (o.state !== 'rest') up++;
     if (up >= (rate < 0.25 ? 2 : 1)) return false;
     if (x.rnd(0, 1) < Math.min(0.95, Math.max(0, rate * 1.15 - 0.05) + (lazy - 0.5) * 0.3)) return false;
-    const liftH = 180 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy) * (0.35 + 0.65 * pres);
+    const liftH = 180 * x.p('lift') * (0.38 + 0.62 * (1 - l.f)) * (0.32 + 0.68 * Math.pow(v01, 1.3)) * (1 - 0.72 * rate) * (1.25 - 0.5 * lazy);
     const T = (3.2 + 3 * l.f) * (0.6 + 1.4 * lazy) * (1 + 0.6 * rate) * x.rnd(0.85, 1.15);
     const e = PTS - 1;
     l.state = 'lift'; l.lp = 0; l.T = T; l.sink *= 0.35;
@@ -121,7 +120,7 @@
 
   // It lands: every limb under it takes the weight as a push where it was hit, and gives slowly.
   function squash(l, x) {
-    const at = order.indexOf(l), amt = (9 + 26 * l.f) * x.p('fat') * x.p('presence');
+    const at = order.indexOf(l), amt = (9 + 26 * l.f) * x.p('fat');
     for (let o = 0; o < at; o++) {
       const b = order[o];
       for (let k = 0; k < PTS; k++) for (let j = PTS - 1; j >= 0; j -= 2) {
@@ -337,13 +336,13 @@
       const n0 = Math.round(x.p('limbs'));
       if (built !== n0) build(n0, x.W, x.H);
       lastAttack = clock; if (yawnT < 0) yawned = false;
-      const pres = x.p('presence'), cut = (1 - pres) * 0.95, rate = x.feat.rate;
+      const rate = x.feat.rate;
       const notes = ch.notes.slice().sort((a, b) => b.v - a.v);
       let jolt = false;
-      if (notes.length && rank(notes[0].v) >= cut) {
+      if (notes.length) {
         // The push, if it has the patience: not while it is still getting over the last one, unless the note is one of the
         // piece's hard ones. Anything it ignores only feeds one slow swell. The colour lands in this very frame; the bodies don't.
-        const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate) * (0.3 + 0.7 * pres);
+        const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate);
         const pr = Math.max(0, Math.min(1, (notes[0].m - pitchLo) / (pitchHi - pitchLo)));
         jolt = clock >= nextJolt || (v >= 0.85 && clock >= nextJolt - 0.3);
         if (jolt) {
@@ -373,12 +372,8 @@
         else if (!yawned && clock - lastAttack > 5) { yawned = true; yawnT = 0; }
       }
       const yawn = yawnT >= 0 ? Math.pow(Math.sin(Math.PI * yawnT / 8), 2) : 0;
-      const pal = paletteAt(x.p('green')), pres = x.p('presence');
-      if (pres >= 0.999) { picture(x.g, x, pal, yawn); return; }
-      // Quiet: the whole picture, heap and ground, at low opacity, so what lies under it shows and alone it stays near dark.
-      lg.setTransform(1, 0, 0, 1, 0, 0);
-      picture(lg, x, pal, yawn);
-      const g = x.g; g.globalAlpha = 0.06 + 0.94 * pres * pres * pres; g.drawImage(lay, 0, 0); g.globalAlpha = 1;
+      const pal = paletteAt(x.p('green'));
+      picture(x.g, x, pal, yawn);
     },
   });
 })();

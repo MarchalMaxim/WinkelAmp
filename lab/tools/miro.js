@@ -5,8 +5,6 @@
 // black crescents; full chords sometimes a bow-tie. Shapes are flat red, blue, yellow and black, and where two overlap
 // the colour flips (red over blue goes black, black over red goes red), and the line turns pale where it crosses a black
 // shape: the Constellations' interlocking. Thin straight lines tie the stars of a chord, and each new star to a neighbour.
-// A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, the whole sheet sinks
-// toward black like a lamp being lowered, the line slows and calms, and only the song's hardest notes add a shape.
 (() => {
   const TAU = Math.PI * 2;
   const INK = [20, 17, 15], RED = [205, 40, 30], BLUE = [28, 70, 160], YEL = [238, 186, 36], PAPER = [240, 232, 214];
@@ -15,27 +13,6 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   let els = [], ties = [], trail = [], stains = [], wash = null;
   let pen = null, clock = 0, prevTop = null, kick = 1, stainCool = 0, lastMark = null;
-  // how present (0..1): which notes mark the page, judged against this piece's own notes (recordings differ a lot in how
-  // hard they play): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
-  let vels = null;
-  const hardEnough = (v, pres) => {
-    if (pres >= 1) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= (1 - pres) * 0.95;
-  };
-  const calmOf = (pres) => 1 - 0.7 * (1 - pres);   // how much of the pen's speed and turning is left: all of it at 1
-  // Turned down, the picture is painted here at full strength, flat colours and flips intact, and stamped once onto the stage.
-  let sheet = null, sheetG = null;
-  function sheetFor(x) {
-    const cw = x.g.canvas.width, ch = x.g.canvas.height;
-    if (!sheet || sheet.width !== cw || sheet.height !== ch) {
-      sheet = document.createElement('canvas'); sheet.width = cw; sheet.height = ch; sheetG = sheet.getContext('2d');
-      sheetG.setTransform(cw / x.W, 0, 0, ch / x.H, 0, 0);   // the stage may be supersampled: the sheet stays as sharp
-    }
-    return sheetG;
-  }
 
   // the sheet: a warm pale gouache wash with cloudy blotches and grain, painted once (own seeded random: same every time)
   function makeWash(W, H) {
@@ -145,14 +122,6 @@
       for (let i = 0; i < n; i++) ICON.line(g, P[E[i][0]][0], P[E[i][0]][1], P[E[i][1]][0], P[E[i][1]][1], ICON.ink, 0.9);
       P.forEach(([x, y], i) => (i % 2 ? ICON.shape(g, 'star', x, y, 7, ICON.gold) : ICON.dot(g, x, y, 2, i === 2 ? ICON.red : ICON.ink)));
     },
-    presence(g, v, w, h) {                   // the sheet with its marks, dim and nearly bare, or bright with more on it
-      ICON.alpha(g, 0.14 + 0.86 * v, () => {
-        ICON.rect(g, 5, 3, w - 10, h - 6, '#e8dec8');
-        iconBlob(g, 15, 13, 3 + 3.5 * v, 'rgb(205,40,30)');
-        if (v > 0.3) ICON.dot(g, 28, 8, 2.6, 'rgb(28,70,160)');
-        if (v > 0.65) ICON.dot(g, 27, 18, 1.8, 'rgb(20,17,15)');
-      });
-    },
   };
 
   TOOLS.push({
@@ -179,13 +148,13 @@
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) {
-      els = []; ties = []; trail = []; stains = []; clock = 0; prevTop = null; kick = 1; stainCool = 0; lastMark = null; vels = null;
+      els = []; ties = []; trail = []; stains = []; clock = 0; prevTop = null; kick = 1; stainCool = 0; lastMark = null;
       pen = { x: x.W * 0.32, y: x.H * 0.55, th: -0.35, kappa: 0 };
       if (!wash) wash = makeWash(x.W, x.H);
     },
     onChord(ch, x) {
       if (!pen) this.reset(x);
-      const pres = x.p('presence'), life = x.p('life'), wander = x.p('wander') * calmOf(pres), swell = x.p('swell'), colour = hues(x), web = x.p('web'), f = x.feat;
+      const life = x.p('life'), wander = x.p('wander'), swell = x.p('swell'), colour = hues(x), web = x.p('web'), f = x.feat;
       const notes = [...ch.notes].sort((a, b) => a.m - b.m), top = notes[notes.length - 1], low = notes[0];
       // the melody turns the pen: up bends it one way, down the other, a leap curls it
       if (prevTop != null) {
@@ -209,7 +178,6 @@
       const sparse = clamp(1 - f.rate * 2.5, 0, 1);            // few notes (Beethoven's opening): each one counts for more
       const big = 1 + 0.45 * sparse;
       for (const n of notes) {
-        if (!hardEnough(n.v, pres)) continue;
         const lone = notes.length === 1 && n.m < 55 && n.d > 0.3;   // a lone deep held note is a shape, not a mark on the line
         const vk = n.v / 110, isTop = n === top && !lone, isLow = n === low && (notes.length > 1 || lone);
         const held = n.d > 0.38 || (n.d > 0.2 && (n.v >= 84 || sparse > 0.5));
@@ -244,12 +212,12 @@
         add({ kind: 'dot', x: ex, y: ey, R: (2 + vk * 3.5 + Math.max(0, 70 - n.m) * 0.09) * Math.sqrt(swell), col: pickCol(n.m, 0.45), d: n.d });
       }
       // a full, loud chord now and then: a bow-tie near the line
-      if (notes.length >= 4 && ch.vel >= 80 && !full && hardEnough(ch.vel, pres) && Math.random() < 0.25) {
+      if (notes.length >= 4 && ch.vel >= 80 && !full && Math.random() < 0.25) {
         const a = Math.random() * TAU, r = 60 + Math.random() * 90;
         add({ kind: 'bow', x: clamp(pen.x + Math.cos(a) * r, 40, x.W - 40), y: clamp(pen.y + Math.sin(a) * r, 40, x.H - 40), R: (16 + notes.length * 2.2) * swell * lifeK, rot: Math.random() * TAU, col: pickCol(ch.lo + 5), d: 0.4 });
       }
       // a loud deep chord: a pale stain spreads in the wash
-      if (ch.lo < 50 && ch.vel >= 92 && stainCool <= 0 && hardEnough(ch.vel, pres)) {
+      if (ch.lo < 50 && ch.vel >= 92 && stainCool <= 0) {
         stainCool = 1.2;
         stains.push({ x: clamp(pen.x + (Math.random() - 0.5) * 300, 0, x.W), y: clamp(pen.y + (Math.random() - 0.5) * 200, 0, x.H), r: 140 + (ch.vel - 92) * 6, col: COLS[Math.floor(Math.random() * 3)], age: 0, life: life * 0.8 });
         if (stains.length > 6) stains.shift();
@@ -269,11 +237,11 @@
     },
     frame(x) {
       if (!pen) this.reset(x);
-      const pres = x.p('presence'), calm = calmOf(pres), stage = x.g, g = pres < 1 ? sheetFor(x) : stage;
-      const dt = x.dt, life = x.p('life'), wander = x.p('wander') * calm;
+      const g = x.g;
+      const dt = x.dt, life = x.p('life'), wander = x.p('wander');
       clock += dt; stainCool -= dt;
       // the pen moves on: faster when the music is loud and busy; its turning relaxes, with a slow wobble of its own
-      const f = x.feat, speed = (18 + 150 * f.level + 90 * f.rate) * calm;
+      const f = x.feat, speed = 18 + 150 * f.level + 90 * f.rate;
       pen.kappa *= Math.exp(-dt * 0.7);
       pen.th += (pen.kappa + 0.22 * wander * Math.sin(clock * 0.31) + 0.12 * Math.sin(clock * 0.83 + 1)) * dt;
       // keep it on the page: near an edge it turns back toward the middle
@@ -284,7 +252,7 @@
       }
       pen.x = clamp(pen.x + Math.cos(pen.th) * speed * dt, 12, x.W - 12); pen.y = clamp(pen.y + Math.sin(pen.th) * speed * dt, 12, x.H - 12);
       const last = trail[trail.length - 1];
-      if (!last || Math.hypot(pen.x - last.x, pen.y - last.y) > 3) trail.push({ x: pen.x, y: pen.y, t: clock, w: 1.3 + 1.4 * f.level * pres });
+      if (!last || Math.hypot(pen.x - last.x, pen.y - last.y) > 3) trail.push({ x: pen.x, y: pen.y, t: clock, w: 1.3 + 1.4 * f.level });
       while (trail.length && clock - trail[0].t > life) trail.shift();
 
       // the sheet and its stains
@@ -304,14 +272,14 @@
       for (const e of els) {
         e.age += dt;
         e.a = Math.min(1, Math.max(0, (e.life - e.age) / (e.life * 0.3)));
-        const pop = 1 + 0.35 * pres * Math.max(0, 1 - e.age / 0.16);           // the attack: a shape lands a little big
+        const pop = 1 + 0.35 * Math.max(0, 1 - e.age / 0.16);           // the attack: a shape lands a little big
         const hold = Math.max(0.12, Math.min(e.d, 3.5));
         const grow = e.kind === 'blob' || e.kind === 'cres' ? 0.42 + 0.58 * (1 - Math.pow(1 - Math.min(1, e.age / hold), 2)) : 1;
         e.k = pop * grow * (0.1 + 0.9 * Math.sqrt(e.a));       // leaving: a shape shrinks away, staying flat
         e.fa = Math.min(1, e.a * 5);
         if (e.kind === 'blob' || e.kind === 'cres' || e.kind === 'bow') {
           const p = new Path2D(), R = e.R * e.k;
-          if (e.kind === 'blob') blobPath(p, e.pts, e.x, e.y, R, e.rot + clock * 0.03, e.sx, 0.05 * pres, clock + e.rot * 3);
+          if (e.kind === 'blob') blobPath(p, e.pts, e.x, e.y, R, e.rot + clock * 0.03, e.sx, 0.05, clock + e.rot * 3);
           else if (e.kind === 'cres') crescentPath(p, e.x, e.y, R, e.rot, e.rr, e.dd);
           else bowPath(p, e.x, e.y, R, e.rot);
           e.path = p; e.br = R * (e.kind === 'blob' ? 1.6 * Math.max(1, e.sx) : 1.05);
@@ -363,14 +331,8 @@
         if (e.kind === 'dot') { g.fillStyle = rgba(e.col, e.fa); g.beginPath(); g.arc(e.x, e.y, e.R * e.k, 0, TAU); g.fill(); }
         else drawStar(g, e, e.k, e.fa);
       }
-      g.fillStyle = rgba(INK, 0.95); g.beginPath(); g.arc(pen.x, pen.y, 2.2 + 1.5 * f.level * pres, 0, TAU); g.fill();
+      g.fillStyle = rgba(INK, 0.95); g.beginPath(); g.arc(pen.x, pen.y, 2.2 + 1.5 * f.level, 0, TAU); g.fill();
       els = els.filter((e) => e.age < e.life);
-      // Turned down: the sheet onto the stage. The stage only fades 12% a frame, so a sheet redrawn every frame builds up to
-      // far more than its alpha: this curve is what makes the slider read about evenly, from a trace at 0 to the page at 1.
-      if (g !== stage) {
-        stage.globalCompositeOperation = 'source-over'; stage.globalAlpha = Math.pow(30, pres - 1);
-        stage.drawImage(sheet, 0, 0, x.W, x.H); stage.globalAlpha = 1;
-      }
     },
   });
 })();

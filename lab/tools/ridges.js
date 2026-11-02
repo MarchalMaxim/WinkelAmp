@@ -5,8 +5,7 @@
 // with (soft passages are fine dim hairlines packed close, loud ones bold bright lines spaced wide), every attack leaves a
 // spark on the crest of its peak that rides its line back into the stack, the lines fade out at their ends instead of
 // stopping in a hard-edged block, and they run warm on the bass side, cool on the treble side.
-// A sixth knob, how present (the user, 2026-11-01: sliders should dim, not only boost). Turned down, the lines are fainter,
-// thinner, lower and roll slower, and only the hardest attacks of the piece leap up and leave a spark. At 1 it changes nothing.
+// A sixth knob, how present: moving it writes the widget's other knobs.
 (() => {
   const BONE = '236,228,212', WARM = '246,214,182', COOL = '198,216,238', EMBER = [255, 132, 72];
   const B = 200;                       // points along one line
@@ -26,17 +25,6 @@
     PITCH[i] = M0 + u * (M1 - M0);
     TAPER[i] = u <= 0 || u >= 1 ? 0 : Math.pow(Math.sin(Math.PI * u), 0.6);
   }
-  // how present (0..1): which notes count as attacks, judged against this piece's own notes (recordings differ a lot in how
-  // hard they play): every one at 1, the hardest 40% or so at 0.4, the hardest 5% at 0
-  let vels = null;
-  const hardEnough = (v, x) => {
-    const cut = (1 - x.p('presence')) * 0.95;
-    if (cut <= 0) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
   const noiseRow = () => { const a = new Float32Array(B); let s = 0; for (let i = 0; i < B; i++) { s = s * 0.55 + (Math.random() - 0.5); a[i] = s; } return a; };
   // bass notes swell into broad hills, treble notes into thin needles
   const widthAt = (c) => 1.5 - 0.9 * Math.max(0, Math.min(1, (c - M0) / (M1 - M0)));
@@ -96,18 +84,14 @@
         hint: 'How much ridge it stacks: how many lines, how fast new ones roll in, how high the peaks rise. Left: a sparse stack of slow, low lines, far apart. Right: the full stack. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { vels = null; rows = []; pend = null; pendNoise = null; pendGap = 0.7; pendLvl = 0; pendGl = []; live = new Float32Array(B); since = 0; hits = []; flash = 0; },
+    reset() { rows = []; pend = null; pendNoise = null; pendGap = 0.7; pendLvl = 0; pendGl = []; live = new Float32Array(B); since = 0; hits = []; flash = 0; },
     onChord(ch, x) {
-      let k = 0;
-      for (const n of ch.notes) if (hardEnough(n.v, x)) { hits.push({ m: n.m, v: n.v, age: 0, fresh: true }); k++; }
-      if (ch.notes.length && !k) return;     // too soft for how present: the notes still rise as sounding notes, without a flare
-      flash = Math.max(flash, Math.pow(ch.vel / 127, 1.5) * Math.min(1.4, 0.6 + k * 0.12));
+      for (const n of ch.notes) hits.push({ m: n.m, v: n.v, age: 0, fresh: true });
+      flash = Math.max(flash, Math.pow(ch.vel / 127, 1.5) * Math.min(1.4, 0.6 + ch.notes.length * 0.12));
     },
     frame(x) {
       const g = x.g, W = x.W, H = x.H, dt = x.dt, f = x.feat;
       const sharp = x.p('sharp'), sig = 2.4 - sharp * 1.75, rough = 0.06 + sharp * 0.5;
-      // how present: every factor is exactly 1 at 1. Applied as the lines are drawn, so turning it down dims the whole stack at once.
-      const pres = x.p('presence'), ink = 1 - 0.94 * (1 - pres), low = 1 - 0.7 * (1 - pres), thin = 1 - 0.5 * (1 - pres), roll = 1 - 0.6 * (1 - pres);
       // the live slice: sounding notes, a jump on the attack, a floor of noise that is busier when the music is
       live.fill(0);
       for (const n of x.sounding()) {
@@ -135,7 +119,7 @@
       if (!pend) pend = new Float32Array(B);
       for (let i = 0; i < B; i++) if (live[i] > pend[i]) pend[i] = live[i];
       pendLvl = Math.max(pendLvl, f.level);
-      since += dt * x.p('speed') * roll;      // counted in lines, so a changing speed never makes the stack lurch
+      since += dt * x.p('speed');      // counted in lines, so a changing speed never makes the stack lurch
       while (since >= 1) {
         since -= 1;
         rows.unshift({ a: pend, gap: pendGap, lvl: pendLvl, gl: pendGl });
@@ -153,11 +137,10 @@
       const hMax = 125 * Math.pow(46 / N, 0.35);
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
       g.lineJoin = 'round'; g.lineCap = 'round';
-      const draw = (arr, z, bright0, lw0, gl, glow) => {
-        const bright = bright0 * ink, lw = lw0 * thin;
+      const draw = (arr, z, bright, lw, gl, glow) => {
         const u = z / N, s = 1 / (1 + K * u);
         const fz = K < 0.01 ? u : (1 - s) / (1 - 1 / (1 + K));
-        const y = yFront - fz * ySpan, hw = half * (0.45 + 0.55 * s), amp = hMax * (0.35 + 0.65 * s) * low;
+        const y = yFront - fz * ySpan, hw = half * (0.45 + 0.55 * s), amp = hMax * (0.35 + 0.65 * s);
         const x0 = cx - hw, sx = (2 * hw) / (B - 1);
         g.beginPath(); g.moveTo(x0, y + 1.5);
         for (let i = 0; i < B; i++) g.lineTo(x0 + i * sx, y - amp * lift(arr[i]));
@@ -193,8 +176,7 @@
         draw(r.a, zk, (0.95 - 0.5 * far * far) * edge * loud, 0.45 + 2.3 * Math.pow(lv, 1.6), r.gl, 0);
       }
       // the present: the live slice, flaring on an attack
-      const fl = flash * pres;
-      draw(live, 0, Math.min(1, 0.9 + fl), 1.4 + 0.8 * Math.min(1, f.level) + fl * 2.2, null, (0.05 + 0.12 * Math.min(1, fl)) * ink);
+      draw(live, 0, Math.min(1, 0.9 + flash), 1.4 + 0.8 * Math.min(1, f.level) + flash * 2.2, null, 0.05 + 0.12 * Math.min(1, flash));
     },
   });
 })();

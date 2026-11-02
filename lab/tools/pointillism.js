@@ -1,8 +1,7 @@
 // Pointillism: every note throws a burst of coloured dots; dots settle into time-slice layers ("epochs") that
 // dissolve into a soft blurred colour wash as they age, so harmony becomes colour regions. Hue is the note's
 // distance from the detected home key around the circle of fifths: diatonic = warm, chromatic = cool.
-// A sixth knob, how present (2026-11-01, "can only boost, not tone down"): turned down, the painting fades, the canvas stops
-// flinching, each note throws fewer dots, and only the piece's hardest notes throw any.
+// A sixth knob, how present: moving it writes the widget's other knobs.
 (() => {
   // Settled dots live at CS of full resolution (they are soft dabs anyway), the wash at a quarter.
   const W = 1280, H = 720, K = 8, CS = 0.75, CW = W * CS, CH = H * CS, SW = 320, SH = 180, SC = SW / W;
@@ -25,19 +24,6 @@
     }
     return c;
   }
-  // how present (0..1). The stage only fades 12% a frame and the layers are redrawn every frame, so a layer drawn at alpha a
-  // settles at a / (0.12 + 0.88 a): plain alpha hardly dims it. seen(p) is the alpha that settles at p; seen(1) is exactly 1.
-  const seen = (p) => 0.12 * p / (0.12 + 0.88 * (1 - p));
-  // Which notes throw dots, judged against this piece's own notes (recordings differ a lot in how hard they are played):
-  // every one at 1, the hardest two thirds at 0.5, the hardest 5% at 0.
-  let vels = null, lastDab = -99;
-  const hardEnough = (v, x) => {
-    const cut = Math.pow(1 - x.p('presence'), 1.5) * 0.95; if (cut <= 0) return true;
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
   const WHITE = mk(DOT, DOT); { const wg = WHITE.getContext('2d'); wg.fillStyle = '#fff'; wg.beginPath(); wg.arc(DOT / 2, DOT / 2, DOT / 2 - 1, 0, 6.283); wg.fill(); }
   const R = (a, b) => a + Math.random() * (b - a);
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
@@ -132,7 +118,7 @@
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset(x) {
-      pulse = 0; avgVel = 64; vels = null; lastDab = 0;
+      pulse = 0; avgVel = 64;
       for (let i = 0; i < K; i++) { crisp[i].getContext('2d').clearRect(0, 0, CW, CH); wash[i].getContext('2d').clearRect(0, 0, SW, SH); ep[i] = { born: -1e9, closed: -1e9, used: false }; }
       cur = 0; time = 0; fresh = []; heldAcc = new Map(); life = x.p('stay') * (1 - 0.45 * x.feat.rate);
       ep[0] = { born: 0, closed: 0, used: true };
@@ -148,35 +134,26 @@
       const big = ch.notes.length >= 2 && ch.vel >= Math.max(80, Math.min(100, avgVel + 16)), sparse = 1 + 1.3 * (1 - x.feat.rate);  // sparse music: each note paints more
       avgVel += (ch.vel - avgVel) * 0.06;
       if (big) pulse = Math.min(1.5, pulse + 0.5 + Math.max(0, ch.vel - 85) / 30);
-      // The home key and the sense of 'big' above hear every note; below, only the notes that are hard enough paint. A quiet
-      // stretch would stay empty for minutes, so when nothing has painted for a while the next chord's strongest note does.
-      const P = x.p('presence'), dabs = 1 - 0.65 * (1 - P);
-      let notes = ch.notes;
-      if (P < 1) {
-        notes = notes.filter((n) => hardEnough(n.v, x));
-        if (!notes.length && ch.notes.length && time - lastDab > 0.8 + 1.7 * (1 - P)) notes = [ch.notes.reduce((a, n) => (n.v > a.v ? n : a))];
-        if (notes.length) lastDab = time;
-      }
+      const notes = ch.notes;
       const thin = 1 / Math.sqrt(Math.max(1, notes.length / 2));  // fat chords: fewer dots per note, so the field doesn't clog
       // Loudness relative to the recent average, so a soft passage (Beethoven's quiet stretches) still paints visibly.
       const eff = (v) => Math.max(v, Math.min(105, v * 72 / Math.max(45, avgVel)));
-      for (const n of notes) burst(n.m, eff(n.v), n.d, Math.round(x.p('burst') * (4 + 20 * Math.pow(eff(n.v) / 127, 1.5)) * (big ? 1.5 : 1) * sparse * thin * dabs), x, { wide: (big ? 1.5 : 1) * (0.8 + 0.4 * sparse) });
+      for (const n of notes) burst(n.m, eff(n.v), n.d, Math.round(x.p('burst') * (4 + 20 * Math.pow(eff(n.v) / 127, 1.5)) * (big ? 1.5 : 1) * sparse * thin), x, { wide: (big ? 1.5 : 1) * (0.8 + 0.4 * sparse) });
       if (notes.length >= 2 && FIX.comp > 0) {
         // The chord's mean hue, turned 180°: a halo of the complement around the chord's loudest note.
         let cx = 0, cy = 0, lead = notes[0]; for (const n of notes) { const h = hueOf(n.m, x) * Math.PI / 180; cx += Math.cos(h); cy += Math.sin(h); if (n.v > lead.v) lead = n; }
         const hc = Math.atan2(cy, cx) * 180 / Math.PI + 180;
-        burst(lead.m, lead.v * 0.75, lead.d, Math.round(FIX.comp * x.p('burst') * notes.length * 7 * dabs), x, { hue: hc, ring: true, small: 0.7 });
+        burst(lead.m, lead.v * 0.75, lead.d, Math.round(FIX.comp * x.p('burst') * notes.length * 7), x, { hue: hc, ring: true, small: 0.7 });
       }
     },
     frame(x) {
-      const g = x.g, bleed = x.p('bleed'), P = x.p('presence');
-      const dabs = 1 - 0.65 * (1 - P), dotA = seen(1 - 0.7 * (1 - P)), washK = seen(1 - 0.65 * (1 - P)), freshA = seen(1 - 0.5 * (1 - P));
+      const g = x.g, bleed = x.p('bleed');
       time += x.dt; pulse *= Math.pow(0.5, x.dt / 0.12); life += (x.p('stay') * (1 - 0.45 * x.feat.rate) - life) * (1 - Math.pow(0.5, x.dt / 1.5));
       // Held notes keep adding dots, gently.
       const now = x.sounding(), keep = new Map();
       for (const n of now) {
-        if (x.t - n.start < 0.15 || (P < 1 && !hardEnough(n.v, x))) continue;
-        const k = `${n.m}@${n.start}`, acc = (heldAcc.get(k) ?? 0) + x.dt * x.p('burst') * 7 * n.v / 127 * dabs;
+        if (x.t - n.start < 0.15) continue;
+        const k = `${n.m}@${n.start}`, acc = (heldAcc.get(k) ?? 0) + x.dt * x.p('burst') * 7 * n.v / 127;
         const c = Math.floor(acc); if (c > 0) burst(n.m, n.v, n.end - n.start, c, x, { held: true });
         keep.set(k, acc - c);
       }
@@ -195,15 +172,15 @@
         for (let i = 0; i < K; i++) { const a = washA(age01(ep[i]), bleed); if (a > 0.004) { wcg.globalAlpha = Math.min(1, a); wcg.drawImage(wash[i], 0, 0); } }
         wcg.globalAlpha = 1;
         wbg.clearRect(0, 0, SW, SH); wbg.filter = `blur(${(2 + bleed * 5).toFixed(1)}px)`; wbg.drawImage(wc, 0, 0); wbg.filter = 'none';
-        g.globalAlpha = 0.5 * washK; g.imageSmoothingEnabled = true; g.drawImage(wb, 0, 0, W, H); g.globalAlpha = 1;
+        g.globalAlpha = 0.5; g.imageSmoothingEnabled = true; g.drawImage(wb, 0, 0, W, H); g.globalAlpha = 1;
       }
       // The settled dots, oldest first, each slice drifting a touch outward as it ages.
       for (let j = 1; j <= K; j++) {
         const i = (cur + j) % K, a = age01(ep[i]), al = crispA(a, bleed); if (al < 0.01) continue;
-        const s = 1 + Math.max(0, a) * life * 0.006 * P + pulse * 0.018 * (1 - Math.max(0, a)) * P;  // big chords make the whole field flinch
-        g.globalAlpha = al * dotA; g.drawImage(crisp[i], W / 2 - W * s / 2, H / 2 - H * s / 2, W * s, H * s);
+        const s = 1 + Math.max(0, a) * life * 0.006 + pulse * 0.018 * (1 - Math.max(0, a));  // big chords make the whole field flinch
+        g.globalAlpha = al; g.drawImage(crisp[i], W / 2 - W * s / 2, H / 2 - H * s / 2, W * s, H * s);
       }
-      g.globalAlpha = freshA;
+      g.globalAlpha = 1;
       // Fresh dots in flight: they pop out of the note's spot, overshoot in size and brightness, then settle.
       const keepF = [];
       for (const q of fresh) {
@@ -211,14 +188,14 @@
         if (q.age < 0) { keepF.push(q); continue; }
         const t = Math.min(1, q.age / q.fly);
         if (t >= 1) { commit(q); continue; }
-        const e = 1 - Math.pow(1 - t, 3), r = q.r * (1 + 0.6 * (1 - t) * P);
+        const e = 1 - Math.pow(1 - t, 3), r = q.r * (1 + 0.6 * (1 - t));
         q.px = q.sx + (q.tx - q.sx) * e; q.py = q.sy + (q.ty - q.sy) * e; q.pr = r; q.pt = t;
         g.drawImage(q.spr, q.px - r, q.py - r, r * 2, r * 2);
         keepF.push(q);
       }
       // ...with a white flash on top that dies as they land.
       g.globalCompositeOperation = 'lighter';
-      for (const q of keepF) if (q.pt !== undefined && q.age >= 0) { g.globalAlpha = 0.45 * (1 - q.pt) * (1 - q.pt) * freshA; g.drawImage(WHITE, q.px - q.pr, q.py - q.pr, q.pr * 2, q.pr * 2); }
+      for (const q of keepF) if (q.pt !== undefined && q.age >= 0) { g.globalAlpha = 0.45 * (1 - q.pt) * (1 - q.pt); g.drawImage(WHITE, q.px - q.pr, q.py - q.pr, q.pr * 2, q.pr * 2); }
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
       fresh = keepF.length > 2500 ? keepF.slice(-2500) : keepF;
     },

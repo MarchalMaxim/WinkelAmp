@@ -13,8 +13,7 @@
 // inset copy of the cell that flashes pale and wide on the attack, shrinks while the note sounds and is gone when it ends.
 // A loud attack also sends a ring of light out through the mosaic: each cell's seams (and the ground's dark wash) catch it
 // as the ring passes their centre, so the wave steps from cell to cell.
-// A sixth knob, how present (2026-11-01, "can only boost, not tone down"): turned down, the whole mosaic is laid on faintly so
-// what's under it shows, the sway and the attacks calm, cells close sooner, and only the piece's hardest notes open a cell.
+// A sixth knob, how present (2026-11-01): it sets the other knobs in one move.
 (() => {
   const TAU = Math.PI * 2;
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -107,34 +106,6 @@
   const WAVE_V = 760, WAVE_W = 90, WAVE_R = 1500;   // ripple speed (px/s), ring width, how far it travels
   const poly = (g, pts) => { g.beginPath(); pts.forEach(([a, b], k) => (k ? g.lineTo(a, b) : g.moveTo(a, b))); g.closePath(); };
 
-  // how present (0..1). Below 1 the mosaic is painted just as it is at 1, but on its own canvas with the stage's own fade
-  // (its wash is what keeps moving borders from smearing), and that canvas goes on the stage at low alpha.
-  let lay = null, lg = null, layOn = false;
-  function sheet(x) {
-    const cv = x.g.canvas;
-    if (!lay || lay.width !== cv.width || lay.height !== cv.height) {
-      lay = document.createElement('canvas'); lay.width = cv.width; lay.height = cv.height; lg = lay.getContext('2d');
-      lg.setTransform(cv.width / x.W, 0, 0, cv.height / x.H, 0, 0); layOn = false;
-    }
-    if (!layOn) { lg.drawImage(cv, 0, 0, x.W, x.H); layOn = true; }   // starts from what the stage shows, so touching the slider doesn't flicker
-    else {
-      lg.fillStyle = 'rgba(0,0,0,0.12)'; lg.fillRect(0, 0, x.W, x.H);
-      lg.globalCompositeOperation = 'color-burn'; lg.fillStyle = 'rgb(252,252,252)'; lg.fillRect(0, 0, x.W, x.H);
-      lg.globalCompositeOperation = 'source-over';
-    }
-    return lg;
-  }
-  // Which notes open a cell, judged against this piece's own notes (recordings differ a lot in how hard they are played):
-  // every one at 1, the hardest 40% at 0.4, the hardest 5% at 0. A quiet stretch would stay empty for minutes, so when
-  // nothing has answered for a while (5.5 s at 0, less higher up) the next chord's strongest note does.
-  let vels = null, lastAns = -99;
-  const hardEnough = (v, pres) => {
-    if (!vels) vels = (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= (1 - pres) * 0.95;
-  };
-
   // the inset copy of a polygon, k of the way from its centre (0 = a point, 1 = the polygon)
   function inset(P, k) {
     const n = P.length >> 1; let cx = 0, cy = 0;
@@ -184,17 +155,11 @@
         hint: 'How much mosaic builds up: how long cells linger after their note before they close into their neighbours. Sounding notes always hold a cell open. Left: cells close as soon as the note ends, the rest is dark ground. Right: they linger for seconds and fill the picture. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset(x) { study(); seeds = ground(x); hit = 0; T = 0; polys = []; row = 0.3; waves = []; lay = null; layOn = false; lastAns = -99; },
+    reset(x) { study(); seeds = ground(x); hit = 0; T = 0; polys = []; row = 0.3; waves = []; },
     onChord(ch, x) {
       study();
-      const pres = x.p('presence');
-      let notes = ch.notes;
-      if (pres < 1) {
-        notes = notes.filter((n) => hardEnough(n.v, pres));
-        if (!notes.length && x.t - lastAns >= 0.5 + 5 * (1 - pres)) notes = [ch.notes.reduce((a, b) => (b.v > a.v ? b : a))];
-        if (notes.length) lastAns = x.t;
-      }
-      if (notes.length) hit = Math.max(hit, (ch.vel / 115) * pres);
+      const notes = ch.notes;
+      if (notes.length) hit = Math.max(hit, ch.vel / 115);
       row = (row + 0.618034) % 1;                       // each chord on a new row
       const head = x.H * (0.1 + 0.8 * row);
       let wx = 0, wy = 0, wn = 0, wc = [0, 0, 0];
@@ -218,15 +183,14 @@
         wx += hx; wy += hy; wn++; wc = mix(wc, col, 1 / wn);
       }
       // a loud attack sends a ring of light out from where it landed (soft ones make none)
-      const amp = clamp((ch.vel - 55) / 55) ** 1.4 * pres;
+      const amp = clamp((ch.vel - 55) / 55) ** 1.4;
       if (wn && amp > 0.02) { waves.push({ x: wx / wn, y: wy / wn, r: 0, amp, col: wc, seam: mix(wc, [252, 246, 234], 0.6) }); if (waves.length > 8) waves.shift(); }
       const open = seeds.filter((s) => !s.ground && !s.dying);   // too many open cells: the oldest close first
       for (let i = 0; i < open.length - MAXN; i++) open[i].close = true;
     },
     frame(x) {
-      const pres = x.p('presence'); if (pres >= 1) layOn = false; else if (x.dt <= 0) return;
-      const g = pres < 1 ? sheet(x) : x.g, dt = x.dt; if (!seeds.length) seeds = ground(x);
-      const drift = x.p('drift') * pres, stay = x.p('stay') * (1 - 0.6 * (1 - pres)), pebble = x.p('pebble'), fill = x.p('fill'), edge = x.p('edge');
+      const g = x.g, dt = x.dt; if (!seeds.length) seeds = ground(x);
+      const drift = x.p('drift'), stay = x.p('stay'), pebble = x.p('pebble'), fill = x.p('fill'), edge = x.p('edge');
       T += dt * (0.4 + drift);
       hit *= Math.pow(0.5, dt / 0.16);
       for (const wv of waves) wv.r += WAVE_V * dt;
@@ -234,7 +198,7 @@
       let loud = null; for (const wv of waves) if (!loud || wv.amp * (1 - wv.r / WAVE_R) > loud.amp * (1 - loud.r / WAVE_R)) loud = wv;
       // ---- life: bud, grow, swell on the attack, settle, outlive the note, close
       let tr = 0, tg = 0, tb = 0, tw = 0;
-      const swK = (Math.min(1, edge) * 16000 + Math.max(0, edge - 1) * 10000) * pres;   // how far an attack shoves its neighbours
+      const swK = Math.min(1, edge) * 16000 + Math.max(0, edge - 1) * 10000;   // how far an attack shoves its neighbours
       for (const s of seeds) {
         // the ring of light: how lit this cell is as a wave passes its centre
         let e = 0;
@@ -307,20 +271,13 @@
       for (const i of order) {
         // the border: at rest a darker shade of the cell (its own colour when outlined); an attack drives it thick and black;
         // the passing ring of light pales it
-        const s = seeds[i], life = s.dying ? 1 - ease(s.dying) : 1, bright = Math.exp(-s.lit / GLOW), flare = clamp(s.pulse) * pres;
+        const s = seeds[i], life = s.dying ? 1 - ease(s.dying) : 1, bright = Math.exp(-s.lit / GLOW), flare = clamp(s.pulse);
         const dark = clamp(edge * (0.8 * flare + 0.35 * hit));
         const rest = fill > 0.5 ? mix(s.c, INK, 0.45) : mix(s.c, [255, 255, 255], 0.15);
         path(g, polys[i], round);
         g.strokeStyle = css(mix(mix(rest, INK, dark * fill), [250, 242, 226], 0.6 * s.echo * (1 - dark)), life * (0.45 + 0.55 * Math.max(bright * 0.7, dark, 1 - fill, s.echo)));
         g.lineWidth = 1.2 + (1 - fill) * 1.3 + edge * (7 * flare + 2.5 * hit) + 2 * s.echo;
         g.stroke();
-      }
-      if (pres < 1) {
-        // laid on so that about s of the full picture shows when alone, and k of what the stage held stays: all of it at 0,
-        // from the middle up the 22% the wash lets through at 1. A black wash takes the rest; the stage's slow fade alone would stack moving cells in trails.
-        const s = 0.5 + 0.5 * pres * pres, k = Math.max((1 - pres) ** 2, 0.22), a = s * (1 - 0.88 * k), cover = 1 - k / (1 - a);
-        if (cover > 0) { x.g.fillStyle = `rgba(0,0,0,${cover})`; x.g.fillRect(0, 0, x.W, x.H); }
-        x.g.globalAlpha = a; x.g.drawImage(lay, 0, 0, x.W, x.H); x.g.globalAlpha = 1;
       }
     },
   });

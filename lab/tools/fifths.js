@@ -7,9 +7,7 @@
 // has been using lately; a bare octave (the prelude's tolling As, the fate motif) is a ray along its own spoke instead of
 // nothing. 'line' replaces 'weight' (new key: loudness now thickens by itself, the old saved drive would count it twice);
 // 'shiver' replaces 'sink' (now fixed at 0.55).
-// How present (the user, 2026-11-01: sliders should dim, not only boost): turned down, the whole figure is fainter, its
-// strings thinner, the loom swings and shivers less, and only this piece's hardest attacks string a chord or light a peg.
-// Every note still feeds the key memory, so the loom still turns to the right home note. At 1 none of this applies.
+// How present (the user, 2026-11-01: sliders should dim, not only boost): moving it sets the knobs it leads.
 (() => {
   const STEP = Math.PI * 2 / 12, TAU = Math.PI * 2;
   const FIFTH = (pc) => (pc * 7) % 12;                       // pitch class -> position on the circle of fifths
@@ -24,16 +22,7 @@
   // fade), leaves a short motion trail when it turns, and lets other tools show wherever they are brighter.
   const off = document.createElement('canvas'); off.width = 1280; off.height = 720; const og = off.getContext('2d');
   let polys = [], trail = [], node = new Float32Array(12), nodeR = new Float32Array(12).fill(1), hist = new Float32Array(12);
-  let prevPc = -1, prevM = 60, prevT = -9, vels = null;
-  // how present (0..1): which attacks answer, judged against this piece's own notes (recordings differ a lot in how hard
-  // they are played): every one at 1, the hardest 40% at 0.4, the hardest 5% at 0
-  const answers = (v, pres) => {
-    const cut = (1 - pres) * 0.95; if (cut <= 0) return true;
-    vels ||= (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
-    if (!vels.length) return true;
-    let a = 0, b = vels.length; while (a < b) { const k = (a + b) >> 1; if (vels[k] < v) a = k + 1; else b = k; }
-    return a / vels.length >= cut;
-  };
+  let prevPc = -1, prevM = 60, prevT = -9;
   let keyRot = 0, keyKnown = false, tonic = 0, minor = false, spinAcc = 0, flash = 0, scale = 1;
 
   function estimateKey() {
@@ -136,16 +125,14 @@
         hint: 'How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
-    reset() { vels = null; prevPc = -1; polys = []; trail = []; node.fill(0); nodeR.fill(1); hist.fill(0); keyKnown = false; spinAcc = 0; flash = 0; scale = 1; },
+    reset() { prevPc = -1; polys = []; trail = []; node.fill(0); nodeR.fill(1); hist.fill(0); keyKnown = false; spinAcc = 0; flash = 0; scale = 1; },
     onChord(ch, x) {
-      const pres = x.p('presence'), on = answers(ch.vel, pres);
       for (const n of ch.notes) {
         const pc = n.m % 12;
-        if (on) node[pc] = Math.max(node[pc], 0.35 + 0.65 * n.v / 110);
+        node[pc] = Math.max(node[pc], 0.35 + 0.65 * n.v / 110);
         hist[pc] += (n.v / 127) * (0.3 + Math.min(2, n.d)) * (n.m < 52 ? 1.6 : 1);
       }
       estimateKey();
-      if (!on) return;                                         // too soft for how present it is: heard, but it strings nothing
       // Merge attacks within 90 ms into one polygon (rolled chords, transcriber jitter).
       let P = polys[polys.length - 1];
       if (!P || ch.t - P.t > 0.09) {
@@ -180,7 +167,7 @@
         P.octs = [...new Set(P.notes.map((n) => n.m))].map((m) => ({ f: P.v[0].f, r: REG(m), v: P.v[0].v, new: true }));
       } else P.octs = null;
       P.big = P.vel >= 92 && P.notes.length >= 3;
-      if (P.big) flash = Math.max(flash, Math.min(1, (P.vel - 80) / 30) * pres);
+      if (P.big) flash = Math.max(flash, Math.min(1, (P.vel - 80) / 30));
       // The journey: the chord's centre of gravity inside the circle.
       let cx = 0, cy = 0; for (const q of P.v) { const p = pt(q.f, q.r, 1); cx += p[0]; cy += p[1]; }
       cx /= P.v.length; cy /= P.v.length;
@@ -190,20 +177,20 @@
       if (trail.length > 400) trail.shift();
     },
     frame(x) {
-      const g = og, dt = x.dt, decay = x.p('decay'), pres = x.p('presence');
+      const g = og, dt = x.dt, decay = x.p('decay');
       // Key memory (~5 s half-life) and the turn toward it.
       const hk = Math.pow(0.5, dt / 5); for (let i = 0; i < 12; i++) { hist[i] *= hk; node[i] *= Math.pow(0.5, dt / 0.3); }
-      for (const n of x.sounding()) { if (!answers(n.v, pres)) continue; const pc = n.m % 12, held = 0.25 * n.v / 105; if (node[pc] < held) node[pc] = held; } // held notes keep their peg warm
+      for (const n of x.sounding()) { const pc = n.m % 12, held = 0.25 * n.v / 105; if (node[pc] < held) node[pc] = held; } // held notes keep their peg warm
       const target = -FIFTH(tonic) * STEP;
       if (!keyKnown) { keyRot = target; keyKnown = polys.length > 0; }
       { let d = ((target - keyRot) % TAU + TAU * 1.5) % TAU - Math.PI; keyRot += d * (1 - Math.pow(0.5, dt / 2.25)); }
       // Spin is a sprung swing, not a running total: busy passages swing the loom, and it settles back home.
-      spinAcc += 16 * x.feat.rate * Math.PI / 180 * dt * pres; spinAcc *= Math.pow(0.5, dt / 1.2);
+      spinAcc += 16 * x.feat.rate * Math.PI / 180 * dt; spinAcc *= Math.pow(0.5, dt / 1.2);
       flash *= Math.pow(0.5, dt / 0.18);
       scale += (1 + 0.05 * flash - scale) * Math.min(1, dt * 30);
       // Base radius: a high note at REG 1.10 stays inside the frame even at the peak of a flash.
       const Rpx = 268 * scale, W2 = x.W / 2, H2 = x.H / 2;
-      const weight = x.p('line') * (pres < 1 ? 0.45 + 0.55 * pres : 1), fillA = x.p('fill'), bowNow = x.p('bow'), shiver = x.p('shiver') * pres;
+      const weight = x.p('line'), fillA = x.p('fill'), bowNow = x.p('bow'), shiver = x.p('shiver');
 
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.fillRect(0, 0, x.W, x.H);
       g.save(); g.translate(W2, H2); g.rotate(keyRot + spinAcc);
@@ -242,7 +229,7 @@
         const ring = Math.exp(-P.age / (0.22 + 0.25 * P.loud));
         const shake = shiver * (24 + 36 * P.loud) * ring * Math.cos(TAU * (P.ph + P.age * (3.5 + 5 * P.reg)));
         const path = new Path2D(); trace(path, P, Rpx, bow, sk, tw, shake);
-        const land = Math.max(0, 1 - P.age / 0.16) * pres;        // the first instants of an attack: a white-hot stroke
+        const land = Math.max(0, 1 - P.age / 0.16);        // the first instants of an attack: a white-hot stroke
         if (P.v.length > 2 && fillA > 0) { g.fillStyle = rgba(col, Math.min(0.26, fillA * (0.25 * fresh + 0.75 * atk)) * kf); g.fill(path); }
         // Glow: wide and soft for loud chords, capped so a climax stays a shape, not a cloud.
         // Only around the attack (wide strokes are what costs time in a dense passage); a ringing chord keeps its core.
@@ -303,9 +290,6 @@
         }
       }
       g.restore();
-      // how present: black laid over the figure itself. (Not an alpha on the draw below: 'lighten' over the shared canvas's
-      // slow fade would climb back up to the full brightness within a few frames.)
-      if (pres < 1) { g.fillStyle = `rgba(0,0,0,${(1 - (0.12 + 0.88 * pres * pres)).toFixed(3)})`; g.fillRect(0, 0, x.W, x.H); }
       x.g.globalCompositeOperation = 'lighten'; x.g.drawImage(off, 0, 0);
     },
   });
