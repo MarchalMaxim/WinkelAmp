@@ -14,7 +14,11 @@
       "label": "calm",
       "layers": [
         {
-          "widget": "fields"
+          "widget": "fields",
+          "knobs": {
+            "chords": 0.73,
+            "n": 4
+          }
         }
       ]
     },
@@ -47,7 +51,20 @@
       "fade": 3,
       "layers": [
         {
-          "widget": "miro"
+          "widget": "miro",
+          "knobs": {
+            "wander": {
+              "base": 0,
+              "drive": ""
+            },
+            "colour": 1
+          },
+          "intensity": [
+            { "t": 56.895, "v": 0, "shape": "ease" },
+            { "t": 69.609, "v": 1, "shape": "ease" },
+            { "t": 76.201, "v": 1, "shape": "ease" },
+            { "t": 82.323, "v": 0 }
+          ]
         },
         {
           "widget": "brush",
