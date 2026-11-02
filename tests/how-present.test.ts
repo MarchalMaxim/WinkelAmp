@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { applyEdit } from '../src/studio/show/edit';
-import type { Show } from '../src/studio/show/show';
+import { validateShow, type Show } from '../src/studio/show/show';
 import { presentEdit } from '../src/studio/ui/knobs';
 import type { Param } from '../src/widgets/types';
 
@@ -66,6 +66,14 @@ describe('in the studio', () => {
 
 describe('the widgets', () => {
   const { widgets } = loadCatalogue();
+  const warned = (knobs: Record<string, number>) => validateShow({ version: 1, id: 's', song: 's', sections: [{ start: 0, end: 10, layers: [{ widget: 'vine', knobs }] }] },
+    { widgets }).warnings.filter((w) => w.path.endsWith('knobs.howmuch'));
+
+  it('check-show says so when a file sets how present and none of what follows it', () => {
+    expect(warned({ howmuch: 0.3 })).toHaveLength(1);
+    expect(warned({ howmuch: 0.3, branch: 0.1 })).toEqual([]);
+    expect(warned({ howmuch: 1 })).toEqual([]);
+  });
   const list = [...widgets.values()];
 
   it('a follower is in range, moves, and belongs to a widget with the slider', () => {

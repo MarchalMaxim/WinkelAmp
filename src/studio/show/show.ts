@@ -222,6 +222,11 @@ function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | n
     if (v.drive !== undefined && !DRIVES.includes(v.drive as Drive)) err(`${kp}.drive`, `${JSON.stringify(v.drive)} is not a drive (one of ${DRIVES.map((d) => `'${d}'`).join(', ')})`);
     if (v.depth !== undefined && !(isNum(v.depth) && v.depth >= 0 && v.depth <= 1)) err(`${kp}.depth`, `${JSON.stringify(v.depth)} is not a depth from 0 to 1`);
   }
+  // How present draws nothing: only the slider writes the knobs that follow it, so a file has to set them as well.
+  const followers = meta?.params.filter((q) => typeof q.less === 'number') ?? [];
+  if (l.knobs.howmuch !== undefined && l.knobs.howmuch !== 1 && followers.length && !followers.some((q) => (l.knobs as Record<string, unknown>)[q.key] !== undefined)) {
+    warn(`${at}.knobs.howmuch`, `how present does nothing by itself: moving its slider writes ${followers.map((q) => q.key).join(', ')}, which this layer leaves at their defaults`);
+  }
 }
 
 /** What is wrong with a note of a set, or null. */
