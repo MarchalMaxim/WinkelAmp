@@ -9,7 +9,7 @@ import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
 import {
-  boxHits, chipLayout, clock, countWords, draftKey, draftShow, firstLayerOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
+  boxHits, chipLayout, clock, countWords, everyOther, phraseOf, sweptChips, draftKey, draftShow, firstLayerOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
   NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
 } from '../src/studio/ui/picker-logic';
@@ -169,13 +169,68 @@ describe('loudest', () => {
   });
 });
 
+describe('picking many', () => {
+  const notes = [roll(0, 60, 80, 0.2), roll(0.5, 62, 80, 0.7), roll(0.51, 70, 80, 0.7), roll(1, 64, 80, 1.2), roll(5, 65, 80, 5.2), roll(5.5, 67, 80, 5.7)].map((n, id) => ({ ...n, id }));
+  it('a drag takes the chips whose middles it passed, either way', () => {
+    const { chips } = chipLayout(notes), mid = (i: number) => chips[i].x + 10;
+    expect(sweptChips(chips, mid(0), mid(3)).map((n) => n.id)).toEqual([notes[0].id, notes[1].id, notes[2].id, notes[3].id]);
+    expect(sweptChips(chips, mid(3), mid(0))).toHaveLength(4);
+    expect(sweptChips(chips, mid(3) + 1, mid(4) - 1)).toEqual([]);
+  });
+  it('a phrase runs from pause to pause', () => {
+    expect(phraseOf(notes, notes[1].id).map((n) => n.id)).toEqual(notes.slice(0, 4).map((n) => n.id));
+    expect(phraseOf(notes, notes[5].id).map((n) => n.id)).toEqual(notes.slice(4).map((n) => n.id));
+    expect(phraseOf(notes, -99)).toEqual([]);
+  });
+  it('every other attack keeps the notes of one attack together', () => {
+    expect(everyOther(notes).map((n) => n.t)).toEqual([0, 1, 5.5]);
+    const two = [roll(0, 60), roll(0.5, 62), roll(0.51, 70), roll(1, 64)];
+    expect(everyOther(two.slice(1)).map((n) => n.t)).toEqual([0.5, 0.51]);
+  });
+});
+
 describe('chipLayout', () => {
-  it('even spacing, and a gap only at a pause over 1 s', () => {
+  /** n notes, a wait apart, each sounding for most of it, starting at t. */
+  const run = (t: number, n: number, wait = 0.25) => Array.from({ length: n }, (_, i) => roll(t + i * wait, 60 + (i % 5) * 3, 80, t + i * wait + wait * 0.8));
+  const gapsAfter = (notes: ReturnType<typeof run>) => chipLayout(notes).chips;
+
+  it('the usual wait is one chip wide, and notes never overlap', () => {
+    const chips = gapsAfter(run(0, 20));
+    for (let i = 1; i < chips.length; i++) expect(chips[i].x - chips[i - 1].x).toBeCloseTo(24, 6);
+  });
+
+  it('keeps time: a longer wait is a wider space, however fast the run around it', () => {
+    const chips = gapsAfter([...run(0, 10), ...run(2.9, 10), ...run(5.9, 10)]);
+    const space = (i: number) => chips[i].x - chips[i - 1].x;
+    expect(space(5)).toBeCloseTo(24, 6);
+    expect(space(10)).toBeGreaterThan(24 * 2.5);    // the wait of 0.65 s
+    expect(space(20)).toBeGreaterThan(space(10));   // the wait of 0.75 s
+  });
+
+  it('a very long rest grows only slowly, so the rest of the melody stays near', () => {
+    const chips = gapsAfter([...run(0, 10), ...run(300, 10)]);
+    expect(chips[10].x - chips[9].x).toBeLessThan(500);   // not the 30 000 px it would be in time
+  });
+
+  it('a pause over 1 s of silence gets a line between the notes, saying how long', () => {
     const { chips, gaps, width } = chipLayout([roll(0, 60, 80, 0.5), roll(1.5, 62, 80, 2), roll(3.01, 64, 80, 3.5)]);
-    expect(chips[1].x - chips[0].x).toBe(24);
-    expect(chips[2].x - chips[1].x).toBe(24 + 18);
-    expect(gaps).toEqual([{ x: chips[2].x - 12, t: 3.01 }]);
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].t).toBe(3.01);
+    expect(gaps[0].secs).toBeCloseTo(1.01, 6);
+    expect(gaps[0].x).toBeGreaterThan(chips[1].x + 20); expect(gaps[0].x).toBeLessThan(chips[2].x);
     expect(width).toBe(chips[2].x + 24 + 12);
+  });
+
+  it('notes of one attack stand over each other, unless they would touch', () => {
+    const { chips } = chipLayout([roll(0, 60), roll(0.01, 80), roll(0.02, 80), roll(1, 62)]);
+    expect(chips[1].x).toBe(chips[0].x);
+    expect(chips[2].x).toBeGreaterThan(chips[1].x);   // the same pitch again: beside it
+    expect(chips[3].x).toBeGreaterThan(chips[2].x);
+  });
+
+  it('a tail as long as the note sounds', () => {
+    const chips = gapsAfter(run(0, 10));
+    expect(chips[0].tail).toBeCloseTo(24 * 0.8, 6);
   });
 
   it('no pause while an earlier note still sounds', () => {

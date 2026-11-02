@@ -132,22 +132,71 @@ export function loudest(notes: readonly RollNote[], k: number): RollNote[] {
   return [...notes].sort((a, b) => b.v - a.v || a.t - b.t).slice(0, Math.max(0, k));
 }
 
-export interface Chip { note: RollNote; x: number; y: number }
+/** A note's chip: where it is, and how far its tail runs while it sounds (px). */
+export interface Chip { note: RollNote; x: number; y: number; tail: number }
 
-const CHIP_STEP = 24, PAUSE_ROOM = 18, PAUSE = 1, CHIP_TOP = 16, CHIP_RISE = 92;
+const CHIP_STEP = 24, CHIP_SIZE = 20, PAUSE = 1, CHIP_TOP = 16, CHIP_RISE = 92, SAME_ATTACK = 0.04;
+/** A longer wait than this many px grows only slowly, or one long rest would push the rest of the melody far away. */
+const LONG_WAIT = 220, LONG_TAIL = 400;
 
-/** Even spacing, height by pitch, 18 px more and a labelled gap at a pause over 1 s. */
-export function chipLayout(notes: readonly RollNote[]): { chips: Chip[]; gaps: { x: number; t: number }[]; width: number } {
-  const chips: Chip[] = [], gaps: { x: number; t: number }[] = [];
+/**
+ * The strip keeps time. The usual wait between attacks of this melody is one chip's width, so a fast run sits close and a
+ * longer wait is a wider space; a chip's tail shows how long the note sounds, so a space with no tail in it is silence.
+ * Notes of one attack (within 40 ms) stand over each other, if there is room. Height by pitch. A pause over 1 s gets a line
+ * saying when it ends and how long it was.
+ */
+export function chipLayout(notes: readonly RollNote[]): { chips: Chip[]; gaps: { x: number; t: number; secs: number }[]; width: number } {
+  const chips: Chip[] = [], gaps: { x: number; t: number; secs: number }[] = [];
   const pitches = notes.map((n) => n.m), hi = Math.max(...pitches), lo = Math.min(...pitches);
-  let x = 12, last = Infinity;
+  const waits: number[] = [];
+  for (let i = 1; i < notes.length; i++) { const w = notes[i].t - notes[i - 1].t; if (w > SAME_ATTACK) waits.push(w); }
+  waits.sort((a, b) => a - b);
+  const usual = waits.length ? waits[waits.length >> 1] : 0.5, pps = Math.max(30, Math.min(100, CHIP_STEP / usual));
+  const room = (w: number) => { const px = w * pps; return px <= CHIP_STEP ? CHIP_STEP : px <= LONG_WAIT ? px : LONG_WAIT + 30 * Math.log2(px / LONG_WAIT); };
+  let x = 12, last = Infinity, attack = -Infinity, column: number[] = [];
   for (const n of notes) {
-    if (n.t - last > PAUSE) { x += PAUSE_ROOM; gaps.push({ x: x - 12, t: n.t }); }
+    const y = CHIP_TOP + (hi === lo ? 40 : ((hi - n.m) / (hi - lo)) * CHIP_RISE);
+    const stack = n.t - attack <= SAME_ATTACK && column.every((c) => Math.abs(c - y) >= CHIP_SIZE - 2);
+    if (chips.length && !stack) {
+      const was = x;
+      x += room(n.t - attack);
+      if (n.t - last > PAUSE) gaps.push({ x: Math.round((was + CHIP_SIZE + x) / 2), t: n.t, secs: n.t - last });
+    }
+    if (!stack) { attack = n.t; column = []; }
+    column.push(y);
     last = last === Infinity ? n.e : Math.max(last, n.e);
-    chips.push({ note: n, x, y: CHIP_TOP + (hi === lo ? 40 : ((hi - n.m) / (hi - lo)) * CHIP_RISE) });
-    x += CHIP_STEP;
+    chips.push({ note: n, x, y, tail: Math.min(LONG_TAIL, Math.max(0, (n.e - n.t) * pps)) });
   }
-  return { chips, gaps, width: x + 12 };
+  return { chips, gaps, width: x + CHIP_STEP + 12 };
+}
+
+/** The chips a drag across the strip from a to b has passed (by their middles; content px). */
+export function sweptChips(chips: readonly Chip[], a: number, b: number): RollNote[] {
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  return chips.filter((c) => c.x + CHIP_SIZE / 2 >= lo && c.x + CHIP_SIZE / 2 <= hi).map((c) => c.note);
+}
+
+/** The notes of the phrase a note is in: from the pause before it to the pause after it, as the strip draws them. */
+export function phraseOf(notes: readonly RollNote[], id: number): RollNote[] {
+  let phrase: RollNote[] = [], last = Infinity, found = false;
+  for (const n of notes) {
+    if (n.t - last > PAUSE) { if (found) return phrase; phrase = []; }
+    phrase.push(n);
+    if (n.id === id) found = true;
+    last = last === Infinity ? n.e : Math.max(last, n.e);
+  }
+  return found ? phrase : [];
+}
+
+/** Every other attack of these notes, the first one kept: notes of one attack stay together. */
+export function everyOther(notes: readonly RollNote[]): RollNote[] {
+  const out: RollNote[] = [];
+  let attack = -Infinity, keep = false;
+  for (const n of notes) {
+    if (n.t - attack > SAME_ATTACK) { attack = n.t; keep = !keep; }
+    if (keep) out.push(n);
+  }
+  return out;
 }
 
 /** The popup's count: its number, the words after it, and (when attacks differ from notes) what they make. */

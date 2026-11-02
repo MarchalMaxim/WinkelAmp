@@ -15,7 +15,7 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, Note, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
-import { chipLayout, clock, countWords, draftKey, draftShow, loudest, nameOf, pitchClass, previewSpan, toPicks, type Instrument, type RollNote } from './picker-logic';
+import { chipLayout, clock, countWords, draftKey, draftShow, everyOther, loudest, nameOf, phraseOf, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import type { WidgetPalette } from './widget-palette';
@@ -43,6 +43,11 @@ export interface PopupOpen {
 }
 
 const FIRST_CHOICE = 'pointillism';
+/** A drag reaches a chip this many px before its middle; this near the strip's edge it scrolls, up to this fast (px a frame). */
+const SWEEP_REACH = 8, EDGE = 44, EDGE_SPEED = 18;
+
+/** A drag across the strip: the picks when it began, whether it adds or takes off, from where to where (content px). */
+interface Sweep { on: boolean; base: Set<number>; from: number; to: number; moved: boolean; x0: number; clientX: number; touch: boolean }
 
 export class PickerPopup {
   readonly el = document.createElement('div');
@@ -56,7 +61,10 @@ export class PickerPopup {
   private mode: 'pick' | 'all' = 'pick';
   private before = 0;
   private until: number | null = null;
-  private sweep: boolean | null = null;
+  private sweep: Sweep | null = null;
+  private layout: Chip[] = [];
+  /** The middle of the last chip pressed, for Shift. */
+  private lastChip: number | null = null;
   private heard = 0;
   private lastPlaying = false;
   private stopped: string | null = null;
@@ -77,7 +85,7 @@ export class PickerPopup {
           <span class="dim np-what" data-what></span>
           <div class="picker np-chooser" hidden></div>
         </div>
-        <div class="np-row"><span class="dim">Your melody, in order. Click or sweep across the notes that should fire the widget. Dashed lines mark a pause in the melody.</span></div>
+        <div class="np-row"><span class="dim">Your melody, spaced as it plays: a wide space is a long wait, a note's tail is how long it sounds, a dashed line a pause. Click a note, or drag anywhere to pick all you pass (on a picked note, or with Alt, it takes them off). Shift-click picks up to there, double-click the whole phrase.</span></div>
         <div class="np-chips"><div class="np-chips-in"></div></div>
         <div class="np-pop-bottom">
           <div class="np-pop-stage"><canvas width="1280" height="720" aria-label="The preview"></canvas></div>
@@ -85,6 +93,9 @@ export class PickerPopup {
             <div><div class="np-count"><b data-count>0</b> <span data-of></span></div><div class="dim small" data-attacks></div></div>
             <div class="np-row">
               <button type="button" data-loud>Pick the loudest</button><input type="number" data-n value="6" min="1" aria-label="How many of the loudest notes">
+              <button type="button" data-all title="Every note of the melody">All</button>
+              <button type="button" data-thin title="Every other attack of what is picked (or of the melody, if nothing is)">Every other</button>
+              <button type="button" data-invert title="What is picked comes off, the rest goes on">Invert</button>
               <button type="button" data-clear>Clear</button>
             </div>
             <div class="np-row">
@@ -106,6 +117,13 @@ export class PickerPopup {
       this.changed();
     });
     this.$('[data-clear]').addEventListener('click', () => { this.picks.clear(); this.changed(); });
+    this.$('[data-all]').addEventListener('click', () => { this.picks = new Set(this.melody().map((n) => n.id)); this.changed(); });
+    this.$('[data-thin]').addEventListener('click', () => {
+      const from = this.picked();
+      this.picks = new Set(everyOther(from.length ? from : this.melody()).map((n) => n.id));
+      this.changed();
+    });
+    this.$('[data-invert]').addEventListener('click', () => { this.picks = new Set(this.melody().filter((n) => !this.picks.has(n.id)).map((n) => n.id)); this.changed(); });
     this.$('[data-play]').addEventListener('click', () => this.toggle());
     this.el.querySelectorAll<HTMLButtonElement>('[data-cmp]').forEach((b) => b.addEventListener('click', () => this.compare(b.dataset.cmp as 'pick' | 'all')));
     this.$('[data-ok]').addEventListener('click', () => {
@@ -115,22 +133,42 @@ export class PickerPopup {
       this.d.commit(this.widget, notes, this.opened?.edit?.id ?? null);
     });
     const strip = this.$('.np-chips');
+    const contentX = (clientX: number) => clientX - strip.getBoundingClientRect().left + strip.scrollLeft;
     strip.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.clientY - strip.getBoundingClientRect().top > strip.clientHeight) return;   // not on its scrollbar
+      const id = this.chipId(e.target), touch = e.pointerType === 'touch';
+      if (id === null && touch) return;   // a finger on the empty strip scrolls it
+      e.preventDefault();
+      const chip = this.layout.find((c) => c.note.id === id), at = chip ? chip.x + 10 : contentX(e.clientX);
+      const range = e.shiftKey && chip && this.lastChip !== null;
+      const on = range || !(e.altKey || (id !== null && this.picks.has(id)));
+      this.sweep = { on, base: new Set(this.picks), from: range ? this.lastChip! : at, to: at, moved: !!range, x0: e.clientX, clientX: e.clientX, touch };
+      if (id !== null) this.set(id, on);
+      if (range) this.applySweep();
+      if (chip) { this.lastChip = at; this.d.tone(chip.note.m, 0.12, 0.4); }
+      this.drawPicks();
+      if (!touch) requestAnimationFrame(this.scrollSweep);
+    });
+    window.addEventListener('pointermove', (e) => {
+      const s = this.sweep;
+      if (!s || s.touch) return;
+      s.clientX = e.clientX;
+      if (!s.moved && Math.abs(e.clientX - s.x0) < 4) return;   // a click, with a shaky hand
+      s.moved = true; s.to = contentX(e.clientX);
+      this.applySweep();
+      this.drawPicks();
+    });
+    strip.addEventListener('dblclick', (e) => {
       const id = this.chipId(e.target);
       if (id === null) return;
+      for (const n of phraseOf(this.melody(), id)) this.picks.add(n.id);
+      this.changed();
+    });
+    strip.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey || !e.deltaY || e.deltaX) return;
       e.preventDefault();
-      this.sweep = !this.picks.has(id);
-      this.set(id, this.sweep);
-      const n = this.melody().find((x) => x.id === id);
-      if (n) this.d.tone(n.m, 0.12, 0.4);
-      this.drawPicks();
-    });
-    strip.addEventListener('pointerover', (e) => {
-      const id = this.chipId(e.target);
-      if (this.sweep === null || id === null) return;
-      this.set(id, this.sweep);
-      this.drawPicks();
-    });
+      strip.scrollLeft += e.deltaY;
+    }, { passive: false });
     // A change during playback reaches the draft when the sweep ends, by the same reload as a real edit.
     window.addEventListener('pointerup', () => { if (this.sweep !== null) { this.sweep = null; this.draft(false); } });
     // Enter on a focused chip clicks it with no pointer; Space stays the preview's, in the picker's keys.
@@ -141,6 +179,29 @@ export class PickerPopup {
       this.changed();
     });
   }
+
+  /** The picks the drag has made so far: what they were, with the notes it has passed added or taken off. Going back undoes. */
+  private applySweep(): void {
+    const s = this.sweep!, lo = Math.min(s.from, s.to), hi = Math.max(s.from, s.to);
+    this.picks = new Set(s.base);
+    for (const n of sweptChips(this.layout, lo - SWEEP_REACH, hi + SWEEP_REACH)) this.set(n.id, s.on);
+  }
+
+  /** While the pointer is held near the strip's edge the strip scrolls under it, and the drag goes on. */
+  private readonly scrollSweep = (): void => {
+    const s = this.sweep;
+    if (!s) return;
+    if (s.moved) {
+      const strip = this.$('.np-chips'), r = strip.getBoundingClientRect();
+      const near = s.clientX < r.left + EDGE ? -(r.left + EDGE - s.clientX) : s.clientX > r.right - EDGE ? s.clientX - (r.right - EDGE) : 0;
+      if (near) {
+        const before = strip.scrollLeft;
+        strip.scrollLeft += Math.sign(near) * Math.min(EDGE_SPEED, 2 + Math.abs(near) * 0.4);
+        if (strip.scrollLeft !== before) { s.to = s.clientX - r.left + strip.scrollLeft; this.applySweep(); this.drawPicks(); }
+      }
+    }
+    requestAnimationFrame(this.scrollSweep);
+  };
 
   get isOpen(): boolean { return this.opened !== null; }
   private melody(): readonly RollNote[] { return this.opened?.chips ?? []; }
@@ -256,14 +317,16 @@ export class PickerPopup {
   private buildChips(): void {
     const box = this.$('.np-chips-in'), o = this.opened!, many = this.d.instruments.length > 1;
     const { chips, gaps, width } = chipLayout(o.chips);
+    this.layout = chips; this.lastChip = null;
     box.textContent = '';
     box.style.width = `${width}px`;
     for (const g of gaps) {
-      const el = Object.assign(document.createElement('div'), { className: 'np-gap', textContent: clock(g.t) });
+      const el = Object.assign(document.createElement('div'), { className: 'np-gap', textContent: `${Math.round(g.secs)} s` });
+      el.title = `A pause of ${g.secs.toFixed(1)} s, up to ${clock(g.t)}`;
       el.style.left = `${g.x}px`;
       box.append(el);
     }
-    for (const { note: n, x, y } of chips) {
+    for (const { note: n, x, y, tail } of chips) {
       const c = Object.assign(document.createElement('button'), { type: 'button', className: 'np-chip', textContent: pitchClass(n.m) });
       const who = many && n.i >= 0 ? `${this.d.instruments[n.i].label}, ` : '';
       c.title = `${who}${nameOf(n.m)} at ${clock(n.t)}${o.marked.has(n.id) ? '' : ': no longer marked'}`;
@@ -271,6 +334,7 @@ export class PickerPopup {
       c.dataset.id = String(n.id);
       if (many && o.marked.has(n.id)) c.style.setProperty('--ic', this.d.instruments[n.i].color);
       c.style.left = `${x}px`; c.style.top = `${y}px`;
+      if (tail > 10) c.style.setProperty('--tail', `${Math.round(tail)}px`);
       box.append(c);
     }
   }
