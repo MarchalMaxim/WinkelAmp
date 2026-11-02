@@ -689,17 +689,19 @@ Feel: grainy, swelling, warm, flickering · Suits: strings, piano · Role: base
 
 #### `casket`: The casket (built into the app)
 
-The picture melts, paint drips from the top, and big chords slash cuts through everything. Mix it with other tools to see what it cuts. Its five knobs start at the settings you loved.
+New in v2: it strikes once and lets go. On the hardest attacks the picture melts, paint drips from the top and one cut slashes through, then it leaves the picture alone until the next. It works on whatever is under it. <b>keep melting between</b>, all the way right, is the old casket that never stops.
 
 Feel: panic, stabbing, liquid, burning · Suits: tutti, piano, timpani · Role: top
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `melt` | melt | 0..6 | 2.2 | fixed | How fast the whole picture slides down and melts. Left: it holds still. Right: it runs down fast. |
-| `drips` | drips | 0..1 | 0.5 | fixed | How many notes start a drip of paint from the top. Left: no drips. Right: every note drips. |
-| `cutAt` | which chords slash | 80..118 | 92 | fixed | How loud a chord of three or more notes must be to slash a cut. Left: almost every full chord cuts. Right: only the very loudest. |
+| `melt` | melt | 0..6 | 2.2 | fixed | How far the whole picture slides down and melts when it strikes. Left: it holds still. Right: it runs a long way down. |
+| `drips` | drips | 0..1 | 0.5 | fixed | How much paint drips from the top when it strikes. Left: no drips. Right: a curtain of them. |
+| `cutAt` | which attacks strike | 80..118 | 92 | fixed | How hard an attack must be to set it off, against this piece. Left: a strike every few seconds. Right: only the very hardest, far apart. |
 | `gap` | how far a cut slides | 0..3 | 1 | fixed | How far the two sides of a cut slide past each other. Left: a hairline. Right: a wide shear. |
 | `shake` | jolt on a cut | 0..2 | 1 | fixed | How hard the picture jolts when a cut lands. Left: still. Right: a violent jolt. |
+| `keep` | keep melting between | 0..1 | 0 | fixed | What it does between strikes. Left: nothing, the picture is left alone. Right: the old casket, melting all the time, dripping on notes and slashing on every loud full chord. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint melt and a hairline cut, and far fewer strikes. Right: at full strength. |
 
 ### Kept
 
@@ -913,6 +915,126 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 | `stay` | how long the lines stay | 0.3..8 | 4.5 | fixed | How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other. |
 
 ### Not judged yet
+
+#### `clumsy`: Clumsy
+
+A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.
+
+Feel: clumsy, playful, vivid, marching · Suits: bassoon, plucked, piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `crowd` | how many | 3..30 | 16 | fixed | How many shapes are trying to keep up. Left: three or four. Right: a jostling mob. |
+| `disorder` | how hard an attack knocks them | 0.2..2 | 1 | fixed | What an attack does to them. Left: a stumble. Right: everything flies. |
+| `rush` | how fast they scramble back | 0.3..2 | 1 | fixed | How they hurry back into line. Left: they plod. Right: frantic little hops. |
+| `hop` | how high they hop | 0.25..2.2 | 1 | fixed | How high each hop goes. Left: shuffling along the floor. Right: huge bounces. |
+| `size` | how big they are | 0.5..2 | 1.25 | fixed | How big the shapes are. Left: small bits. Right: great lumps. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: the ground goes dark, few shapes move, and only the hardest attacks reach them. Right: broad daylight, every attack knocks them about. |
+
+#### `gust`: Brass gust
+
+Wedges of brass force burst out and shove the air aside: gusts on every attack, full blasts on the loudest of the piece.
+
+Feel: gusty, triumphant, burning, vivid · Suits: trumpet, trombone, tutti · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `power` | how much force | 0..1 | 0.5 | fixed | How hard every attack blows. Left: puffs. Right: every blast crosses the screen. |
+| `reach` | how long the wedges are | 0.4..1.6 | 1 | fixed | How far a wedge runs. Left: short jabs. Right: they run off the far side. |
+| `air` | how much air there is to push | 0..1 | 0.6 | fixed | How much air the wedges have to shove. Left: wedges alone. Right: the screen is full of dashes. |
+| `fan` | how wide a chord opens | 0..1 | 0.5 | fixed | How far apart the notes of a chord blow. Left: all on one line. Right: a wide fan. |
+| `linger` | how long the heat stays | 0.25..3.5 | 1 | fixed | How long the torn strands burn after a blast. Left: gone at once. Right: long burning streaks. |
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: dim, short, and only the hardest attacks of the piece blow. Right: every attack blows at full heat. |
+
+#### `duet`: Duet
+
+Two forms in two colours, one round and one sharp, that want each other and can't stand each other. Every attack gets a verdict from the harmony: consonant, they lunge together; dissonant, they are thrown apart. Low notes move the round one, high notes the sharp one. Leave them alone and they end up nearly touching, trembling.
+
+Feel: dual, vivid, swelling, mysterious · Suits: piano, violin, cello · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `pull` | how strongly they want each other | 0..2 | 1 | fixed | How strongly they want each other. Left: they keep their distance. Right: always reaching. |
+| `push` | how hard a clash throws them apart | 0.2..2 | 1 | fixed | How hard a clash throws them apart. Left: a flinch. Right: flung to opposite corners. |
+| `size` | how big they are | 0.5..2.2 | 1 | fixed | How big they are. Left: small and agile. Right: filling the screen. |
+| `split` | where the keyboard divides them | 30..90 | 60 | fixed | Where the keyboard divides between them. Left: nearly everything moves the sharp one. Right: nearly everything moves the round one. |
+| `pair` | the two colours | 0..2 | 0 | fixed | The two colours. Left: vermilion and cobalt. Middle: magenta and lime. Right: gold and teal. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: almost gone, barely moving, and only the hardest attacks reach them. Right: fully there, answering everything. |
+
+#### `vine`: Vine
+
+Thin stems creep out, fork and curl on the notes and stay. When the music thins out they wither from their oldest ends, sag and crumble, and the next theme grows out of what is left.
+
+Feel: viney, withering, fibrous, alien · Suits: strings, cello, viola · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `spread` | how fast it spreads | 0.05..3 | 1 | fixed | How fast the tips travel; richer music always pushes them on. Left: it barely creeps. Right: it races across the screen. |
+| `wither` | how fast it withers | 0..2 | 1 | louder → less | How quickly old stems die back from their oldest ends. Left: nothing ever dies. Right: it dies back as fast as it grows. |
+| `branch` | how readily it forks | 0..1 | 0.45 | fixed | How many stems grow at once. Left: a few long stems. Right: a dense thicket. |
+| `curl` | how much it curls | 0..1 | 0.5 | fixed | What a stem does when it runs out of strength. Left: it stops as a long open line. Right: it winds into a big spiral. |
+| `weight` | how thick the stems are | 0.3..4.5 | 1 | fixed | How thick the lines are drawn. Left: hair. Right: heavy ropes. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint, slow network that only the hardest attacks make grow. Right: every note feeds it at full strength. |
+
+#### `royal`: Royal
+
+One tall brushed stroke holds the middle of the page, and a small court of marks darts in from the edges, hopping forward on every note. It ignores them. On a strong attack it rises slowly and leans away, and on the next the tip alone flicks outward: everyone on that side is sent off the page. It does not watch them go. The louder the demand, the slower and colder the rise.
+
+Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `haughty` | how far it turns away | 0.15..1.4 | 1 | fixed | How far the figure leans back from them before it flicks. Left: a slight lift of the chin. Right: it turns its whole back. |
+| `flourish` | how grand the gesture is | 0.2..1.6 | 1 | fixed | How much of the stroke flicks, and how far. Left: only the very tip. Right: the whole upper part, in a sweep. |
+| `crowd` | how many come near | 0..1 | 0.45 | fixed | How many small marks come up to it. Left: one at a time. Right: a stream of them. |
+| `near` | how close they get | 0..1 | 0.6 | fixed | How close the marks dare come. Left: they stop far off. Right: right up to it. |
+| `robe` | the colour | 0..2 | 0 | fixed | Which colours it wears. Left: purple and gold. Middle: black and gold. Right: oxblood and ivory. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint, a small gesture, and only the hardest attacks of the piece send anyone. Right: fully there. |
+
+#### `comfort`: Comfort
+
+Big flat fields of soft colour, each held on one side and dissolving into the others on the other, breathing slowly together and wandering over minutes. A note is a gentle press and a wide, faint blush: the field's own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones, and a melody blushes as clearly as a chord.
+
+Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `breath` | how slowly it breathes | 3.5..20 | 10 | fixed | How long one breath takes. Left: a quick, light rise and fall. Right: one long breath every 20 seconds. |
+| `press` | how far a note presses | 0.15..2 | 1 | fixed | How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give. |
+| `size` | how big the fields are | 0..1 | 0.5 | fixed | How many fields share the picture. Left: many small ones. Right: a few huge ones. |
+| `warmth` | how warm the colours are | 0..1 | 0.5 | fixed | The colour of it all. Left: cool dusk, grey-rose. Right: amber. |
+| `stay` | how long the warmth stays | 1.5..15 | 5 | fixed | How long a field keeps the warmth of a note. Left: fades quickly. Right: stays for many seconds. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark, what lies under it shows, and only the hardest attacks press. Right: full colour, and every note presses. |
+
+#### `honey`: Honey
+
+Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape sink under the weight, and it stays low; then it fills, and slowly pushes out another.
+
+Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `thick` | how thick it is | 0..1 | 0.5 | fixed | How stiffly it all moves. Left: runny and quick. Right: nearly solid, it barely moves. |
+| `load` | how much each note adds | 0.25..2.2 | 1 | fixed | How heavy a note is. Left: small shapes, thin threads. Right: great heavy shapes. |
+| `stretch` | how far a thread stretches | 0..1 | 0.7 | fixed | How far a thread stretches before it breaks. Left: it snaps early. Right: it never lets go. |
+| `busy` | how many notes push out a new shape | 0..1 | 0.5 | fixed | How many notes push out a new shape. Left: only the big ones. Right: nearly every note. |
+| `colour` | how dark the honey is | 0..1 | 0.5 | fixed | How dark the honey is. Left: pale, light acacia. Right: dark treacle. |
+| `presence` | how present | 0..1 | 1 | fixed | How much of it you see. Left: almost nothing, a few faint small shapes that only the hardest attacks disturb. Right: fully there. |
+
+#### `lazy`: Lazy
+
+It can't be bothered. Heavy, shapeless green stains slumped across the picture: an attack goes through them as one heavy jolt they creep back from, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Busy music it mostly ignores, swelling slowly, and only the hard notes still land.
+
+Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early. |
+| `lift` | how high it bothers to lift | 0.1..1 | 0.75 | fixed | How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen. |
+| `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the stains are. Left: slim. Right: huge, overlapping everything. |
+| `limbs` | how many masses | 4..15 | 12 | fixed | How many masses lie in the heap. Left: a few. Right: a big heap. |
+| `green` | which green | 0..1 | 0.5 | fixed | Which greens it lies in. Left: a dark pond. Right: sour acid. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength. |
 
 #### `timeslice`: Time slice
 
