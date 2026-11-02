@@ -12,13 +12,16 @@
   const HEAT = [[84, 42, 12], [128, 66, 16], [176, 98, 20], [214, 132, 26], [238, 162, 36], [248, 178, 50], [255, 204, 92], [255, 236, 160]]
     .map(([r, g, b], i) => `rgba(${r},${g},${b},${[0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.95][i]})`);
   // The air's dashes by speed: dull and nearly invisible at rest, hot when a blast has them.
-  const AIR = [['rgba(74,50,34,0.3)', 1], ['rgba(150,98,44,0.3)', 1], ['rgba(206,134,36,0.42)', 1], ['rgba(238,164,40,0.55)', 1.1], ['rgba(250,178,48,0.65)', 1.35]];
+  const AIR = [['rgba(112,78,50,0.4)', 1], ['rgba(150,98,44,0.3)', 1], ['rgba(206,134,36,0.42)', 1], ['rgba(238,164,40,0.55)', 1.1], ['rgba(250,178,48,0.65)', 1.35]];
   const PLAIN_HEAT = 3, PLAIN_AIR = 2, AIR_THINS = 0.5;   // AIR_THINS: how many of the air's dashes a blast's own painting hides
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   let painting = 0, wedges = [], fronts = [], dashes = [], vx = null, vy = null, ux = null, uy = null;
   let time = 0, sinceFull = 9, shoveX = 0, shoveY = 0, shoveVX = 0, shoveVY = 0;
   let attackVels = null, velsOf = null;
+  // Dense music: what the last seconds were doing, the last accent, and the one wind blowing through them.
+  let recent = [], lastAccent = -9, gale = null;
+  const WINDOW = 2.5, LULL = 0.6;
 
   // Every attack's loudness in this piece, sorted (the same 40 ms grouping as the lab's chords).
   function ranks() {
@@ -38,12 +41,24 @@
     return (a + c) / 2 / r.length;
   }
 
+  // This attack against the last seconds: how crowded they are (0 = room between attacks, 1 = a dense run) and how it ranks there.
+  function local(t, v) {
+    if (recent.length && t < recent[recent.length - 1].t - 0.001) { recent = []; lastAccent = -9; gale = null; }
+    while (recent.length && recent[0].t < t - WINDOW) recent.shift();
+    let below = 0, same = 0;
+    for (const r of recent) { if (r.v < v) below++; else if (r.v === v) same++; }
+    const rank = recent.length ? (below + same * 0.5) / recent.length : 1;
+    recent.push({ t, v });
+    const d = clamp((recent.length / WINDOW - 2.5) / 3.5, 0, 1);
+    return { rank, dense: d * d * (3 - 2 * d) };
+  }
+
   function gridReady() {
     if (vx) return;
     const n = GW * GH; vx = new Float32Array(n); vy = new Float32Array(n); ux = new Float32Array(n); uy = new Float32Array(n);
   }
   function clearAll() {
-    painting = 0; wedges = []; fronts = []; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0;
+    painting = 0; wedges = []; fronts = []; recent = []; lastAccent = -9; gale = null; sinceFull = 9; shoveX = shoveY = shoveVX = shoveVY = 0;
     gridReady(); vx.fill(0); vy.fill(0);
     for (const d of dashes) { d.vx = 0; d.vy = 0; }
   }
@@ -71,32 +86,59 @@
   }
 
   function blow(ch, x) {
-    const pres = x.p('presence'), raw = percentile(ch.vel);
+    const pres = x.p('presence'), raw = percentile(ch.vel), t = ch.t ?? x.t, { rank, dense } = local(t, ch.vel);
     if (raw < (1 - pres) * 0.95) return;          // turned down, only the piece's hardest attacks blow
     const pow = x.p('power');
-    const p = pow < 0.5 ? raw * pow * 2 : raw + (1 - raw) * (pow - 0.5) * 2;
+    const lift = (v) => (pow < 0.5 ? v * pow * 2 : v + (1 - v) * (pow - 0.5) * 2);
     const W = x.W, H = x.H, full = raw >= 0.98 && sinceFull > 1.1 && pow > 0.04;
+    // In a dense run only the local accents cross the screen; the rest are short jabs from the mouth, shortest just after
+    // an accent, so the run breathes and the loudest moment is also the hardest. The longer since an accent, the less it takes.
+    const since = t - lastAccent, accent = full || (rank >= 0.86 - 0.3 * clamp((since - 0.5) / 1.5, 0, 1) && since >= 0.45);
+    if (accent) lastAccent = t;
+    const jab = dense > 0 && !accent;
+    const hard = accent ? Math.max(raw, 0.4 + 0.6 * raw) : (0.1 + 0.26 * rank) * clamp(since / 0.8, 0.45, 1);
+    const p = lift(raw + (hard - raw) * dense);
     // The mouth: low notes blow flat from the left edge, high ones climb from the lower edge.
     const span = (m) => clamp((m - 34) / 54, 0, 1);
     const mean = ch.notes.reduce((s, n) => s + span(n.m), 0) / ch.notes.length;
     const pick = mean + x.rnd(-0.22, 0.22);
     const round = x.rnd(0, 1);     // the middle mouth wanders round the corner, so blasts don't all leave one point
-    const mx = pick < 0.42 ? -30 : pick < 0.72 ? (round < 0.5 ? -30 : W * (round - 0.5) * 0.3) : W * x.rnd(0.14, 0.4);
-    const my = pick < 0.42 ? H * x.rnd(0.5, 0.74) : pick < 0.72 ? (round < 0.5 ? H * (0.72 + 0.6 * round) : H + 30) : H + 30;
-    const centre = (5 + 50 * Math.pow(mean, 1.1) + x.rnd(-3, 3)) * Math.PI / 180;
+    let mx = pick < 0.42 ? -30 : pick < 0.72 ? (round < 0.5 ? -30 : W * (round - 0.5) * 0.3) : W * x.rnd(0.14, 0.4);
+    let my = pick < 0.42 ? H * x.rnd(0.5, 0.74) : pick < 0.72 ? (round < 0.5 ? H * (0.72 + 0.6 * round) : H + 30) : H + 30;
+    let centre = (5 + 50 * Math.pow(mean, 1.1) + x.rnd(-3, 3)) * Math.PI / 180;
+    // One wind at a time: a dense run keeps one mouth and one heading; only an accent or a lull moves them on, and an accent
+    // only so far, so the strands lean the same way and never cross. Each jab leaves its own stretch of the held mouth.
+    if (dense > 0.3) {
+      if (!gale || t - gale.t > LULL) gale = { mx, my, centre, mean };
+      else if (accent) {
+        const turn = 14 * Math.PI / 180;
+        gale = { mx, my, centre: clamp(centre, gale.centre - turn, gale.centre + turn), mean };
+        if (my > H) gale.centre = Math.max(gale.centre, 25 * Math.PI / 180);
+      }
+      gale.t = t; centre = gale.centre;
+      mx = gale.mx; my = gale.my;
+      if (jab) {
+        const along = x.rnd(-1, 1) * 170;
+        centre += (x.rnd(-2.5, 2.5) + (mean - gale.mean) * 8) * Math.PI / 180;
+        mx += Math.sin(centre) * along; my += Math.cos(centre) * along;
+      }
+    } else gale = null;
     // A chord is a fan of wedges from the one mouth, at most five: the outer notes and a spread between them.
     const sorted = [...ch.notes].sort((a, b) => a.m - b.m);
-    const keep = sorted.length <= 5 ? sorted : [0, 1, 2, 3, 4].map((i) => sorted[Math.round(i * (sorted.length - 1) / 4)]);
-    const spread = x.p('fan') * 2 * 7.5 * Math.PI / 180;
+    const most = jab && dense > 0.3 ? 2 : 5;      // a jab is a jab, however many notes the chord has: its outer two
+    const keep = sorted.length <= most ? sorted : Array.from({ length: most }, (_, i) => sorted[Math.round(i * (sorted.length - 1) / (most - 1))]);
+    const spread = x.p('fan') * 2 * 7.5 * (jab ? 1 - 0.7 * dense : 1) * Math.PI / 180;
     const presK = 0.5 + 0.5 * pres, reach = x.p('reach');
     keep.forEach((n, i) => {
       const off = (i - (keep.length - 1) / 2) * spread, a = centre + off, s = span(n.m);
       const own = clamp(p * (0.75 + 0.25 * n.v / Math.max(1, ch.vel)), 0, 1);
-      const L = (0.2 + 0.8 * Math.pow(Math.min(1, own / 0.9), 1.5)) * W * 1.3 * reach * presK;
+      const L = (0.2 + 0.8 * Math.pow(Math.min(1, own / 0.9), 1.5 + 1.5 * dense)) * W * 1.3 * reach * presK;
       const hw = (10 + 92 * Math.pow(1 - s, 1.5)) * (0.4 + 0.6 * own) * (full ? 1.2 : 1);
-      const hold = n.d > 0.25 ? Math.min(n.d, 0.6 + 3 * own) : 0.05;
+      const held = n.d > 0.25 ? Math.min(n.d, 0.6 + 3 * own) : 0.05;
+      // A note held under a dense run keeps nothing lit: only an accent burns on, and not for long.
+      const hold = held + (Math.min(held, jab ? 0.08 : 0.5) - held) * dense;
       const slot = (i - (keep.length - 1) / 2) * (24 + 44 * own);   // each note leaves its own stretch of the mouth
-      addWedge({ mx: mx - Math.sin(a) * slot, my: my - Math.cos(a) * slot, a, L, hw, s, p: own, hold, full, life: (0.34 + 0.95 * own) * x.p('linger') * (full ? 2 : 1), V: (320 + 1500 * own) }, x);
+      addWedge({ mx: mx - Math.sin(a) * slot, my: my - Math.cos(a) * slot, a, L, hw, s, p: own, hold, full, jab: jab && dense > 0.3, life: (0.34 + 0.95 * own) * (jab ? 1 - 0.35 * dense : 1) * x.p('linger') * (full ? 2 : 1), V: (320 + 1500 * own) }, x);
     });
     if (full) {
       sinceFull = 0;
@@ -112,7 +154,7 @@
 
   function addWedge(o, x) {
     const w = { ...o, ax: Math.cos(o.a), ay: -Math.sin(o.a), nx: Math.sin(o.a), ny: Math.cos(o.a), age: 0, was: 0, slivers: [] };
-    const top = clamp(Math.round(3 + w.s * 3.2 + w.p * 2), 2, 7);    // low is deep red-brass, high runs white-gold
+    const top = clamp(Math.round(3 + w.s * 3.2 + w.p * 2) + (o.jab ? 1 : 0), 2, 7);    // low is deep red-brass, high runs white-gold
     const k = Math.round(4 + 11 * w.p + 3 * (1 - w.s));
     // The body and its needle: one solid wedge only for the instant the blast lands, even under a held note.
     w.slivers.push({ da: 0, off: 0, tip: 1, wd: w.hw * 0.42, top: clamp(top - 1, 2, 5), tail: 0.9, ph: 0, fl: 0.15, spread: 0, tear: 0.5, long: 0.42, adv: 0.03, brief: 0.07 + 0.14 * w.p });
@@ -130,7 +172,12 @@
       w.slivers.push({ off, da: off * w.hw * 2.6 / Math.max(200, w.L), tip: x.rnd(0.5, 1.1), wd: x.rnd(1.5, 7), top: clamp(Math.round(x.rnd(2, 5)), 1, 7), tail: x.rnd(0.15, 0.5), ph: x.rnd(0, 6.28), fl: x.rnd(0.8, 2), spread: off * x.rnd(0.4, 1.6), tear: x.rnd(0.8, 1.4), long: x.rnd(0.9, 1.5), adv: x.rnd(0.03, 0.12) });
     }
     wedges.push(w);
-    while (wedges.length > MAX_WEDGES) wedges.shift();
+    // Over the cap, the one with least left to burn goes, not simply the oldest, so nothing bright blinks out.
+    while (wedges.length > MAX_WEDGES) {
+      let least = 0, left = Infinity;
+      wedges.forEach((u, i) => { const r = Math.max(u.hold, u.age) + u.life - u.age; if (r < left && u !== w) { left = r; least = i; } });
+      wedges.splice(least, 1);
+    }
   }
 
   // One strand as a tapered polygon along its wedge, narrow at the back, widest two thirds along, pointed at the front.
@@ -221,7 +268,7 @@
       g.globalCompositeOperation = 'lighten';
 
       // The air. At rest its dashes lie along one slow field, a faint current to watch rather than a scatter of specks.
-      const lazy = (d) => Math.sin(d.y * 0.006 + time * 0.11) * 1.1 + Math.cos(d.x * 0.005 - time * 0.09) * 0.8 - 0.2 + (d.ph - 3.14) * 0.06;
+      const lazy = (d) => Math.sin(d.y * 0.006 + time * 0.11) * 0.6 + Math.cos(d.x * 0.005 - time * 0.09) * 0.45 - 0.2 + (d.ph - 3.14) * 0.06;
       const want = Math.round(x.p('air') * 1000);
       airReady(x, want);
       // The long hot dashes were half the climax's raster cost and little of its force: while the slivers are covering the
@@ -243,8 +290,8 @@
           if (d.y < -40) d.y += H + 80; else if (d.y > H + 40) d.y -= H + 80;
         }
         const sp = Math.hypot(d.vx, d.vy), b = sp < 26 ? 0 : sp < 110 ? 1 : sp < 300 ? 2 : sp < 650 ? 3 : 4;
-        const dir = sp > 22 ? Math.atan2(d.vy, d.vx) : lazy(d), len = (9 + Math.min(240, sp * sp / 1500)) * d.sz, c = Math.cos(dir), s = Math.sin(dir);
-        const hook = clamp(d.curl * 0.1, -0.3, 0.3) * len * clamp(1 - sp / 500, 0, 1);
+        const dir = sp > 22 ? Math.atan2(d.vy, d.vx) : lazy(d), len = (9 + 8 * clamp(1 - sp / 60, 0, 1) + Math.min(240, sp * sp / 1500) * (0.45 + 1.1 * (d.ph * 3.7 % 1))) * d.sz, c = Math.cos(dir), s = Math.sin(dir);
+        const hook = clamp(d.curl * 0.1, -0.3, 0.3) * len * clamp(1 - sp / 500, 0, 1) * clamp(sp / 40, 0.2, 1);
         if (d.ph < 6.28 * thin) continue;
         const p = paths[b]; p.moveTo(d.x, d.y);
         p.quadraticCurveTo(d.x - c * len * 0.5 - s * hook, d.y - s * len * 0.5 + c * hook, d.x - c * len, d.y - s * len);
