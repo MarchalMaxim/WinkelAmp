@@ -220,9 +220,14 @@ export class Timeline {
     const sel = selectedClip(s), locked = s.ui.recording;
     const on = (name: string, enabled: boolean) => this.el.querySelectorAll<HTMLButtonElement>(`[data-tl="${name}"]`).forEach((b) => { b.disabled = !enabled; });
     on('add', !locked); on('compose', !locked); on('duplicate', !!sel && !locked); on('remove', !!sel && !locked);
-    on('split', !locked && !!s.show?.clips.some((c) => c.start < this.now && this.now < c.end));
+    this.syncSplit(s);
     this.el.querySelector('[data-tl="snap"]')!.setAttribute('aria-pressed', String(this.snap));
     this.el.querySelector('.tl-hint')!.textContent = sel ? `${this.d.names(sel.widget)}: drag to move, its edges to resize` : '';
+  }
+
+  /** Split needs a clip under the playhead, so it follows the playhead too. */
+  private syncSplit(s: StudioState): void {
+    this.el.querySelector<HTMLButtonElement>('[data-tl="split"]')!.disabled = s.ui.recording || !s.show?.clips.some((c) => c.start < this.now && this.now < c.end);
   }
 
   private wireScrub(): void {
@@ -268,6 +273,7 @@ export class Timeline {
     this.head.style.display = t < this.view.a || t > this.view.b ? 'none' : '';
     this.el.querySelector<HTMLElement>('.tl-at')!.style.left = `${D ? (t / D) * 100 : 0}%`;
     this.lanes.setTime(t);
+    this.syncSplit(this.d.store.state);
   }
 
   update(s: StudioState): void {

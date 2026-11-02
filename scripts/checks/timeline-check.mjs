@@ -147,6 +147,10 @@ try {
   c = await clipOf(sel);
   check('Ctrl+P adds at the playhead, selected', c?.widget === 'squares' && c.start === 14, JSON.stringify(c));
   await undo();
+  // Split follows the playhead, not only edits.
+  const splitOff = async (at) => { await page.evaluate((t) => window.__studio.player.seek(t), at); await page.waitForTimeout(100); return page.locator('[data-tl="split"]').isDisabled(); };
+  const offInGap = await splitOff(14), offOnClip = await splitOff(5);
+  check('Split is on only with a clip under the playhead', offInGap && !offOnClip, `${offInGap} ${offOnClip}`);
 
   // Clicking an empty row lets go of the selection and moves the playhead there.
   const tracks = await page.locator('.tracks').boundingBox();
