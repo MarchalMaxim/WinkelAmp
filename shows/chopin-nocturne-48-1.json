@@ -1,0 +1,221 @@
+{
+  "version": 2,
+  "id": "chopin-nocturne-48-1",
+  "song": "chopin-nocturne-48-1",
+  "title": "Chopin Nocturne Op. 48 No. 1",
+  "composer": {
+    "by": "user",
+    "at": "2026-11-01T21:53:57.802Z"
+  },
+  "sections": [
+    {
+      "start": 0,
+      "end": 31.462,
+      "label": "calm",
+      "layers": [
+        {
+          "widget": "fields"
+        }
+      ]
+    },
+    {
+      "start": 31.462,
+      "end": 56.895,
+      "label": "calm",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "fischinger",
+          "listen": "melody",
+          "knobs": {
+            "presence": 0.4
+          },
+          "intensity": [
+            { "t": 31.462, "v": 0 },
+            { "t": 53.492, "v": 1 }
+          ]
+        },
+        {
+          "widget": "fields"
+        }
+      ]
+    },
+    {
+      "start": 56.895,
+      "end": 82.323,
+      "label": "calm",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "miro"
+        },
+        {
+          "widget": "brush",
+          "listen": "bassline"
+        }
+      ]
+    },
+    {
+      "start": 82.323,
+      "end": 100.744,
+      "label": "loud",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "marbling"
+        },
+        {
+          "widget": "blocks"
+        }
+      ]
+    },
+    {
+      "start": 100.744,
+      "end": 157.068,
+      "label": "calm",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "lewitt"
+        },
+        {
+          "widget": "brush",
+          "listen": "bassline"
+        }
+      ]
+    },
+    {
+      "start": 157.068,
+      "end": 182.802,
+      "label": "fast",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "miro"
+        },
+        {
+          "widget": "brush",
+          "listen": "bassline"
+        }
+      ]
+    },
+    {
+      "start": 182.802,
+      "end": 199.578,
+      "label": "fast · dense",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "fischinger"
+        },
+        {
+          "widget": "brush",
+          "listen": "bassline"
+        }
+      ]
+    },
+    {
+      "start": 199.578,
+      "end": 241.128,
+      "label": "fast · loud",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "fischinger"
+        },
+        {
+          "widget": "blocks",
+          "intensity": [
+            { "t": 199.578, "v": 0, "shape": "ease" },
+            { "t": 220.353, "v": 1, "shape": "ease" },
+            { "t": 241.128, "v": 0 }
+          ]
+        },
+        {
+          "widget": "casket",
+          "intensity": [
+            { "t": 199.578, "v": 0, "bend": -0.418 },
+            { "t": 220.353, "v": 1, "bend": 0.764 },
+            { "t": 241.128, "v": 0 }
+          ]
+        }
+      ]
+    },
+    {
+      "start": 241.128,
+      "end": 317.356,
+      "label": "fast · loud",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "fischinger",
+          "knobs": {
+            "scatter": {
+              "base": 0,
+              "drive": ""
+            },
+            "snap": 1,
+            "presence": 0.53
+          },
+          "intensity": [
+            { "t": 263.625, "v": 0.746 }
+          ]
+        },
+        {
+          "widget": "blocks"
+        },
+        {
+          "widget": "strings",
+          "knobs": {
+            "bend": 1,
+            "weave": 1,
+            "tangle": 0,
+            "presence": 0.75
+          },
+          "intensity": [
+            { "t": 241.128, "v": 0, "shape": "ease" },
+            { "t": 279.242, "v": 1, "shape": "ease" },
+            { "t": 317.356, "v": 0 }
+          ]
+        }
+      ]
+    },
+    {
+      "start": 317.356,
+      "end": 339.025,
+      "label": "loud · dense",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "delaunay"
+        },
+        {
+          "widget": "murmuration",
+          "listen": "melody",
+          "knobs": {
+            "hold": 0.8,
+            "strike": 0.97
+          }
+        },
+        {
+          "widget": "casket"
+        }
+      ]
+    },
+    {
+      "start": 339.025,
+      "end": 381.574,
+      "label": "loud · dense",
+      "fade": 3,
+      "layers": [
+        {
+          "widget": "fields"
+        },
+        {
+          "widget": "murmuration",
+          "listen": "melody"
+        }
+      ]
+    }
+  ]
+}
