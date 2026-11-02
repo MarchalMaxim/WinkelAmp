@@ -10,10 +10,21 @@
 //   the ruler   a time ruler with a tick per note, its length the note's loudness
 //   readout     a glyph counter and a hairline loudness meter
 // Loud attacks slam single-pixel lines across the whole screen; the loudest turn it white for an instant.
+// How present (the user, 2026-11-01: sliders should dim, not only boost): turned down, the wall of data goes first, then
+// everything fades; scrolling and flicker slow, slams and flashes stop, codes stay on their row instead of strobing
+// across the screen, and only this piece's hardest notes write anything (or stand in the roll). At 1 none of this applies.
 (() => {
   const GW = 8, GH = 12;                                     // glyph pitch (each glyph is 3x5 cells of 2 px)
   const FIELD0 = 124, FIELD1 = 470, ROLL0 = 494, ROLL1 = 590, BASE = 610, READ = 678, PLAY = 960;
-  let rows, cols, off, inject, notes, slams, flashT, flashCool, slamCool, ref, count, lastVel;
+  let rows, cols, off, inject, notes, slams, flashT, flashCool, slamCool, ref, count, lastVel, vels = null;
+
+  // how present (0..1): the softest loudness that still answers, judged against this piece's own notes (recordings differ
+  // a lot in how hard they are played): every note at 1, the hardest 40% at 0.4, the hardest 5% at 0
+  function softest(pres) {
+    if (pres >= 1) return -Infinity;
+    vels ||= (window.NOTES || []).map((n) => n[3]).sort((a, b) => a - b);
+    return vels.length ? vels[Math.min(vels.length - 1, Math.floor((1 - pres) * 0.95 * vels.length))] : -Infinity;
+  }
 
   // a cheap integer hash → 0..1
   function hh(a, b = 0, c = 0) {
@@ -60,7 +71,7 @@
   const ROWS = 6, ROWY = 28;
   function reset() {
     rows = null; cols = null; off = new Float64Array(ROWS); inject = []; notes = []; slams = []; flashT = 0; flashCool = 0; slamCool = 0;
-    ref = 92; count = 0; lastVel = 0;
+    ref = 92; count = 0; lastVel = 0; vels = null;
   }
   reset();
 
@@ -91,37 +102,46 @@
       const L = 1 + v * 9;
       for (let i = 0; i < 5; i++) { const x = 4 + i * 7; ICON.rect(g, x, 6, 1, 14, ICON.ink); ICON.alpha(g, 0.35, () => ICON.rect(g, x + 1, 12, L, 1, ICON.ink)); }
     },
+    presence(g, v, w, h) {                                 // a little screen: a faint short code on one row, or a bright one floor to ceiling
+      g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(2.5, 1.5, w - 5, h - 3);
+      const r = ICON.rng(21), bh = Math.round(4 + v * 16), y = Math.round((h - bh) / 2);
+      ICON.alpha(g, 0.15 + 0.85 * v, () => {
+        for (let x = 6; x < w - 6;) { const bw = 1 + Math.floor(r() * 3); if (r() < 0.25 + v * 0.75) ICON.rect(g, x, y, bw, bh, ICON.ink); x += bw + 1 + Math.floor(r() * 2); }
+      });
+    },
   };
 
   TOOLS.push({
     id: 'ikeda', name: 'Ikeda', tag: 'new',
     blurb: 'After Ryoji Ikeda: black and white data. Every note is a barcode at its key (the same note always gives the same code, louder is wider) that strobes across the screen on the attack, settles on the row of its note name (every C on one row, every G on another) and erodes bar by bar; rows of glyphs stream the notes, a one-pixel score scrolls past a playhead, and loud attacks slam hairlines across the screen.',
     params: [
-      { key: 'busy', label: 'how much data', min: 0, max: 1, value: 0.3, less: 0, drive: '+rate',
+      { key: 'busy', label: 'how much data', min: 0, max: 1, value: 0.3, drive: '+rate',
         hint: 'How full the screen is with streaming glyphs and data columns. Left: a few clean bars and lines. Right: dense data everywhere.',
         icon: ICONS.busy },
-      { key: 'life', label: 'how long a barcode stays', min: 0.1, max: 3, value: 1.2, less: 0.15,
+      { key: 'life', label: 'how long a barcode stays', min: 0.1, max: 3, value: 1.2,
         hint: 'How long a note\'s barcode takes to erode after the note ends. Left: gone in a blink. Right: it crumbles slowly, bar by bar.',
         icon: ICONS.life },
-      { key: 'slam', label: 'lines on loud notes', min: 0, max: 1, value: 0.35, less: 0, drive: '+level',
+      { key: 'slam', label: 'lines on loud notes', min: 0, max: 1, value: 0.35, drive: '+level',
         hint: 'How many single-pixel lines slam across the screen when a note is struck loud. Left: none. Right: a burst of lines.',
         icon: ICONS.slam },
-      { key: 'flash', label: 'white flashes', min: 0, max: 1, value: 0.5, less: 0,
+      { key: 'flash', label: 'white flashes', min: 0, max: 1, value: 0.5,
         hint: 'How often the very loudest attacks turn the whole screen white for an instant. Left: never. Right: on every big accent.',
         icon: ICONS.flash },
       { key: 'speed', label: 'scroll speed', min: 0.3, max: 2.5, value: 1,
         hint: 'How fast the score and the glyph rows scroll. Left: a slow drift. Right: racing past.',
         icon: ICONS.speed },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
-        hint: 'How much data it produces: how many glyph rows and data columns stream, how long a barcode stays, how many lines slam across on loud notes, how often it flashes white. Every note still prints its barcode. Left: two glyph rows, one column, barcodes that vanish quickly, no lines or flashes. Right: more rows and columns, barcodes that crumble slowly, lines and flashes on the loud notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
-        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much it takes over. Left: faint and slow, and only the hardest notes of the piece print a barcode. Right: everything at full strength (as before).',
+        icon: ICONS.presence },
     ],
     reset,
     onChord(ch, x) {
       const t = x.t;
       count += ch.notes.length;
       ref = Math.max(ref, ch.vel);
+      const pres = x.p('presence'), soft = softest(pres);
       for (const n of ch.notes) {
+        if (n.v < soft) continue;                            // too soft for how present it is: it writes nothing
         // a short note still shows its code for a moment before it erodes
         notes.push({ m: n.m, v: n.v, t0: t, end: t + Math.max(0.6, n.d), seed: (t * 1000) | 0 });
         // the data rows: each note writes its code (two glyphs) at the right edge of a row picked by its pitch
@@ -133,7 +153,7 @@
       if (inject.length > 2000) inject.splice(0, inject.length - 2000);
       // loud, relative to the last few seconds (with a floor, so a quiet oboe never slams)
       const loud = ch.vel >= Math.max(80, ref - 8);
-      const k = x.p('slam');
+      const k = x.p('slam') * pres * pres;                   // turned down, the lines thin out and stop
       if (loud && slamCool <= 0 && k > 0.02) {
         const n = Math.round(k * (2 + (ch.vel - 78) * 0.35) * (0.6 + 0.2 * ch.notes.length));
         const seed = (t * 997) | 0;
@@ -144,12 +164,13 @@
         }
         slamCool = 0.1;
       }
-      if (ch.vel >= Math.max(90, ref - 3) && flashCool <= 0 && hh((t * 991) | 0, 77) < x.p('flash') * 1.15) { flashT = 0.1; flashCool = 1.4; }
-      lastVel = Math.max(lastVel, ch.vel);
+      if (ch.vel >= Math.max(90, ref - 3) && flashCool <= 0 && hh((t * 991) | 0, 77) < x.p('flash') * 1.15 * (2 * pres - 1)) { flashT = 0.1; flashCool = 1.4; }   // no flashes below half way
+      if (ch.vel >= soft) lastVel = Math.max(lastVel, ch.vel);
     },
     frame(x) {
       const g = x.g, t = x.t, dt = x.dt, W = x.W, H = x.H;
-      const busy = x.p('busy'), life = x.p('life'), speed = x.p('speed');
+      const pres = x.p('presence'), calm = 1 - 0.75 * (1 - pres), wall = pres * pres, soft = softest(pres);   // all of these are 1 (and -Infinity) at full presence
+      const busy = x.p('busy'), life = x.p('life'), speed = x.p('speed') * calm;
       slamCool -= dt; flashCool -= dt; flashT -= dt;
       ref = Math.max(80, ref - dt * 2.2);                   // the loud reference sinks slowly
       lastVel = Math.max(0, lastVel - dt * 90);
@@ -167,7 +188,7 @@
       g.fill();
 
       // ---- the data rows (top): streaming glyphs, each row its own speed; the notes written in are bright
-      const step = Math.floor(t * 12);
+      const step = Math.floor(t * calm * 12);
       const shown = 2 + Math.round(busy * 4), fill = 0.55;   // busier: more of the six rows stream (the notes show in all)
       rows ||= Array.from({ length: ROWS }, () => ({ cv: null, from: 0 }));
       for (let r = 0; r < ROWS; r++) {
@@ -227,7 +248,7 @@
         for (const n of notes) if (t - n.t0 < 0.4 && Math.abs(keyX(n.m) - cx) < 70) near = Math.max(near, 1 - (t - n.t0) / 0.4);
         const y0 = Math.round(FIELD0 - (base - col.from) * GH - fy);
         g.globalAlpha = 0.26 + near * 0.4; g.drawImage(col.cv, cx, y0);
-        const lit = Math.floor(t * (6 + hh(i, 13) * 18));
+        const lit = Math.floor(t * calm * (6 + hh(i, 13) * 18));
         g.globalAlpha = 0.95;
         for (let j = 0; j <= rowsN; j++) {                // a few glyphs flash bright, more when a note is near
           const id = base + j;
@@ -236,6 +257,8 @@
         }
       }
       g.restore();
+      // how present: the instrument's frame and the wall of data go first (black laid over all of it)
+      if (wall < 1) { g.globalAlpha = 1 - wall; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; }
 
       // ---- the field: each note's barcode at its key; strobes on the attack, holds, then erodes bar by bar
       g.globalAlpha = 1;
@@ -246,13 +269,14 @@
         if (t < n.end) erode = 0.2 * Math.min(1, age / Math.max(0.5, n.end - n.t0)) * (1 - n.v / 160);
         else erode = 0.2 + 0.8 * Math.pow((t - n.end) / life, 1.4);
         if (erode >= 1) continue;
-        if (age < 0.16 && age > 0.03 && hh(strobeK, n.m, n.seed) < 0.45) continue;     // the strobe: on/off for a moment
+        if (age < 0.16 && age > 0.03 && hh(strobeK, n.m, n.seed) < 0.45 * wall) continue;     // the strobe: on/off for a moment
         const cx = Math.round(keyX(n.m)), half = 12 + Math.pow(n.v / 127, 1.3) * 52;
         // the attack frame spans the screen; then the code settles into a band at its pitch class (C at the bottom,
         // so the notes of a chord stack up and every octave of a note sits on the same row)
         const rowH = (FIELD1 - FIELD0) / 12, yc = FIELD1 - ((n.m % 12) + 0.5) * rowH, hb = 10 + (n.v / 127) * 20;
         const k = age < 0.12 ? 0 : 1 - Math.pow(1 - Math.min(1, (age - 0.12) / 0.5), 3);
-        const top = age < 0.12 ? 0 : Math.round(FIELD0 + (yc - hb - FIELD0) * k), bot = age < 0.12 ? H : Math.round(FIELD1 + (yc + hb - FIELD1) * k);
+        let top = age < 0.12 ? 0 : Math.round(FIELD0 + (yc - hb - FIELD0) * k), bot = age < 0.12 ? H : Math.round(FIELD1 + (yc + hb - FIELD1) * k);
+        if (wall < 1) { top = Math.round(yc - hb + (top - yc + hb) * wall); bot = Math.round(yc + hb + (bot - yc - hb) * wall); }   // turned down: it hardly leaves its row
         g.globalAlpha = age < 0.12 ? 1 : 0.92;
         g.beginPath();
         for (const [bx, bw, e] of CODES[n.m]) {
@@ -282,7 +306,7 @@
       const past = [], future = [], ticksP = [], ticksF = [], fresh = [];
       for (let k = i0; k < N.length && N[k][0] <= tR; k++) {
         const [s, e, m, v] = N[k];
-        if (e < tL) continue;
+        if (e < tL || v < soft) continue;
         const xa = Math.round(PLAY + (s - t) * pps), xb = Math.round(PLAY + (Math.min(e, tR) - t) * pps);
         const y = rollY(m);
         (s <= t ? past : future).push([Math.max(0, xa), y, Math.max(1, xb - Math.max(0, xa))]);
@@ -327,6 +351,8 @@
 
       // ---- the loudest attacks: the whole screen inverts for an instant
       if (flashT > 0) { g.globalCompositeOperation = 'difference'; g.globalAlpha = 1; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
+      // how present: everything fades, down to a whisper
+      if (pres < 1) { g.globalAlpha = 0.88 * (1 - pres); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
     },
   });
 })();

@@ -483,12 +483,12 @@ Feel: precise, binary, cryptic, flickering, icy · Suits: harpsichord, piano · 
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `busy` | how much data | 0..1 | 0.3 | faster → more | How full the screen is with streaming glyphs and data columns. Left: a few clean bars and lines. Right: dense data everywhere. Follows how present: 0 at its left end. |
-| `life` | how long a barcode stays | 0.1..3 | 1.2 | fixed | How long a note's barcode takes to erode after the note ends. Left: gone in a blink. Right: it crumbles slowly, bar by bar. Follows how present: 0.15 at its left end. |
-| `slam` | lines on loud notes | 0..1 | 0.35 | louder → more | How many single-pixel lines slam across the screen when a note is struck loud. Left: none. Right: a burst of lines. Follows how present: 0 at its left end. |
-| `flash` | white flashes | 0..1 | 0.5 | fixed | How often the very loudest attacks turn the whole screen white for an instant. Left: never. Right: on every big accent. Follows how present: 0 at its left end. |
+| `busy` | how much data | 0..1 | 0.3 | faster → more | How full the screen is with streaming glyphs and data columns. Left: a few clean bars and lines. Right: dense data everywhere. |
+| `life` | how long a barcode stays | 0.1..3 | 1.2 | fixed | How long a note's barcode takes to erode after the note ends. Left: gone in a blink. Right: it crumbles slowly, bar by bar. |
+| `slam` | lines on loud notes | 0..1 | 0.35 | louder → more | How many single-pixel lines slam across the screen when a note is struck loud. Left: none. Right: a burst of lines. |
+| `flash` | white flashes | 0..1 | 0.5 | fixed | How often the very loudest attacks turn the whole screen white for an instant. Left: never. Right: on every big accent. |
 | `speed` | scroll speed | 0.3..2.5 | 1 | fixed | How fast the score and the glyph rows scroll. Left: a slow drift. Right: racing past. |
-| `presence` | how present | 0..1 | 1 | fixed | How much data it produces: how many glyph rows and data columns stream, how long a barcode stays, how many lines slam across on loud notes, how often it flashes white. Every note still prints its barcode. Left: two glyph rows, one column, barcodes that vanish quickly, no lines or flashes. Right: more rows and columns, barcodes that crumble slowly, lines and flashes on the loud notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint and slow, and only the hardest notes of the piece print a barcode. Right: everything at full strength (as before). |
 
 #### `horizon`: Horizon
 
