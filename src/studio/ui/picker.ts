@@ -467,9 +467,10 @@ export class Picker {
   private readonly onKey = (e: KeyboardEvent): void => {
     const mod = e.ctrlKey || e.metaKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (mod && k === 's') return;
+    if (this.d.palette.isOpen && !(mod && k === 'p')) return;   // its field has the keys, its dialog the Escape
     e.stopPropagation();
     const popup = this.popup, popupOpen = !!popup?.isOpen;
-    if (this.d.palette.isOpen) { if (mod && k === 'p') { e.preventDefault(); this.d.palette.close(); } return; }   // its field has the keys, its dialog the Escape
+    if (this.d.palette.isOpen) { e.preventDefault(); this.d.palette.close(); return; }
     if (mod && k === 'p' && !e.shiftKey) { e.preventDefault(); if (popupOpen) popup!.choose(this.d.palette); return; }
     if (k === 'Escape') { e.preventDefault(); if (popupOpen) popup!.escape(); else this.close(); return; }
     const tag = (e.target as HTMLElement | null)?.tagName;

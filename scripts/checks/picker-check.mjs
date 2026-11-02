@@ -134,6 +134,17 @@ try {
   }));
   await page.keyboard.press('Escape');
   check('Esc closes the chooser first', await page.evaluate(() => document.querySelector('.np-chooser').hidden && !document.querySelector('.np-modal').hidden));
+  await page.keyboard.press('Control+p');
+  await page.waitForSelector('dialog.palette[open]');
+  await page.keyboard.press('Escape');
+  await settle();
+  check('Ctrl+P finds a widget over the popup, and Esc closes only that', await page.evaluate(() => !document.querySelector('dialog.palette').open && !document.querySelector('.np-modal').hidden));
+  await page.keyboard.press('Control+p');
+  await page.waitForSelector('dialog.palette[open]');
+  await page.keyboard.type('marbling');
+  await page.keyboard.press('Enter');
+  await settle();
+  check('typing a name and Enter connects the notes to it', await page.evaluate(() => window.__studio.picker.popup.widget === 'marbling' && !document.querySelector('dialog.palette').open));
   await page.fill('[data-n]', '6');
   await page.click('[data-loud]');
   await settle();
