@@ -1,5 +1,42 @@
 # Composing a show — the handbook
 
+> **This handbook is about the older stage scripts (`corpus/*.json`, `src/stage/`).** The studio's shows
+> (`shows/*.json`) are something else; their format is the next section.
+
+## Studio shows: clips on tracks
+
+A show holds **clips**, placed widgets, the way DJ software holds them. The song's structure ("First theme" and so on)
+is only marks to see and snap to: it owns nothing.
+
+```json
+{
+  "version": 3, "id": "prelude", "song": "prelude", "title": "Prelude",
+  "clips": [
+    { "id": "c1", "start": 0, "end": 92.5, "track": 0, "widget": "current" },
+    { "id": "c2", "start": 41, "end": 60, "track": 1, "widget": "strings", "listen": "melody", "fade": 2,
+      "knobs": { "size": 0.7 } },
+    { "id": "c3", "start": 55, "end": 70, "track": 2, "widget": "strings", "region": { "mode": "window", "x": 0.5, "y": 0.5, "w": 0.4, "h": 0.4 } }
+  ],
+  "picks": {}
+}
+```
+
+- `id` is unique in the show. The instance key is `widget#id` or `widget@listen#id`, so two clips of one widget are two
+  independent instances, even at the same moment.
+- `start` and `end` are song seconds. Gaps are allowed and dark. A clip past the song's end is a warning, cut by `--fix`.
+- `track` is a whole number from 0: a higher track draws over a lower one. **One track holds no overlaps** (an error,
+  repaired on load and by `--fix`); overlap on different tracks freely. More than 6 clips at one moment is a warning.
+- `fade` is seconds, inside the clip, at both edges, default 1, at most half the clip; 0 is a cut. The curve is squared.
+- A clip **resets at its start**, always. Clips of one widget that butt do not continue each other's state: to keep
+  a picture going, make one long clip.
+- `knobs`, `listen`, `region`, `intensity` and the note sets in `picks` read as they do for a layer in
+  [COMPOSING-SHOWS.md](COMPOSING-SHOWS.md). `intensity` pivots are in song seconds; moving a clip moves them, and
+  resizing or splitting trims them. Picks stay at song time: a clip moved away from its picks draws a "never heard" warning.
+- Older shows are not read. `npm run check-show -- shows/<id>.json` says what is wrong; `--fix` writes the canonical form.
+
+Seeking gives the same slots, weights and resets as playing there, since all of those are a function of the time. The
+picture itself is the widget's state after a short warm-up, as before.
+
 WinkelAmp performs a **script** for a song it recognises: the script decides *what* is on stage and *when*; the
 sound still drives every motion. Scripts are composed ahead of time, in a Claude Code session, from a **study
 pack** — because the composer can't listen to the audio, the pack describes it in words, numbers and pictures.

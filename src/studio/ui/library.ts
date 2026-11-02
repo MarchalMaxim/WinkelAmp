@@ -92,7 +92,7 @@ export class Library {
     this.overlay = document.createElement('div');
     this.overlay.className = 'drop-overlay';
     this.overlay.hidden = true;
-    this.overlay.innerHTML = '<div><span class="drop-title">Drop the recording</span><span class="dim">it is added to your songs, with a show composed for it</span></div>';
+    this.overlay.innerHTML = '<div><span class="drop-title">Drop the recording</span><span class="dim">it is added to your songs</span></div>';
     document.body.append(this.overlay);
     const files = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes('Files');
     let depth = 0;
@@ -163,7 +163,7 @@ export class Library {
       return `<li><a href="${songHref(s.id)}" class="song${s.id === this.current ? ' on' : ''}" ${s.id === this.current ? 'aria-current="page"' : ''}>
         <span class="song-title">${composer ? `<span class="composer">${esc(composer)}</span>` : ''}<span class="piece">${esc(piece)}</span></span>
         <span class="song-meta"><span>${clock(s.duration)}</span><span class="badge n-${s.notesFrom}" title="${esc(tip)}">${badge}</span>
-          <span class="badge ${s.hasShow ? 'show-own' : 'show-auto'}">${s.hasShow ? 'your show' : 'automatic show'}</span></span>
+          <span class="badge ${s.hasShow ? 'show-own' : 'show-auto'}">${s.hasShow ? 'your show' : 'no show yet'}</span></span>
         ${s.error ? `<span class="err small">${esc(s.error)}</span>` : ''}</a></li>`;
     }).join('') : '<li class="dim">No songs yet.</li>';
     this.el.querySelector('.library-how')!.innerHTML = this.writable

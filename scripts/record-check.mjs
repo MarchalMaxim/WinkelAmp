@@ -9,7 +9,7 @@
 //
 //   npm run record-check [-- --headed] [--keep] [--out <dir>]
 //   npm run record-check -- --song prelude [--seconds 60] [--from 0] [--preset share|high] [--out <dir>]
-//       the second form records a real song from songs/ (its show, or one composed for it; nothing is written to
+//       the second form records a real song from songs/ (its show, or an empty timeline; nothing is written to
 //       shows/), from the start or (--from) from the playhead put there, and prints the MB a minute Chrome really writes.
 //
 // Local only: needs ffmpeg/ffprobe and system Chrome. The recordings are kept only with --keep or --out.
