@@ -1,7 +1,7 @@
 // Widget tags (plan 2026-10-31 §8): feel words, suited instruments and a stack role per widget, from lab/tags.json, in
 // the vocabulary of lab/tag-words.json. Pure: the callers read the two files (sources.ts in the browser, readFileSync
 // in Node).
-import type { Role, WidgetTags } from './types';
+import type { NoteType, Role, WidgetTags } from './types';
 
 export interface TagWords {
   /** axis → word → what it looks and sounds like, and how well it fits loud/dense/low/fast/quiet music (0..1). */
@@ -14,6 +14,13 @@ export interface TagWords {
 
 export const ROLES: readonly Role[] = ['under', 'ground', 'base', 'texture', 'lead', 'accent', 'top', 'standalone'];
 
+/** The kinds of note a layer can listen to (spec 2026-11-01-note-types): those the measurements support. As in
+    lab/layers/lines.js. 'long' on a piano means it rings long: the length is mostly the pedal. */
+export const NOTE_TYPES: readonly NoteType[] = ['chords', 'runs', 'trills', 'long', 'repeats'];
+export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
+  chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes',
+};
+
 /** Every feel word, in vocabulary order (axis by axis, as the file lists them). */
 export function feelWords(words: TagWords): string[] {
   return Object.values(words.feel).flatMap((axis) => Object.keys(axis));
@@ -23,8 +30,8 @@ const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /**
- * Errors: an unknown feel or instrument word, a role not in Role, a key with no widget, a malformed entry, a synonym
- * that names no feel word or shadows one. Warnings: a widget without tags (new lab widgets keep arriving), a word
+ * Errors: an unknown feel or instrument word, a role not in Role, a note type not in NOTE_TYPES, a key with no widget, a
+ * malformed entry, a synonym that names no feel word or shadows one. Warnings: a widget without tags (new lab widgets keep arriving), a word
  * listed twice in one entry.
  */
 export function validateTags(tags: unknown, words: TagWords, widgetIds: readonly string[]): { errors: string[]; warnings: string[] } {
@@ -47,6 +54,7 @@ export function validateTags(tags: unknown, words: TagWords, widgetIds: readonly
       if (dup.length) warnings.push(`${id}: ${field} lists ${[...new Set(dup)].map((w) => `'${w}'`).join(', ')} twice`);
     }
     if (!ROLES.includes(t.role as Role)) errors.push(`${id}: role '${String(t.role)}' is not one of ${ROLES.join(', ')}`);
+    if (t.noteType !== undefined && !NOTE_TYPES.includes(t.noteType as NoteType)) errors.push(`${id}: noteType '${String(t.noteType)}' is not one of ${NOTE_TYPES.join(', ')}`);
   }
   for (const id of widgetIds) if (!own(tags, id)) warnings.push(`${id}: no tags in lab/tags.json`);
   return { errors, warnings };

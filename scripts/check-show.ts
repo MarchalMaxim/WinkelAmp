@@ -13,7 +13,9 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { canonicalShow, repairShow, validateShow, type Issue, type Show, type ShowContext } from '../src/studio/show/show';
 import { isSlug } from '../src/studio/pack/pack';
+import type { Note, SongNotes } from '../src/widgets/types';
 import { loadCatalogue } from './node/catalogue';
+import { loadLayers } from './node/layers';
 import { showsDir, songsDir } from './node/pack-io';
 
 const argv = process.argv.slice(2);
@@ -50,9 +52,10 @@ for (const file of files) {
   const pack = isSlug(song) ? join(songsDir(), song, 'pack.json') : null;
   if (pack && existsSync(pack)) {
     try {
-      const p = JSON.parse(readFileSync(pack, 'utf8')) as { duration: number; tracks?: Record<string, unknown> };
+      const p = JSON.parse(readFileSync(pack, 'utf8')) as { duration: number; notes: Note[]; tracks?: SongNotes['tracks'] };
       c.duration = p.duration;
       c.tracks = Object.keys(p.tracks ?? {});   // a listen naming a track this song lacks is a warning
+      c.noteTypes = loadLayers().noteTypeAttacks(p);   // and one naming a kind of note it, or the section, has none of
     } catch { /* a broken pack: no end or track checks */ }
   }
   let { errors, warnings } = validateShow(x, c);

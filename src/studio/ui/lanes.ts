@@ -18,6 +18,7 @@
 import './lanes.css';
 import type { SongPack } from '../pack/pack';
 import { instanceKey, picksId, type Layer, type Show } from '../show/show';
+import { NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { Span, WaLayers } from '../../widgets/layers';
 import { studioLayers } from '../../widgets/layers-source';
 import type { Chord, Pivot, Shape } from '../../widgets/types';
@@ -128,8 +129,11 @@ interface Drag {
 }
 
 const PREFS = 'wa-studio.lanes';
-const LISTEN_WORDS: Record<string, string> = { melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents' };
-const listenWord = (l: string): string => (picksId(l) !== null ? 'your picks' : LISTEN_WORDS[l] ?? (l.startsWith('family:') ? l.slice(7) : l));
+const LISTEN_WORDS: Record<string, string> = {
+  melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents',
+  ...Object.fromEntries(Object.entries(NOTE_TYPE_LABELS).map(([t, label]) => [t, label.toLowerCase()])),
+};
+export const listenWord = (l: string): string => (picksId(l) !== null ? 'your picks' : LISTEN_WORDS[l] ?? (l.startsWith('family:') ? l.slice(7) : l));
 const pct = (v: number): string => `${Math.round(v * 100)} %`;
 const stamp = (t: number): string => {
   t = Math.max(0, t);

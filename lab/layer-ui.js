@@ -36,6 +36,8 @@
     percussion: 'All percussion', voice: 'All voices' };
   var LINES = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
   var LINE_LABELS = { melody: 'Melody', bassline: 'Bass line', inner: 'Inner voices', low: 'Low notes', high: 'High notes', accents: 'Accents' };
+  var NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats'];
+  var NOTE_TYPE_LABELS = { chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes' };
   /** The widgets that read the shared canvas (they cut or smear what is below). */
   var READERS = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
   var INST_FAMILY_WORDS = { keys: 'Keys', plucked: 'Plucked', strings: 'Strings', winds: 'Winds', brass: 'Brass', percussion: 'Percussion',
@@ -45,7 +47,7 @@
   var noteCount = function (tracks, id) { var tr = has(tracks, id) ? tracks[id] : null; return tr && tr.notes ? tr.notes.length : 0; };
 
   /** What a layer can listen to in this song (the studio's listenOptions): 'All notes'; 'In this recording': its tracks
-      in TRACKS order with their note counts; 'Families': a family with two tracks or more; 'From the notes': the lines. */
+      in TRACKS order with their note counts; 'Families': a family with two tracks or more; 'From the notes': the lines; 'Kinds of note': the note types. */
   function listenOptions(tracks) {
     var ids = TRACK_IDS.filter(function (id) { return noteCount(tracks, id) > 0; });
     var out = [{ group: '', value: 'all', label: 'All notes' }];
@@ -54,12 +56,14 @@
       if (ids.filter(function (id) { return TRACKS[id][0] === f; }).length >= 2) out.push({ group: 'Families', value: 'family:' + f, label: FAMILY_LABELS[f] });
     });
     LINES.forEach(function (l) { out.push({ group: 'From the notes', value: l, label: LINE_LABELS[l] }); });
+    NOTE_TYPES.forEach(function (t) { out.push({ group: 'Kinds of note', value: t, label: NOTE_TYPE_LABELS[t] }); });
     return out;
   }
   /** A part's name in words, whether or not this song has it. */
   function listenLabel(l) {
     if (l === undefined || l === 'all') return 'All notes';
     if (has(LINE_LABELS, l)) return LINE_LABELS[l];
+    if (has(NOTE_TYPE_LABELS, l)) return NOTE_TYPE_LABELS[l];
     if (String(l).indexOf('family:') === 0) return FAMILY_LABELS[l.slice(7)] || l;
     return has(TRACKS, l) ? TRACKS[l][1] : String(l);
   }
@@ -380,6 +384,7 @@
       el.classList.toggle('set', !!tidyEntry(o.get()));
       var say2 = [];
       if (e.listen !== undefined && e.listen !== 'all' && !opts.some(function (x) { return x.value === e.listen; })) say2.push(listenLabel(e.listen) + ' are not in this recording: it plays on all the notes.');
+      if (NOTE_TYPES.indexOf(e.listen) >= 0 && !L.listenNotes({ notes: song.notes, tracks: song.tracks }, e.listen).notes.length) say2.push('This song has no ' + listenLabel(e.listen).toLowerCase() + ': it stays still.');
       if (c && c.song && c.song !== song.id) say2.push('This curve was made on another song: move its slider to make it again for this one.');
       else if (c && c.scope === 'moment') say2.push('Over ' + (c.label || 'the moment') + ' (' + fmt(c.start) + '–' + fmt(c.end) + '); full the rest of the song.');
       if (kind === 'custom') say2.push('A curve of ' + e.intensity.length + ' points from elsewhere: pick a preset to replace it.');
@@ -420,6 +425,6 @@
     listenOptions: listenOptions, listenLabel: listenLabel, defaultRegion: defaultRegion, gateDefault: gateDefault,
     momentSpans: momentSpans, momentAt: momentAt, presetPivots: presetPivots, padToSong: padToSong, tidyEntry: tidyEntry,
     parseFilter: parseFilter, filterSearch: filterSearch, matches: matches, filterRows: filterRows,
-    TRACKS: TRACKS, FAMILIES: FAMILIES, LINES: LINES, READERS: READERS, PRESETS: PRESETS,
+    TRACKS: TRACKS, FAMILIES: FAMILIES, LINES: LINES, NOTE_TYPES: NOTE_TYPES, READERS: READERS, PRESETS: PRESETS,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -14,7 +14,7 @@ import { tagsOf } from '../../widgets/tags';
 import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
 import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
-import { describePlace, mountLayerControls, partWords } from './layer-controls';
+import { allNotesTaken, describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
@@ -48,6 +48,9 @@ const KEY_IDLE = 600;
 const RANK: Record<string, number> = { love: 0, keep: 1, 'needs work': 2 };
 export const GROUPS = ['You love these', 'You keep these', 'These need work', 'Not judged yet', 'You dropped these'];
 export const groupOf = (m: WidgetMeta): number => (m.verdict ? (RANK[m.verdict.v] ?? 4) : 3);
+
+/** The note type a widget usually hears (lab/tags.json). */
+const usualOf = (m: WidgetMeta | undefined, id: string) => (m?.tags ?? tagsOf(labTags(), id))?.noteType;
 
 /** What a layer hears, where it is seen and whether it follows a curve, in a few words ('' when none is set). */
 function layerParts(l: Layer): string {
@@ -180,11 +183,12 @@ export class Panel {
       const li = document.createElement('li');
       li.className = `layer${open ? ' open' : ''}`;
       li.style.setProperty('--hue', String(widgetHue(l.widget)));
-      const changed = Object.keys(l.knobs ?? {}).length;
+      const changed = Object.keys(l.knobs ?? {}).length, usual = usualOf(m, l.widget);
       li.dataset.k = String(k);
       li.innerHTML = `<div class="layer-head">
           <button type="button" class="layer-name" aria-expanded="${open}"><span class="swatch"></span><b>${esc(m?.name ?? l.widget)}</b>${m ? verdictTag(m) : '<span class="tag v-drop">missing</span>'}<span class="layer-parts dim small"></span></button>
           <span class="layer-tools">
+            <button type="button" class="icon" data-hear-all aria-label="Hear all notes" title="It hears its usual kind of note: back to all notes" ${usual && listenOf(l) === usual ? '' : 'hidden'}>♪</button>
             <button type="button" class="icon" data-mv="1" aria-label="Move up" title="Move up (draws later, on top)" ${k === sec.layers.length - 1 ? 'disabled' : ''}>↑</button>
             <button type="button" class="icon" data-mv="-1" aria-label="Move down" title="Move down (draws earlier, beneath)" ${k === 0 ? 'disabled' : ''}>↓</button>
             <button type="button" class="icon" data-rm aria-label="Remove ${esc(m?.name ?? l.widget)}" title="Remove from this section (Delete)">✕</button>
@@ -200,6 +204,7 @@ export class Panel {
         this.edit({ type: 'edit', edit: { kind: 'moveLayer', section: i, from: k, to } });
         if (open) this.edit({ type: 'select', section: i, layer: to });
       }));
+      li.querySelector('[data-hear-all]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'setLayer', section: i, layer: k, patch: { listen: null } } }));
       li.querySelector('[data-rm]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'removeLayer', section: i, layer: k } }));
       li.querySelector('[data-defaults]')?.addEventListener('click', () => {
         const group = `defaults:${i}:${k}:${++this.knobDrag}`;
@@ -232,7 +237,7 @@ export class Panel {
     const pack = this.d.store.state.song ?? this.d.song;
     const sec = () => this.d.store.state.show!.sections[i];
     this.controls = mountLayerControls(box, {
-      layers: studioLayers(), pack, widget, hue: widgetHue(widget),
+      layers: studioLayers(), pack, widget, hue: widgetHue(widget), usual: usualOf(this.d.catalogue.get(widget)?.meta, widget),
       span: () => ({ start: sec().start, end: sec().end }),
       layer: () => sec()?.layers[k],
       edit: (patch, group) => {
@@ -257,9 +262,12 @@ export class Panel {
       here: new Set(sec.layers.map((l) => l.widget)), state: this.pickerState,
       groups: GROUPS, groupOf, verdict: verdictTag, hue: widgetHue,
       pick: (id) => {
-        const n = this.d.store.state.show!.sections[i].layers.length;
+        const at = this.d.store.state.show!.sections[i], n = at.layers.length;
+        // A second copy of a widget already on its usual type goes on all notes: the same listen twice would be refused.
+        const usual = tagsOf(tags, id)?.noteType, taken = at.layers.some((l) => l.widget === id && listenOf(l) === usual);
+        const listen = placedListen(studioLayers(), pack, { start: at.start, end: at.end }, taken ? undefined : usual);
         this.picking = false;
-        this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id } });
+        this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id, ...(listen ? { listen } : {}) } });
         this.edit({ type: 'select', section: i, layer: n });
       },
     });
@@ -281,6 +289,14 @@ export class Panel {
     this.body.querySelectorAll<HTMLElement>('.layer[data-k]').forEach((li) => {
       const l = sec.layers[Number(li.dataset.k)], parts = li.querySelector('.layer-parts');
       if (l && parts) parts.textContent = layerParts(l);
+      const all = li.querySelector<HTMLElement>('[data-hear-all]'), usual = l && usualOf(this.d.catalogue.get(l.widget)?.meta, l.widget);
+      if (l && all) {
+        all.hidden = !usual || listenOf(l) !== usual;
+        // The edit would be refused: two instances on all notes. Say so instead of a click that does nothing.
+        const taken = allNotesTaken(sec.layers, Number(li.dataset.k));
+        (all as HTMLButtonElement).disabled = taken;
+        all.title = taken ? 'This widget already plays on all notes in this section, in another layer' : 'It hears its usual kind of note: back to all notes';
+      }
     });
     this.controls?.sync();
     this.where();

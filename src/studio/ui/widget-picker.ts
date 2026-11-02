@@ -5,7 +5,7 @@
  */
 import './widget-picker.css';
 import { TRACKS, isTrackId } from '../pack/instruments';
-import { tracksFor, type TagWords } from '../../widgets/tags';
+import { NOTE_TYPE_LABELS, tracksFor, type TagWords } from '../../widgets/tags';
 import type { WidgetMeta } from '../../widgets/types';
 
 export interface PickerFilter { feel: readonly string[]; instruments: readonly string[]; tracks: readonly string[] | null }
@@ -99,7 +99,7 @@ export function mountWidgetPicker(box: HTMLElement, d: PickerDeps): void {
           <span class="pick-name"><span class="swatch"></span><b>${esc(m.name)}</b>${d.verdict(m)}${d.here.has(m.id) ? '<span class="dim small">in this section</span>' : ''}</span>
           <span class="blurb">${m.blurb}</span>
           ${t ? `<span class="wp-tags">${t.feel.map((w) => `<span class="wp-tag${on.has(w) ? ' on' : ''}">${esc(w)}</span>`).join('')}${t.instruments.length
-            ? `<span class="wp-insts">suits ${t.instruments.map((w) => `<span class="${on.has(w) ? 'on' : ''}">${esc(w)}</span>`).join(', ')}</span>` : ''}</span>` : ''}
+            ? `<span class="wp-insts">suits ${t.instruments.map((w) => `<span class="${on.has(w) ? 'on' : ''}">${esc(w)}</span>`).join(', ')}</span>` : ''}${t.noteType ? `<span class="wp-insts">usually hears ${esc(NOTE_TYPE_LABELS[t.noteType].toLowerCase())}</span>` : ''}</span>` : ''}
         </button></li>`;
       }).join('')}</ul></section>`).join('')
       : `<p class="dim wp-none">No widget has all of these. Take a word away, or clear the filter.</p>`}`;

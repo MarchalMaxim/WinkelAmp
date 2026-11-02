@@ -8,6 +8,7 @@ import { defaultRegion, gateDefault, listenLabel, listenOptions, presetPivots, R
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import { TRACKS, TRACK_IDS } from '../src/studio/pack/instruments';
 import { FAMILIES, LINES } from '../src/studio/show/show';
+import { NOTE_TYPES } from '../src/widgets/tags';
 import type { SongPack } from '../src/studio/pack/pack';
 import type { TagWords } from '../src/widgets/tags';
 import type { Note, Pivot, Region, WidgetMeta, WidgetTags } from '../src/widgets/types';
@@ -22,7 +23,7 @@ interface LabLayerUi {
   presetPivots(L: unknown, kind: string, amount: number, span: { start: number; end: number }, song: Song, listen?: string): Pivot[];
   tidyEntry(e: unknown): unknown; parseFilter(s: string): Filter; filterSearch(s: string, f: Filter): string;
   matches(tags: WidgetTags | null | undefined, f: Filter): boolean; filterRows(w: TagWords): { kind: string; label: string; words: string[] }[];
-  TRACKS: Record<string, [string, string]>; FAMILIES: string[]; LINES: string[]; READERS: string[];
+  TRACKS: Record<string, [string, string]>; FAMILIES: string[]; LINES: string[]; NOTE_TYPES: string[]; READERS: string[];
 }
 
 const src = readFileSync(new URL('../lab/layer-ui.js', import.meta.url), 'utf8');
@@ -46,10 +47,11 @@ describe('the words', () => {
     for (const id of TRACK_IDS) expect(U.TRACKS[id]).toEqual([TRACKS[id].family, TRACKS[id].label]);
     expect(U.FAMILIES).toEqual(FAMILIES);
     expect(U.LINES).toEqual(LINES);
+    expect(U.NOTE_TYPES).toEqual(NOTE_TYPES);
     expect(U.READERS).toEqual(READERS);
   });
   it('a part is named as the studio names it', () => {
-    for (const l of ['all', ...TRACK_IDS, ...FAMILIES.map((f) => `family:${f}`), ...LINES]) expect(U.listenLabel(l)).toBe(listenLabel(l));
+    for (const l of ['all', ...TRACK_IDS, ...FAMILIES.map((f) => `family:${f}`), ...LINES, ...NOTE_TYPES]) expect(U.listenLabel(l)).toBe(listenLabel(l));
     expect(U.listenLabel(undefined)).toBe('All notes');
   });
 });
@@ -62,8 +64,8 @@ describe('listenOptions', () => {
       expect(U.listenOptions(tracks)).toEqual(listenOptions({ tracks } as unknown as Pick<SongPack, 'tracks'>));
     }
   });
-  it('a song with no pack: all notes and the six lines', () => {
-    expect(U.listenOptions(undefined).map((o) => o.value)).toEqual(['all', ...LINES]);
+  it('a song with no pack: all notes, the six lines and the note types', () => {
+    expect(U.listenOptions(undefined).map((o) => o.value)).toEqual(['all', ...LINES, ...NOTE_TYPES]);
   });
 });
 

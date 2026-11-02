@@ -1,7 +1,7 @@
 // The shared layer maths (plan §2): lab/layers/*.js, written once. The lab loads each file as a classic <script>;
 // the studio (src/widgets/layers-source.ts) and Node (scripts/node/layers.ts) evaluate the same text here. Pure: no
 // Vite, no fs, so both loaders can import it.
-import type { Chord, Features, Line, Listen, Note, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
+import type { Chord, Features, Line, Listen, Note, NoteType, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
 
 export interface Span { start: number; end: number }
 
@@ -44,6 +44,7 @@ export interface WaLayers {
   VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
   vis(a: number, cls: Persist): number;
   // lines.js (T4)
+  NOTE_TYPES: readonly NoteType[]; noteTypeAttacks(song: SongNotes): Record<NoteType, number[]>;   // attack times per type
   groupChords(notes: readonly Note[]): Chord[]; soundingAt(notes: readonly Note[], t: number): SoundingNote[];
   lineNotes(notes: readonly Note[], line: Line): Note[];
   listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back; picks:<id> never falls back: a missing set hears nothing
