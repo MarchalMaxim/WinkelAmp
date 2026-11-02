@@ -9,7 +9,7 @@ import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
 import {
-  boxHits, chipLayout, clock, countWords, everyOther, phraseOf, sweptChips, draftKey, draftShow, firstLayerOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
+  boxHits, chipLayout, clock, countWords, everyOther, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
   NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
 } from '../src/studio/ui/picker-logic';
@@ -316,27 +316,25 @@ describe('popupChips', () => {
   });
 });
 
-const base = (): Show => ({ version: 2, id: 's', song: 's', sections: [
-  { start: 0, end: 10, layers: [{ widget: 'squares' }] }, { start: 10, end: 20, layers: [{ widget: 'squares' }] }, { start: 20, end: 30, layers: [{ widget: 'squares' }] },
-] });
+const base = (): Show => ({ version: 3, id: 's', song: 's', clips: [{ id: 'c1', start: 0, end: 30, track: 0, widget: 'squares' }] });
 
-describe('setRows and firstLayerOf', () => {
+describe('setRows and firstClipOf', () => {
   const picks: Note[] = [[12, 12.2, 60, 80], [25, 25.2, 62, 80]];
   const placed = applyEdit(base(), { kind: 'placePicks', widget: 'pointillism', notes: picks });
 
   it('a row per set, with its widget; a show without picks has none', () => {
     expect(setRows(base())).toEqual([]);
     expect(setRows(placed)).toEqual([{ id: 'p1', widget: 'pointillism', notes: picks, neverHeard: 0 }]);
-    expect(firstLayerOf(placed, 'p1')).toEqual({ section: 1, layer: 1 });
-    expect(firstLayerOf(placed, 'p9')).toBeNull();
+    expect(firstClipOf(placed, 'p1')?.id).toBe('c2');
+    expect(firstClipOf(placed, 'p9')).toBeNull();
   });
 
-  it('a pick left outside every section using its set is counted on the row, as the failure it is', () => {
-    const moved: Show = { ...placed, sections: placed.sections.map((s, i) => (i === 1 ? { ...s, layers: s.layers.filter((l) => l.widget === 'squares') } : s)) };
+  it('a pick left outside every clip using its set is counted on the row, as the failure it is', () => {
+    const moved = applyEdit(placed, { kind: 'moveClip', clip: 'c2', start: 20, track: 1 });
     expect(setRows(moved)[0].neverHeard).toBe(1);
   });
 
-  it('a set no layer uses has no widget', () => {
+  it('a set no clip uses has no widget', () => {
     expect(setRows({ ...base(), picks: { p1: { notes: picks } } })[0].widget).toBeNull();
   });
 });
@@ -344,28 +342,30 @@ describe('setRows and firstLayerOf', () => {
 describe('draftShow', () => {
   const notes: Note[] = [[1, 2, 60, 80]];
 
-  it('on picks: one section, one layer, its own set', () => {
+  it('on picks: one clip over the whole song, its own set, no fade', () => {
     const d = draftShow('s', 30, 'pointillism', notes);
-    expect(d.sections).toEqual([{ start: 0, end: 30, layers: [{ widget: 'pointillism', listen: 'picks:draft' }] }]);
+    expect(d.clips).toEqual([{ id: 'draft', start: 0, end: 30, track: 0, fade: 0, widget: 'pointillism', listen: 'picks:draft' }]);
     expect(d.picks).toEqual({ draft: { notes } });
     expect(validateShow(d).errors).toEqual([]);
-    expect(showInstances(d)).toEqual([{ key: 'pointillism@picks:draft', widget: 'pointillism', listen: 'picks:draft', own: true, notes }]);
+    expect(showInstances(d)).toEqual([{ key: 'pointillism@picks:draft#draft', widget: 'pointillism', listen: 'picks:draft', own: true, notes }]);
+    expect(draftKey('pointillism', 'pick')).toBe('pointillism@picks:draft#draft');
   });
 
   it('every note: the plain widget; no picks at all', () => {
     const d = draftShow('s', 30, 'pointillism', null);
-    expect(d.sections[0].layers).toEqual([{ widget: 'pointillism' }]);
+    expect(d.clips[0].listen).toBeUndefined();
     expect(d.picks).toBeUndefined();
-    expect(showInstances(d)[0].key).toBe('pointillism');
+    expect(showInstances(d)[0].key).toBe('pointillism#draft');
+    expect(draftKey('pointillism', 'all')).toBe('pointillism#draft');
   });
 
   it('none picked hears nothing, never every note', () => {
     expect(showInstances(draftShow('s', 30, 'pointillism', []))[0].notes).toEqual([]);
   });
 
-  it('each draft has a notes list of its own, so a change of picks reloads the instance; knobs go on the layer', () => {
+  it('each draft has a notes list of its own, so a change of picks reloads the instance; knobs go on the clip', () => {
     expect(draftShow('s', 30, 'a', notes).picks!.draft.notes).not.toBe(draftShow('s', 30, 'a', notes).picks!.draft.notes);
-    expect(draftShow('s', 30, 'a', notes, { size: 0.5 }).sections[0].layers[0].knobs).toEqual({ size: 0.5 });
+    expect(draftShow('s', 30, 'a', notes, { size: 0.5 }).clips[0].knobs).toEqual({ size: 0.5 });
   });
 });
 

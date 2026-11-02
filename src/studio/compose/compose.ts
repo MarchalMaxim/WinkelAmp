@@ -2,8 +2,9 @@
  * The auto-composer (plan §6): a first show for any pack, one click away on an empty timeline. It reads the song in spans
  * from the analysis (the most novel boundaries, at least minSection apart, each moved just before the strongest attack near
  * it), gives each span loved/kept widgets by its character, and places them as clips: a widget that plays on through the next
- * span is one clip, one that gives way overlaps the next one by a fade, on the next track of its kind. Bases at the bottom,
- * then accents, the entering part's window, the casket on top. Knobs stay at OUR defaults. Deterministic.
+ * span is one clip, and a base that gives way overlaps the next one by a fade, on the other of the two base tracks, so the
+ * picture never dips. Bases at the bottom, then accents, the entering part's window, the casket on top. Knobs stay at OUR
+ * defaults. Deterministic.
  *
  * Given the shared layer maths and the tag vocabulary (plan 2026-10-31 §9), it also reads the feel words of the user's
  * description, routes accents to the instrument tracks they suit, and gives an instrument that enters a span its own window.
@@ -211,16 +212,16 @@ export function composeShow(i: ComposeInput): Show {
 
 /** A span's stack, bottom → top, each layer with the kind of track it goes on. */
 interface Stacked { span: Span; layers: (Layer & { role: number })[] }
-/** Each kind has two tracks: one that gives way overlaps the next one for its fade, so they must not share. */
-const ROLE = { base: 0, accent: 2, entering: 4, top: 6 } as const;
-/** How long two clips that give way to each other overlap, half on each side of the boundary. */
+/** The kinds of track, bottom to top. Bases have two: one that gives way overlaps the next one for its fade. */
+const ROLE = { base: 0, accent: 2, entering: 3, top: 4 } as const;
+/** How long two bases that give way to each other overlap, half on each side of the boundary. */
 const CROSS = DEFAULT_FADE;
 
 const same = (a: Layer, b: Layer): boolean => a.widget === b.widget && a.listen === b.listen
   && JSON.stringify(a.region) === JSON.stringify(b.region) && !a.intensity?.length && !b.intensity?.length;
 
-/** The stacks as clips: the same widget on the same part, in the same place, in the next span too plays on as one clip; one
-    that gives way runs on past the boundary, under what comes next, while they cross. Then only the tracks in use. */
+/** The stacks as clips: the same widget on the same part, in the same place, in the next span too plays on as one clip; a
+    base that gives way runs on past the boundary, under what comes next, while they cross. Then only the tracks in use. */
 function place(stacks: readonly Stacked[], duration: number): Clip[] {
   const clips: Clip[] = [];
   const open = new Map<number, Clip & { role: number }>();   // the clip of each kind that reached the last span's end
@@ -235,17 +236,18 @@ function place(stacks: readonly Stacked[], duration: number): Clip[] {
         continue;
       }
       const { role, ...rest } = l;
-      const start = span.start > 0 ? ms(Math.max(0, span.start - CROSS / 2)) : 0;
+      const start = role === ROLE.base && span.start > 0 ? ms(Math.max(0, span.start - CROSS / 2)) : span.start;
       const clip = { id: `c${++n}`, start, end: span.end, track: role, role, ...rest };
       clips.push(clip);
       fresh.set(role, clip);
     }
-    // What does not go on gives way: it runs a little past the boundary.
-    for (const [role, c] of open) if (fresh.get(role) !== c && Math.abs(c.end - span.start) < 1e-6) c.end = ms(Math.min(duration, c.end + CROSS / 2));
+    // A base that does not go on gives way: it runs a little past the boundary.
+    const base = open.get(ROLE.base);
+    if (base && fresh.get(ROLE.base) !== base) base.end = ms(Math.min(duration, base.end + CROSS / 2));
     open.clear();
     for (const [role, c] of fresh) open.set(role, c);
   }
-  // On the first of its kind's two tracks unless that one is taken while it plays, in time order.
+  // On its kind's track unless that one is taken while it plays (a crossing base), in time order.
   const placed: Clip[] = [];
   for (const c of clips.sort((a, b) => a.start - b.start || a.track - b.track)) {
     c.track = freeTrack(placed, c, c.track);

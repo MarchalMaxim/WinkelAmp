@@ -121,32 +121,46 @@ describe('composeShow', () => {
     for (const pack of packs) {
       const show = composeShow(input(pack));
       expect(validateShow(show, { duration: pack.duration, widgets })).toEqual({ errors: [], warnings: [] });
-      expect(show).toMatchObject({ version: 1, id: 'demo', song: 'demo', title: 'Demo', composer: { by: 'auto' } });
-      expect(show.sections.length).toBeLessThanOrEqual(Math.max(1, Math.round(pack.duration / 30)));
-      for (const s of show.sections) {
-        expect(s.layers.length).toBeGreaterThan(0);
-        for (const l of s.layers) { expect(ids.has(l.widget), l.widget).toBe(true); expect(l.knobs).toBeUndefined(); }
-        if (s !== show.sections[0]) expect(s.fade).toBe(3);
-        expect(s.label).toMatch(/^(calm|(loud|dense|low|fast|quiet)( · (loud|dense|low|fast|quiet))?)$/);
-      }
+      expect(show).toMatchObject({ version: 3, id: 'demo', song: 'demo', title: 'Demo', composer: { by: 'auto' } });
+      expect(show.clips.length).toBeGreaterThan(0);
+      for (const c of show.clips) { expect(ids.has(c.widget), c.widget).toBe(true); expect(c.knobs).toBeUndefined(); }
+      // Something plays from the start to the end, and the tracks in use leave no empty row.
+      expect(Math.min(...show.clips.map((c) => c.start))).toBe(0);
+      expect(Math.max(...show.clips.map((c) => c.end))).toBeCloseTo(pack.duration, 3);
+      const tracks = [...new Set(show.clips.map((c) => c.track))].sort((a, b) => a - b);
+      expect(tracks).toEqual(tracks.map((_, i) => i));
     }
+  });
+
+  it('plays a widget on as one clip through the next span; what gives way overlaps what comes next, on another track', () => {
+    const pack = quietLoud(), show = composeShow(input(pack));
+    const spans = pickSections(input(pack));
+    expect(spans.length).toBeGreaterThan(1);
+    // No two clips of one widget and part butt up on one track: they would be one.
+    for (const a of show.clips) for (const b of show.clips) {
+      if (a !== b && a.widget === b.widget && a.listen === b.listen && a.track === b.track) expect(Math.abs(a.end - b.start)).toBeGreaterThan(1e-3);
+    }
+    // At each boundary the picture has something at full strength or crossing.
+    for (const s of spans.slice(1)) expect(show.clips.some((c) => c.start < s.start && c.end > s.start)).toBe(true);
   });
 
   it('puts casket on top only where it is loud, and a quiet base where it is quiet', () => {
     const pack = quietLoud(), show = composeShow(input(pack));
-    const ch = sectionCharacters(pack.notes, show.sections);
-    show.sections.forEach((s, i) => {
-      const k = s.layers.findIndex((l) => l.widget === 'casket');
-      if (k >= 0) { expect(ch[i].loud).toBeGreaterThanOrEqual(0.75); expect(k).toBe(s.layers.length - 1); }
-      if (s.end <= 60.3) expect(quietBases).toContain(s.layers[0].widget);
-    });
-    expect(show.sections.some((s) => s.layers.some((l) => l.widget === 'casket'))).toBe(true);
+    const spans = pickSections(input(pack)), ch = sectionCharacters(pack.notes, spans);
+    const caskets = show.clips.filter((c) => c.widget === 'casket');
+    expect(caskets.length).toBeGreaterThan(0);
+    for (const c of caskets) {
+      expect(c.track).toBeGreaterThanOrEqual(Math.max(...show.clips.filter((o) => o.widget !== 'casket' && o.start < c.end && c.start < o.end).map((o) => o.track)));
+      const i = spans.findIndex((s) => c.start < s.end && s.start < c.end - 1);
+      expect(ch[i].loud).toBeGreaterThanOrEqual(0.75);
+    }
+    for (const c of show.clips.filter((x) => x.track === 0 && x.end <= 60.8)) expect(quietBases).toContain(c.widget);
   });
 
-  it('gives a silent recording one quiet section, whatever the analysis says', () => {
+  it('gives a silent recording one quiet clip, whatever the analysis says', () => {
     for (const every of [90, 10]) {
       const show = composeShow(input(makePack({ duration: 90, every, parts: [] })));
-      expect(show.sections).toEqual([{ start: 0, end: 90, label: 'quiet', layers: [{ widget: 'current' }] }]);
+      expect(show.clips).toEqual([{ id: 'c1', start: 0, end: 90, track: 0, widget: 'current' }]);
     }
   });
 
@@ -158,7 +172,7 @@ describe('composeShow', () => {
     w.delete('casket');
     const used = new Set<string>();
     for (const pack of [quietLoud(), makePack({ duration: 90, parts: [] })]) {
-      for (const s of composeShow(input(pack, w)).sections) for (const l of s.layers) used.add(l.widget);
+      for (const c of composeShow(input(pack, w)).clips) used.add(c.widget);
     }
     for (const id of ['current', 'strings', 'fields', 'casket']) expect(used.has(id), id).toBe(false);
     expect(used.size).toBeGreaterThan(0);
@@ -171,7 +185,7 @@ describe('composeShow', () => {
     const t0 = performance.now();
     const show = composeShow(input(pack));
     expect(performance.now() - t0).toBeLessThan(1000);
-    expect(show.sections.length).toBeLessThanOrEqual(20);
+    expect(show.clips.length).toBeLessThanOrEqual(80);
     expect(validateShow(show, { duration: 600, widgets }).errors).toEqual([]);
   });
 });
