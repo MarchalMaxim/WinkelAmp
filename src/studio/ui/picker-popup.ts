@@ -18,6 +18,7 @@ import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
 import { chipLayout, clock, countWords, draftKey, draftShow, loudest, nameOf, pitchClass, previewSpan, toPicks, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
+import type { WidgetPalette } from './widget-palette';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
 
 export interface PopupDeps {
@@ -304,21 +305,33 @@ export class PickerPopup {
   }
 
   /** The studio's widget picker, all widgets: `here` empty, or a widget already in the section couldn't be chosen. */
+  private metas(): WidgetMeta[] {
+    const { catalogue, order } = this.d, tags = labTags();
+    return order.map((id) => catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m)
+      .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
+  }
+
+  private takeWidget(id: string): void {
+    this.widget = id;
+    this.closeChooser();
+    this.drawWidget();
+    this.draft(true);
+  }
+
+  /** Ctrl+P: the same choice as the chooser, by typing. */
+  choose(palette: WidgetPalette): void {
+    const metas = this.metas().map((m, k) => ({ m, k })).sort((a, b) => groupOf(a.m) - groupOf(b.m) || a.k - b.k).map((x) => x.m);
+    palette.open({ title: 'Connect your notes to', metas, verdict: verdictTag, hue: widgetHue, pick: (id) => this.takeWidget(id) });
+  }
+
   private toggleChooser(): void {
     const box = this.$('.np-chooser');
     if (!box.hidden) { this.closeChooser(); return; }
-    const { catalogue, order, pack } = this.d, tags = labTags();
-    const metas = order.map((id) => catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m)
-      .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
+    const { pack } = this.d;
     mountWidgetPicker(box, {
-      metas, words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
+      metas: this.metas(), words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
       here: new Set(), state: this.chooserState, groups: GROUPS, groupOf, verdict: verdictTag, hue: widgetHue,
-      pick: (id) => {
-        this.widget = id;
-        this.closeChooser();
-        this.drawWidget();
-        this.draft(true);
-      },
+      pick: (id) => this.takeWidget(id),
     });
     box.hidden = false;
     this.$('[data-choose]').setAttribute('aria-expanded', 'true');

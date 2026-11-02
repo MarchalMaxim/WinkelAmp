@@ -119,14 +119,63 @@
     return clip(s, out);
   };
 
+  /** The beats inside the span when they cover ≥ 70 % of it; else from the start every median beat gap of the song
+      (0.5 s with no beats). */
+  var beatGrid = function (s, beats) {
+    var inside = [], grid, gap;
+    for (var i = 0; i < beats.length; i++) if (beats[i] >= s.start && beats[i] < s.end) inside.push(beats[i]);
+    var gIn = inside.length >= 2 ? median(gaps(inside)) : 0;
+    if (inside.length >= 2 && inside.length * gIn >= 0.7 * (s.end - s.start)) return { grid: inside, gap: gIn };
+    gap = beats.length >= 2 ? median(gaps(beats)) : 0.5;
+    if (!(gap > 0)) gap = 0.5;
+    grid = [];
+    for (var k = 0; s.start + k * gap < s.end; k++) grid.push(s.start + k * gap);
+    return { grid: grid, gap: gap };
+  };
+
   WA.presets = {
-    /** 0 at the section start, 1 after `seconds`. */
-    fadeIn: function (s, seconds) {
-      return [{ t: s.start, v: 0 }, { t: Math.min(s.end, s.start + seconds), v: 1 }];
+    /** floor (0) at the section start, 1 after `seconds`. */
+    fadeIn: function (s, seconds, o) {
+      return [{ t: s.start, v: o && o.floor != null ? o.floor : 0 }, { t: Math.min(s.end, s.start + seconds), v: 1 }];
     },
-    /** 1 until `seconds` before the end, 0 at the end. */
-    fadeOut: function (s, seconds) {
-      return [{ t: Math.max(s.start, s.end - seconds), v: 1 }, { t: s.end, v: 0 }];
+    /** 1 until `seconds` before the end, floor (0) at the end. */
+    fadeOut: function (s, seconds, o) {
+      return [{ t: Math.max(s.start, s.end - seconds), v: 1 }, { t: s.end, v: o && o.floor != null ? o.floor : 0 }];
+    },
+    /** From floor to 1 over the whole span, slowly at first. */
+    build: function (s, o) {
+      return [{ t: s.start, v: o && o.floor != null ? o.floor : 0, bend: -0.45 }, { t: s.end, v: 1 }];
+    },
+    /** From 1 to floor over the whole span, quickly at first, with a long tail. */
+    decay: function (s, o) {
+      return [{ t: s.start, v: 1, bend: 0.45 }, { t: s.end, v: o && o.floor != null ? o.floor : 0 }];
+    },
+    /** 1, eased down to floor in the middle, eased back to 1. */
+    dip: function (s, o) {
+      var floor = o && o.floor != null ? o.floor : 0;
+      return [{ t: s.start, v: 1, shape: 'ease' }, { t: (s.start + s.end) / 2, v: floor, shape: 'ease' }, { t: s.end, v: 1 }];
+    },
+    /** Up and down, eased, turning every `every`-th beat (the grid as in pulse). Too many turns for MAX_PIVOTS: fewer. */
+    breathe: function (s, beats, o) {
+      var every = Math.max(1, Math.round(o.every)), floor = o.floor != null ? o.floor : 0;
+      var grid = beatGrid(s, beats).grid, f = 1, out = [], up = false;
+      while (Math.ceil(grid.length / (every * f)) + 2 > WA.MAX_PIVOTS) f++;
+      every *= f;
+      if (grid.length && grid[0] > s.start) out.push({ t: s.start, v: floor, shape: 'ease' });
+      for (var j = 0; j < grid.length; j += every) { out.push({ t: grid[j], v: up ? 1 : floor, shape: 'ease' }); up = !up; }
+      if (!out.length || out[out.length - 1].t < s.end) out.push({ t: s.end, v: up ? 1 : floor });
+      return out;
+    },
+    /** `n` even steps up from floor to 1. */
+    steps: function (s, o) {
+      var n = Math.max(1, Math.round(o.n)), floor = o.floor != null ? o.floor : 0, out = [];
+      for (var i = 0; i < n; i++) out.push({ t: s.start + (i * (s.end - s.start)) / n, v: floor + ((1 - floor) * (i + 1)) / n, shape: 'hold' });
+      out.push({ t: s.end, v: 1 });
+      return out;
+    },
+    /** The same value all the way. */
+    level: function (s, v) {
+      return [{ t: s.start, v: v }, { t: s.end, v: v }];
     },
     /** floor, eased up to 1 at `peak` of the way through, eased down to floor at the end. */
     swell: function (s, o) {
@@ -139,18 +188,7 @@
         (0.5 s with no beats). Too many pulses for MAX_PIVOTS: `every` is multiplied by the smallest factor that fits. */
     pulse: function (s, beats, o) {
       var every = Math.max(1, Math.round(o.every)), floor = o.floor != null ? o.floor : 0;
-      var duty = o.duty != null ? o.duty : 0.5, len = s.end - s.start;
-      var inside = [];
-      for (var i = 0; i < beats.length; i++) if (beats[i] >= s.start && beats[i] < s.end) inside.push(beats[i]);
-      var grid, gap;
-      var gIn = inside.length >= 2 ? median(gaps(inside)) : 0;
-      if (inside.length >= 2 && inside.length * gIn >= 0.7 * len) { grid = inside; gap = gIn; }
-      else {
-        gap = beats.length >= 2 ? median(gaps(beats)) : 0.5;
-        if (!(gap > 0)) gap = 0.5;
-        grid = [];
-        for (var k = 0; s.start + k * gap < s.end; k++) grid.push(s.start + k * gap);
-      }
+      var duty = o.duty != null ? o.duty : 0.5, g = beatGrid(s, beats), grid = g.grid, gap = g.gap;
       var count = function (e) { return Math.ceil(grid.length / e); };
       var f = 1;
       while (2 * count(every * f) + 1 > WA.MAX_PIVOTS) f++;

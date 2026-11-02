@@ -8,8 +8,12 @@
  * - Drag a pivot: it stays between its neighbours; Shift is fine (no snap, a tenth of the speed), Alt only unsnaps.
  * - Drag a sloped segment up or down to bend it (its midpoint follows the pointer); a flat or held segment moves
  *   up and down instead.
- * - Double-click or right-click a pivot: delete it. Right-click a segment: Linear / Ease / Hold. Right-click empty
- *   space, or Presets: the shared presets (lab/layers/automation.js) written into the section.
+ * - Double-click or right-click a pivot: delete it. Right-click a segment: Linear / Ease / Hold.
+ * - The shapes on the strip above the lanes (or right-click empty space): the shared presets (lab/layers/automation.js)
+ *   in one click, shown on the lane as a dashed line while the pointer is on one. In "This section" they fill the section;
+ *   in "Whole show" they stretch over all the consecutive sections it plays in. "Lowest" sets how far they go down.
+ * - Draw: drag across the lane and the line you draw becomes the curve there, in one gesture.
+ * - Bigger: a taller open lane; the picture gives up the room.
  * - Every gesture is one undo step. "Whole show" lays the instance's lane over the song, as the sections strip above
  *   does, across the consecutive sections it plays in; a pivot added at t goes to the section containing t.
  *
@@ -70,6 +74,47 @@ export function addPivot(piv: readonly Pivot[], t: number, v: number, max: numbe
   return { pivots: out, index: at };
 }
 
+/** The part of a curve inside a span, drawing the same line there: the pivots inside, and edge pivots where a segment
+    crosses the span's edge. A crossing ease or bend becomes a few straight pieces, since a cut one would change its shape. */
+export function sliceCurve(piv: readonly Pivot[], span: Span, at: (t: number) => number, samples = 12): Pivot[] {
+  const out: Pivot[] = [], round = (v: number) => Math.round(v * 1000) / 1000;
+  const add = (p: Pivot) => { if (!out.length || out[out.length - 1].t < p.t) out.push(p); };
+  for (let i = 0; i < piv.length; i++) {
+    const p = piv[i], q = piv[i + 1];
+    if (!q) { if (p.t <= span.end) add(p.t >= span.start ? { ...p } : { t: span.start, v: p.v }); else add({ t: span.end, v: p.v }); break; }
+    if (q.t <= span.start) continue;
+    if (p.t >= span.end) { add(p.t === span.end ? { ...p } : { t: span.end, v: p.v }); break; }
+    const a = Math.max(p.t, span.start), b = Math.min(q.t, span.end);
+    if (a === p.t && b === q.t) { add({ ...p }); continue; }
+    if (p.shape === 'hold') { add({ t: ms(a), v: p.v, shape: 'hold' }); if (b < q.t) add({ t: ms(b), v: p.v }); continue; }
+    if (p.shape !== 'ease' && !p.bend) { add({ t: ms(a), v: round(at(a)) }); if (b < q.t) add({ t: ms(b), v: round(at(b)) }); continue; }
+    if (a === p.t && p.bend && !p.shape) { add({ ...p }); add({ t: ms(b), v: round(at(b)) }); continue; }   // a bend cut short at its far end keeps its bend
+    for (let k = 0; k <= samples; k++) {
+      if (k === samples && b === q.t) break;
+      const t = a + ((b - a) * k) / samples;
+      add({ t: ms(t), v: round(at(t)) });
+    }
+  }
+  return out;
+}
+
+/** A drawn line as few pivots as draw it to within eps pixels (Douglas-Peucker). pts in time order; x, y: to pixels. */
+export function simplifyStroke(pts: readonly { t: number; v: number }[], x: (t: number) => number, y: (v: number) => number, eps = 2): Pivot[] {
+  if (pts.length <= 2) return pts.map((p) => ({ t: ms(p.t), v: Math.round(clamp(p.v, 0, 1) * 1000) / 1000 }));
+  const keep = new Array<boolean>(pts.length).fill(false);
+  keep[0] = keep[pts.length - 1] = true;
+  const walk = (a: number, b: number): void => {
+    let best = -1, bd = eps;
+    for (let i = a + 1; i < b; i++) {
+      const d = distToSegment(x(pts[i].t), y(pts[i].v), x(pts[a].t), y(pts[a].v), x(pts[b].t), y(pts[b].v));
+      if (d > bd) { bd = d; best = i; }
+    }
+    if (best >= 0) { keep[best] = true; walk(a, best); walk(best, b); }
+  };
+  walk(0, pts.length - 1);
+  return pts.filter((_, i) => keep[i]).map((p) => ({ t: ms(p.t), v: Math.round(clamp(p.v, 0, 1) * 1000) / 1000 }));
+}
+
 export type Hit = { kind: 'pivot'; index: number } | { kind: 'segment'; index: number } | { kind: 'empty' };
 
 const PIVOT_R = 6, SEGMENT_D = 5, SAMPLES = 32;
@@ -114,8 +159,10 @@ export function hitTest(pivots: readonly Pivot[], x: (t: number) => number, y: (
 
 export interface LaneDeps {
   store: Store; song: SongPack; duration(): number; names(id: string): string; hue(id: string): number;
+  /** What of the song the timeline shows now. */
+  view(): { a: number; b: number };
 }
-export interface Lanes { update(s: StudioState): void; setTime(t: number): void }
+export interface Lanes { update(s: StudioState): void; setTime(t: number): void; redraw(): void; timeAt(clientX: number): number | null }
 
 type Mode = 'section' | 'show';
 /** One section's part of a lane: that section's layer of the instance, its span and its pivots. */
@@ -123,12 +170,21 @@ interface Piece { section: number; layer: number; span: Span; pivots: Pivot[] }
 interface LaneView { key: string; layer: number; widget: string; listen?: string; open: boolean; el: HTMLElement; cv: HTMLCanvasElement }
 interface Geo { a: number; b: number; W: number; H: number; pad: number; x(t: number): number; y(v: number): number; t(x: number): number; v(y: number): number }
 type Target = { piece: Piece; hit: Hit } | null;
+/** A shape on the strip: its word, what it does, and a small picture of it (an SVG path in 24×12). */
+interface ShapeChip { id: string; label: string; menu: string; note?: string; icon: string; make(span: Span, floor: number): Pivot[] }
 interface Drag {
   kind: 'pivot' | 'bend' | 'level'; piece: Piece; index: number; group: string; moved: boolean; bend0: number;
   px: number; py: number; fine: boolean; t0: number; v0: number; t: number; v: number;
 }
 
 const PREFS = 'wa-studio.lanes';
+const ICONS = {
+  in: 'M1 11 L10 1 H23', out: 'M1 1 H14 L23 11', build: 'M1 11 C13 11 19 8 23 1', decay: 'M1 1 C5 8 11 11 23 11',
+  swell: 'M1 11 C6 11 8 1 12 1 S18 11 23 11', dip: 'M1 1 C6 1 8 11 12 11 S18 1 23 1',
+  breathe: 'M1 11 C3 11 3 1 6 1 S9 11 12 11 S15 1 18 1 S21 11 23 11', steps: 'M1 11 H6 V8 H12 V5 H18 V1 H23',
+  beat: 'M1 1 L3 11 H5 V1 L7 11 H9 V1 L11 11 H13 V1 L15 11 H17 V1 L19 11 H21 V1 L23 11', bar: 'M1 1 L6 11 H12 V1 L17 11 H23',
+  gate: 'M1 11 H5 V1 H10 V11 H14 V1 H23', plays: 'M1 11 H3 V1 H16 V11 H23', half: 'M1 6 H23', clear: 'M1 1 H23',
+};
 const LISTEN_WORDS: Record<string, string> = {
   melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents',
   ...Object.fromEntries(Object.entries(NOTE_TYPE_LABELS).map(([t, label]) => [t, label.toLowerCase()])),
@@ -149,7 +205,7 @@ const samePivots = (a: readonly Pivot[] | undefined, b: readonly Pivot[] | undef
 
 export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const L: WaLayers = studioLayers();
-  let prefs: { mode: Mode; snap: boolean } = { mode: 'section', snap: true };
+  let prefs: { mode: Mode; snap: boolean; draw: boolean; big: boolean; floor: number } = { mode: 'section', snap: true, draw: false, big: false, floor: 0 };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREFS) ?? '{}') }; } catch { /* private window */ }
   const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch { /* private window */ } };
 
@@ -161,16 +217,20 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
         <button type="button" data-mode="section">This section</button><button type="button" data-mode="show">Whole show</button>
       </span>
       <button type="button" class="lanes-toggle" data-snap title="Pivots snap to the nearest beat (hold Shift for fine moves without snapping, Alt to place freely)">Snap to beats</button>
+      <button type="button" class="lanes-toggle" data-draw title="Drag across the lane to draw the curve in one go">Draw</button>
+      <button type="button" class="lanes-toggle" data-big title="A taller lane, with less room for the picture">Bigger</button>
       <span class="lanes-hint"></span>
       <span class="lanes-spacer"></span>
-      <button type="button" class="lanes-presets" data-presets aria-haspopup="menu">Presets</button>
+      <label class="lanes-floor" title="How far down the shapes below go"><span>Lowest</span><input type="range" data-floor min="0" max="0.9" step="0.05" aria-label="How far down the shapes go"><output></output></label>
     </div>
+    <div class="lanes-shapes" role="group" aria-label="Shapes for the curve"></div>
     <div class="lanes-body"><div class="lanes-list"></div><div class="lanes-head" hidden></div><div class="lanes-tip" hidden></div></div>`;
   host.append(root);
   const list = root.querySelector<HTMLElement>('.lanes-list')!, body = root.querySelector<HTMLElement>('.lanes-body')!;
   const head = root.querySelector<HTMLElement>('.lanes-head')!, tip = root.querySelector<HTMLElement>('.lanes-tip')!;
-  const hint = root.querySelector<HTMLElement>('.lanes-hint')!, presetsBtn = root.querySelector<HTMLButtonElement>('[data-presets]')!;
-  const snapBtn = root.querySelector<HTMLButtonElement>('[data-snap]')!;
+  const hint = root.querySelector<HTMLElement>('.lanes-hint')!, strip = root.querySelector<HTMLElement>('.lanes-shapes')!;
+  const snapBtn = root.querySelector<HTMLButtonElement>('[data-snap]')!, drawBtn = root.querySelector<HTMLButtonElement>('[data-draw]')!, bigBtn = root.querySelector<HTMLButtonElement>('[data-big]')!;
+  const floorIn = root.querySelector<HTMLInputElement>('[data-floor]')!, floorOut = root.querySelector<HTMLOutputElement>('.lanes-floor output')!;
 
   let views: LaneView[] = [], builtKey = '', drag: Drag | null = null, gesture = 0, raf = 0, now = 0;
   let hover: { lane: number; target: Target } | null = null;
@@ -179,6 +239,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       key's repeats are one step; another pivot, a key-up or leaving the lane starts a new one). */
   let nudge: { at: string; group: string } | null = null;
   let menu: HTMLElement | null = null;
+  /** The shape under the pointer, as it would land (dashed on the lane). */
+  let ghost: Pivot[] | null = null;
+  /** The line being drawn, in time order. */
+  let pen: { pts: { t: number; v: number }[]; pieces: Piece[] } | null = null;
+  /** The shape last put on the open layer, while the curve is still what it wrote: "Lowest" reshapes it. */
+  let lastShape: { id: string; at: string; wrote: string } | null = null;
   const ticksFor = new Map<string, Chord[]>();
 
   const state = () => d.store.state;
@@ -187,21 +253,32 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const syncBar = () => {
     root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === prefs.mode)));
     snapBtn.setAttribute('aria-pressed', String(prefs.snap));
+    drawBtn.setAttribute('aria-pressed', String(prefs.draw));
+    bigBtn.setAttribute('aria-pressed', String(prefs.big));
+    root.classList.toggle('big', prefs.big);
+    root.classList.toggle('drawing', prefs.draw);
+    floorIn.value = String(prefs.floor); floorOut.textContent = pct(prefs.floor);
     const s = state(), sec = s.show?.sections[s.selected.section];
     const open = s.selected.layer !== null && !!sec?.layers[s.selected.layer];
-    presetsBtn.disabled = !open || s.ui.recording;
-    hint.textContent = !sec?.layers.length ? '' : open
-      ? 'Click to add · drag · Shift: fine · double-click: delete · right-click: shape, presets'
-      : 'Click a lane to draw its intensity';
+    const run = open ? piecesOf(s.selected.layer!).length : 0;
+    hint.textContent = !sec?.layers.length ? '' : !open ? 'Click a lane to shape its intensity'
+      : prefs.draw ? 'Drag across the lane to draw the curve'
+      : prefs.mode === 'show' && run > 1 ? `Shapes stretch over the ${run} sections it plays in a row`
+      : 'Click to add · drag · Shift: fine · double-click: delete';
+    drawShapes(open && !s.ui.recording);
   };
   root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => {
     prefs.mode = b.dataset.mode as Mode; savePrefs(); builtKey = ''; update(state());
   }));
   snapBtn.addEventListener('click', () => { prefs.snap = !prefs.snap; savePrefs(); syncBar(); draw(); });
-  presetsBtn.addEventListener('click', () => {
-    const r = presetsBtn.getBoundingClientRect();
-    openPresets(r.right, r.top, undefined, true);
+  drawBtn.addEventListener('click', () => { prefs.draw = !prefs.draw; savePrefs(); syncBar(); });
+  bigBtn.addEventListener('click', () => { prefs.big = !prefs.big; savePrefs(); syncBar(); });
+  floorIn.addEventListener('input', () => {
+    prefs.floor = Number(floorIn.value); floorOut.textContent = pct(prefs.floor);
+    const now = lastShape && openKey() === lastShape.at && curveKey() === lastShape.wrote ? lastShape.id : null;
+    if (now) putShape(now, floorGroup);
   });
+  floorIn.addEventListener('change', () => { savePrefs(); floorGroup = `intensity:floor:${++gesture}`; });
 
   // ---- what each lane covers ----
 
@@ -224,7 +301,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
   const geo = (v: LaneView): Geo => {
     const sh = show()!, sec = sh.sections[state().selected.section];
-    const [a, b] = prefs.mode === 'section' ? [sec.start, sec.end] : [0, d.duration() || sh.sections[sh.sections.length - 1].end];
+    // Whole show: the timeline's view. This section: the section, or the part of it the timeline is zoomed to.
+    const z = d.view(), oa = Math.max(sec.start, z.a), ob = Math.min(sec.end, z.b);
+    const [a, b] = prefs.mode === 'show' ? [z.a, z.b] : ob - oa >= 2 ? [oa, ob] : [sec.start, sec.end];
     const W = Math.max(1, v.cv.clientWidth), H = Math.max(1, v.cv.clientHeight), pad = v.open ? 8 : 3;
     const span = b - a || 1;
     return {
@@ -233,6 +312,83 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       y: (val) => pad + (1 - val) * (H - 2 * pad), v: (y) => 1 - (y - pad) / (H - 2 * pad),
     };
   };
+
+  // ---- the shapes ----
+
+  let floorGroup = 'intensity:floor:0', chipsKey = '';
+  const beatGap = (): number => { const b = d.song.beats, g = median(b.slice(1).map((x, i) => x - b[i])); return g > 0 ? g : 0.5; };
+  /** What a shape's span is on the open layer: its section, or in Whole show its whole run. */
+  const targetPieces = (): Piece[] => {
+    const s = state(), k = s.selected.layer;
+    if (k === null) return [];
+    const ps = piecesOf(k);
+    return prefs.mode === 'show' ? ps : ps.filter((p) => p.section === s.selected.section);
+  };
+  const openKey = () => { const s = state(), l = s.show?.sections[s.selected.section]?.layers[s.selected.layer ?? -1]; return l ? `${s.selected.section}:${instanceKey(l)}:${prefs.mode}` : ''; };
+  const curveKey = () => JSON.stringify(targetPieces().map((p) => p.pivots));
+
+  const shapes = (): ShapeChip[] => {
+    const P = L.presets, s = state(), l = s.show?.sections[s.selected.section]?.layers[s.selected.layer ?? -1], beats = d.song.beats, gap = beatGap();
+    const fade = (span: Span) => Math.min(span.end - span.start, 4 * gap);
+    const chips: ShapeChip[] = [
+      { id: 'in', label: 'Fade in', menu: 'Fade in', note: `over 4 beats (${(4 * gap).toFixed(1)} s)`, icon: ICONS.in, make: (sp, floor) => P.fadeIn(sp, fade(sp), { floor }) },
+      { id: 'out', label: 'Fade out', menu: 'Fade out', note: `over 4 beats (${(4 * gap).toFixed(1)} s)`, icon: ICONS.out, make: (sp, floor) => P.fadeOut(sp, fade(sp), { floor }) },
+      { id: 'build', label: 'Build', menu: 'Build', note: 'slowly, all the way through', icon: ICONS.build, make: (sp, floor) => P.build(sp, { floor }) },
+      { id: 'decay', label: 'Die away', menu: 'Die away', note: 'quickly, then a long tail', icon: ICONS.decay, make: (sp, floor) => P.decay(sp, { floor }) },
+      { id: 'swell', label: 'Swell', menu: 'Swell', note: 'up to the middle and back', icon: ICONS.swell, make: (sp, floor) => P.swell(sp, { floor }) },
+      { id: 'dip', label: 'Dip', menu: 'Dip', note: 'down in the middle and back', icon: ICONS.dip, make: (sp, floor) => P.dip(sp, { floor }) },
+      { id: 'breathe', label: 'Breathe', menu: 'Breathe', note: 'up and down every 4 beats', icon: ICONS.breathe, make: (sp, floor) => P.breathe(sp, beats, { every: 4, floor }) },
+      { id: 'steps', label: 'Steps', menu: 'Steps', note: 'four steps up', icon: ICONS.steps, make: (sp, floor) => P.steps(sp, { n: 4, floor }) },
+      { id: 'beat', label: 'Each beat', menu: 'Pulse every beat', icon: ICONS.beat, make: (sp, floor) => P.pulse(sp, beats, { every: 1, floor }) },
+      { id: 'bar', label: 'Each bar', menu: 'Pulse every bar', note: '4 beats', icon: ICONS.bar, make: (sp, floor) => P.pulse(sp, beats, { every: 4, floor }) },
+      { id: 'gate', label: 'Loud parts', menu: 'Gate on loudness', note: 'open in the louder half', icon: ICONS.gate, make: (sp, floor) => {
+        const hop = d.song.loudness.hop, inSpan = d.song.loudness.values.slice(Math.floor(sp.start / hop), Math.ceil(sp.end / hop));
+        return P.gate(sp, d.song.loudness, { above: Math.min(0.95, Math.max(0.05, median(inSpan) || 0.5)), floor });
+      } },
+    ];
+    if (l?.listen && l.listen !== 'all') {
+      const listen = l.listen;
+      chips.push({ id: 'plays', label: 'While it plays', menu: 'While its part plays', note: listenWord(listen), icon: ICONS.plays,
+        make: (sp, floor) => P.plays(sp, L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks }, listen).notes, { floor }) });
+    }
+    chips.push({ id: 'half', label: 'Half', menu: 'Half', note: 'a steady 50 %', icon: ICONS.half, make: (sp) => P.level(sp, 0.5) });
+    chips.push({ id: 'clear', label: 'Full', menu: 'Clear curve', note: 'always at 100 %', icon: ICONS.clear, make: () => [] });
+    return chips;
+  };
+
+  /** The whole span's curve, cut per section; one undo step. */
+  const putShape = (id: string, group?: string) => {
+    const chip = shapes().find((c) => c.id === id), pieces = targetPieces();
+    if (!chip || !pieces.length) return;
+    const span = { start: pieces[0].span.start, end: pieces[pieces.length - 1].span.end };
+    const piv = chip.make(span, prefs.floor).map((p) => ({ ...p, t: ms(p.t) }));
+    const g = group ?? `intensity:shape:${++gesture}`;
+    selected = null;
+    for (const pc of pieces) commit(pc, sliceCurve(piv, pc.span, (t) => L.automationAt(piv, t)), g);
+    lastShape = { id, at: openKey(), wrote: curveKey() };
+    syncBar();
+    draw();
+  };
+
+  const drawShapes = (on: boolean) => {
+    const chips = shapes(), key = JSON.stringify([chips.map((c) => c.id), on]);
+    if (key !== chipsKey) {
+      chipsKey = key;
+      strip.innerHTML = chips.map((c) => `<button type="button" class="lanes-shape" data-shape="${c.id}" title="${c.menu}${c.note ? `: ${c.note}` : ''}" ${on ? '' : 'disabled'}>
+        <svg viewBox="0 0 24 12" width="24" height="12" aria-hidden="true"><path d="${c.icon}"/></svg>${c.label}</button>`).join('');
+    }
+    const cur = lastShape && openKey() === lastShape.at && curveKey() === lastShape.wrote ? lastShape.id : '';
+    strip.querySelectorAll<HTMLElement>('[data-shape]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.shape === cur)));
+  };
+  const chipOf = (e: Event) => (e.target as Element).closest<HTMLButtonElement>('[data-shape]');
+  strip.addEventListener('click', (e) => { const b = chipOf(e); if (b) { ghost = null; putShape(b.dataset.shape!); } });
+  strip.addEventListener('pointerover', (e) => {
+    const b = chipOf(e), chip = b && !b.disabled ? shapes().find((c) => c.id === b.dataset.shape) : null, pieces = targetPieces();
+    if (!chip || !pieces.length) return;
+    ghost = chip.make({ start: pieces[0].span.start, end: pieces[pieces.length - 1].span.end }, prefs.floor);
+    draw();
+  });
+  strip.addEventListener('pointerout', (e) => { if (chipOf(e)) { ghost = null; draw(); } });
 
   const ticks = (listen: string | undefined): Chord[] => {
     const k = listen ?? 'all', song = { notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks };
@@ -337,7 +493,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       if (prefs.mode === 'show' && pc.span.start > G.a) { g.fillStyle = '#e9e2da30'; g.fillRect(Math.round(xa), 0, 1, h); }
       const curve = (t: number) => L.automationAt(pc.pivots, t);
       const ts: number[] = [];
-      for (let x = Math.floor(xa); x <= Math.ceil(xb); x++) ts.push(clamp(G.t(x), pc.span.start, pc.span.end));
+      for (let x = Math.max(-1, Math.floor(xa)); x <= Math.min(w + 1, Math.ceil(xb)); x++) ts.push(clamp(G.t(x), pc.span.start, pc.span.end));
       for (const p of pc.pivots) { ts.push(p.t); if (p.t - 1e-6 > pc.span.start) ts.push(p.t - 1e-6); }
       ts.sort((p, q) => p - q);
       const none = !pc.pivots.length;
@@ -378,6 +534,40 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
         g.lineWidth = 1.75; g.strokeStyle = on ? `hsl(${hue} 80% 70%)` : `hsl(${hue} 75% 70%)`; g.stroke();
       });
     }
+    if (v.open) drawOverlay(g, G, hue);
+  };
+
+  /** A line over the open lane: the shape under the pointer, or the line being drawn. */
+  const drawOverlay = (g: CanvasRenderingContext2D, G: Geo, hue: number) => {
+    const line = pen?.pts ?? null;
+    if (!ghost && !line) return;
+    g.beginPath();
+    if (line) line.forEach((p, i) => { if (i) g.lineTo(G.x(p.t), G.y(p.v)); else g.moveTo(G.x(p.t), G.y(p.v)); });
+    else {
+      const pv = ghost!, t0 = pv.length ? targetPieces()[0]?.span.start ?? G.a : G.a, t1 = pv.length ? targetPieces().at(-1)?.span.end ?? G.b : G.b;
+      const xa = Math.max(0, Math.floor(G.x(t0))), xb = Math.min(G.W, Math.ceil(G.x(t1)));
+      for (let x = xa; x <= xb; x++) { const Y = G.y(L.automationAt(pv, clamp(G.t(x), t0, t1))); if (x > xa) g.lineTo(x, Y); else g.moveTo(x, Y); }
+    }
+    g.setLineDash(line ? [] : [5, 4]); g.lineWidth = 2; g.strokeStyle = `hsl(${hue} 85% 82%)`;
+    g.stroke(); g.setLineDash([]);
+  };
+
+  /** The drawn line becomes the curve where it went, in each section it crossed; the curve around it stays. One undo step. */
+  const endStroke = (v: LaneView) => {
+    const st = pen; pen = null;
+    if (!st || !st.pts.length) { draw(); return; }
+    const G = geo(v), max = L.MAX_PIVOTS - 2;
+    let eps = 2, line = simplifyStroke(st.pts, G.x, G.y, eps);
+    while (line.length > max) { eps *= 1.5; line = simplifyStroke(st.pts, G.x, G.y, eps); }
+    const t0 = line[0].t, t1 = line[line.length - 1].t, group = `intensity:draw:${++gesture}`, at = (t: number) => L.automationAt(line, t);
+    selected = null;
+    for (const pc of st.pieces) {
+      if (pc.span.end < t0 || pc.span.start > t1) continue;
+      const here = line.length === 1 ? line : sliceCurve(line, { start: Math.max(pc.span.start, t0), end: Math.min(pc.span.end, t1) }, at);
+      const old = fresh(pc), piv = [...old.filter((p) => p.t < t0 - 5e-4), ...here, ...old.filter((p) => p.t > t1 + 5e-4)];
+      commit(pc, piv.slice(0, L.MAX_PIVOTS), group);
+    }
+    update(state());
   };
 
   const placeHead = () => {
@@ -458,7 +648,15 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     cv.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || state().ui.recording) return;
       closeMenu();
-      const { px, py } = local(e), { G, target } = targetAt(v, px, py);
+      const { px, py } = local(e), { G, target, pieces } = targetAt(v, px, py);
+      if (prefs.draw) {
+        if (!target) return;
+        e.preventDefault(); cv.focus({ preventScroll: true });
+        pen = { pts: [{ t: ms(G.t(px)), v: clamp(G.v(py), 0, 1) }], pieces };
+        cv.setPointerCapture(e.pointerId);
+        draw();
+        return;
+      }
       if (!target) return;
       e.preventDefault(); cv.focus({ preventScroll: true });
       const pc = target.piece, group = `intensity:${pc.section}:${pc.layer}:${++gesture}`;
@@ -490,6 +688,16 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
     cv.addEventListener('pointermove', (e) => {
       const { px, py } = local(e);
+      if (pen) {
+        const G = geo(v), first = pen.pieces[0].span.start, last = pen.pieces[pen.pieces.length - 1].span.end;
+        const t = clamp(G.t(px), first, last), pts = pen.pts;
+        while (pts.length && pts[pts.length - 1].t >= t) pts.pop();   // going back rubs out
+        pts.push({ t, v: clamp(G.v(py), 0, 1) });
+        showTip(v, G.x(t), `${stamp(t)} · ${pct(pts[pts.length - 1].v)}`);
+        draw();
+        return;
+      }
+      if (!drag && prefs.draw) { cv.style.cursor = 'crosshair'; return; }
       if (!drag) {
         const { target, G } = targetAt(v, px, py);
         hover = { lane: v.layer, target };
@@ -536,6 +744,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     });
 
     const end = (e: PointerEvent) => {
+      if (pen) { if (cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId); hideTip(); endStroke(v); return; }
       if (!drag) return;
       drag = null;
       cv.classList.remove('dragging');
@@ -547,6 +756,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     cv.addEventListener('pointerleave', () => { if (!drag) { hover = null; hideTip(); draw(); } });
 
     cv.addEventListener('dblclick', (e) => {
+      if (prefs.draw) return;
       const { px, py } = local(e), { target } = targetAt(v, px, py);
       if (target?.hit.kind === 'pivot') removePivot(target.piece, target.hit.index);
     });
@@ -569,7 +779,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
         openMenu(e.clientX, e.clientY, 'Segment', items);
         return;
       }
-      openPresets(e.clientX, e.clientY, pc);
+      openPresets(e.clientX, e.clientY);
     });
 
     cv.addEventListener('keydown', (e) => {
@@ -630,33 +840,10 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   document.addEventListener('keydown', (e) => { if (menu && e.key === 'Escape') { e.preventDefault(); closeMenu(); } }, true);
   window.addEventListener('resize', closeMenu);
 
-  /** The shared presets, written into the section of `pc` (else the open layer's selected section) as one undo step. */
-  const openPresets = (x: number, y: number, pc?: Piece, right = false) => {
-    const s = state(), k = s.selected.layer, sh = s.show;
-    if (!sh || k === null) return;
-    const piece = pc ?? piecesOf(k).find((p) => p.section === s.selected.section);
-    if (!piece) return;
-    const span = piece.span, len = span.end - span.start, l = sh.sections[piece.section].layers[piece.layer];
-    const beats = d.song.beats, gap = median(beats.slice(1).map((b, i) => b - beats[i]));
-    const beat = gap > 0 ? gap : 0.5, fade = Math.min(len, 4 * beat);
-    const P = L.presets;
-    const put = (piv: Pivot[]) => commit(piece, piv.map((p) => ({ ...p, t: ms(p.t) })), `intensity:${piece.section}:${piece.layer}:preset:${++gesture}`);
-    const inSec = d.song.loudness.values.slice(Math.floor(span.start / d.song.loudness.hop), Math.ceil(span.end / d.song.loudness.hop));
-    const above = Math.min(0.95, Math.max(0.05, median(inSec) || 0.5));
-    const items: MenuItem[] = [
-      { label: 'Fade in', note: `over 4 beats (${fade.toFixed(1)} s)`, run: () => put(P.fadeIn(span, fade)) },
-      { label: 'Fade out', note: `over 4 beats (${fade.toFixed(1)} s)`, run: () => put(P.fadeOut(span, fade)) },
-      { label: 'Swell', note: 'up to the middle and back', run: () => put(P.swell(span)) },
-      { label: 'Pulse every beat', note: '', run: () => put(P.pulse(span, beats, { every: 1 })) },
-      { label: 'Pulse every bar', note: '4 beats', run: () => put(P.pulse(span, beats, { every: 4 })) },
-      { label: 'Gate on loudness', note: `open above ${pct(above)}`, run: () => put(P.gate(span, d.song.loudness, { above })) },
-    ];
-    if (l.listen && l.listen !== 'all') {
-      const notes = L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks }, l.listen).notes;
-      items.push({ label: 'While its part plays', note: listenWord(l.listen), run: () => put(P.plays(span, notes)) });
-    }
-    items.push({ label: 'Clear curve', note: 'always at 100 %', disabled: !l.intensity?.length, run: () => { selected = null; put([]); } });
-    openMenu(x, y, 'Intensity presets', items, 'Bars are 4 beats: the song has no downbeats.', right);
+  /** The same shapes as the strip, at the pointer. */
+  const openPresets = (x: number, y: number) => {
+    const items: MenuItem[] = shapes().map((c) => ({ label: c.menu, note: c.note ?? '', run: () => putShape(c.id) }));
+    openMenu(x, y, 'Intensity shapes', items, 'Bars are 4 beats: the song has no downbeats.');
   };
 
   // ---- updates ----
@@ -683,5 +870,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   return {
     update,
     setTime(t: number) { now = t; placeHead(); },
+    redraw: draw,
+    timeAt(clientX: number) {
+      const v = views[0];
+      if (!v) return null;
+      const r = v.cv.getBoundingClientRect();
+      return geo(v).t(clientX - r.left);
+    },
   };
 }

@@ -30,6 +30,7 @@ import { installExport } from './record';
 import { mountRegionOverlay } from './region-overlay';
 import { isDirty, Store, type Notice } from './store';
 import { clock, Timeline } from './timeline';
+import { WidgetPalette } from './widget-palette';
 
 const LAST_SONG = 'wa-studio.last-song';
 const lsGet = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -260,8 +261,9 @@ async function boot(): Promise<void> {
     if (store.state.show === s) store.dispatch({ type: 'notice', notice: { id: 'split', level: 'info', text: 'Too close to where the section starts or ends to split: sections last at least a second.' } });
     else store.dispatch({ type: 'select', section: i + 1, layer: null });
   };
+  const palette = new WidgetPalette();
   const picker = new Picker({
-    store, player, api, pack, canvas, catalogue, order, lib: { sources, harness, layers: studioLayers() },
+    store, player, api, pack, canvas, catalogue, order, palette, lib: { sources, harness, layers: studioLayers() },
     meta: (id) => metas.get(id), notify: (notice) => store.dispatch({ type: 'notice', notice }),
   });
   // Its seeks show the picture there, as the studio's do: the poster would hide it on the way back.
@@ -420,6 +422,13 @@ async function boot(): Promise<void> {
     removeLayer: () => { const { section, layer } = store.state.selected; if (layer !== null) store.dispatch({ type: 'edit', edit: { kind: 'removeLayer', section, layer } }); },
     undo: () => store.dispatch({ type: 'undo' }), redo: () => store.dispatch({ type: 'redo' }),
     save: () => void save(),
+    zoom: (dir) => timeline.zoomStep(dir),
+    palette: () => {
+      if (palette.isOpen) { palette.close(); return; }
+      // Not over another dialog or the songs drawer, nor while a recording runs: nothing could be edited.
+      if (store.state.ui.recording || !library.el.hidden || document.querySelector('dialog[open]')) return;
+      palette.open(panel.paletteRequest());
+    },
   });
 
   // Claude (or anyone) edits shows/<id>.json on disk: a clean show follows it; a dirty one asks.

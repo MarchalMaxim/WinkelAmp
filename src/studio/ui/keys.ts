@@ -1,11 +1,11 @@
 /**
  * The studio's keys (plan §7): Space play/pause · ←/→ ∓5 s · Shift+←/→ previous/next section start · F full screen ·
  * H hide the controls · S split at the playhead · Delete (or Backspace) remove the selected layer · Ctrl+Z undo ·
- * Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save. Ignored while typing; arrows are left to a focused slider or list.
+ * Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save · Ctrl+P find a widget · +/− zoom the timeline, 0 the whole song. Ignored while typing; arrows are left to a focused slider or list.
  */
 export interface KeyActions {
   toggle(): void; nudge(s: number): void; section(dir: -1 | 1): void; fullscreen(): void; hideUi(): void;
-  split(): void; removeLayer(): void; undo(): void; redo(): void; save(): void;
+  split(): void; removeLayer(): void; undo(): void; redo(): void; save(): void; palette(): void; zoom(dir: -1 | 0 | 1): void;
 }
 
 export type KeyAction = keyof KeyActions;
@@ -16,6 +16,7 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
   const mod = e.ctrlKey || e.metaKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (mod && !e.altKey) {
     if (k === 's') return { action: 'save' };                        // even while typing: saving is never a surprise
+    if (k === 'p' && !e.shiftKey) return { action: 'palette' };      // even while typing: the browser's print is no use here
     if (focus.typing) return null;                                   // the field's own undo
     if (k === 'z') return { action: e.shiftKey ? 'redo' : 'undo' };
     if (k === 'y') return { action: 'redo' };
@@ -28,7 +29,10 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
     const dir = k === 'ArrowLeft' ? -1 : 1;
     return e.shiftKey ? { action: 'section', arg: dir } : { action: 'nudge', arg: dir * 5 };
   }
+  if (k === '+' || k === '=') return { action: 'zoom', arg: 1 };     // + is Shift+= on many keyboards
   if (e.shiftKey) return null;
+  if (k === '-') return { action: 'zoom', arg: -1 };
+  if (k === '0') return { action: 'zoom', arg: 0 };
   if (k === 'f') return { action: 'fullscreen' };
   if (k === 'h') return { action: 'hideUi' };
   if (k === 's') return { action: 'split' };
@@ -50,10 +54,11 @@ export function installKeys(a: KeyActions): () => void {
     if (e.defaultPrevented || e.isComposing) return;
     const r = keyAction(e, focusOf(document.activeElement));
     if (!r) return;
-    e.preventDefault();   // Space on a focused button would also click it; Ctrl+S would save the page
+    e.preventDefault();   // Space on a focused button would also click it; Ctrl+S would save the page, Ctrl+P print it
     switch (r.action) {
       case 'nudge': a.nudge(r.arg!); break;
       case 'section': a.section(r.arg as -1 | 1); break;
+      case 'zoom': a.zoom(r.arg as -1 | 0 | 1); break;
       default: a[r.action]();
     }
   };

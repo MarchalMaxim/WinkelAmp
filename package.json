@@ -21,6 +21,7 @@
     "check-show": "tsx scripts/check-show.ts",
     "describe-song": "tsx scripts/describe-song.ts",
     "widget-docs": "tsx scripts/widget-docs.ts",
+    "widget-thumbs": "node lab/thumbs.mjs",
     "studio-check": "node scripts/studio-check.mjs",
     "record-check": "node scripts/record-check.mjs",
     "render-show": "node scripts/render-show.mjs",

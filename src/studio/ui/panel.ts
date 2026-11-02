@@ -17,6 +17,7 @@ import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
 import { allNotesTaken, describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
+import type { PaletteRequest } from './widget-palette';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
 
 export interface CatalogueEntry { meta: WidgetMeta; tool: ToolDef }
@@ -156,7 +157,7 @@ export class Panel {
       ${i > 0 ? `<label class="fade"><span>Widgets leaving here fade out over</span>
         <input type="range" min="0" max="${MAX_FADE}" step="0.5" aria-label="Fade"><output></output></label>` : ''}
       <h3 class="layers-title">Layers <span class="dim">top first, as you see them</span></h3>
-      <button type="button" class="add" data-act="add" aria-expanded="${this.picking}">${this.picking ? 'Close the collection' : 'Add a widget on top'}</button>
+      <button type="button" class="add" data-act="add" aria-expanded="${this.picking}" title="Or press Ctrl+P and type its name">${this.picking ? 'Close the collection' : 'Add a widget on top'}</button>
       <div class="picker" ${this.picking ? '' : 'hidden'}></div>
       <ol class="layers"></ol>`;
     const label = body.querySelector<HTMLInputElement>('.sec-label')!;
@@ -258,23 +259,49 @@ export class Panel {
 
   private buildPicker(sec: ShowSection, i: number): void {
     const box = this.body.querySelector<HTMLElement>('.picker')!;
-    const tags = labTags(), pack = this.d.store.state.song ?? this.d.song;
-    const metas = this.d.order.map((id) => this.d.catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m)
-      .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
+    const pack = this.d.store.state.song ?? this.d.song;
     mountWidgetPicker(box, {
-      metas, words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
+      metas: this.metas(), words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
       here: new Set(sec.layers.map((l) => l.widget)), state: this.pickerState,
       groups: GROUPS, groupOf, verdict: verdictTag, hue: widgetHue,
-      pick: (id) => {
-        const at = this.d.store.state.show!.sections[i], n = at.layers.length;
-        // A second copy of a widget already on its usual type goes on all notes: the same listen twice would be refused.
-        const usual = tagsOf(tags, id)?.noteType, taken = at.layers.some((l) => l.widget === id && listenOf(l) === usual);
-        const listen = placedListen(studioLayers(), pack, { start: at.start, end: at.end }, taken ? undefined : usual);
-        this.picking = false;
-        this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id, ...(listen ? { listen } : {}) } });
-        this.edit({ type: 'select', section: i, layer: n });
-      },
+      pick: (id) => this.addWidget(id, i),
     });
+  }
+
+  /** The collection with its tags, in its order. */
+  private metas(): WidgetMeta[] {
+    const tags = labTags();
+    return this.d.order.map((id) => this.d.catalogue.get(id)?.meta).filter((m): m is WidgetMeta => !!m)
+      .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
+  }
+
+  /** A new layer of this widget on top of section i, open. */
+  private addWidget(id: string, i: number): void {
+    const pack = this.d.store.state.song ?? this.d.song, at = this.d.store.state.show!.sections[i], n = at.layers.length;
+    // A second copy of a widget already on its usual type goes on all notes: the same listen twice would be refused.
+    const usual = tagsOf(labTags(), id)?.noteType, taken = at.layers.some((l) => l.widget === id && listenOf(l) === usual);
+    const listen = placedListen(studioLayers(), pack, { start: at.start, end: at.end }, taken ? undefined : usual);
+    this.picking = false;
+    this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id, ...(listen ? { listen } : {}) } });
+    this.edit({ type: 'select', section: i, layer: n });
+  }
+
+  /** Ctrl+P on the section in the panel: a widget already in it opens (its top copy), any other is added on top. */
+  paletteRequest(): PaletteRequest {
+    const s = this.d.store.state, i = s.selected.section, sec = s.show!.sections[i];
+    const metas = this.metas().map((m, k) => ({ m, k })).sort((a, b) => groupOf(a.m) - groupOf(b.m) || a.k - b.k).map((x) => x.m);
+    return {
+      title: `Section ${i + 1}${sec.label ? `: ${sec.label}` : ''}`,
+      metas, here: new Set(sec.layers.map((l) => l.widget)), hereWord: 'in this section, opens it',
+      verdict: verdictTag, hue: widgetHue,
+      pick: (id) => {
+        this.tab = 'section'; this.key = '';
+        const layers = this.d.store.state.show!.sections[i].layers;
+        const top = layers.map((l) => l.widget).lastIndexOf(id);
+        if (top >= 0) this.edit({ type: 'select', section: i, layer: top }); else this.addWidget(id, i);
+        this.update(this.d.store.state);
+      },
+    };
   }
 
   private syncSection(s: StudioState): void {

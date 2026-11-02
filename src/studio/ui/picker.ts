@@ -21,10 +21,11 @@ import {
 import type { Player } from './player';
 import type { Notice, Store } from './store';
 import { widgetHue } from './timeline';
+import type { WidgetPalette } from './widget-palette';
 
 export interface PickerDeps {
   store: Store; player: Player; api: ShowStore; pack: SongPack; canvas: HTMLCanvasElement;
-  catalogue: Map<string, CatalogueEntry>; order: string[];
+  catalogue: Map<string, CatalogueEntry>; order: string[]; palette: WidgetPalette;
   lib: { sources: Record<string, string>; harness: LabHarness; layers: WaLayers };
   meta(widget: string): WidgetMeta | undefined; notify(n: Notice): void;
 }
@@ -468,6 +469,8 @@ export class Picker {
     if (mod && k === 's') return;
     e.stopPropagation();
     const popup = this.popup, popupOpen = !!popup?.isOpen;
+    if (this.d.palette.isOpen) { if (mod && k === 'p') { e.preventDefault(); this.d.palette.close(); } return; }   // its field has the keys, its dialog the Escape
+    if (mod && k === 'p' && !e.shiftKey) { e.preventDefault(); if (popupOpen) popup!.choose(this.d.palette); return; }
     if (k === 'Escape') { e.preventDefault(); if (popupOpen) popup!.escape(); else this.close(); return; }
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;

@@ -33,7 +33,10 @@ export interface WaLayers {
   fnv32(s: string): number;
   passes(t: number, a: number, salt: number): boolean;
   presets: {
-    fadeIn(s: Span, seconds: number): Pivot[]; fadeOut(s: Span, seconds: number): Pivot[];
+    fadeIn(s: Span, seconds: number, o?: { floor?: number }): Pivot[]; fadeOut(s: Span, seconds: number, o?: { floor?: number }): Pivot[];
+    build(s: Span, o?: { floor?: number }): Pivot[]; decay(s: Span, o?: { floor?: number }): Pivot[]; dip(s: Span, o?: { floor?: number }): Pivot[];
+    breathe(s: Span, beats: readonly number[], o: { every: number; floor?: number }): Pivot[];
+    steps(s: Span, o: { n: number; floor?: number }): Pivot[]; level(s: Span, v: number): Pivot[];
     swell(s: Span, o?: { peak?: number; floor?: number }): Pivot[];
     pulse(s: Span, beats: readonly number[], o: { every: number; floor?: number; duty?: number }): Pivot[];
     gate(s: Span, curve: { hop: number; values: readonly number[] }, o: { above: number; floor?: number }): Pivot[];

@@ -139,11 +139,8 @@ try {
   await page.keyboard.press('Control+z');
   p = await pivots();
 
-  // The presets menu: Pulse every bar writes pivots 4 beats apart (or the 0.5 s fallback grid without beats).
-  await page.click('[data-presets]');
-  await page.waitForSelector('.lane-menu');
-  await shot('menu-presets');
-  await page.click('.lane-menu button:has-text("Pulse every bar")');
+  // The shapes: Each bar writes pivots 4 beats apart (or the 0.5 s fallback grid without beats).
+  await page.click('[data-shape="bar"]');
   p = await pivots();
   const tops = (p ?? []).filter((x) => x.v === 1).map((x) => x.t);
   check('Pulse every bar writes pulses', tops.length >= 2, `${tops.length} pulses at ${tops.slice(0, 4).join(', ')}…`);
