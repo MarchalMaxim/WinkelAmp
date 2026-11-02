@@ -940,6 +940,21 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `fireworks`: Fireworks
+
+Every attack goes off, and the blast stirs the air: a real fluid, so the smoke curls outward in petals and the next burst tears through what the last one left. Sparks fly and fall through it, dragging their wakes. Left to right by pitch, higher and bigger the harder it is played. You set the colour.
+
+Feel: glowing, vivid, triumphant, whirling · Suits: tutti, timpani, trumpet, piano · Role: top
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `hue` | which colour | 0..1 | 0.08 | fixed | The colour of the bursts, all round the wheel: red, gold, green, blue, violet, and back to red. |
+| `range` | how far the colours wander | 0..1 | 0.2 | fixed | How far from that colour a burst may go, by its pitch, so a note keeps its colour. Left: all one colour. Right: the whole rainbow. |
+| `size` | how big the bursts are | 0.4..2.4 | 1 | fixed | How big a burst is. Left: small, many fit. Right: one fills the sky. |
+| `swirl` | how much it stirs the air | 0..1 | 0.55 | fixed | How hard a blast stirs the fluid. Left: the smoke barely moves. Right: every burst tears the smoke into curling eddies. |
+| `linger` | how long the smoke hangs | 0..1 | 0.45 | fixed | How long the coloured smoke stays. Left: gone in a moment. Right: it hangs for seconds and builds up. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint, and only the hardest attacks of the piece go off. Right: all of it at full strength. |
+
 #### `clumsy`: Clumsy
 
 A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.
@@ -972,16 +987,16 @@ Feel: gusty, triumphant, burning, vivid · Suits: trumpet, trombone, tutti · Ro
 
 #### `duet`: Duet
 
-Two forms in two colours, one round and one sharp, that want each other and can't stand each other. Every attack gets a verdict from the harmony: consonant, they lunge together; dissonant, they are thrown apart. Low notes move the round one, high notes the sharp one. Leave them alone and they end up nearly touching, trembling.
+Two masses of liquid in two colours, one thick and slow, one thin and quick, that want each other and can't stand each other. Every attack gets a verdict from the harmony: consonant, they lean together until they lie against each other along a soft seam; dissonant, they are thrown apart and it spatters. They never mix and never enter each other. Low notes move the thick one, high notes the quick one.
 
-Feel: dual, vivid, swelling, mysterious · Suits: piano, violin, cello · Role: lead
+Feel: dual, vivid, swelling, liquid · Suits: piano, violin, cello · Role: lead
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `pull` | how strongly they want each other | 0..2 | 1 | fixed | How strongly they want each other. Left: they keep their distance. Right: always reaching. |
-| `push` | how hard a clash throws them apart | 0.2..2 | 1 | fixed | How hard a clash throws them apart. Left: a flinch. Right: flung to opposite corners. |
+| `pull` | how strongly they want each other | 0..2 | 1 | fixed | How strongly they want each other. Left: they keep their distance. Right: always pressed together. |
+| `push` | how hard a clash throws them apart | 0.2..2 | 1 | fixed | How hard a clash throws them apart. Left: a flinch. Right: flung to opposite corners, spattering. |
 | `size` | how big they are | 0.5..2.2 | 1 | fixed | How big they are. Left: small and agile. Right: filling the screen. |
-| `split` | where the keyboard divides them | 30..90 | 60 | fixed | Where the keyboard divides between them. Left: nearly everything moves the sharp one. Right: nearly everything moves the round one. |
+| `split` | where the keyboard divides them | 30..90 | 60 | fixed | Where the keyboard divides between them. Left: nearly everything moves the quick one. Right: nearly everything moves the thick one. |
 | `pair` | the two colours | 0..2 | 0 | fixed | The two colours. Left: vermilion and cobalt. Middle: magenta and lime. Right: gold and teal. |
 | `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: almost gone, barely moving, and only the hardest attacks reach them. Right: fully there, answering everything. |
 
