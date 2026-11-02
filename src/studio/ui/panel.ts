@@ -29,6 +29,8 @@ interface Deps {
   splitAtPlayhead(): void; seek(t: number): void;
   /** Opens the note picker's popup on a set of picks. */
   editPicks(id: string): void;
+  /** Opens the dialog that chooses the transcriber and redoes this song's notes. */
+  redoTranscription(): void;
 }
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -68,11 +70,13 @@ const NOTES_WORDS: Record<SongPack['notesFrom'], string> = {
   hybrid: 'transcribed by the piano model, with YourMT3+ filling its gaps',
   ymt3: 'transcribed by YourMT3+, velocities estimated',
   'bp-hybrid': 'transcribed by the piano model, with basic-pitch filling its gaps',
+  'ms-hybrid': 'transcribed by the piano model, with MuScriptor filling its gaps',
 };
 
 export class Panel {
   readonly el: HTMLElement;
   private tab: 'section' | 'show' = 'section';
+  private factsHtml = '';
   private picking = false;
   private key = '';
   private rows: { row: KnobRow; layer: number }[] = [];
@@ -329,6 +333,10 @@ export class Panel {
       <h3>This show</h3>
       <dl class="facts"></dl>
       <div class="problems"></div>`;
+    this.factsHtml = '';
+    this.body.querySelector('.facts')!.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('[data-act="redo-transcription"]')) this.d.redoTranscription();
+    });
     const ta = this.body.querySelector<HTMLTextAreaElement>('.describe')!, state = this.body.querySelector('.describe-state')!;
     const mark = () => { state.textContent = this.desc && this.desc.text !== this.desc.saved ? 'not saved yet' : ''; };
     if (this.desc) { ta.value = this.desc.text; mark(); }
@@ -351,11 +359,14 @@ export class Panel {
     const p = this.d.song, show = s.show!;
     const by = { auto: 'composed automatically from the song', claude: 'composed by Claude', user: 'shaped by you' }[show.composer?.by ?? 'user'];
     const facts = this.body.querySelector('.facts');
-    if (facts) facts.innerHTML = `
+    const redo = this.d.api.writable ? '<br><button type="button" class="link" data-act="redo-transcription">Redo the transcription…</button>' : '';
+    const html = `
       <dt>Song</dt><dd>${esc(p.title)}, ${clock(p.duration)}</dd>
       <dt>Show</dt><dd>${show.sections.length} section${show.sections.length > 1 ? 's' : ''}, ${by}${s.origin === 'auto' ? ' (not saved yet)' : ''}</dd>
-      <dt>Notes</dt><dd>${p.notes.length} notes, ${NOTES_WORDS[p.notesFrom]}</dd>
+      <dt>Notes</dt><dd>${p.notes.length} notes, ${NOTES_WORDS[p.notesFrom]}${redo}</dd>
       ${p.quality.warnings.length ? `<dt>Warnings</dt><dd>${p.quality.warnings.map(esc).join('<br>')}</dd>` : ''}`;
+    // Every store update lands here: written only when it changed, so the button keeps its focus and its click.
+    if (facts && html !== this.factsHtml) { facts.innerHTML = html; this.factsHtml = html; }
     const errs = Object.entries(this.d.errors());
     const box = this.body.querySelector('.problems');
     if (box) box.innerHTML = errs.length ? `<h3>Widget problems</h3><ul class="errs">${errs.map(([id, e]) => `<li><b>${esc(id)}</b>: ${esc(e)}</li>`).join('')}</ul>` : '';

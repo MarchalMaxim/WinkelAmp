@@ -18,6 +18,7 @@ const NOTES_BADGE: Record<LibraryEntry['notesFrom'], [string, string]> = {
   hybrid: ['instruments', 'Notes from the piano model, with YourMT3+ filling its gaps; instrument tracks'],
   ymt3: ['YourMT3+', 'Notes transcribed by YourMT3+, velocities estimated from loudness'],
   'bp-hybrid': ['gap-filled', 'Notes from the piano model, with basic-pitch filling its gaps; no instrument tracks'],
+  'ms-hybrid': ['instruments', 'Notes from the piano model, with MuScriptor filling its gaps; instrument tracks from MuScriptor'],
 };
 
 /** "Rachmaninoff: Prelude in C♯ minor" → ["Rachmaninoff", "Prelude in C♯ minor"]. */

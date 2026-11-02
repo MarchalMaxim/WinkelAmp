@@ -270,6 +270,7 @@ async function boot(): Promise<void> {
   const panel = new Panel({
     store, api, song: pack, catalogue, order, drives: harness.drives, icon,
     time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek, editPicks: openPicker,
+    redoTranscription: () => void adder.redo(pack),
   });
   ui.panel.append(panel.el);
   // The open layer's region, placed with handles on the stage (an SVG over the canvas, never drawn into it).

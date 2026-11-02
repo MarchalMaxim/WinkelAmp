@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isChecking, settleEars } from '../src/studio/ingest/ears-client';
 import { CHECKING_TRANSCRIBER, type TranscriberStatus } from '../src/studio/ingest/ears-types';
 import { freeId, nameFromFile } from '../src/studio/ingest/names';
-import { overallProgress } from '../src/studio/ingest/progress';
+import { etaWords, MS_YMT3_SHARE, overallOf, overallProgress, stageWeights } from '../src/studio/ingest/progress';
 
 describe('nameFromFile', () => {
   it("follows the study tool's rule", () => {
@@ -58,6 +58,30 @@ describe('overallProgress', () => {
   it('clamps a bad fraction', () => {
     expect(overallProgress('analyze', 7, true)).toBeCloseTo(0.65 / 0.7);
     expect(overallProgress('analyze', Number.NaN, true)).toBeCloseTo(0.33 / 0.7);
+  });
+});
+
+describe('a long MuScriptor run', () => {
+  it('weighs a long run towards the instruments', () => {
+    const w = stageWeights({ transcribe: true, instruments: true, long: true });
+    expect(w).toEqual({ decode: 0.01, transcribe: 0.05, instruments: 0.85, analyze: 0.07, write: 0.02 });
+    // Half of MuScriptor's chunks are about half of the job, not a quarter as with the usual weights.
+    const halfway = overallOf(w, 'instruments', MS_YMT3_SHARE + (1 - MS_YMT3_SHARE) / 2);
+    expect(halfway).toBeGreaterThan(0.5);
+    expect(halfway).toBeLessThan(0.6);
+    // What does not run takes no share, and without `long` nothing changes.
+    expect(stageWeights({ transcribe: false, instruments: true, long: true }).transcribe).toBe(0);
+    expect(stageWeights({ transcribe: true, instruments: true })).toEqual({ decode: 0.03, transcribe: 0.3, instruments: 0.3, analyze: 0.32, write: 0.05 });
+    expect(MS_YMT3_SHARE).toBe(0.15);
+  });
+
+  it('words the time left', () => {
+    expect(etaWords(34, 122, 280)).toBe('about 12 min left');
+    expect(etaWords(121, 122, 1200)).toBe('under a minute left');
+    expect(etaWords(122, 122, 1200)).toBe('under a minute left');
+    expect(etaWords(1, 122, 30)).toBe('about 61 min left');
+    // Nothing to go on yet.
+    expect(etaWords(0, 122, 30)).toBe('working out the time left');
   });
 });
 

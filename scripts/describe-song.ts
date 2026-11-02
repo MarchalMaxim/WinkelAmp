@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { characterLabel, sectionCharacters } from '../src/studio/compose/character';
 import { composeShow } from '../src/studio/compose/compose';
 import { TRACK_IDS } from '../src/studio/pack/instruments';
+import { MS_MODEL } from '../src/studio/pack/muscriptor';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
 import { groupChords } from '../src/widgets/chords';
 import type { Note } from '../src/widgets/types';
@@ -34,9 +35,17 @@ out.push(`# ${pack.title}`, '');
 out.push(`- id \`${pack.id}\`, ${clock(pack.duration)} (${pack.duration.toFixed(2)} s)`);
 const from = { gpu: 'the GPU piano transcriber', file: 'a notes file, kept exactly', approx: 'approximated from the analysis (no transcriber)', merged: 'the transcriber, with approximate notes where it heard little',
   hybrid: 'the piano transcriber, with YourMT3+ notes in its gaps', ymt3: 'YourMT3+ alone (velocities estimated)',
-  'bp-hybrid': 'the piano transcriber, with basic-pitch notes in its gaps' }[pack.notesFrom];
+  'bp-hybrid': 'the piano transcriber, with basic-pitch notes in its gaps',
+  'ms-hybrid': 'the piano transcriber, with MuScriptor notes in its gaps' }[pack.notesFrom];
+const ms = pack.transcribers?.find((t) => t.name === 'muscriptor');
+const trackMaker = ms ? (ms.model === MS_MODEL ? 'MuScriptor large' : ms.model) : 'YourMT3+';
 out.push(`- ${pack.notes.length} notes, ${chords.length} attacks (${pack.quality.notesPerMinute.toFixed(0)} notes/min), from ${from}; onset coverage ${(pack.quality.onsetCoverage * 100).toFixed(0)} %`);
-out.push(`- kind: ${pack.kind ?? 'not decided (no notes model ran)'}; YourMT3+ piano share: ${pack.pianoShare == null ? 'n/a (YourMT3+ did not run)' : n2(pack.pianoShare)}`);
+out.push(`- kind: ${pack.kind ?? 'not decided (no notes model ran)'}; ${ms ? "piano share of the tracks' notes" : 'YourMT3+ piano share'}: ${pack.pianoShare == null ? 'n/a (YourMT3+ did not run)' : n2(pack.pianoShare)}`);
+if (ms) {
+  const lane = pack.tracks?.piano;
+  const keyboard = !lane ? 'no keyboard lane' : lane.from === 'ymt3' ? 'keyboard: YourMT3+' : 'keyboard: MuScriptor';
+  out.push(`- instrument tracks: ${trackMaker} (${(ms.instruments ?? []).join(', ')}), ${keyboard}`);
+}
 for (const w of pack.quality.warnings) out.push(`- warning: ${w}`);
 const desc = join(showsDir(), `${id}.description.md`), show = join(showsDir(), `${id}.json`);
 out.push(`- the user's description: ${existsSync(desc) ? `\`shows/${id}.description.md\`` : 'none yet'}; show: ${existsSync(show) ? `\`shows/${id}.json\`` : 'none yet (the studio composes a default)'}`);
@@ -63,10 +72,10 @@ for (let t = 0; t < pack.duration; t += 10) {
 
 const present = TRACK_IDS.filter((t) => pack.tracks?.[t]);
 if (present.length) {
-  out.push('', '## Where each instrument plays', '', "YourMT3+'s instrument tracks: a layer can listen to one. A dot: the track sounds in at least 30 % of the half-second bins of those 10 s.", '');
+  out.push('', '## Where each instrument plays', '', `${trackMaker}'s instrument tracks: a layer can listen to one. A dot: the track sounds in at least 30 % of the half-second bins of those 10 s.`, '');
   for (const t of present) {
     const k = pack.tracks![t]!;
-    out.push(`- \`${t}\` ${k.label} (${k.family}): ${k.notes.length} notes, ${(k.share * 100).toFixed(1)} % of YourMT3+'s; velocities ${k.vel.borrowed} borrowed, ${k.vel.level} from loudness`);
+    out.push(`- \`${t}\` ${k.label} (${k.family}): ${k.notes.length} notes, ${(k.share * 100).toFixed(1)} % of ${ms ? "the tracks' notes" : "YourMT3+'s"}; velocities ${k.vel.borrowed} borrowed, ${k.vel.level} from loudness`);
   }
   out.push('', `| from | ${present.join(' | ')} |`, `|---|${present.map(() => '---|').join('')}`);
   for (let t = 0; t < pack.duration; t += 10) {

@@ -1,6 +1,7 @@
 /** buildPack: a song pack from an analysis and (maybe) transcribed notes. Pure, so the CLI, the ears server and the browser share it. */
 import type { SongAnalysis } from '../../audio/song-analysis';
 import type { Note } from '../../widgets/types';
+import { trackOf } from './instruments';
 import { approximateNotes, mergeNotes, onsetCoverage, stableByStart } from './notes';
 import { PACK_VERSION, type NotesSource, type SongPack } from './pack';
 import { buildTracks, cleanIndexes, estimateVelocities, hybridNotes, pianoShare, type Ymt3Row } from './tracks';
@@ -23,6 +24,11 @@ export interface BuildInput {
   ymt3?: { rows: Ymt3Row[]; levels: number[]; model: string; seconds: number } | null;
   /** Basic-pitch's notes and their onsetLevels (aligned): the gap fill when YourMT3 is missing. */
   bp?: { notes: Note[]; levels: number[]; model: string; seconds: number } | null;
+  /**
+   * MuScriptor's rows, cleaned and with their keyboard lane merged (mergeKeyboard), and each row's onsetLevels (aligned):
+   * they stand in for YourMT3's everywhere, which then only counts as having run. `keyboard` says whose the piano lane is.
+   */
+  muscriptor?: { rows: Ymt3Row[]; levels: number[]; model: string; seconds: number; instruments: string[]; keyboard: 'ymt3' | 'muscriptor' | null } | null;
   /** Forced by --kind; else spec Decisions 1. */
   kind?: 'piano' | 'ensemble';
   /** auto: by kind; hybrid: gap-fill whatever the kind; ymt3: YourMT3's notes alone. */
@@ -49,8 +55,9 @@ export function buildPack(i: BuildInput): SongPack {
   const piano = i.notes ? stableByStart(i.notes.list) : null;
   const pianoCoverage = piano ? onsetCoverage(piano, a.onsets) : null;
 
-  // YourMT3: cleaned rows (levels follow them), their velocities, the notes they make.
-  const y = i.ymt3 ?? null;
+  // The track-making transcriber (MuScriptor when it gave rows, else YourMT3): cleaned rows (levels follow them), their
+  // velocities, the notes they make.
+  const y = i.muscriptor ?? i.ymt3 ?? null;
   const keep = y ? cleanIndexes(y.rows) : [];
   const rows = y ? keep.map((k) => y.rows[k]) : [];
   const share = y ? pianoShare(rows) : null;
@@ -73,7 +80,7 @@ export function buildPack(i: BuildInput): SongPack {
   let notes: Note[], from: NotesSource, coverage: number;
   if (mode === 'ymt3' && hasY) {
     notes = ymt3Notes;
-    from = 'ymt3';
+    from = i.muscriptor ? 'ms-hybrid' : 'ymt3';
     coverage = pianoCoverage ?? onsetCoverage(notes, a.onsets);
   } else if (piano && i.notes) {
     coverage = pianoCoverage!;
@@ -81,7 +88,7 @@ export function buildPack(i: BuildInput): SongPack {
     const fill = mode === 'hybrid' || mode === 'ymt3' || (mode === 'auto' && kind === 'ensemble' && i.notes.from !== 'file');
     if (fill && hasY) {
       notes = hybridNotes(piano, ymt3Notes);
-      from = 'hybrid';
+      from = i.muscriptor ? 'ms-hybrid' : 'hybrid';
     } else if (fill && hasBp) {
       notes = hybridNotes(piano, bpNotes());
       from = 'bp-hybrid';
@@ -97,7 +104,7 @@ export function buildPack(i: BuildInput): SongPack {
     }
   } else if (hasY || hasBp) {
     notes = hasY ? ymt3Notes : stableByStart(bpNotes());
-    from = hasY ? 'ymt3' : 'bp-hybrid';
+    from = hasY ? (i.muscriptor ? 'ms-hybrid' : 'ymt3') : 'bp-hybrid';
     coverage = onsetCoverage(notes, a.onsets);
     warnings.push(WARN_NO_PIANO);
   } else {
@@ -112,8 +119,19 @@ export function buildPack(i: BuildInput): SongPack {
 
   const transcribers: NonNullable<SongPack['transcribers']> = [];
   if (i.notes?.transcriber) transcribers.push({ name: 'piano', model: i.notes.transcriber.model, seconds: i.notes.transcriber.seconds, notes: i.notes.list.length });
-  if (y) transcribers.push({ name: 'ymt3', model: y.model, seconds: y.seconds, notes: rows.length });
+  if (i.ymt3) transcribers.push({ name: 'ymt3', model: i.ymt3.model, seconds: i.ymt3.seconds, notes: cleanIndexes(i.ymt3.rows).length });
+  if (i.muscriptor) {
+    const { model, seconds, instruments, keyboard } = i.muscriptor;
+    // Its own notes: a keyboard lane merged in from YourMT3+ is not MuScriptor's.
+    const own = keyboard === 'ymt3' ? rows.filter((r) => trackOf(r[4]) !== 'piano').length : rows.length;
+    transcribers.push({ name: 'muscriptor', model, seconds, notes: own, instruments: [...instruments] });
+  }
   if (i.bp) transcribers.push({ name: 'bp', model: i.bp.model, seconds: i.bp.seconds, notes: i.bp.notes.length });
+
+  const tracks = kind === 'ensemble' && hasY && est ? buildTracks(rows, est.vel, est.borrowed) : null;
+  if (tracks && i.muscriptor) {
+    for (const [id, t] of Object.entries(tracks)) t.from = id === 'piano' && i.muscriptor.keyboard === 'ymt3' ? 'ymt3' : 'muscriptor';
+  }
 
   return {
     version: PACK_VERSION,
@@ -137,7 +155,7 @@ export function buildPack(i: BuildInput): SongPack {
     made: { by: i.by, at: i.at },
     ...(kind ? { kind } : {}),
     pianoShare: share === null ? null : r4(share),
-    ...(kind === 'ensemble' && hasY && est ? { tracks: buildTracks(rows, est.vel, est.borrowed) } : {}),
+    ...(tracks ? { tracks } : {}),
     transcribers,
   };
 }

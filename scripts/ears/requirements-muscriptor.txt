@@ -1,0 +1,14 @@
+# MuScriptor (scripts/ears/muscriptor.py), Python 3.11 in its own venv, e.g. C:/Users/maxim/.venvs/wa-ms:
+#   py -3.11 -m venv C:/Users/maxim/.venvs/wa-ms
+#   C:/Users/maxim/.venvs/wa-ms/Scripts/pip install -r scripts/ears/requirements-muscriptor.txt
+# then, once, sign in to Hugging Face and accept the licence at https://huggingface.co/MuScriptor/muscriptor-large:
+#   C:/Users/maxim/.venvs/wa-ms/Scripts/hf auth login
+#   npm run setup-muscriptor -- --download
+# The weights are CC-BY-NC: own shows and experiments are fine, and selling WinkelAmp with it, or renders made from its
+# notes, needs a commercial licence.
+# torch comes from the CUDA index (the line below); without an NVIDIA GPU, drop it for the CPU build (very slow).
+# These are the versions the runner was tested with; the venv is never re-pinned.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0
+torchaudio==2.11.0
+muscriptor==0.4.0

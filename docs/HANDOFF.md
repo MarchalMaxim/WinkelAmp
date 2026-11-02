@@ -47,9 +47,78 @@ note, chosen by default when placed.
 - **A usual note type per widget** (`noteType` in `lab/tags.json`, `src/widgets/tags.ts`): placing the widget in the
   studio sets `listen` to it if the section has enough of it (`placedListen` in `src/studio/ui/layer-controls.ts`);
   the panel says what it hears and one click switches. Shipped: stella repeats, pixelsort chords, martin long, flee
-  runs, honey long (from round 9, the spec's proposal). Trills are nobody's default. **Not yet judged by eye**: the four were chosen from reading the code.
+  runs, honey long (from round 9, the spec's proposal). Trills are nobody's default. **Not yet judged by eye**: all five were chosen from reading the code.
 - Shows saved before this are unchanged. Checks: `tests/note-types.test.ts`, `tests/layer-controls.test.ts`,
   `tests/tags.test.ts`; no browser run was done.
+
+## 2026-11-01: MuScriptor large as an option for string pieces
+
+Build of `docs/superpowers/plans/2026-11-01-muscriptor-option.md` (T1–T4) on `claude/muscriptor-option`. **Nothing is
+merged, and the real packs change only when the README's overnight commands are run, or the studio's dialog is used.**
+The five songs were re-ingested only in this branch's worktree, whose `songs/` is ignored: merging carries no pack over, and
+the other worktrees keep the old ones until those commands are run there.
+
+### What was added
+
+- `npm run ingest -- <audio> --instruments-model muscriptor --instruments strings|baroque|classical|<list>`. YourMT3+ stays
+  the default, and a pack made without the option has no `from` on its tracks and no `muscriptor` transcriber.
+- A cleanup at build time (`src/studio/pack/clean-tracks.ts`), a raw cache per recording and list, an import for the
+  overnight files (`--muscriptor-notes`), the keyboard lane from YourMT3+, and a fallback to YourMT3+ with a warning.
+- The studio's *Redo the transcription…* in the Show tab (`src/studio/ui/redo-dialog.ts`): the transcriber, the list, the
+  time it takes, the saved results. `GET /songs/<id>/transcriptions` on the ears server; `/health` stays api 2.
+- `npm run setup-muscriptor` and the licence: the weights are CC-BY-NC, so selling WinkelAmp with it, or renders made from
+  its notes, needs a commercial licence.
+
+### What will still be wrong
+
+- Winter 130–180 s keeps about 370 viola notes above MIDI 72 that are really the solo violin: only notes above A5 move.
+- Autumn's Adagio harpsichord stays labelled violin and viola. Its hunt theme, labelled piano, leaves the tracks instead
+  of joining the strings. These are label swaps no pass can see.
+- Spring's Largo viola stays labelled violin from 262 s, where the viola lane has 1 note in 68 s (YourMT3+ had 84). The
+  doubles the cleanup resolves (301 to 167 over the song) are elsewhere: 1 of them is in that stretch.
+- Winter 130–180 s: the solo line is split at A5, violin above and viola below, and 130–145 s stays without a violin note.
+- Importing Winter's overnight file thins the violin lane that `shows/vivaldi-winter.json` listens to: 960 to 790 notes at
+  0–100 s, 116 to 0 at 130–145 s (the first is at 145.28 s), 810 to 596 at 146–211 s. `check-show` cannot see this, as the
+  lane still exists: listen to the show before keeping the pack.
+- Beethoven: the string doubles rule gives C2 to the contrabass, so the cello is silent at 276.9–285 s, and the wind rule
+  empties the flute at 210–225 s, where YourMT3+ does hear a flute, and leaves the clarinet 7 of its 24 notes there, none
+  after 215.2 s. Both are real notes lost.
+- Four Seasons: a quiet tremolo at 1075 s goes with the stuck chords, and 2090–2105 s holds a chord the model got stuck on,
+  which YourMT3+ hears moving.
+- A stuck stretch with 2 pitches, or under 4.5 s, stays (Spring 385–390 s).
+- Autumn 420–430 s: after the stuck chord is collapsed, cello and contrabass held notes run on to the 430 s chunk edge
+  over audio fading to about −42 to −49 dB (the contrabass is held the whole 10 s).
+- Tremolo in a sounding stuck chunk loses its attacks: one held chord.
+- Lanes still move together a lot: 54 % of Four Seasons' notes share start and end with two other lanes, and its
+  contrabass is mostly the cello an octave down. Only string doubles outside a lane's core are dropped.
+- MuScriptor large needs up to 15 GB of GPU memory. Stopping `npm run ears` on Windows may not stop a running Python child
+  (not tested; `child.kill()` reaches only the ingest process). There is no cancel button.
+
+### Rulings of the studio's part
+
+- Every run started from the dialog ends in a Reopen notice, YourMT3+ too (the plan said MuScriptor): the page cannot tell
+  which job a reopened page is following. The approximate-notes notice keeps its reload.
+- With a choice the piano model's check does not refuse the run: ingest's auto mode falls back and says so.
+- The overnight box belongs to one list: another list unticks it, ticking it brings the list back, and a list lacking one
+  of its lanes is refused before Start (ingest would exit 2). It starts unticked when that list's result is saved already.
+- A MuScriptor time counts YourMT3+ when it has to run first. `TranscribeChoices.running` is added, so a reopened page says
+  that Start follows the running job.
+- Finishing with a notice now closes the library drawer: its scrim covered the Reopen button.
+
+### Checks
+
+- `npm test`, `npm run typecheck`, `npm run redo-check` (the fake ingest, no model). All run while another job held the
+  machine at 100 % CPU: with vitest's default 5 s limit, up to 14 unrelated tests timed out. With `--testTimeout=120000`
+  all pass but `fingerprint > fast` (3015 ms against 3000), which passes alone.
+- `npm run studio-check` is 33/33 with `WINKELAMP_PY=C:/nope/python.exe WINKELAMP_YMT3=C:/nope
+  WINKELAMP_PY_BP=C:/nope/python.exe`. With the real models its "ears up" step failed on that loaded machine: it waits
+  180 s, and a real ingest of the 30 s test tone took 263 s from the command line.
+- The ears server's POST with `engine=muscriptor&instruments=baroque&overnight=1` ran the real ingest on a copy of Winter:
+  25 s, `ms-hybrid`, `tracks.violin.from` muscriptor, `tracks.piano.from` ymt3, a valid pack, its cache then listed as
+  saved. All five overnight files fit their preset. The model itself was not run from the dialog or through the ears
+  server, and `redo-check`'s ingest is a fake.
+- `ymt3Saved` checks the sha1 only, where ingest also checks model and revision: after a YourMT3+ upgrade the dialog can
+  say "saved" while the ingest runs it again.
 
 ## 2026-11-01: instruments, places, intensity lanes, tags and the HD master
 

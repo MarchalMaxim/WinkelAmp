@@ -6,11 +6,17 @@
  *   npm run ears [-- --port 5175]
  *
  *   GET  /health                                  { ok: true, api: 2, transcriber: TranscriberStatus, ymt3: ToolStatus,
- *                                                 bp: ToolStatus } (each tool says why it cannot run)
+ *                                                 bp: ToolStatus, muscriptor: ToolStatus } (each tool says why it cannot run)
  *   POST /ingest?name=<file>[&id=<slug>][&title=<t>]   body = the audio → 202 { job, id }, or 200 { job: null, id,
  *                                                 existing: true } when a pack of the same recording (sha1) is there
  *   POST /ingest?id=<slug>&redo=1                 no body: ingest songs/<id>/audio.* again (e.g. GPU notes for an
  *                                                 approximate pack, or instrument tracks) → 202 { job, id }
+ *   POST /ingest?id=<slug>&redo=1&engine=ymt3|muscriptor[&instruments=<preset|list>][&overnight=1]
+ *                                                 the same, with the transcriber chosen. MuScriptor needs a list ingest
+ *                                                 accepts (else 400); overnight=1 imports notes.muscriptor-large.json
+ *                                                 instead of running the model (404 without it, 400 when the list lacks
+ *                                                 one of its lanes). A busy song answers with its job
+ *   GET  /songs/<id>/transcriptions               TranscribeChoices: who made the tracks, what can run, what is saved
  *   GET  /jobs/<job>                              Job
  *
  * Binds 127.0.0.1 only. Browsers may call it from http://localhost:* and http://127.0.0.1:* (the studio's dev server);
@@ -26,9 +32,12 @@ import { tmpdir } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHECKING_TRANSCRIBER, type EarsHealth, type IngestProgress, type Job, type ToolStatus, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
+import { CHECKING_TRANSCRIBER, type EarsHealth, type IngestProgress, type Job, type ToolStatus, type TranscribeChoices, type TranscriberStatus } from '../../src/studio/ingest/ears-types';
 import { freeId, nameFromFile } from '../../src/studio/ingest/names';
 import { overallProgress } from '../../src/studio/ingest/progress';
+import { lanesOutside } from '../../src/studio/ingest/transcribe-options';
+import { guessPreset, listKey, MS_CLASS, MS_MODEL, MS_PRESETS, resolveInstruments } from '../../src/studio/pack/muscriptor';
+import { findMuscriptor, MS_LICENCE, probeMuscriptor } from '../node/muscriptor';
 import { isSlug, REPO, songsDir } from '../node/pack-io';
 import { probeBp, probeTranscriber, tail } from '../node/python';
 import { probeYmt3 } from '../node/ymt3';
@@ -46,6 +55,8 @@ export interface EarsOptions {
   probeYmt3?: () => Promise<ToolStatus>;
   /** Whether basic-pitch can run (default: bp.py --probe, once at start). */
   probeBp?: () => Promise<ToolStatus>;
+  /** Whether MuScriptor can run (default: muscriptor.py --probe through muscriptor.json, once at start). */
+  probeMuscriptor?: () => Promise<ToolStatus>;
   /** Runs the ingest CLI with these arguments (default: node --import tsx scripts/ingest.ts …). */
   runIngest?: (args: string[]) => ChildProcess;
   /** Where the server says what it does (default: nothing; npm run ears logs to the console). */
@@ -67,6 +78,49 @@ interface Work {
   sha1: string | null;
   /** A temp folder holding the upload, removed when the job ends. */
   tmp: string | null;
+  /** More ingest arguments, the chosen transcriber's. Never in the approximate retry: --notes approx refuses them. */
+  extra: string[];
+}
+
+/** The overnight runs' file, which says neither its recording nor its list: `--muscriptor-notes` binds it to them. */
+const MS_OVERNIGHT = 'notes.muscriptor-large.json';
+const MS_CACHE = /^notes\.muscriptor-([0-9a-f]{8})\.json$/;
+
+function readJsonFile(path: string): Record<string, unknown> | null {
+  try {
+    const o = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return o && typeof o === 'object' && !Array.isArray(o) ? (o as Record<string, unknown>) : null;
+  } catch { return null; }
+}
+
+/** The overnight file of a song folder: its lanes, the strings first. Null when it is missing or not such a file. */
+function overnightOf(dir: string): TranscribeChoices['overnight'] {
+  const o = readJsonFile(join(dir, MS_OVERNIGHT));
+  if (!o || !Array.isArray(o.notes)) return null;
+  const seen = new Set<string>();
+  for (const r of o.notes as unknown[]) if (Array.isArray(r) && typeof r[4] === 'string') seen.add(r[4]);
+  const order = [...new Set([...MS_PRESETS.baroque, ...MS_PRESETS.classical, ...Object.keys(MS_CLASS)])];   // strings first
+  const rank = (x: string) => { const i = order.indexOf(x); return i < 0 ? order.length : i; };
+  const lanes = [...seen].sort((a, b) => rank(a) - rank(b));
+  return { lanes, notes: o.notes.length, preset: guessPreset(lanes) };
+}
+
+/** MuScriptor's caches of this recording that ingest would read: by sha1, model and list, and package when installed. */
+function savedResults(dir: string, sha1: string | null): TranscribeChoices['saved'] {
+  if (!sha1) return [];
+  const found = findMuscriptor();
+  const out: TranscribeChoices['saved'] = [];
+  for (const file of readdirSync(dir)) {
+    const key = MS_CACHE.exec(file)?.[1];
+    if (!key) continue;
+    const c = readJsonFile(join(dir, file));
+    if (!c || c.sha1 !== sha1 || c.model !== MS_MODEL || !Array.isArray(c.notes) || !Array.isArray(c.instruments)) continue;
+    const list = c.instruments as unknown[];
+    if (!list.every((x) => typeof x === 'string') || listKey(list as string[]) !== key) continue;
+    if ('config' in found && c.package !== found.config.version) continue;
+    out.push({ key, instruments: list as string[], notes: c.notes.length, seconds: typeof c.seconds === 'number' ? c.seconds : 0 });
+  }
+  return out;
 }
 
 /** A pack's recording: its sha1 and whether its audio is still there. */
@@ -108,6 +162,7 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
   };
   const ymt3 = tool(o.probeYmt3 ?? probeYmt3, 'YourMT3+');
   const bp = tool(o.probeBp ?? probeBp, 'basic-pitch');
+  const muscriptor = tool(o.probeMuscriptor ?? probeMuscriptor, 'MuScriptor');
 
   const jobs = new Map<string, Work>();
   const queue: Work[] = [];
@@ -127,6 +182,7 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
   const attempt = (w: Work, notes: 'auto' | 'approx', from: number): Promise<{ code: number | null; err: string }> => new Promise((done) => {
     const args = [w.input, '--id', w.pub.id, '--title', w.title, '--notes', notes, '--progress', 'json'];
     if (w.redo) args.push('--force');
+    if (notes === 'auto') args.push(...w.extra);
     let p: ChildProcess;
     try { p = runIngest(args); } catch (e) { done({ code: null, err: (e as Error).message }); return; }
     child = p;
@@ -235,6 +291,20 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
     if (url.searchParams.get('redo') === '1') {
       if (!want) throw new HttpError(400, 'redo needs ?id=<song>');
       req.resume();
+      // The chosen transcriber. No engine and engine=ymt3 run alike: YourMT3+ is ingest's default.
+      const engine = url.searchParams.get('engine');
+      if (engine !== null && engine !== 'ymt3' && engine !== 'muscriptor') throw new HttpError(400, `engine ${JSON.stringify(engine)}: not ymt3 or muscriptor`);
+      const overnight = url.searchParams.get('overnight') === '1';
+      if (overnight && engine !== 'muscriptor') throw new HttpError(400, 'overnight=1 goes with engine=muscriptor');
+      const extra: string[] = [];
+      let msList: string[] = [];
+      if (engine === 'muscriptor') {
+        const r = resolveInstruments(url.searchParams.get('instruments') ?? '');
+        if ('why' in r) throw new HttpError(400, `MuScriptor needs a list: ${r.why}`);
+        msList = r.list;
+        // What was understood, not what was sent: the preset's name, or the list without its spaces.
+        extra.push('--instruments-model', 'muscriptor', '--instruments', r.preset ?? r.list.join(','));
+      }
       const dir = join(songs, want);
       let title = want, audio: string | undefined;
       try {
@@ -246,7 +316,14 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
       if (!audio) throw new HttpError(404, `no recording in songs/${want}`);
       const busy = active().find((w) => w.pub.id === want);
       if (busy) return [202, { job: busy.pub.job, id: want }];
-      const w: Work = { pub: newJob(want, 'queued'), input: join(dir, audio), title, redo: true, sha1: null, tmp: null };
+      if (overnight) {
+        const file = overnightOf(dir);
+        if (!file) throw new HttpError(404, `no ${MS_OVERNIGHT} in songs/${want}`);
+        const outside = lanesOutside(file.lanes, msList);
+        if (outside.length) throw new HttpError(400, `${MS_OVERNIGHT} has ${outside.join(', ')}, outside the list: choose the list it was made with`);
+        extra.push('--muscriptor-notes', join(dir, MS_OVERNIGHT));
+      }
+      const w: Work = { pub: newJob(want, 'queued'), input: join(dir, audio), title, redo: true, sha1: null, tmp: null, extra };
       enqueue(w);
       return [202, { job: w.pub.job, id: want }];
     }
@@ -271,10 +348,33 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
 
     const id = want ?? freeId(base, taken);
     const title = url.searchParams.get('title')?.trim() || named.title || id;
-    const w: Work = { pub: newJob(id, queue.length || running ? 'waiting for the recording before it' : 'queued'), input: file, title, redo: false, sha1: got.sha1, tmp };
+    const w: Work = { pub: newJob(id, queue.length || running ? 'waiting for the recording before it' : 'queued'), input: file, title, redo: false, sha1: got.sha1, tmp, extra: [] };
     enqueue(w);
     log(`upload ${safe.file} (${(got.bytes / 1e6).toFixed(1)} MB) → ${id}`);
     return [202, { job: w.pub.job, id }];
+  };
+
+  /** What a redo of this song can be. Reads the song's folder each time: a finished job changes it. */
+  const choices = (id: string): TranscribeChoices => {
+    const dir = join(songs, id);
+    const p = readJsonFile(join(dir, 'pack.json'));
+    if (!p) throw new HttpError(404, `no song ${id}`);
+    const sha1 = typeof (p.source as { sha1?: unknown } | undefined)?.sha1 === 'string' ? (p.source as { sha1: string }).sha1 : null;
+    const made = Array.isArray(p.transcribers) ? (p.transcribers as { name?: unknown; instruments?: unknown }[]) : [];
+    const ms = made.find((t) => t.name === 'muscriptor');
+    const hasTracks = !!p.tracks && Object.keys(p.tracks as object).length > 0;
+    const y = sha1 ? readJsonFile(join(dir, 'notes.ymt3.json')) : null;
+    return {
+      duration: typeof p.duration === 'number' ? p.duration : 0,
+      tracksFrom: ms ? 'muscriptor' : hasTracks ? 'ymt3' : null,
+      instruments: ms && Array.isArray(ms.instruments) ? (ms.instruments as string[]) : null,
+      ymt3: ymt3(),
+      muscriptor: muscriptor(),
+      ymt3Saved: !!y && y.sha1 === sha1 && Array.isArray(y.notes),
+      saved: savedResults(dir, sha1),
+      overnight: overnightOf(dir),
+      running: active().some((w) => w.pub.id === id),
+    };
   };
 
   const server = createServer((req, res: ServerResponse) => {
@@ -297,8 +397,15 @@ export function startEars(o: EarsOptions = {}): Promise<{ port: number; close():
         return send(204);
       }
       if (method === 'GET' && url.pathname === '/health') {
-        const health: EarsHealth = { ok: true, api: 2, transcriber: transcriber ?? CHECKING, ymt3: ymt3(), bp: bp() };
+        const health: EarsHealth = { ok: true, api: 2, transcriber: transcriber ?? CHECKING, ymt3: ymt3(), bp: bp(), muscriptor: muscriptor() };
         return send(200, health);
+      }
+      const tm = /^\/songs\/([^/]+)\/transcriptions$/.exec(url.pathname);
+      if (method === 'GET' && tm) {
+        let id = '';
+        try { id = decodeURIComponent(tm[1]); } catch { /* not a slug either */ }
+        if (!isSlug(id)) throw new HttpError(400, `${JSON.stringify(tm[1])} is not an id (lowercase letters, digits, single dashes)`);
+        return send(200, choices(id));
       }
       const jm = /^\/jobs\/([^/]+)$/.exec(url.pathname);
       if (method === 'GET' && jm) {
@@ -343,25 +450,27 @@ async function main(): Promise<void> {
   const port = i >= 0 ? Number(argv[i + 1]) : EARS_PORT;
   if (!Number.isInteger(port) || port < 0 || port > 65535) { console.error('usage: npm run ears [-- --port 5175]'); process.exit(2); }
   const t0 = Date.now();
-  let status: TranscriberStatus | null = null, ymt3: ToolStatus | null = null, bp: ToolStatus | null = null;
+  let status: TranscriberStatus | null = null, ymt3: ToolStatus | null = null, bp: ToolStatus | null = null, ms: ToolStatus | null = null;
   const probe = () => probeTranscriber().then((s) => (status = s));
   const probeY = () => probeYmt3().then((s) => (ymt3 = s));
   const probeB = () => probeBp().then((s) => (bp = s));
+  const probeM = () => probeMuscriptor().then((s) => (ms = s));
   const log = (s: string) => console.log(`ears: ${s}`);
-  const ears = await startEars({ port, probe, probeYmt3: probeY, probeBp: probeB, log }).catch((e: NodeJS.ErrnoException) => {
+  const ears = await startEars({ port, probe, probeYmt3: probeY, probeBp: probeB, probeMuscriptor: probeM, log }).catch((e: NodeJS.ErrnoException) => {
     console.error(e.code === 'EADDRINUSE' ? `ears: port ${port} is taken (is the ears server already running?)` : `ears: ${e.message}`);
     process.exit(1);
   });
   log(`listening on http://127.0.0.1:${ears.port}; songs go to ${resolve(songsDir())}`);
   log('checking the transcribers (importing torch takes a few seconds)…');
   const wait = setInterval(() => {
-    if (!status || !ymt3 || !bp) return;
+    if (!status || !ymt3 || !bp || !ms) return;
     clearInterval(wait);
-    const s = status as TranscriberStatus, y = ymt3 as ToolStatus, b = bp as ToolStatus;
+    const s = status as TranscriberStatus, y = ymt3 as ToolStatus, b = bp as ToolStatus, m = ms as ToolStatus;
     log(s.ok ? `piano model ready on ${s.device} (${s.python}, checked in ${((Date.now() - t0) / 1000).toFixed(1)} s)`
       : `piano model unavailable: ${s.reason}`);
     log(y.ok ? 'YourMT3+ ready: ensemble recordings get instrument tracks' : `YourMT3+ unavailable: ${y.reason}`);
     log(b.ok ? 'basic-pitch ready (the gap fill without YourMT3+)' : `basic-pitch unavailable: ${b.reason}`);
+    log(m.ok ? `MuScriptor ready, by choice in the studio's Redo the transcription. ${MS_LICENCE}` : `MuScriptor unavailable: ${m.reason}`);
     if (!s.ok && !y.ok && !b.ok) log('no transcriber can run: dropped recordings get approximate notes.');
     log('drop a recording in the studio (npm run dev). Ctrl+C stops.');
   }, 100);

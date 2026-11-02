@@ -88,11 +88,63 @@ sharing anything made from them. Without YourMT3 nothing fails: an ensemble fall
 (`WINKELAMP_PY_BP`, default the venv `C:/Users/maxim/.venvs/wa-bp`), then to the piano model alone, with a warning in
 the pack, in `npm run ears`'s `/health` and in the studio's words.
 
+### Instrument tracks: MuScriptor large (an option for string pieces)
+
+YourMT3+ stays the default. For **string-led orchestral pieces** a song can take its instrument tracks from MuScriptor
+large instead, by choice. On big brass and percussion pieces the list can hurt, and on a song that has a show the lanes its
+layers listen to can thin out (Winter's violin: 810 to 596 notes at 146–211 s, none at 130–145 s), which `check-show` cannot
+see. So listen before keeping it.
+
+```bash
+npm run setup-muscriptor -- [--python <venv python>] [--dir <install>] [--download]
+npm run ingest -- <audio> --instruments-model muscriptor --instruments strings|baroque|classical|<list>
+```
+
+- **Setup.** A Python 3.11 venv from `scripts/ears/requirements-muscriptor.txt` (default
+  `C:/Users/maxim/.venvs/wa-ms`), `hf auth login`, then `npm run setup-muscriptor`, which probes it and writes
+  `muscriptor.json` to `%LOCALAPPDATA%/WinkelAmp/muscriptor` (`WINKELAMP_MUSCRIPTOR` points at another). `--download`
+  fetches the weights (5.5 GB); an ingest never downloads.
+- **The licence.** MuScriptor's weights are CC-BY-NC, non-commercial: own shows and experiments are fine; selling
+  WinkelAmp with it, or renders made from its notes, needs a commercial licence.
+- **The list is required.** Without one it hears Vivaldi's strings as guitars. `strings` is violin, viola, cello,
+  contrabass; `baroque` adds acoustic_piano; `classical` adds flutes, oboe, clarinet, bassoon, french_horn, trumpet,
+  timpani. An own list is MuScriptor's names with commas, in the order given. `string_ensemble` is refused: it swallowed
+  Vivaldi's violins.
+- **The keyboard lane** comes from YourMT3+ when the list has a keyboard (MuScriptor barely finds a harpsichord), so
+  YourMT3+ runs too, or its cache is read. A list without one gets no keyboard track.
+- **The time, measured on a shared GPU:** 0.7 to 1.8 × the music (a 12-minute piece: 8 to 22 min), where YourMT3+ takes
+  about 0.2 ×. **The memory:** up to 15 GB of GPU memory; out of memory goes once more in bfloat16.
+- **The cache.** Raw rows per recording and list, `songs/<id>/notes.muscriptor-<8 hex>.json`, so a second list does not
+  destroy a 20-minute result; `--redo muscriptor` runs it again. The cleanup (`src/studio/pack/clean-tracks.ts`) runs at
+  build time, and the pack's warnings say what it did.
+- **The fallback.** MuScriptor missing, failing, or stuck in a loop gives YourMT3's tracks with a warning in the pack,
+  never a failed ingest.
+- **In the studio:** the Show tab's *Redo the transcription…* (with `npm run ears`, restarted after a setup) chooses the
+  transcriber and the list and says how long it will take. The run carries on if the page closes, and choosing Start again
+  follows it. It ends in a Reopen notice, never a reload. There is no cancel button, and stopping `npm run ears` on Windows
+  may leave a running Python behind (not tested).
+
+**The overnight files.** Five songs have a saved run, `notes.muscriptor-large.json`, about two hours of GPU. These commands
+import them and never run the model. A file does not say its list, so it is required here too. Only these commands change
+the real packs (or the studio's dialog, which offers the same file):
+
+```bash
+npm run ingest -- songs/vivaldi-winter/audio.mp3 --id vivaldi-winter --muscriptor-notes songs/vivaldi-winter/notes.muscriptor-large.json --instruments baroque
+npm run ingest -- songs/vivaldi-spring/audio.mp3 --id vivaldi-spring --muscriptor-notes songs/vivaldi-spring/notes.muscriptor-large.json --instruments baroque
+npm run ingest -- songs/vivaldi-autumn/audio.mp3 --id vivaldi-autumn --muscriptor-notes songs/vivaldi-autumn/notes.muscriptor-large.json --instruments baroque
+npm run ingest -- songs/vivaldi-four-seasons/audio.mp3 --id vivaldi-four-seasons --muscriptor-notes songs/vivaldi-four-seasons/notes.muscriptor-large.json --instruments baroque
+npm run ingest -- songs/beethoven5/audio.mp3 --id beethoven5 --muscriptor-notes songs/beethoven5/notes.muscriptor-large.json --instruments classical --piano-notes lab/notes-b5.js
+```
+
+Beethoven's pack took its piano notes from the lab's file. `lab/notes-b5.js` holds the same 2105 notes as its
+`notes.gpu.json` (compared to 10 ms), so the dialog, which reads that cache, gives the same piano notes.
+
 ### Ingest
 
 ```bash
 npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid|ymt3|bp|approx|<notes file>]
-                  [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp] [--force] [--progress json]
+                  [--piano-notes <notes file>] [--kind auto|piano|ensemble] [--redo piano|ymt3|bp|muscriptor] [--force] [--progress json]
+                  [--instruments-model ymt3|muscriptor] [--instruments strings|baroque|classical|<list>] [--muscriptor-notes <file>]
 ```
 
 - `--notes auto` (the default) runs the piano model and YourMT3+, calls the recording *piano* or *ensemble* from
@@ -103,6 +155,8 @@ npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid
 - `--kind piano|ensemble` overrides the call; `--piano-notes` uses a notes file as the piano model's notes;
   `--redo` re-runs one transcriber instead of reading its cache (each is cached in the song's folder by the audio's
   sha1); `--progress json` prints machine-readable progress (the ears server uses it).
+- `--instruments-model muscriptor` takes the tracks from MuScriptor large and means an ensemble (with `--kind piano`, or
+  `--notes` other than `auto` or `hybrid`, it is exit 2); `--muscriptor-notes` reads a saved run instead of running it.
 - `npm run describe-song -- <id>` then lists the tracks and where each instrument plays; `npm run pianoroll` draws
   piano rolls of them.
 
@@ -261,6 +315,7 @@ npm run render-show -- <show id | file> [--scale 2] [--fps 60] [--from s] [--to 
                        # the HD master (2560×1440 at 60 fps), its WhatsApp share copy and a contact sheet, frame by frame
                        #   with the recording's sound (a song without a show: the one the studio composes)
 npm run setup-ymt3 -- --from <Space folder>  # installs YourMT3+ outside the repo (see above)
+npm run setup-muscriptor -- [--download]     # checks MuScriptor's venv and weights, says its licence (see above)
 npm run lab-notes -- <id>                    # the lab's pack file for a song (lab/pack-<id>.js: tracks, beats, loudness)
 npm run pianoroll -- <id> --out <png> [--by track]   # a piano roll of a song, coloured by track, class or line
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
@@ -269,6 +324,7 @@ npm run picker-check  # the note picker on Vivaldi's Winter: marks saved, no key
 npm run picks-check   # widgets on picks in the real runtime: exactly the picked attacks, after a seek, at scale 1 and 2
 npm run overlay-check  # the region overlay on the stage: drags, Shift, Alt, rotation, feather, undo, never in the picture
 npm run lanes-check    # the intensity lanes: add, drag, bend, shapes, presets, undo, save
+npm run redo-check     # the redo dialog: durations, the required list, the choice sent, the Reopen notice (a fake ingest)
 npm run runtime-check  # instances, routing, intensity and regions in the runtime: seek invariance, spot and window
 npm run hd-check       # each widget at 2x is the same picture as at 1x, only sharper (crops in renders/look/hd)
 npm run persist-probe  # measures which widgets repaint their picture (the intensity's visibility classes)

@@ -8,18 +8,20 @@ import { TRACKS, isTrackId } from './instruments';
 
 /** What ingest writes now; validatePack still reads 1 (no kind, tracks or transcribers). */
 export const PACK_VERSION = 2;
-export type NotesSource = 'gpu' | 'file' | 'approx' | 'merged' | 'hybrid' | 'ymt3' | 'bp-hybrid';
-/** One instrument's notes, from YourMT3+ (spec Decisions 2). */
+export type NotesSource = 'gpu' | 'file' | 'approx' | 'merged' | 'hybrid' | 'ymt3' | 'bp-hybrid' | 'ms-hybrid';
+/** One instrument's notes, from YourMT3+ (spec Decisions 2) or MuScriptor. */
 export interface Track {
   /** Plain English for the UI ("Violins", "French horns"). */
   label: string;
   family: Family;
-  /** Every YourMT3 note of the track, with estimated velocities, sorted by start. */
+  /** Every note the transcriber gave the track, with estimated velocities, sorted by start. */
   notes: Note[];
-  /** Of the song's YourMT3 notes (drums and empty rows dropped), 0..1. */
+  /** Of the song's track-making notes (drums and empty rows dropped), 0..1. */
   share: number;
   /** How many velocities were borrowed from a piano-model note / estimated from loudness. */
   vel: { borrowed: number; level: number };
+  /** Which transcriber made it; absent = YourMT3+ (old packs, and every pack made without the option). */
+  from?: 'ymt3' | 'muscriptor';
 }
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const isSlug = (s: unknown): s is string => typeof s === 'string' && SLUG.test(s);
@@ -39,7 +41,8 @@ export interface SongPack {
   notes: Note[];
   /**
    * gpu | file (--notes <file>, kept exactly) | approx (analysis only) | merged (gpu + approx) | hybrid (piano model +
-   * YourMT3 in its gaps) | ymt3 (YourMT3 alone) | bp-hybrid (piano model + basic-pitch in its gaps).
+   * YourMT3 in its gaps) | ymt3 (YourMT3 alone) | bp-hybrid (piano model + basic-pitch in its gaps) | ms-hybrid (piano
+   * model + MuScriptor, with its keyboard lane, in its gaps).
    */
   notesFrom: NotesSource;
   transcriber: { model: string; device: 'cuda' | 'cpu'; seconds: number } | null;
@@ -57,17 +60,18 @@ export interface SongPack {
   // v2 (all optional, so a v1 pack is a v2 pack without them).
   /** Solo piano keeps the piano model's notes; an ensemble gets the hybrid and tracks. Absent: not decided (no notes model). */
   kind?: 'piano' | 'ensemble';
-  /** YourMT3's piano share (spec Decisions 1); null without YourMT3. */
+  /** The track-making transcriber's piano share (spec Decisions 1); null without one. */
   pianoShare?: number | null;
-  /** Only an ensemble with YourMT3 has tracks; only tracks with enough notes are written. */
+  /** Only an ensemble with YourMT3 or MuScriptor has tracks; only tracks with enough notes are written. */
   tracks?: Partial<Record<TrackId, Track>>;
-  /** Every model that ran for this pack. */
-  transcribers?: { name: 'piano' | 'ymt3' | 'bp'; model: string; seconds: number; notes: number }[];
+  /** Every model that ran for this pack; `instruments` is the list MuScriptor was given. */
+  transcribers?: { name: 'piano' | 'ymt3' | 'bp' | 'muscriptor'; model: string; seconds: number; notes: number; instruments?: string[] }[];
 }
 
-const SOURCES: readonly NotesSource[] = ['gpu', 'file', 'approx', 'merged', 'hybrid', 'ymt3', 'bp-hybrid'];
+const SOURCES: readonly NotesSource[] = ['gpu', 'file', 'approx', 'merged', 'hybrid', 'ymt3', 'bp-hybrid', 'ms-hybrid'];
 const KINDS = ['piano', 'ensemble'] as const;
-const TRANSCRIBERS = ['piano', 'ymt3', 'bp'] as const;
+const TRANSCRIBERS = ['piano', 'ymt3', 'bp', 'muscriptor'] as const;
+const TRACK_FROM = ['ymt3', 'muscriptor'] as const;
 /** Section edges may differ from each other or from 0 / duration by rounding (ms). */
 const EPS = 2e-3;
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -182,6 +186,7 @@ function v2Errors(p: Partial<SongPack>): string[] {
         if (!isObj(v) || !Number.isInteger(v.borrowed) || !Number.isInteger(v.level) || (v.borrowed as number) < 0 || (v.level as number) < 0) {
           e.push(`${f}.vel: not { borrowed, level } counts`);
         }
+        if (t.from !== undefined && !TRACK_FROM.includes(t.from as never)) e.push(`${f}.from: ${JSON.stringify(t.from)} is not one of ${TRACK_FROM.join(', ')}`);
       }
     }
   }
@@ -192,6 +197,8 @@ function v2Errors(p: Partial<SongPack>): string[] {
         if (!isObj(t) || !TRANSCRIBERS.includes(t.name as never) || typeof t.model !== 'string' || !isNum(t.seconds) || t.seconds < 0
           || !Number.isInteger(t.notes) || (t.notes as number) < 0) {
           e.push(`transcribers[${i}]: not { name: ${TRANSCRIBERS.join(' | ')}, model, seconds, notes }`);
+        } else if (t.instruments !== undefined && !(Array.isArray(t.instruments) && t.instruments.every((x) => typeof x === 'string'))) {
+          e.push(`transcribers[${i}].instruments: not a list of strings`);
         }
       });
     }
