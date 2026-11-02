@@ -13,7 +13,8 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
-import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
+import { HOW_MUCH } from '../../widgets/features';
+import { knobRow, knobState, presentEdit, settingOf, type KnobRow } from './knobs';
 import { allNotesTaken, describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
@@ -225,11 +226,16 @@ export class Panel {
     const params: Param[] = Array.isArray(tool.params) ? tool.params : [];
     if (!params.length) { box.innerHTML = '<p class="dim small">This widget has no knobs.</p>'; return; }
     for (const q of params) {
+      if (studioLayers().oldHidden(q, knobState(q, knobs?.[q.key]))) continue;
       const row = knobRow(q, knobState(q, knobs?.[q.key]), this.d.drives, this.d.icon, (st, phase) => {
         const now = performance.now();
         if ((phase === 'step') !== (this.stepAt > 0) || (phase === 'step' && now - this.stepAt > KEY_IDLE)) this.knobDrag++;
         this.stepAt = phase === 'step' ? now : 0;
-        this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key: q.key, value: settingOf(q, st) }, group: `knob:${i}:${k}:${q.key}:${this.knobDrag}` });
+        const group = `knob:${i}:${k}:${q.key}:${this.knobDrag}`;
+        if (q.key === HOW_MUCH) {
+          const cur = this.d.store.state.show!.sections[i].layers[k]?.knobs;
+          this.edit({ type: 'edit', edit: { kind: 'setKnobs', section: i, layer: k, values: presentEdit(params, q, st, cur, studioLayers().presentValues(params, st.base)) }, group });
+        } else this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key: q.key, value: settingOf(q, st) }, group });
         if (phase === 'end') this.knobDrag++;
       });
       this.rows.push({ row, layer: k });

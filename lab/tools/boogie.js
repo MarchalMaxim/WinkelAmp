@@ -53,14 +53,14 @@
     id: 'boogie', name: 'Boogie woogie', tag: 'new', on: false,
     blurb: 'After Mondrian\'s Broadway Boogie Woogie: yellow lanes on cream. Each note drops a small red, blue or grey block where its pitch lane (low notes left) meets the row of its harmony, and every attack makes all the blocks hop along their lanes, so rhythm drives the traffic: fast passages boogie, a slow chorale barely moves. Big loud chords flash a whole crossing.',
     params: [
-      { key: 'lanes', label: 'how many lanes', min: 6, max: 16, step: 1, value: 10,
+      { key: 'lanes', label: 'how many lanes', min: 6, max: 16, step: 1, value: 10, less: 6,
         hint: 'How dense the city is. Left: a few wide lanes. Right: a tight grid of thin ones.',
         icon: (g, v, w, h) => {
           const nv = 2 + Math.round(v * 5), nh = 1 + Math.round(v * 3), lw = 3.6 - 2.4 * v;
           for (let i = 0; i < nv; i++) ICON.rect(g, (w * (i + 1)) / (nv + 1) - lw / 2, 1, lw, h - 2, ICON.gold);
           for (let i = 0; i < nh; i++) ICON.rect(g, 1, (h * (i + 1)) / (nh + 1) - lw / 2, w - 2, lw, ICON.gold);
         } },
-      { key: 'hop', label: 'how far they jump on each note', min: 0, max: 2, value: 0.6, drive: '+rate',
+      { key: 'hop', label: 'how far they jump on each note', min: 0, max: 2, value: 0.6, less: 0.15, drive: '+rate',
         hint: 'How far every block hops along its lane when a note is struck. Left: they stand still. Right: two steps at a time.',
         icon: (g, v, w, h) => {
           ICON.rect(g, 2, h / 2 - 4, w - 4, 8, ICON.gold);
@@ -68,10 +68,10 @@
           for (let i = 0; i < n; i++) ICON.alpha(g, 0.25 + 0.12 * i, () => ICON.square(g, 7 + i * 6.5, h / 2, 7, ICON.red));
           ICON.square(g, 7 + n * 6.5, h / 2, 7, ICON.red);
         } },
-      { key: 'life', label: 'how long blocks stay', min: 1, max: 12, value: 6,
+      { key: 'life', label: 'how long blocks stay', min: 1, max: 12, value: 6, less: 1.2,
         hint: 'How long a block lives before it shrinks away. Left: a second. Right: they pile up for many seconds.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, ICON.red) },
-      { key: 'flash', label: 'big-chord flashes', min: 0, max: 1, value: 0.7,
+      { key: 'flash', label: 'big-chord flashes', min: 0, max: 1, value: 0.7, less: 0.1,
         hint: 'How easily a big chord flashes a whole crossing with a large coloured plane. Left: never. Right: even modest chords, and bigger planes.',
         icon: (g, v, w, h) => {
           ICON.rect(g, w / 2 - 2, 1, 4, h - 2, ICON.gold); ICON.rect(g, 2, h / 2 - 2, w - 4, 4, ICON.gold);
@@ -86,7 +86,10 @@
           ICON.rect(g, 3, h / 2 - 2, w - 6, 4, ICON.gold); ICON.rect(g, w * 0.62, 3, 4, h - 6, ICON.gold);
           ICON.square(g, w * 0.3, h / 2, 4, ICON.red);
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much city there is: how many lanes, how far the blocks hop, how long they stay, how often a crossing flashes. Left: a few wide lanes with blocks that come and go. Right: the full busy grid. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: a dark, nearly still city, and only the hardest notes drop a faint block. Right: the bright page, every note at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {   // the page with its traffic, dim and nearly bare, or bright and busy
           ICON.rect(g, 3, 3, w - 6, h - 6, '#ece6d7');

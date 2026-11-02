@@ -187,19 +187,22 @@
           const [body, rimc] = pal(v * 5);
           for (const sx of [-1, 1]) { ICON.dot(g, w / 2 + sx * 8, h / 2, 8.5, `rgb(${rimc})`); ICON.dot(g, w / 2 + sx * 8, h / 2, 6, `rgb(${body})`); }
         } },
-      { key: 'size', label: 'blot size', min: 0.3, max: 2.5, value: 1,
+      { key: 'size', label: 'blot size', min: 0.3, max: 2.5, value: 1, less: 0.45,
         hint: 'How far each drop of ink spreads. Left: small spots. Right: big blots.',
         icon: (g, v, w, h) => { const r = 1.5 + v * 7; for (const sx of [-1, 1]) ICON.dot(g, w / 2 + sx * (r + 1), h / 2, r, ICON.red); } },
-      { key: 'spatter', label: 'spatter', min: 0, max: 3, value: 1, drive: '+level',
+      { key: 'spatter', label: 'spatter', min: 0, max: 3, value: 1, less: 0, drive: '+level',
         hint: 'How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters.',
         icon: (g, v, w, h) => {
           ICON.dot(g, w / 2, h / 2, 4, ICON.red); const R = ICON.rng(11);
           for (let i = 0; i < Math.round(v * 16); i++) { const a = R() * 6.283, d = 6 + R() * 11; ICON.dot(g, w / 2 + Math.cos(a) * d * 1.4, h / 2 + Math.sin(a) * d * 0.9, 0.7 + R() * 0.9, ICON.red); }
         } },
-      { key: 'fade', label: 'how long the ink stays', min: 1, max: 13, value: 9, drive: '-level',
+      { key: 'fade', label: 'how long the ink stays', min: 1, max: 13, value: 9, less: 1.6, drive: '-level',
         hint: 'How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.08 + v * 0.92, ICON.red, 'dot') },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+        hint: 'How much ink there is: how far each drop spreads, how much it sprays, how long it stays. Left: small clean spots that dry at once. Right: big blots filling the page. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
+        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
+      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
         hint: 'How much it takes over. Left: faint ink on a still page, and only the hardest bass attacks drop it. Right: every low note blooms at full strength (as before).',
         icon: (g, v, w, h) => { for (const sx of [-1, 1]) ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.dot(g, w / 2 + sx * 7, h / 2, 2 + 5 * v, ICON.red)); } },
     ],
