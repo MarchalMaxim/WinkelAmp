@@ -24,6 +24,7 @@ import { ApiError, connectStore, type LibraryEntry, type ShowStore } from './api
 import { installKeys } from './keys';
 import { Library, splitTitle } from './library';
 import { Panel, type CatalogueEntry } from './panel';
+import { Picker } from './picker';
 import { Player } from './player';
 import { installExport } from './record';
 import { mountRegionOverlay } from './region-overlay';
@@ -70,6 +71,7 @@ function shell(): Record<string, HTMLElement> {
         <span class="clock" data-clock>0:00 <span class="dim">/ 0:00</span></span>
         <span class="now" data-now></span>
         <span class="spacer"></span>
+        <button type="button" data-pick title="Mark the melody and connect a few of its notes to a widget">Pick notes</button>
         <button type="button" class="icon" data-hide aria-label="Hide the controls (H)" title="Hide the controls (H)">${ICONS.hide}</button>
         <button type="button" class="icon" data-full aria-label="Full screen (F)" title="Full screen (F)">${ICONS.full}</button>
       </div>
@@ -80,7 +82,7 @@ function shell(): Record<string, HTMLElement> {
   const q = (s: string) => app.querySelector<HTMLElement>(s)!;
   return {
     app, stage: q('[data-stage]'), poster: q('[data-poster]'), unhide: q('[data-unhide]'), play: q('[data-play]'), clock: q('[data-clock]'),
-    now: q('[data-now]'), hide: q('[data-hide]'), full: q('[data-full]'), notices: q('.notices'), timeline: q('.timeline-host'),
+    now: q('[data-now]'), pick: q('[data-pick]'), hide: q('[data-hide]'), full: q('[data-full]'), notices: q('.notices'), timeline: q('.timeline-host'),
     panel: q('.panel-host'), songs: q('[data-songs]'), undo: q('[data-undo]'), redo: q('[data-redo]'), save: q('[data-save]'),
     saveState: q('.save-state'), composer: q('.composer'), piece: q('.piece'),
   };
@@ -258,9 +260,16 @@ async function boot(): Promise<void> {
     if (store.state.show === s) store.dispatch({ type: 'notice', notice: { id: 'split', level: 'info', text: 'Too close to where the section starts or ends to split: sections last at least a second.' } });
     else store.dispatch({ type: 'select', section: i + 1, layer: null });
   };
+  const picker = new Picker({
+    store, player, api, pack, canvas, catalogue, order, lib: { sources, harness, layers: studioLayers() },
+    meta: (id) => metas.get(id), notify: (notice) => store.dispatch({ type: 'notice', notice }),
+  });
+  // Its seeks show the picture there, as the studio's do: the poster would hide it on the way back.
+  const openPicker = (set?: string) => { ui.poster.hidden = true; void picker.open(set); };
+  ui.pick.addEventListener('click', () => openPicker());
   const panel = new Panel({
     store, api, song: pack, catalogue, order, drives: harness.drives, icon,
-    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek,
+    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek, editPicks: openPicker,
   });
   ui.panel.append(panel.el);
   // The open layer's region, placed with handles on the stage (an SVG over the canvas, never drawn into it).
@@ -301,6 +310,7 @@ async function boot(): Promise<void> {
   store.subscribe((s) => {
     if (s.show && s.show !== shown) { shown = s.show; conductor.setShow(s.show); refreshSoon(); lastNow = -1; drawNow(player.time); }
     timeline.update(s); panel.update(s); overlay.update(s); drawHeader();
+    (ui.pick as HTMLButtonElement).disabled = s.ui.recording;
     document.body.classList.toggle('ui-hidden', s.ui.hidden);
   });
   store.notify();
@@ -312,7 +322,7 @@ async function boot(): Promise<void> {
       if (reported.has(id)) continue;
       reported.add(id);
       panel.widgetFailed();
-      store.dispatch({ type: 'notice', notice: { id: `widget:${id}`, level: 'error', text: `${metas.get(id)?.name ?? id} stopped: ${runtime.errors[id].replace(/^Error: /, '')}` } });
+      store.dispatch({ type: 'notice', notice: { id: `widget:${id}`, level: 'error', text: `${metas.get(id.split('@')[0])?.name ?? id} stopped: ${runtime.errors[id].replace(/^Error: /, '')}` } });
     }
   };
 
@@ -361,7 +371,7 @@ async function boot(): Promise<void> {
   ui.save.addEventListener('click', () => void save());
   ui.undo.addEventListener('click', () => store.dispatch({ type: 'undo' }));
   ui.redo.addEventListener('click', () => store.dispatch({ type: 'redo' }));
-  window.addEventListener('beforeunload', (e) => { if (isDirty(store.state)) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (isDirty(store.state) || picker.marksAtRisk) { e.preventDefault(); e.returnValue = ''; } });
 
   // Full screen, hiding the controls, the cursor resting.
   const stage = ui.stage;
@@ -437,7 +447,7 @@ async function boot(): Promise<void> {
     setTimeout(() => void reloadFromDisk(false), 1500);
   });
 
-  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue, recorder, overlay };
+  (window as { __studio?: unknown }).__studio = { runtime, store, player, conductor, catalogue, recorder, overlay, picker };
 }
 
 boot().catch((e) => {

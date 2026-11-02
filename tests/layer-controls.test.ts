@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { defaultRegion, describePlace, gateDefault, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
+import { defaultRegion, describePlace, gateDefault, listenLabel, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import type { SongPack } from '../src/studio/pack/pack';
 import type { TagWords } from '../src/widgets/tags';
@@ -169,5 +169,22 @@ describe('filterWidgets', () => {
     const plain: WidgetMeta = { id: 'plain', name: 'plain', blurb: '', tag: '', verdict: null, params: [] };
     expect(filterWidgets([plain], none, words)).toEqual([plain]);
     expect(filterWidgets([plain], { ...none, feel: ['dark'] }, words)).toEqual([]);
+  });
+});
+
+describe('a layer on picks', () => {
+  it('reads Your picks, lower-cased in running text', () => {
+    expect(listenLabel('picks:p1')).toBe('Your picks');
+    expect(partWords('picks:p1')).toBe('your picks');
+  });
+
+  it('While its part plays reads the set, not all notes', () => {
+    const L = loadLayers(), span = { start: 0, end: 100 };
+    const pack = { notes: notes(50), tracks: undefined, beats: [], loudness: { hop: 1, values: [] } } as unknown as Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>;
+    const set: Note[] = [[10, 12, 60, 80], [40, 42, 62, 80]];
+    const onSet = presetPivots(L, { kind: 'plays' }, span, pack, 'picks:p1', { p1: { notes: set } });
+    expect(onSet).toEqual(L.presets.plays(span, set));
+    expect(onSet).not.toEqual(L.presets.plays(span, pack.notes));
+    expect(presetPivots(L, { kind: 'plays' }, span, pack, 'picks:p9', {})).toEqual(L.presets.plays(span, []));
   });
 });

@@ -217,7 +217,7 @@ try {
   // A show changed on disk (Claude edits shows/<id>.json): a clean studio follows it without a reload, a dirty one
   // asks. Its own server with HMR on (the main one has it off, so edits elsewhere cannot reload the pages above).
   // Space after a mouse click on Play pauses once (the focused button must not take the key too).
-  const hot = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5197, strictPort: false } });
+  const hot = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || 5197, strictPort: false } });
   await hot.listen();
   try {
     const HOT = hot.resolvedUrls.local[0].replace(/\/$/, '');

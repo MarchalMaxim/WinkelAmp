@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { apiMiddleware } from '../scripts/studio-api';
+import { canonicalMelody, emptyMelody, type Melody } from '../src/studio/show/melody';
 import { canonicalShow, type Show } from '../src/studio/show/show';
 
 const tmp = mkdtempSync(join(tmpdir(), 'wa-studio-api-'));
@@ -126,6 +127,53 @@ describe('studio dev API', () => {
     const bad = await call('PUT', '/api/songs/new-song/pack', JSON.stringify({ ...PACK, version: 2 }));
     expect(bad.status).toBe(400);
     expect(json(bad).errors.length).toBeGreaterThan(0);
+  });
+
+  it('labels: the rows of notes.ymt3.json; none without the file; the file itself stays unserved', async () => {
+    expect(json(await call('GET', '/api/songs/demo/labels'))).toEqual({ notes: [] });
+    const rows = [[1, 2, 60, 80, 'Violin'], [1, 2, 48, 70, 'Cello']];
+    writeFileSync(join(songs, 'demo', 'notes.ymt3.json'), JSON.stringify({ version: 1, notes: rows }));
+    expect(json(await call('GET', '/api/songs/demo/labels'))).toEqual({ notes: rows });
+    expect((await call('GET', '/songs/demo/notes.ymt3.json')).status).toBe(404);
+    expect((await call('GET', '/api/songs/Bad_Id/labels')).status).toBe(400);
+  });
+
+  it('a melody: empty with a 200, PUT writes canonicalMelody beside the shows, GET reads the same bytes', async () => {
+    const r = await call('GET', '/api/melodies/demo');
+    expect(r.status).toBe(200);
+    expect(json(r)).toEqual(emptyMelody('demo'));
+    const m = { version: 1, song: 'demo', notes: [[12, 13, 64, 90, 'violin'], [1.23456, 2, 60, 80]] };
+    expect((await call('PUT', '/api/melodies/demo', JSON.stringify(m))).status).toBe(204);
+    const file = join(tmp, 'melodies', 'demo.json');
+    expect(readFileSync(file, 'utf8')).toBe(canonicalMelody(m as Melody));
+    expect((await call('GET', '/api/melodies/demo')).body.toString()).toBe(readFileSync(file, 'utf8'));
+  });
+
+  it('refuses a melody that is not valid, or under another song; writes only from this machine', async () => {
+    const m = { version: 1, song: 'demo', notes: [[1, 2, 60, 80]] };
+    const before = existsSync(join(tmp, 'melodies', 'other.json'));
+    const bad = await call('PUT', '/api/melodies/demo', JSON.stringify({ ...m, notes: [[2, 1, 60, 80]] }));
+    expect(bad.status).toBe(400);
+    expect(json(bad).errors[0].path).toBe('notes[0]');
+    const other = await call('PUT', '/api/melodies/other', JSON.stringify(m));
+    expect(other.status).toBe(400);
+    expect(json(other).errors[0].path).toBe('song');
+    expect(existsSync(join(tmp, 'melodies', 'other.json'))).toBe(before);
+    expect((await call('PUT', '/api/melodies/demo', '{oops')).status).toBe(400);
+    expect((await call('PUT', '/api/melodies/..', JSON.stringify(m))).status).toBe(400);
+    expect((await call('PUT', '/api/melodies/demo', JSON.stringify(m), { remote: '192.168.1.5' })).status).toBe(403);
+  });
+
+  it('a melodies folder of its own when one is given', async () => {
+    const own = join(tmp, 'own-melodies'), mw2 = apiMiddleware({ songs, shows, melodies: own });
+    const m = { version: 1, song: 'demo', notes: [] };
+    await new Promise<void>((done) => {
+      const req = Object.assign(new EventEmitter(), { method: 'PUT', url: '/api/melodies/demo', headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+      const res = { writeHead() { return this; }, end() { done(); }, write() { return true; }, on() { return this; }, once() { return this; }, emit() { return true; } };
+      mw2(req as never, res as never, () => {});
+      setTimeout(() => { req.emit('data', Buffer.from(JSON.stringify(m))); req.emit('end'); }, 0);
+    });
+    expect(existsSync(join(own, 'demo.json'))).toBe(true);
   });
 
   it('passes everything else on', async () => {

@@ -1,0 +1,1469 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knob over time</title>
+<style>
+/* The studio: the lab's dark palette and knob rows, set like a concert programme (serif names, quiet controls),
+   so nothing competes with the picture. Section colours are muted hues hashed from each section's bottom widget. */
+:root {
+  --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --on: #b43a2a;
+  --panel: #0d0a0d; --raised: #1b171b; --card: #110e11; --hover: #5a4b4f;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--hover); }
+button:disabled { opacity: 0.4; cursor: default; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+a { color: var(--fg); text-decoration-color: #e9e2da55; text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--fg); }
+code { font-size: 0.92em; background: #1b171b; border-radius: 4px; padding: 1px 5px; }
+.dim { color: var(--dim); }
+.small { font-size: 12px; }
+.err { color: #ff8a7a; font-size: 12px; }
+[hidden] { display: none !important; }
+svg { display: block; }
+
+button.icon { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; background: transparent; border-color: transparent; color: var(--dim); }
+button.icon:hover:not(:disabled) { color: var(--fg); border-color: var(--line); }
+button.icon svg { width: 19px; height: 19px; }
+button.primary { background: var(--on); border-color: var(--on); color: #fff3ee; }
+button.primary:hover:not(:disabled) { background: #c4452f; border-color: #c4452f; }
+button.link { background: none; border: none; padding: 2px 0; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+button.link:hover { color: var(--fg); }
+
+/* ---- Frame ------------------------------------------------------------------------------------------------- */
+.app {
+  display: grid; height: 100vh; height: 100dvh;
+  grid-template: "top top" auto "work panel" minmax(0, 1fr) / minmax(0, 1fr) clamp(320px, 28vw, 400px);
+}
+.top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.songs-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 8px; color: var(--dim); background: transparent; }
+.songs-btn svg { width: 18px; height: 18px; }
+.songs-btn:hover { color: var(--fg); }
+.title { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.title .composer { color: var(--dim); font-size: 13px; letter-spacing: 0.02em; white-space: nowrap; }
+.title h1 { margin: 0; font: 400 21px/1.2 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.save { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.save-state { color: var(--dim); font-size: 12.5px; margin-right: 6px; white-space: nowrap; }
+.save-state.dirty { color: #f0c2b4; }
+.save-state.dirty::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--on); margin-right: 7px; vertical-align: 1px; }
+
+.work { grid-area: work; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 14px; min-height: 0; min-width: 0; }
+.stage { position: relative; flex: 1 1 auto; min-height: 160px; background: #000; border-radius: 6px; overflow: hidden; display: grid; }
+#c { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }   /* min 0: a grid item would not shrink below its 16:9 size, and a short stage cropped it */
+.stage:fullscreen { border-radius: 0; }
+.unhide { position: absolute; right: 14px; bottom: 14px; background: #000a; color: var(--dim); border-color: #e9e2da30; font-size: 12.5px; }
+@media (pointer: coarse) { .key-hint { display: none; } }   /* no keyboard to press it on */
+
+.transport { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.play { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border-radius: 50%; background: var(--fg); border: none; color: #08070a; flex: none; }
+.play svg { width: 22px; height: 22px; }
+.play:hover:not(:disabled) { background: #fff; }
+.clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.now { font: italic 16px/1.2 var(--serif); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.spacer { flex: 1; }
+
+/* Export: the menu over the transport, the REC indicator while the song records. */
+.export { position: relative; }
+.export-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 9px; background: transparent; color: var(--dim); }
+.export-btn:hover:not(:disabled) { color: var(--fg); }
+.export-btn svg { width: 18px; height: 18px; }
+.export-menu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 20; width: min(340px, calc(100vw - 24px)); display: grid; gap: 10px;
+  padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px #000a; }
+.export-menu p { margin: 0; }
+.menu-title { font: 400 18px/1.2 var(--serif); }
+.presets { display: grid; gap: 4px; margin: 0; padding: 0; border: none; }
+.presets legend { padding: 0; margin-bottom: 4px; }
+.presets label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+.presets input { accent-color: var(--on); margin: 0; transform: translateY(1px); }
+.export-menu code { display: inline-block; white-space: nowrap; margin-top: 3px; }
+.rec-go { text-align: left; }
+.rec-size { display: block; font-size: 12px; opacity: 0.8; }
+.rec-ind { display: inline-flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0402c; box-shadow: 0 0 0 3px #e0402c33; animation: rec-pulse 1.2s ease-in-out infinite; }
+.rec-ind.paused .rec-dot { animation: none; background: var(--dim); box-shadow: none; }
+.rec-ind button { padding: 4px 10px; font-size: 12.5px; }
+@keyframes rec-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot { animation: none; } }
+.recording .timeline-host { opacity: 0.6; pointer-events: none; }
+
+.notices { display: grid; gap: 6px; }
+.notices:empty { display: none; }
+.notice { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; background: #140f12; border: 1px solid var(--line); border-left: 3px solid #5b6f8a; border-radius: 5px; font-size: 13px; }
+.notice.warn { border-left-color: #c99a3c; }
+.notice.error { border-left-color: #d0503c; }
+.notice-text { flex: 1; min-width: 0; }
+.notice button:not(.icon) { padding: 3px 10px; font-size: 12.5px; }
+.notice button.icon { width: 26px; height: 26px; }
+
+/* ---- Timeline ---------------------------------------------------------------------------------------------- */
+.timeline { position: relative; user-select: none; -webkit-user-select: none; }
+.scrub { position: relative; height: 48px; background: #0d0a0d; border-radius: 5px 5px 0 0; cursor: pointer; touch-action: none; }
+.wave { display: block; width: 100%; height: 100%; }
+.ghost { position: absolute; top: 0; bottom: 0; width: 1px; background: #e9e2da40; pointer-events: none; display: none; }
+.scrub:hover .ghost { display: block; }
+.band { position: relative; height: 46px; margin-top: 2px; }
+.sec {
+  position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  /* No padding or border of its own: a block is exactly as wide as its section, however short (the text clips). */
+  padding: 0; min-width: 0; border: none; border-radius: 0; text-align: left; overflow: hidden;
+  background: hsl(var(--hue, 0) 16% 12%); color: var(--fg); box-shadow: inset 1px 0 0 var(--bg);
+}
+.sec:first-child { border-radius: 0 0 0 5px; }
+.sec:hover:not(:disabled) { background: hsl(var(--hue, 0) 20% 16%); }
+.sec.on { background: hsl(var(--hue, 0) 24% 18%); box-shadow: inset 1px 0 0 var(--bg), inset 0 0 0 1.5px var(--on); }
+.sec.empty { background: repeating-linear-gradient(135deg, #120e11 0 6px, #0d0a0d 6px 12px); }
+.sec-name { padding: 0 8px; font: italic 14px/1.15 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-cast { padding: 0 8px; font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.handle { position: absolute; top: -6px; bottom: -4px; width: 24px; margin-left: -12px; cursor: ew-resize; touch-action: none; z-index: 2; }
+.handle::after { content: ""; position: absolute; left: 11px; top: 6px; bottom: 4px; width: 2px; background: #e9e2da38; border-radius: 1px; }
+.handle::before { content: ""; position: absolute; left: 8px; top: 18px; width: 8px; height: 16px; border-radius: 3px; background: #2a2428; border: 1px solid #5a4b4f; opacity: 0; }
+.handle:hover::after, .handle.drag::after { background: var(--fg); }
+.handle:hover::before, .handle.drag::before, .handle.near::before { opacity: 1; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; pointer-events: none; z-index: 3; box-shadow: 0 0 6px #fff6; }
+.tip { position: absolute; top: -28px; transform: translateX(-50%); padding: 2px 7px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: #241b20; border: 1px solid #3a2c31; border-radius: 4px; pointer-events: none; z-index: 4; }
+
+/* ---- Panel ------------------------------------------------------------------------------------------------- */
+.panel-host { grid-area: panel; min-height: 0; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); overscroll-behavior: contain; }
+.panel { padding: 0 16px 28px; }
+.tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 18px; padding: 12px 0 0; background: var(--panel); border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs button { background: none; border: none; border-radius: 0; padding: 4px 0 9px; font: 17px/1.2 var(--serif); color: var(--dim); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--on); }
+.panel h3 { font: 600 13px/1.3 var(--sans); margin: 20px 0 8px; color: var(--fg); }
+.panel h3 .dim { font-weight: 400; margin-left: 6px; }
+.panel p { margin: 6px 0; }
+
+.sec-nav { display: flex; align-items: center; gap: 4px; font-size: 12.5px; margin-left: -8px; }
+.sec-nav button.icon { width: 26px; height: 26px; font-size: 18px; line-height: 1; }
+.sec-label { width: 100%; margin: 2px 0 0; padding: 2px 0 3px; font: 400 24px/1.2 var(--serif); background: transparent; border: none; border-bottom: 1px dashed transparent; border-radius: 0; }
+.sec-label:hover { border-bottom-color: var(--line); }
+.sec-label:focus { outline: none; border-bottom-color: var(--dim); }
+.sec-label::placeholder { color: #5f5650; font-style: italic; }
+.sec-time { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 13px; margin: 2px 0 12px !important; }
+.sec-where { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; color: var(--dim); font-size: 12.5px; margin: -6px 0 12px !important; }
+.sec-where[hidden] { display: none; }
+.sec-where button { font-size: 12.5px; padding: 2px 9px; }
+.sec-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sec-actions button { font-size: 13px; padding: 5px 11px; }
+.fade { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-top: 16px; font-size: 13px; color: var(--dim); }
+.fade span { grid-column: 1 / -1; }
+.fade input { width: 100%; accent-color: var(--on); margin: 0; }
+.fade output { color: var(--fg); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+
+.layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.layer { border: 1px solid var(--line); border-left: 3px solid hsl(var(--hue, 0) 34% 44%); border-radius: 6px; background: var(--card); padding: 6px 6px 6px 10px; min-width: 0; }
+.layer.open { background: #160f13; border-color: #3a2c31; border-left-color: hsl(var(--hue, 0) 44% 54%); padding-bottom: 12px; }
+.layer.none { border-left-color: var(--line); color: var(--dim); font-size: 13px; padding: 10px 12px; }
+.layer-head { display: flex; align-items: center; gap: 2px; }
+.layer-name { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; background: none; border: none; padding: 4px 0; text-align: left; }
+.layer-name b { font-weight: 600; }
+.layer .swatch { display: none; }
+.layer-tools { display: flex; flex: none; }
+.layer-tools button.icon { width: 28px; height: 28px; font-size: 14px; }
+.layer .blurb { color: var(--dim); font-size: 13px; margin: 2px 4px 8px 0; }
+.layer > p.small { margin: 0 0 2px; }
+.layer .link { font-size: 12.5px; margin-top: 10px; }
+
+.add { width: 100%; margin: 0 0 8px; padding: 9px; background: transparent; border: 1px dashed #3a3035; color: var(--dim); }
+.add:hover { color: var(--fg); }
+.picker { margin: 0 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.picker h4 { font: italic 15px/1.3 var(--serif); color: var(--dim); margin: 14px 0 6px; }
+.picker ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pick { width: 100%; display: grid; gap: 2px; text-align: left; background: var(--card); padding: 8px 10px; }
+.pick-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; }
+.pick .swatch { width: 9px; height: 9px; border-radius: 2px; background: hsl(var(--hue, 0) 40% 50%); align-self: center; }
+.pick .blurb { color: var(--dim); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.describe { width: 100%; resize: vertical; min-height: 120px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; font: 15px/1.5 var(--serif); }
+.describe:focus { outline: none; border-color: var(--dim); }
+.row-end { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--dim); }
+.facts dd { margin: 0; }
+.errs { padding-left: 18px; color: #ff8a7a; font-size: 12.5px; }
+
+/* The lab's tags and knob rows (lab/index.html), unchanged in look. */
+.tag { display: inline-block; font-size: 10.5px; line-height: 1; padding: 3px 6px 3px; border-radius: 9px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.tag.v-love { color: #c8f0d2; background: #1d4a2b; }
+.tag.v-keep { color: #cfe0f5; background: #213a5c; }
+.tag.v-work { color: #f7deb0; background: #5a3e12; }
+.tag.v-drop { color: #ffb9ab; background: #3a1a1c; }
+.tag.v-none { color: #b9b0a7; background: #2a2428; font-weight: 500; }
+.tag.v-rev { color: #f7deb0; background: transparent; border: 1px solid #5a3e12; font-weight: 500; }
+.params { margin-top: 4px; display: grid; gap: 9px; }
+.prm { position: relative; font-size: 12px; color: var(--dim); }
+.prm .top { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 6px; align-items: center; }
+.prm .name { color: var(--fg); min-width: 0; line-height: 1.2; }
+.prm .info { padding: 0 6px; font-size: 11px; line-height: 16px; border-radius: 50%; color: var(--dim); font-style: italic; font-family: Georgia, serif; }
+.prm .row { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; align-items: center; margin-top: 3px; }
+.prm.plain { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name sel' 'slider slider'; gap: 1px 6px; align-items: center; }
+.prm.plain .name { grid-area: name; color: var(--dim); } .prm.plain select { grid-area: sel; } .prm.plain input { grid-area: slider; }
+.prm input { width: 100%; accent-color: var(--on); margin: 0; }
+.prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; max-width: 124px; }
+.prm canvas { display: block; width: 40px; height: 26px; border-radius: 3px; background: #0a080a; }
+.prm canvas.live { background: #241b20; box-shadow: 0 0 0 1px #3a2c31; }
+.prm .hint { display: none; color: #cbbfb4; font-size: 12px; line-height: 1.4; padding: 4px 0 0 46px; }
+.prm.open .hint { display: block; }
+@media (hover: hover) {
+  .prm:not(.open):hover .hint { display: block; position: absolute; z-index: 5; left: 46px; right: 0; bottom: 100%; margin-bottom: 4px;
+    padding: 6px 8px; background: #241b20; border: 1px solid #3a2c31; border-radius: 5px; box-shadow: 0 4px 14px #000a; }
+}
+
+/* ---- Poster and empty state --------------------------------------------------------------------------------- */
+.poster { position: absolute; inset: 0; display: grid; place-items: center; background: #000; z-index: 2; padding: 20px; }
+.poster-inner { display: grid; justify-items: center; gap: 12px; background: none; border: none; color: var(--fg); text-align: center; max-width: 60ch; }
+button.poster-inner:hover .poster-play { border-color: var(--fg); }
+.poster .composer { color: var(--dim); font-size: 14px; letter-spacing: 0.04em; }
+.poster-title { font: 400 clamp(26px, 4vw, 54px)/1.1 var(--serif); }
+.poster-play { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 9px 22px 9px 16px; border: 1px solid #e9e2da55; border-radius: 999px; font-size: 15px; }
+.poster-play svg { width: 20px; height: 20px; }
+.poster.empty h2 { margin: 0; font: 400 clamp(26px, 3.4vw, 44px)/1.15 var(--serif); }
+.poster.empty p { color: var(--dim); margin: 0; line-height: 1.6; }
+.poster.empty .links { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+.no-song .transport, .no-song .timeline-host, .no-song .panel-host { display: none; }
+.no-song .app { grid-template: "top" auto "work" minmax(0, 1fr) / 1fr; }
+.fatal { margin: 20px; color: #ff8a7a; }
+
+/* ---- Library ----------------------------------------------------------------------------------------------- */
+.library { position: fixed; inset: 0; z-index: 50; }
+.library-scrim { position: absolute; inset: 0; background: #000b; }
+.library-sheet { position: absolute; left: 0; top: 0; bottom: 0; width: min(400px, 92vw); display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px 18px; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.library-sheet header { display: flex; align-items: center; justify-content: space-between; }
+.library-sheet h2 { margin: 0; font: 400 22px/1.2 var(--serif); }
+.songs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.song { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); text-decoration: none; }
+.song:hover { border-color: var(--hover); }
+.song.on { border-color: var(--on); background: #1d1013; }
+.song-title { display: grid; }
+.song-title .composer { color: var(--dim); font-size: 12.5px; }
+.song-title .piece { font: 400 18px/1.25 var(--serif); }
+.song-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.badge { padding: 2px 7px; border-radius: 9px; background: #2a2428; color: #cfc6bc; font-size: 11px; }
+.badge.n-gpu, .badge.n-file { background: #1d3a26; color: #c8f0d2; }
+.badge.n-approx, .badge.n-merged { background: #4a3412; color: #f7deb0; }
+.badge.n-hybrid, .badge.n-ymt3, .badge.n-bp-hybrid { background: #1d3a26; color: #c8f0d2; }
+.badge.show-own { background: #213a5c; color: #cfe0f5; }
+/* Adding a recording: the picker, the progress, and the whole page as a drop zone. */
+.add-song { display: grid; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.add-btn { justify-self: start; display: inline-flex; align-items: center; padding: 7px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); cursor: pointer; font-size: 14px; }
+.add-btn:hover, .add-btn:focus-within { border-color: var(--hover); }
+.add-btn:focus-within { outline: 2px solid var(--on); outline-offset: 2px; }
+.add-btn.busy { opacity: 0.5; pointer-events: none; }
+.add-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.add-how { margin: 0; line-height: 1.5; }
+.adding { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+.adding[hidden] { display: none; }
+.adding-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.adding-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 16px/1.3 var(--serif); }
+.adding-msg { margin: 0; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.bar { height: 4px; border-radius: 2px; background: #2a2428; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--on); transition: width 0.3s; }
+.drop-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #08070ad9; border: 2px dashed #e9e2da55; pointer-events: none; }
+.drop-overlay[hidden] { display: none; }
+.drop-overlay div { display: grid; gap: 8px; text-align: center; padding: 16px; }
+.drop-title { font: 400 clamp(26px, 4vw, 44px)/1.15 var(--serif); }
+.library-sheet footer { margin-top: auto; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; }
+.library-sheet footer .dim { font-size: 12px; }
+
+/* ---- Hidden controls, full screen, resting cursor --------------------------------------------------------- */
+.ui-hidden .top, .ui-hidden .transport, .ui-hidden .notices, .ui-hidden .timeline-host, .ui-hidden .panel-host { display: none; }
+.ui-hidden .app { grid-template: "work" minmax(0, 1fr) / 1fr; }
+.ui-hidden .work { padding: 0; }
+.ui-hidden .stage { border-radius: 0; }
+.idle, .idle * { cursor: none !important; }
+
+/* ---- Narrow screens: one column, the picture first ------------------------------------------------------ */
+@media (max-width: 900px) {
+  .app { height: auto; min-height: 100dvh; grid-template: "top" auto "work" auto "panel" auto / minmax(0, 1fr); }
+  .ui-hidden .app { height: 100dvh; }
+  .ui-hidden .stage { aspect-ratio: auto; height: 100dvh; }
+  .top { position: sticky; top: 0; z-index: 10; background: var(--bg); gap: 8px; padding: 8px 12px; }
+  .title { flex-direction: column; gap: 0; }
+  .title h1 { font-size: 18px; }
+  .title .composer { font-size: 11.5px; }
+  .songs-btn span, .save-state { display: none; }
+  .save-state.dirty { display: inline; font-size: 0; margin: 0; }
+  .save-state.dirty::before { margin: 0; }
+  .work { padding: 0 0 10px; gap: 8px; }
+  .stage { flex: none; aspect-ratio: 16 / 9; min-height: 0; border-radius: 0; }
+  .transport, .notices, .timeline-host { padding: 0 12px; }
+  .panel-host { border-left: none; border-top: 1px solid var(--line); overflow: visible; }
+  .panel { padding: 0 12px 28px; }
+  .tabs { top: var(--top-h, 60px); }
+  .handle:not(.near) { display: none; }
+  .sec-cast { display: none; }
+  .now { font-size: 15px; }
+  .export-menu { position: fixed; left: 12px; right: 12px; bottom: 12px; width: auto; }
+  .export-btn { padding: 6px 9px; }
+}
+@media (max-width: 420px) {
+  .save button.icon { width: 30px; }
+  .save .primary { padding: 6px 10px; font-size: 13px; }
+}
+.short { display: none; }
+@media (max-width: 520px) { .long { display: none; } .short { display: inline; } }
+.no-song .save { visibility: hidden; }
+
+/* ---- Intensity lanes (lanes.ts): under the sections strip ---------------------------------------------------- */
+.tl-top { position: relative; }   /* the song-wide strips and their playhead */
+.lanes { margin-top: 8px; }
+.lanes-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 28px; font-size: 12.5px; color: var(--dim); }
+.lanes-title { font: italic 14px/1.2 var(--serif); color: var(--fg); margin-right: 2px; }
+.lanes-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lanes-seg button { border: none; border-radius: 0; padding: 3px 9px; font-size: 12px; background: transparent; color: var(--dim); }
+.lanes-seg button + button { border-left: 1px solid var(--line); }
+.lanes-seg button[aria-pressed="true"] { background: var(--raised); color: var(--fg); }
+.lanes-toggle { padding: 3px 9px 3px 22px; font-size: 12px; position: relative; background: transparent; color: var(--dim); }
+.lanes-toggle::before { content: ""; position: absolute; left: 8px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 2px; border: 1px solid #5a4b4f; }
+.lanes-toggle[aria-pressed="true"] { color: var(--fg); }
+.lanes-toggle[aria-pressed="true"]::before { background: var(--on); border-color: var(--on); }
+.lanes-hint { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.lanes-spacer { flex: 1 1 0; }
+.lanes-presets { padding: 3px 10px; font-size: 12px; color: var(--fg); }
+.lanes-presets:disabled { color: #5a4f4a; cursor: default; }
+.lanes-presets::after { content: " ▾"; color: var(--dim); }
+.lanes-body { position: relative; margin-top: 6px; }
+.lanes-list { display: flex; flex-direction: column; gap: 2px; }
+.lanes-empty { margin: 0; padding: 6px 0; color: var(--dim); font-size: 12.5px; }
+.lane { position: relative; height: 18px; background: #0d0a0d; border-radius: 3px; overflow: hidden; box-shadow: inset 2px 0 0 hsl(var(--hue, 0) 40% 46%); }
+.lane canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+.lane:not(.open):hover { background: #140f13; }
+.lane.open { height: 56px; background: #120c10; box-shadow: inset 2px 0 0 hsl(var(--hue, 0) 55% 58%), inset 0 0 0 1px #3a2c31; }
+.lane.open canvas { cursor: crosshair; touch-action: none; }   /* a collapsed lane still lets a phone scroll */
+.lane.open canvas:focus { outline: none; }
+.lane.open canvas:focus-visible { outline: 1px solid #e9e2da60; outline-offset: -1px; }
+.lane.open canvas.dragging { cursor: grabbing !important; }
+.lane-name { position: absolute; left: 5px; top: 2px; padding: 0 4px; border-radius: 3px; background: #0d0a0dd0; font-size: 10.5px; line-height: 14px;
+  color: var(--dim); pointer-events: none; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
+.lane.open .lane-name { top: 3px; background: #120c10d0; color: hsl(var(--hue, 0) 40% 78%); font-size: 11px; z-index: 0; transition: opacity 0.15s; }
+/* In the open lane the curve and its pivots draw over the name, which fades while the pointer is in the lane. */
+.lane.open canvas { position: relative; z-index: 1; }
+.lane.open:hover .lane-name { opacity: 0.35; }
+.lanes-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fffc; pointer-events: none; z-index: 2; box-shadow: 0 0 5px #fff5; }
+.lanes-tip { position: absolute; transform: translate(-50%, calc(-100% - 4px)); padding: 2px 7px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: #241b20; border: 1px solid #3a2c31; border-radius: 4px; pointer-events: none; z-index: 4; color: var(--fg); }
+.lane-menu { position: fixed; z-index: 50; min-width: 220px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 12px 32px #000a; font-size: 13px; }
+.lane-menu-title { padding: 4px 8px 6px; font: italic 14px/1.2 var(--serif); color: var(--dim); }
+.lane-menu button { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 14px; padding: 5px 8px; text-align: left;
+  background: transparent; border: none; border-radius: 4px; color: var(--fg); }
+.lane-menu button:hover:not(:disabled), .lane-menu button:focus-visible { background: var(--raised); outline: none; }
+.lane-menu button:disabled { color: #5a4f4a; cursor: default; }
+.lane-menu button[aria-checked="true"] .lm-label::before { content: "● "; color: var(--on); }
+.lm-note { color: var(--dim); font-size: 11.5px; white-space: nowrap; }
+.lane-menu-foot { padding: 6px 8px 2px; margin-top: 4px; border-top: 1px solid var(--line); color: var(--dim); font-size: 11.5px; }
+@media (max-width: 760px) { .lanes-hint { display: none; } }
+
+/* The open layer's "Listens to", "Where" and "Intensity" (layer-controls.ts), under its knobs, in the panel's quiet
+   programme style. */
+.lc { display: grid; gap: 2px; margin-top: 14px; }
+.lc [hidden] { display: none !important; }
+.lc-part { border-top: 1px solid var(--line); padding: 10px 0 4px; min-width: 0; }
+.lc-part h4 { margin: 0 0 7px; font: italic 15px/1.2 var(--serif); color: var(--fg); }
+.lc select, .lc input[type="number"] { background: var(--raised); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font: 12.5px/1.2 var(--sans); padding: 3px 4px; }
+.lc input[type="number"] { width: 4.2em; }
+.lc input[type="range"] { accent-color: var(--on); margin: 0; min-width: 0; }
+.lc output { color: var(--fg); font-size: 12px; font-variant-numeric: tabular-nums; }
+.lc .small { font-size: 12.5px; }
+.lc p { margin: 6px 0 0; color: var(--dim); line-height: 1.4; }
+.lc p.warn { color: #f7deb0; }
+.lc .link { font-size: 12.5px; margin-top: 0; }
+
+.lc-listen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.lc-listen select { flex: 1 1 150px; min-width: 0; max-width: 100%; }
+.lc-spark { width: 120px; height: 14px; flex: none; background: #0a080a; border-radius: 2px; }
+
+.lc-seg { display: flex; width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lc-seg button { flex: 1 1 0; min-width: 0; border: none; border-radius: 0; background: transparent; color: var(--dim); padding: 6px 4px; font-size: 12.5px; white-space: nowrap; }
+.lc-seg button + button { border-left: 1px solid var(--line); }
+.lc-seg button:hover:not(:disabled) { color: var(--fg); background: #1b171b; }
+.lc-seg button[aria-pressed="true"] { color: var(--fg); background: #2a1a1c; box-shadow: inset 0 -2px 0 var(--on); }
+
+.lc-region { display: grid; gap: 6px; margin-top: 8px; justify-items: start; }
+.lc-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; font-size: 12.5px; color: var(--dim); }
+.lc-row select { justify-self: start; max-width: 100%; }
+.lc-row input[type="range"] { width: 100%; }
+.lc-row output { min-width: 5.5em; }
+.lc-check { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg); }
+.lc-check input { accent-color: var(--on); margin: 0; }
+.lc-hint { border-left: 2px solid #5a3e12; padding-left: 8px; }
+
+.lc-curve { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 8px !important; }
+.lc-presets { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 6px 8px; font-size: 12.5px; color: var(--dim); }
+.lc-p { display: contents; }
+.lc-p > button { text-align: left; padding: 4px 8px; font-size: 12.5px; color: var(--fg); }
+.lc-p > span { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.lc-p input[type="number"] { width: 3.2em; }
+.lc-p input[type="range"] { width: 64px; }
+
+/* ---- The new bits. Everything else on this page is the studio's own CSS, inlined unchanged. ---- */
+
+/* The pill: only on the row the pointer or focus is on. It sits on the divider above the slider's right end, in empty space, so nothing shifts. */
+/* The row keeps its four cells: the pill shares the name's cell. */
+.prm .top { position: relative; z-index: auto; background: none; }
+.prm .top > canvas { grid-column: 1; grid-row: 1; }
+.prm .top > .name { grid-column: 2; grid-row: 1; }
+.prm .top > .info, .prm .top > span:not(.name) { grid-column: 3; grid-row: 1; }
+.prm .top > select { grid-column: 4; grid-row: 1; }
+.prm .row { position: relative; }
+.prm .pill { position: absolute; z-index: 3; right: 46px; top: -14px; padding: 0 8px 1px; font-size: 11px; line-height: 15px; border-radius: 9px;
+  background: #241b20; border: 1px solid #5a4b4f; color: var(--fg); white-space: nowrap; visibility: hidden; }
+.prm:focus-within .pill { visibility: visible; }
+@media (hover: hover) { .prm:hover .pill { visibility: visible; } }   /* a touch screen has no hover: a tap on the row gives it focus */
+.prm .pill:hover { background: #33262c; border-color: hsl(var(--hue, 0) 70% 60%); }
+.prm:focus { outline: none; }
+.dragging .prm .hint { display: none !important; }
+
+.prm .slot { min-width: 0; }
+
+/* The two handles. A handle's position is --v over the same travel a range input's thumb has. */
+.mv { position: relative; height: 26px; touch-action: none; cursor: pointer; --ring: hsl(var(--hue, 0) 80% 64%); }
+.mv-rail, .mv-fill, .mv-span { position: absolute; top: 11px; height: 4px; border-radius: 2px; pointer-events: none; }
+.mv-rail { left: 0; right: 0; background: #3a3236; }
+.mv-span { background: hsl(var(--hue, 0) 60% 50% / 0.28); }
+.mv-fill { background: linear-gradient(90deg, hsl(var(--hue, 0) 70% 40% / 0.35), var(--ring)); }
+.mv-fill.rev { background: linear-gradient(270deg, hsl(var(--hue, 0) 70% 40% / 0.35), var(--ring)); }
+.mv-th { position: absolute; top: 5px; width: 16px; height: 16px; margin-left: -8px; padding: 0; border-radius: 50%; left: calc(8px + (100% - 16px) * var(--v)); cursor: grab; touch-action: none; }
+.mv-th::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; }   /* a finger-sized hit area */
+.mv-th:hover:not(:disabled) { border-color: #fff; }
+.mv-th.from { background: #160f13; border: 3px solid var(--ring); }
+.mv-th.to { background: var(--ring); border: none; }
+.mv-now { position: absolute; top: 3px; width: 2px; height: 20px; margin-left: -1px; left: calc(8px + (100% - 16px) * var(--v)); background: #fff; border-radius: 1px; box-shadow: 0 0 5px #fff8; pointer-events: none; z-index: 2; }
+.mv-next { position: absolute; top: -4px; width: 0; height: 0; margin-left: -4px; left: calc(8px + (100% - 16px) * var(--v)); border: 4px solid transparent; border-top: 6px solid var(--fg); pointer-events: none; }
+.mv-caps { position: relative; height: 13px; margin: -3px 46px 0; font-size: 10.5px; line-height: 13px; color: var(--dim); }
+.mv-caps span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.mv-say { display: flex; align-items: center; gap: 5px; padding: 3px 0 0 46px; color: #cbbfb4; flex-wrap: wrap; }
+.mv-say canvas { width: 28px; height: 18px; background: #0a080a; }
+.mv-how { background: none; border: none; padding: 1px 0; font-size: 12px; color: #cbbfb4; text-decoration: underline dotted #8d8379; text-underline-offset: 3px; }
+.mv-how::after { content: " ▾"; color: var(--dim); text-decoration: none; display: inline-block; margin-left: 2px; }
+.mv-how:hover { color: var(--fg); }
+.mv-sp { flex: 1 1 auto; }
+.mv-draw { background: none; border: none; padding: 1px 2px; font-size: 12px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+.mv-draw:hover { color: var(--fg); }
+.mv-x { width: 22px; height: 22px; padding: 0; background: none; border: 1px solid transparent; color: var(--dim); font-size: 12px; }
+.mv-x:hover:not(:disabled) { color: var(--fg); border-color: var(--line); }
+.mv-note { padding: 2px 0 0 46px; color: var(--dim); font-size: 11.5px; line-height: 1.4; }
+.mv-note button { background: none; border: none; padding: 0; font-size: 11.5px; color: var(--fg); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.mv-next-word { display: inline-block; width: 0; height: 0; border: 4px solid transparent; border-top: 6px solid var(--fg); vertical-align: -3px; margin: 0 1px; }
+.prm.shaping { box-shadow: -6px 0 0 -4px hsl(var(--hue, 0) 70% 60%); }
+.lane-menu svg { flex: none; width: 26px; height: 14px; }
+.lane-menu button.shape { justify-content: flex-start; gap: 9px; align-items: center; }
+
+/* The knob's lane: its two pictures are the scale. The canvas draws over them. */
+.lane-pics { position: absolute; left: 11px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 2px 0; pointer-events: none; opacity: 0.8; }
+.lane-pics canvas { width: 30px; height: 19px; background: #0a080acc; border-radius: 2px; }
+.lane.knob.open .lane-name { left: 46px; }
+.lane.knob.open canvas.draw { position: relative; z-index: 1; }
+.lane canvas.draw { display: block; width: 100%; height: 100%; }
+.lane.knob:not(.open) { box-shadow: inset 2px 0 0 hsl(var(--hue, 0) 40% 46%), inset 12px 0 0 -10px transparent; }
+
+/* The small wedge on a section block that has a moving knob. */
+.sec-moves { position: absolute; right: 2px; bottom: 2px; width: 0; height: 0; border-style: solid; border-width: 0 0 9px 16px; border-color: transparent transparent hsl(46 80% 62%) transparent; pointer-events: none; }
+
+/* The mockup's own guide: dashed, so it does not read as part of the design. */
+.try { position: absolute; left: 10px; top: 10px; z-index: 3; width: 292px; max-width: calc(100% - 20px); padding: 8px 10px; background: #0d0a0de8; border: 1px dashed #5a4b4f; border-radius: 6px; font-size: 12px; color: #cbbfb4; }
+.try summary { cursor: pointer; font: italic 14px/1.3 var(--serif); color: var(--fg); }
+.try ol { margin: 6px 0 4px; padding-left: 18px; display: grid; gap: 3px; }
+.try li.done { color: var(--dim); text-decoration: line-through; }
+.try pre { margin: 6px 0 0; padding: 6px; max-height: 190px; overflow: auto; background: #000; border: 1px solid var(--line); border-radius: 4px; font: 10.5px/1.35 ui-monospace, Consolas, monospace; color: #cbbfb4; white-space: pre-wrap; word-break: break-word; }
+.try .row-try { display: flex; gap: 8px; align-items: center; }
+.try .row-try button { padding: 2px 8px; font-size: 11.5px; }
+@media (max-width: 900px) {
+  .try { width: auto; right: 10px; }
+  .mv-th::before { inset: -11px; }
+}
+
+/* The bar stays one line: the hint gives way first. */
+.lanes-hint { flex: 1 1 0; }
+.lanes-spacer { display: none; }
+/* Phone header: the title may not run under the buttons. */
+@media (max-width: 900px) { .title { flex: 1 1 0; overflow: hidden; } .title h1 { font-size: 16px; } .save { flex: none; margin-left: 0; } .lanes-spacer { display: block; } }
+
+</style></head><body>
+<script>
+'use strict';
+(() => {
+// ---- small things -------------------------------------------------------------------------------------------------
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x), clamp01 = (v) => (v > 0 ? (v < 1 ? v : 1) : 0);
+const ms = (t) => Math.round(t * 1000) / 1000, r4 = (v) => Math.round(v * 1e4) / 1e4;
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const clock = (s) => { s = Math.max(0, s); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
+const stamp = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? '0' : ''}${s.toFixed(2)}`; };
+const pct = (v) => `${Math.round(v * 100)} %`;
+
+/** lab/layers/automation.js, verbatim: the curve's value at song time t. */
+const automationAt = (p, t) => {
+  if (!p || p.length === 0) return 1;
+  const n = p.length;
+  if (t <= p[0].t) return clamp01(p[0].v);
+  if (t >= p[n - 1].t) return clamp01(p[n - 1].v);
+  let a = 0, b = n - 1;
+  while (b - a > 1) { const k = (a + b) >> 1; if (p[k].t <= t) a = k; else b = k; }
+  const P = p[a], q = p[a + 1];
+  if (q.t === P.t) return clamp01(q.v);
+  let u = (t - P.t) / (q.t - P.t);
+  const shape = P.shape;
+  if (shape === 'hold') return clamp01(P.v);
+  if (shape === 'ease') u = u * u * (3 - 2 * u);
+  else if (P.bend) u = Math.pow(u, Math.pow(2, -3 * P.bend));
+  return clamp01(P.v + (q.v - P.v) * u);
+};
+
+// ---- the widgets' knobs and pictures (lab/tools/flee.js, squares.js) --------------------------------------------------
+const ICON = {
+  ink: '#e9e2da', dim: '#6d635b', red: '#c43a2c',
+  rng(seed = 1) { let s = (seed * 2654435761) >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); },
+  dot(g, x, y, r, col = ICON.ink) { g.fillStyle = col; g.beginPath(); g.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); g.fill(); },
+  square(g, x, y, s, col = ICON.ink) { g.fillStyle = col; g.fillRect(x - s / 2, y - s / 2, s, s); },
+  rect(g, x, y, w, h, col = ICON.ink) { g.fillStyle = col; g.fillRect(x, y, w, h); },
+  line(g, x1, y1, x2, y2, col = ICON.ink, lw = 1.5) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); },
+};
+const TYPES = ['dot', 'oval', 'ring', 'crescent', 'tear', 'comma', 'chevron', 'needle'];
+const PALETTES = [
+  [[352, 70, 20], [8, 90, 42], [32, 100, 58], [52, 100, 90]],
+  [[228, 60, 22], [205, 85, 45], [188, 100, 66], [180, 80, 94]],
+  [[25, 10, 24], [32, 14, 50], [38, 28, 76], [44, 60, 96]],
+  [[275, 60, 20], [312, 85, 44], [342, 100, 64], [40, 100, 88]],
+];
+function ramp(pal, h, a = 1) {
+  const P = PALETTES[pal], f = Math.max(0, Math.min(0.999, h)) * 3, i = Math.floor(f), k = f - i, A = P[i], B = P[i + 1];
+  let dh = B[0] - A[0]; if (dh > 180) dh -= 360; if (dh < -180) dh += 360;
+  return `hsla(${(A[0] + dh * k).toFixed(0)},${(A[1] + (B[1] - A[1]) * k).toFixed(0)}%,${(A[2] + (B[2] - A[2]) * k).toFixed(0)}%,${a})`;
+}
+const EMB = (h, a = 1) => ramp(0, h, a);
+function mini(g, type, x, y, s, col) {
+  const r = s / 2; g.save(); g.translate(x, y); g.fillStyle = col; g.strokeStyle = col; g.beginPath();
+  if (type === 'dot') { g.arc(0, 0, r * 0.7, 0, Math.PI * 2); g.fill(); }
+  else if (type === 'oval') { g.ellipse(0, 0, r, r * 0.6, 0, 0, Math.PI * 2); g.fill(); }
+  else if (type === 'ring') { g.lineWidth = 1.6; g.ellipse(0, 0, r * 0.85, r * 0.62, 0, 0, Math.PI * 2); g.stroke(); }
+  else if (type === 'crescent') {
+    g.rect(-r - 2, -r - 2, 2 * r + 4, 2 * r + 4); g.arc(-r * 0.5, 0, r * 0.85, 0, Math.PI * 2, true); g.clip('evenodd');
+    g.beginPath(); g.arc(0, 0, r * 0.9, 0, Math.PI * 2); g.fill();
+  } else if (type === 'tear') { g.arc(r * 0.35, 0, r * 0.45, -Math.PI / 2, Math.PI / 2); g.quadraticCurveTo(-r * 0.2, r * 0.35, -r, 0); g.quadraticCurveTo(-r * 0.2, -r * 0.35, r * 0.35, -r * 0.45); g.fill(); }
+  else if (type === 'comma') { for (let i = 6; i >= 0; i--) { const t = i / 6; g.beginPath(); g.arc(r * 0.4 - r * 1.2 * t, r * 0.55 * t * t, r * 0.32 * (1 - t) + 0.5, 0, Math.PI * 2); g.fill(); } }
+  else if (type === 'chevron') { g.moveTo(r * 0.85, 0); g.lineTo(-r * 0.5, -r * 0.7); g.lineTo(-r * 0.15, 0); g.lineTo(-r * 0.5, r * 0.7); g.closePath(); g.fill(); }
+  else { g.moveTo(r, 0); g.lineTo(r * 0.1, -r * 0.26); g.lineTo(-r, 0); g.lineTo(r * 0.1, r * 0.26); g.closePath(); g.fill(); }
+  g.restore();
+}
+const WIDGETS = {
+  flee: { name: 'Skittish shapes', tag: 'you: love', hue: 46,
+    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them.',
+    params: [
+      { key: 'mix', label: 'round or sharp shapes', min: 0, max: 1, value: 0.45,
+        hint: 'Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles.',
+        icon: (g, v, w, h) => { const c = Math.round(v * 7), col = EMB(0.62); [-1, 0, 1].forEach((d, i) => mini(g, TYPES[clamp(c + d, 0, 7)], 7 + i * 13, h / 2, i === 1 ? 15 : 11, col)); } },
+      { key: 'exp', label: 'how sudden the bolt', min: 1, max: 5, step: 0.1, value: 3,
+        hint: 'How a shape speeds up once it flees. Left: a steady glide away. Right: it creeps, then shoots off.',
+        icon: (g, v, w, h) => { const e = 1 + v * 4, x0 = 4, y0 = h - 4, W = w - 9, Hh = h - 8; ICON.line(g, x0, y0, x0 + W, y0, ICON.dim, 1);
+          g.strokeStyle = EMB(0.6); g.lineWidth = 1.6; g.beginPath();
+          for (let i = 0; i <= 24; i++) { const t = i / 24; i ? g.lineTo(x0 + t * W, y0 - Math.pow(t, e) * Hh) : g.moveTo(x0, y0); }
+          g.stroke(); ICON.dot(g, x0 + W, y0 - Hh, 2.2, EMB(0.9)); } },
+      { key: 'twitch', label: 'how jumpy', min: 0, max: 1, value: 0.25, drive: '+rate',
+        hint: 'How nervous they are. Left: calm, smooth paths. Right: constant flinches and sudden swerves.',
+        icon: (g, v, w, h) => { const R = ICON.rng(4), amp = 0.4 + v * 7; g.strokeStyle = EMB(0.5); g.lineWidth = 1.4; g.beginPath();
+          for (let i = 0; i <= 9; i++) { const x = 4 + i * (w - 10) / 9, y = h / 2 + (i % 2 ? 1 : -1) * amp * (0.4 + 0.6 * R()); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+          g.stroke(); ICON.dot(g, w - 5, h / 2, 2.6, EMB(0.85)); } },
+      { key: 'streak', label: 'trail length', min: 0, max: 3, value: 0.8, drive: '+rate',
+        hint: 'How far a fleeing shape smears behind itself. Left: no trail, only the shape. Right: long streaks of light.',
+        icon: (g, v, w, h) => { const hx = w - 7, y = h / 2, L = v * (w - 12);
+          if (L > 1) { const gr = g.createLinearGradient(hx, 0, hx - L, 0); gr.addColorStop(0, EMB(0.75, 0.9)); gr.addColorStop(1, EMB(0.2, 0));
+            g.fillStyle = gr; g.beginPath(); g.moveTo(hx, y - 3.5); g.lineTo(hx - L, y - 0.4); g.lineTo(hx - L, y + 0.4); g.lineTo(hx, y + 3.5); g.fill(); }
+          mini(g, 'oval', hx, y, 9, EMB(0.9)); } },
+      { key: 'pal', label: 'colours', min: 0, max: 3, step: 1, value: 0,
+        hint: 'The colours, from cool and dark when still to hot and bright when fleeing. Left: ember. Then ice, bone, and right: venom.',
+        icon: (g, v, w, h) => { const pal = Math.round(v * 3), n = 10, sw = (w - 6) / n; for (let i = 0; i < n; i++) ICON.rect(g, 3 + i * sw, 5, Math.ceil(sw), h - 10, ramp(pal, i / (n - 1))); } },
+    ] },
+  squares: { name: 'Dread squares', tag: 'you: love', hue: 8,
+    blurb: 'Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred.',
+    params: [
+      { key: 'size', label: 'size', min: 0.3, max: 2, value: 1, hint: 'How big the squares are. Left: small tiles. Right: huge slabs.',
+        icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * (h - 4), ICON.red) },
+      { key: 'life', label: 'how long they stay', min: 0.3, max: 4, value: 1.4, hint: 'How long a square stays. Left: a blink. Right: lingers for seconds.',
+        icon: (g, v, w, h) => { g.fillStyle = ICON.red; for (let i = 0; i < 8; i++) { g.globalAlpha = 1 - i / (1 + v * 8); if (g.globalAlpha > 0) g.fillRect(4 + i * 4, 6, 3, h - 12); } g.globalAlpha = 1; } },
+    ] },
+};
+const metaOf = (id) => WIDGETS[id] || { name: id, tag: '', hue: { rorschach: 262, casket: 342, marbling: 300, murmuration: 192, current: 172 }[id] ?? 226, blurb: '', params: [] };
+const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
+  ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
+  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less']];
+const driveWord = (d) => (DRIVES.find((x) => x[0] === d) || ['', 'fixed'])[1];
+
+// ---- the show (sections from the Rachmaninoff show; the music features are fake) ------------------------------------
+const DUR = 232.107;
+const initial = { version: 1, song: 'rach-prelude-recording', sections: [
+  { start: 0, end: 12.4, label: 'The bells', layers: [{ widget: 'squares', knobs: { size: 1.5 } }] },
+  { start: 12.4, end: 84.45, label: 'Dread', layers: [{ widget: 'rorschach' }, { widget: 'squares', knobs: { size: 1.5 } }] },
+  { start: 84.45, end: 103.934, label: 'Agitato', layers: [{ widget: 'squares', listen: 'bassline' }, { widget: 'flee', knobs: { mix: 0.15 } }] },
+  { start: 103.934, end: 115.9, label: 'Agitato', layers: [{ widget: 'squares', listen: 'bassline' }, { widget: 'flee', knobs: { mix: 0.15 } }, { widget: 'marbling' }] },
+  { start: 115.9, end: 125.8, label: 'The crescendo', layers: [{ widget: 'flee', knobs: { mix: 0.15 } }] },
+  { start: 125.8, end: 130.198, label: 'The casket', layers: [{ widget: 'rorschach', knobs: { spatter: 2 } }, { widget: 'squares', knobs: { size: 1.5 } }, { widget: 'casket' }] },
+  { start: 130.198, end: 178.65, label: 'The casket', layers: [{ widget: 'rorschach', knobs: { spatter: 2 } }, { widget: 'squares', knobs: { size: 1.5 } }] },
+  { start: 178.65, end: 208.5, label: 'Return', layers: [{ widget: 'murmuration' }] },
+  { start: 208.5, end: DUR, label: 'Afterword', layers: [{ widget: 'current' }] },
+] };
+let show = JSON.parse(JSON.stringify(initial));
+let savedAs = JSON.stringify(show);
+const ui = { section: 2, layer: 1, lane: null /* null: the open layer's intensity; else a knob key */, mode: 'section', snap: true };
+let now = 84.45, playing = false, lastFrame = 0;
+let preview = null;   // {widget, key, v}: while a handle or pivot is held, the picture shows that value
+let dirty = true, drag = null;
+
+const instKey = (l) => `${l.widget}|${l.listen || ''}`;
+const sectionAt = (t) => { let k = 0; show.sections.forEach((s, i) => { if (s.start <= t) k = i; }); return k; };
+const beats = []; for (let t = 0.4; t < DUR; t += 0.72) beats.push(ms(t));
+
+/** Fake music, a pure function of time, as the real features are of the song: the tick and the picture wobble with it. */
+const features = (t) => {
+  const busy = t > 84 && t < 126 ? 1 : 0.55;
+  const rate = clamp01(busy * (0.46 + 0.27 * Math.sin(t * 1.7) + 0.17 * Math.sin(t * 0.43 + 2) + 0.1 * Math.sin(t * 5.3)));
+  const level = clamp01(0.5 + 0.3 * Math.sin(t * 0.9 + 1) + 0.15 * Math.sin(t * 3.1));
+  const pitch = clamp01(0.5 + 0.35 * Math.sin(t * 0.6 + 0.4)), bass = clamp01(0.4 + 0.4 * Math.sin(t * 1.1 + 2)), density = clamp01(0.5 + 0.4 * Math.sin(t * 0.77));
+  return { rate, level, pitch, bass, density };
+};
+
+// ---- knobs: the design's maths ---------------------------------------------------------------------------------------
+const norm = (q, x) => (q.max > q.min ? (x - q.min) / (q.max - q.min) : 0);
+const denorm = (q, v) => q.min + v * (q.max - q.min);
+const snapV = (q, v) => { if (!q.step) return v; const n = Math.round((q.max - q.min) / q.step); return n <= 12 ? Math.round(v * n) / n : v; };
+const knobState = (q, setting) => {
+  const s = { base: q.value, drive: q.drive ?? '', depth: 0.5 };
+  if (typeof setting === 'number') s.base = setting;
+  else if (setting && typeof setting === 'object') Object.assign(s, setting);
+  return s;
+};
+/** Today's settingOf, plus the one thing it must not lose: a curve keeps the object form. Without a curve: today's bytes. */
+const settingOf = (q, s) => {
+  const driveDefault = s.drive === (q.drive ?? ''), depthDefault = s.depth === 0.5;
+  if (!s.curve && driveDefault && depthDefault) return s.base === q.value ? null : s.base;
+  const out = { base: s.base, drive: s.drive };
+  if (!depthDefault) out.depth = s.depth;
+  if (s.curve) out.curve = s.curve;
+  return out;
+};
+/** knobValue with its base replaced by the line: the same drive term, the same clamp. */
+const restingAt = (q, s, t) => (s.curve && s.curve.length ? denorm(q, automationAt(s.curve, t)) : s.base);
+const knobValue = (q, s, f, t) => {
+  let v = restingAt(q, s, t);
+  if (s.drive) v += (s.drive[0] === '+' ? 1 : -1) * s.depth * (q.max - q.min) * (f[s.drive.slice(1)] - (s.drive.endsWith('pitch') ? 0.5 : 0));
+  return Math.max(q.min, Math.min(q.max, v));
+};
+
+const curSec = () => show.sections[ui.section];
+const layerAt = (i, k) => show.sections[i]?.layers[k];
+const stateOf = (i, k, q) => knobState(q, layerAt(i, k)?.knobs?.[q.key]);
+const writeKnob = (i, k, q, s) => {
+  const l = layerAt(i, k), v = settingOf(q, s);
+  if (v === null) { if (l.knobs) { delete l.knobs[q.key]; if (!Object.keys(l.knobs).length) delete l.knobs; } }
+  else { l.knobs = l.knobs || {}; l.knobs[q.key] = v; }
+  show.version = show.sections.some((x) => x.layers.some((y) => Object.values(y.knobs || {}).some((z) => z && z.curve))) ? 2 : 1;
+  dirty = true;
+};
+/** The knob q of widget in the section playing at t, as the widget gets it now. */
+const valueAtPlay = (widget, q, t) => {
+  if (preview && preview.widget === widget && preview.key === q.key) return denorm(q, preview.v);
+  const l = show.sections[sectionAt(t)].layers.find((x) => x.widget === widget);
+  return knobValue(q, knobState(q, l?.knobs?.[q.key]), features(t), t);
+};
+
+// ---- undo: one step per gesture ----------------------------------------------------------------------------------------
+const hist = { undo: [], redo: [] }; let pending = null;
+const begin = () => { if (pending === null) pending = JSON.stringify(show); };
+const end = () => {
+  if (pending === null) return;
+  const now_ = JSON.stringify(show);
+  if (now_ !== pending) { hist.undo.push(pending); hist.redo.length = 0; }
+  pending = null; refresh();
+};
+const once = (fn) => { begin(); fn(); end(); };
+const undo = () => { if (!hist.undo.length) return; hist.redo.push(JSON.stringify(show)); show = JSON.parse(hist.undo.pop()); afterJump(); done('undo'); };
+const redo = () => { if (!hist.redo.length) return; hist.undo.push(JSON.stringify(show)); show = JSON.parse(hist.redo.pop()); afterJump(); };
+const afterJump = () => { preview = null; dirty = true; refresh(); };
+
+// ---- the frame ---------------------------------------------------------------------------------------------------------
+const ICONS = {
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>',
+  full: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  hide: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 15h17" stroke="currentColor" stroke-width="1.6"/></svg>',
+  undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16M5 11.5h9a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16M19 11.5h-9a5 5 0 0 0 0 10h2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  songs: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.6"/></svg>',
+  export: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M15.5 10.5 20.5 8v8l-5-2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+};
+document.body.innerHTML = `<div class="app">
+  <header class="top">
+    <button type="button" class="songs-btn">${ICONS.songs}<span>Songs</span></button>
+    <div class="title"><h1>Rachmaninoff: Prelude in C♯ minor</h1></div>
+    <div class="save"><span class="save-state" data-state></span>
+      <button type="button" class="icon" data-undo aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled>${ICONS.undo}</button>
+      <button type="button" class="icon" data-redo aria-label="Redo (Ctrl+Shift+Z)" title="Redo (Ctrl+Shift+Z)" disabled>${ICONS.redo}</button>
+      <button type="button" class="primary" data-save disabled><span class="long">Save show</span><span class="short">Save</span></button></div>
+  </header>
+  <main class="work">
+    <div class="stage"><canvas id="c"></canvas>
+      <details class="try" open><summary>Try it (mockup: the picture is fake)</summary>
+        <ol>
+          <li data-s="pill">Point at <b>trail length</b>, click <b>↗ over time</b></li>
+          <li data-s="drag">Drag the ring (start) and the dot (end)</li>
+          <li data-s="play">Press play: the white tick and the picture follow</li>
+          <li data-s="lane">Click <b>Draw it</b>, then drag or add a pivot</li>
+          <li data-s="undo">Undo, then remove it with <b>✕</b></li>
+        </ol>
+        <div class="row-try"><button type="button" data-json>Saved JSON</button><span class="dim small" data-size></span></div>
+        <pre data-pre hidden></pre>
+      </details>
+    </div>
+    <div class="transport">
+      <button type="button" class="play" data-play aria-label="Play">${ICONS.play}</button>
+      <span class="clock"><span data-clock>0:00</span> <span class="dim">/ ${clock(DUR)}</span></span>
+      <span class="now" data-now></span><span class="spacer"></span>
+      <div class="export"><button type="button" class="export-btn">${ICONS.export}<span class="long">Export</span></button></div>
+      <button type="button" class="icon">${ICONS.hide}</button><button type="button" class="icon">${ICONS.full}</button>
+    </div>
+    <div class="timeline-host"><div class="timeline">
+      <div class="tl-top"><div class="scrub" data-scrub title="Click or drag to move the playhead"><canvas class="wave"></canvas></div>
+        <div class="band" data-band role="listbox" aria-label="Sections"></div><div class="playhead" data-head></div></div>
+      <div class="lanes-host"><div class="lanes">
+        <div class="lanes-bar"><span class="lanes-title" data-ltitle>Intensity</span>
+          <span class="lanes-seg" role="group"><button type="button" data-mode="section">This section</button><button type="button" data-mode="show">Whole show</button></span>
+          <button type="button" class="lanes-toggle" data-snapb>Snap to beats</button>
+          <span class="lanes-hint" data-hint></span><span class="lanes-spacer"></span>
+          <button type="button" class="lanes-presets" data-presets aria-haspopup="menu">Presets</button></div>
+        <div class="lanes-body"><div class="lanes-list" data-list></div><div class="lanes-head" data-lhead hidden></div><div class="lanes-tip" data-ltip hidden></div></div>
+      </div></div>
+    </div></div>
+  </main>
+  <aside class="panel-host" data-panelhost><div class="panel" data-panel></div></aside>
+</div>`;
+
+// ---- timeline ---------------------------------------------------------------------------------------------------------
+const hueOfSec = (s) => metaOf(s.layers[0]?.widget).hue;
+const act = (t) => { const x = Math.abs(Math.sin(t * 0.21) * 0.5 + Math.sin(t * 1.3 + 1) * 0.28 + Math.sin(t * 5.1) * 0.12); const lift = t > 84 && t < 130 ? 0.3 : 0; return clamp01(0.18 + x * 0.75 + lift); };
+function drawWave() {
+  const cv = $('.wave'), dpr = devicePixelRatio || 1, w = cv.clientWidth || 1, h = cv.clientHeight || 1;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const H = h - 8;
+  for (let x = 0; x < w; x++) {
+    const t = (x / w) * DUR, s = show.sections[sectionAt(t)], a = act(t) * (H / 2 - 1);
+    g.fillStyle = `hsl(${hueOfSec(s)} 34% 42%)`;
+    g.fillRect(x, H / 2 - a, 1, a * 2);
+    if ((x * 7919) % 5 < 3) { g.fillStyle = '#e9e2da30'; g.fillRect(x, H + 2, 1, 5); }
+  }
+}
+const scrub = $('[data-scrub]');
+const tAt = (x) => { const r = scrub.getBoundingClientRect(); return clamp((x - r.left) / r.width, 0, 1) * DUR; };
+scrub.addEventListener('pointerdown', (e) => { scrub.setPointerCapture(e.pointerId); seek(tAt(e.clientX)); scrub._d = true; });
+scrub.addEventListener('pointermove', (e) => { if (scrub._d) seek(tAt(e.clientX)); });
+scrub.addEventListener('pointerup', () => { scrub._d = false; });
+function seek(t) { now = clamp(t, 0, DUR); dirty = true; }
+
+function buildBand() {
+  const band = $('[data-band]');
+  band.innerHTML = '';
+  show.sections.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = `sec${i === ui.section ? ' on' : ''}`; b.style.setProperty('--hue', hueOfSec(s));
+    b.style.left = `${(s.start / DUR) * 100}%`; b.style.width = `${((s.end - s.start) / DUR) * 100}%`;
+    const moving = s.layers.flatMap((l) => Object.entries(l.knobs || {}).filter(([, v]) => v && v.curve).map(([k]) => {
+      const q = metaOf(l.widget).params.find((p) => p.key === k); return `${metaOf(l.widget).name}: ${q?.label ?? k} changes here`; }));
+    b.innerHTML = `<span class="sec-name">${esc(s.label)}</span><span class="sec-cast">${esc(s.layers.map((l) => metaOf(l.widget).name).reverse().join(', '))}</span>${moving.length ? `<i class="sec-moves" title="${esc(moving.join('; '))}"></i>` : ''}`;
+    if (moving.length) b.title = moving.join('; ');
+    b.addEventListener('click', () => selectSection(i));
+    band.append(b);
+  });
+}
+function selectSection(i) {
+  const keep = curSec().layers[ui.layer] && instKey(curSec().layers[ui.layer]);
+  ui.section = i;
+  const k = show.sections[i].layers.findIndex((l) => instKey(l) === keep);
+  ui.layer = k >= 0 ? k : null;
+  if (ui.lane && !(ui.layer !== null && knobCurve(ui.section, ui.layer, ui.lane))) ui.lane = null;
+  panelKey = ''; laneKey = ''; refresh();
+}
+const knobCurve = (i, k, key) => { const v = layerAt(i, k)?.knobs?.[key]; return v && v.curve; };
+
+// ---- icons ------------------------------------------------------------------------------------------------------------
+function drawIcon(cv, q, v) {
+  const dpr = devicePixelRatio || 1;
+  if (cv.width !== Math.round(40 * dpr)) { cv.width = Math.round(40 * dpr); cv.height = Math.round(26 * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, 40, 26); g.save();
+  g.fillStyle = g.strokeStyle = ICON.ink; g.lineWidth = 1.5; g.lineCap = 'round'; g.lineJoin = 'round';
+  if (q.icon) q.icon(g, clamp01(v), 40, 26);
+  g.restore();
+}
+
+// ---- panel ------------------------------------------------------------------------------------------------------------
+const body = $('[data-panel]'), panelHost = $('[data-panelhost]');
+let panelKey = '', rows = [];
+
+const parts = (l) => {
+  const p = []; if (l.listen) p.push(`hears ${l.listen === 'bassline' ? 'the bass line' : l.listen}`);
+  const moves = metaOf(l.widget).params.filter((q) => l.knobs?.[q.key]?.curve).map((q) => q.label);
+  if (moves.length) p.push(`${moves.join(', ')} change${moves.length > 1 ? '' : 's'}`);
+  return p.join(' · ');
+};
+
+function buildPanel() {
+  const sec = curSec(), i = ui.section;
+  rows = [];
+  body.innerHTML = `<div class="tabs" role="tablist"><button type="button" aria-selected="true">Section</button><button type="button" aria-selected="false">Show</button></div>
+    <div class="sec-nav dim"><button type="button" class="icon" data-prev ${i ? '' : 'disabled'}>‹</button><span>Section ${i + 1} of ${show.sections.length}</span><button type="button" class="icon" data-next ${i < show.sections.length - 1 ? '' : 'disabled'}>›</button></div>
+    <input class="sec-label" value="${esc(sec.label)}" aria-label="Section name" readonly>
+    <p class="sec-time">${clock(sec.start)} – ${clock(sec.end)} (${Math.round(sec.end - sec.start)} s)</p>
+    <p class="sec-where" hidden><span></span><button type="button" data-goto>Go to this section</button></p>
+    <div class="sec-actions"><button type="button" title="Not in this mockup">Split at playhead</button><button type="button" title="Not in this mockup">Merge with next</button></div>
+    <label class="fade"><span>Widgets leaving here fade out over</span><input type="range" min="0" max="8" step="0.5" value="3" aria-label="Fade"><output>3 s</output></label>
+    <h3>Layers <span class="dim">top first, as you see them</span></h3>
+    <button type="button" class="add" title="Not in this mockup">Add a widget on top</button>
+    <ol class="layers"></ol>`;
+  $('[data-prev]', body).onclick = () => selectSection(i - 1);
+  $('[data-next]', body).onclick = () => selectSection(i + 1);
+  $('[data-goto]', body).onclick = () => seek(curSec().start);
+  const list = $('.layers', body);
+  for (let k = sec.layers.length - 1; k >= 0; k--) {
+    const l = sec.layers[k], m = metaOf(l.widget), open = ui.layer === k;
+    const li = document.createElement('li');
+    li.className = `layer${open ? ' open' : ''}`; li.style.setProperty('--hue', m.hue); li.dataset.k = k;
+    const changed = Object.keys(l.knobs ?? {}).length;
+    li.innerHTML = `<div class="layer-head"><button type="button" class="layer-name" aria-expanded="${open}"><b>${esc(m.name)}</b>${m.tag ? `<span class="tag v-love">${m.tag}</span>` : ''}<span class="layer-parts dim small">${esc(parts(l))}</span></button>
+        <span class="layer-tools"><button type="button" class="icon" title="Not in this mockup">↑</button><button type="button" class="icon" title="Not in this mockup">↓</button><button type="button" class="icon" title="Not in this mockup">✕</button></span></div>
+      ${open ? `<p class="blurb">${esc(m.blurb)}</p><div class="params"></div>
+        <button type="button" class="link" data-defaults ${changed ? '' : 'hidden'}>Back to the widget's own settings</button>
+        <div class="lc"><div class="lc-part"><h4>Listens to</h4><div class="lc-listen"><select aria-label="Listens to"><option>${l.listen === 'bassline' ? 'The bass line' : 'The whole song'}</option></select></div></div>
+        <div class="lc-part"><h4>Where</h4><div class="lc-seg"><button type="button" aria-pressed="true">Whole picture</button><button type="button">Small copy</button><button type="button">Mask</button></div></div></div>`
+        : (changed ? `<p class="dim small">${changed} knob${changed > 1 ? 's' : ''} changed</p>` : '')}`;
+    $('.layer-name', li).onclick = () => { ui.layer = open ? null : k; ui.lane = null; panelKey = ''; laneKey = ''; refresh(); };
+    const def = $('[data-defaults]', li);
+    if (def) def.onclick = () => once(() => { delete layerAt(i, k).knobs; ui.lane = null; });
+    if (open) {
+      const box = $('.params', li);
+      if (!m.params.length) box.innerHTML = '<p class="dim small">This mockup only has the knobs of Skittish shapes and Dread squares.</p>';
+      for (const q of m.params) { const r = knobRow(q, i, k); rows.push(r); box.append(r.el); }
+    }
+    list.append(li);
+  }
+  syncPanel();
+}
+
+const SHAPES = [
+  { id: 'steady', word: 'steadily', menu: 'Steadily', apply: (p) => { delete p.shape; delete p.bend; }, match: (p) => !p.shape && !p.bend, d: 'M1 13 L25 1' },
+  { id: 'slowfast', word: 'slow, then fast', menu: 'Slow, then fast', apply: (p) => { delete p.shape; p.bend = -0.5; }, match: (p) => !p.shape && p.bend === -0.5, d: 'M1 13 C14 13 20 9 25 1' },
+  { id: 'fastslow', word: 'fast, then slow', menu: 'Fast, then slow', apply: (p) => { delete p.shape; p.bend = 0.5; }, match: (p) => !p.shape && p.bend === 0.5, d: 'M1 13 C6 5 12 1 25 1' },
+  { id: 'smooth', word: 'smooth at both ends', menu: 'Smooth at both ends', apply: (p) => { delete p.bend; p.shape = 'ease'; }, match: (p) => p.shape === 'ease', d: 'M1 13 C10 13 16 1 25 1' },
+];
+const shapeWord = (c) => {
+  if (c.length !== 2) return null;
+  return SHAPES.find((s) => s.match(c[0])) || null;
+};
+
+function knobRow(q, i, k) {
+  const m = metaOf(layerAt(i, k).widget);
+  const el = document.createElement('div');
+  el.className = 'prm'; el.dataset.p = q.key; el.tabIndex = -1;
+  const select = `<select data-sel aria-label="${esc(q.label)}: what it follows">${DRIVES.map(([d, w]) => `<option value="${d}">${esc(w)}</option>`).join('')}</select>`;
+  el.innerHTML = `<div class="top"><canvas class="live" data-i="live"></canvas><span class="name">${esc(q.label)}</span>${q.hint ? '<button type="button" class="info" data-info aria-label="what is this?">i</button>' : '<span></span>'}${select}</div>
+    <div class="row"><button type="button" class="pill" title="Let it change through this section">↗ over time</button><canvas data-i="0"></canvas><div class="slot"></div><canvas data-i="1"></canvas></div>
+    <div class="moved"></div>${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}`;
+  drawIcon($('[data-i="0"]', el), q, 0); drawIcon($('[data-i="1"]', el), q, 1);
+  $('[data-info]', el)?.addEventListener('click', () => el.classList.toggle('open'));
+  const live = $('[data-i="live"]', el), slot = $('.slot', el), moved = $('.moved', el), sel = $('[data-sel]', el);
+  sel.addEventListener('change', () => once(() => { const s = stateOf(i, k, q); s.drive = sel.value; writeKnob(i, k, q, s); }));
+  $('.pill', el).addEventListener('click', () => {
+    once(() => {
+      const s = stateOf(i, k, q), sp = show.sections[i], v = r4(norm(q, s.base));
+      let e = r4(snapV(q, v <= 0.5 ? v + 0.25 : v - 0.25));
+      if (e === v) e = r4(snapV(q, v <= 0.5 ? v + 2 * 0.25 : v - 2 * 0.25));
+      s.curve = [{ t: sp.start, v }, { t: sp.end, v: e }];
+      writeKnob(i, k, q, s);
+    });
+    done('pill');
+    $('.prm[data-p="' + q.key + '"] .mv-th.to', body)?.focus({ preventScroll: true });
+  });
+
+  let mode = null, input = null, tEls = null;
+  const buildPlain = () => {
+    mode = 'plain'; moved.innerHTML = ''; tEls = null;
+    slot.innerHTML = `<input type="range" aria-label="${esc(q.label)}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}">`;
+    input = $('input', slot);
+    input.addEventListener('pointerdown', () => begin());
+    input.addEventListener('keydown', () => begin());
+    input.addEventListener('input', () => { const s = stateOf(i, k, q); s.base = Number(input.value); writeKnob(i, k, q, s); preview = { widget: layerAt(i, k).widget, key: q.key, v: norm(q, s.base) }; syncPanel(); });
+    input.addEventListener('change', () => { preview = null; end(); });
+  };
+  const buildMoved = () => {
+    mode = 'moved'; input = null;
+    slot.innerHTML = `<div class="mv"><i class="mv-rail"></i><i class="mv-span" hidden></i><i class="mv-fill"></i><i class="mv-next" hidden></i>
+      <button type="button" class="mv-th from" role="slider" aria-label="${esc(q.label)} at the start of the section" title="At the section's start"></button>
+      <button type="button" class="mv-th to" role="slider" aria-label="${esc(q.label)} at the end of the section" title="At the section's end"></button><i class="mv-now" hidden></i></div>`;
+    moved.innerHTML = `<div class="mv-caps"><span data-c="0">start</span><span data-c="1">end</span></div>
+      <div class="mv-say"><canvas data-w="0"></canvas><span class="dim">→</span><canvas data-w="1"></canvas>
+        <button type="button" class="mv-how" aria-haspopup="menu"></button><span class="mv-sp"></span><button type="button" class="mv-draw">Draw it</button>
+        <button type="button" class="mv-x" title="Back to one value" aria-label="Stop changing: back to one value">✕</button></div>
+      <div class="mv-note"></div>`;
+    const mv = $('.mv', slot);
+    tEls = { mv, from: $('.from', mv), to: $('.to', mv), now: $('.mv-now', mv), fill: $('.mv-fill', mv), span: $('.mv-span', mv), next: $('.mv-next', mv),
+      caps: [...moved.querySelectorAll('[data-c]')], how: $('.mv-how', moved), draw: $('.mv-draw', moved), note: $('.mv-note', moved),
+      pics: [$('[data-w="0"]', moved), $('[data-w="1"]', moved)] };
+    wireHandles(q, i, k, tEls, moved);
+    tEls.how.addEventListener('click', () => { const r = tEls.how.getBoundingClientRect(); openShapeMenu(q, i, k, r.left, r.bottom + 4); });
+    tEls.draw.addEventListener('click', () => { ui.lane = q.key; laneKey = ''; refresh(); });
+    $('.mv-x', moved).addEventListener('click', () => {
+      once(() => { const s = stateOf(i, k, q); delete s.curve; writeKnob(i, k, q, s); if (ui.lane === q.key) ui.lane = null; });
+      laneKey = ''; done('remove');
+    });
+  };
+  const row = { el, q, k, i,
+    sync() {
+      const s = stateOf(i, k, q), c = s.curve;
+      if (c && mode !== 'moved') buildMoved(); else if (!c && mode !== 'plain') buildPlain();
+      $('.pill', el).hidden = !!c;
+      sel.value = s.drive;
+      el.classList.toggle('shaping', ui.lane === q.key);
+      if (mode === 'plain') { if (Number(input.value) !== s.base) input.value = String(s.base); }
+      else syncHandles(q, i, k, s, tEls);
+    },
+    tick() {
+      const sp = show.sections[i], here = now >= sp.start && now < sp.end, s = stateOf(i, k, q);
+      const held = preview && preview.widget === layerAt(i, k).widget && preview.key === q.key;
+      const v = held ? denorm(q, preview.v) : here ? knobValue(q, s, features(now), now) : restingAt(q, s, sp.start);
+      drawIcon(live, q, norm(q, v));
+      if (mode === 'moved' && tEls) { tEls.now.hidden = !here; if (here) tEls.now.style.setProperty('--v', norm(q, knobValue(q, s, features(now), now))); }
+    },
+  };
+  row.sync();
+  return row;
+}
+
+/** What happens at the end of this section, for this knob: the next section's starting value, if it continues there. */
+function boundary(q, i, k) {
+  const sp = show.sections[i], l = layerAt(i, k), n = show.sections[i + 1];
+  const nk = n ? n.layers.findIndex((x) => instKey(x) === instKey(l)) : -1;
+  if (nk < 0) return { continues: false };
+  const ns = stateOf(i + 1, nk, q), startV = ns.curve ? automationAt(ns.curve, n.start) : norm(q, ns.base);
+  return { continues: true, nk, startV, joined: Math.abs(startV - automationAt(stateOf(i, k, q).curve, sp.end)) < 0.005 };
+}
+
+function syncHandles(q, i, k, s, T) {
+  const c = s.curve, a = c[0].v, b = c[c.length - 1].v;
+  T.from.style.setProperty('--v', a); T.to.style.setProperty('--v', b);
+  T.from.setAttribute('aria-valuenow', a); T.to.setAttribute('aria-valuenow', b);
+  const pos = (v) => `calc(8px + (100% - 16px) * ${v})`;
+  T.fill.style.left = pos(Math.min(a, b)); T.fill.style.right = `calc(100% - (8px + (100% - 16px) * ${Math.max(a, b)}))`;
+  T.fill.classList.toggle('rev', b < a);
+  let lo = 1, hi = 0; for (const p of c) { lo = Math.min(lo, p.v); hi = Math.max(hi, p.v); }
+  const inner = c.length > 2 && (lo < Math.min(a, b) - 1e-3 || hi > Math.max(a, b) + 1e-3);
+  T.span.hidden = !inner; if (inner) { T.span.style.left = pos(lo); T.span.style.right = `calc(100% - (8px + (100% - 16px) * ${hi}))`; }
+  // captions pushed apart when the handles are close; one message when letting go would make them one
+  const W = T.mv.clientWidth || 200, xa = 8 + (W - 16) * a, xb = 8 + (W - 16) * b, gap = 34;
+  const near = drag && drag.kind === 'handle' && c.length === 2 && Math.abs(a - b) < 0.02;
+  const mid = (xa + xb) / 2, sign = xa <= xb ? 1 : -1, wide = Math.abs(xa - xb) >= gap;
+  T.caps[0].textContent = near ? 'let go: one value' : 'start'; T.caps[1].textContent = near ? '' : 'end';
+  T.caps[0].style.left = `${near ? mid : wide ? xa : mid - sign * gap / 2}px`; T.caps[1].style.left = `${wide ? xb : mid + sign * gap / 2}px`;
+  drawIcon(T.pics[0], q, a); drawIcon(T.pics[1], q, b);
+  const sh = shapeWord(c);
+  T.how.textContent = sh ? sh.word : 'your own line';
+  T.draw.hidden = ui.lane === q.key;
+  // the two truths nobody would guess: the music still pushes it, and what happens at the boundary
+  const B = boundary(q, i, k);
+  T.next.hidden = !(B.continues && !B.joined);
+  if (!T.next.hidden) T.next.style.setProperty('--v', B.startV);
+  const push = `Over this section. ${s.drive ? `“${esc(driveWord(s.drive))}” still pushes it. ` : ''}`;
+  const edge = !B.continues ? 'It holds its end value as it fades out.'
+    : B.joined ? 'The next section carries on from here.'
+    : `The next section starts at <i class="mv-next-word"></i>. <button type="button" data-carry>Carry on from here</button>`;
+  const html = push + edge;
+  if (T.note._h !== html) {
+    T.note._h = html; T.note.innerHTML = html;
+    $('[data-carry]', T.note)?.addEventListener('click', () => carryOn(q, i, k));
+  }
+}
+
+function carryOn(q, i, k) {
+  once(() => {
+    const B = boundary(q, i, k), n = show.sections[i + 1], v = automationAt(stateOf(i, k, q).curve, show.sections[i].end);
+    const s = stateOf(i + 1, B.nk, q);
+    if (s.curve) s.curve[0].v = r4(v); else s.base = Math.round(denorm(q, v) * 1e4) / 1e4;
+    writeKnob(i + 1, B.nk, q, s); void n;
+  });
+}
+
+function wireHandles(q, i, k, T) {
+  const vAt = (x) => { const r = T.mv.getBoundingClientRect(); return clamp01((x - r.left - 8) / (r.width - 16)); };
+  const setEnd = (which, v) => {
+    const s = stateOf(i, k, q), c = s.curve;
+    (which === 0 ? c[0] : c[c.length - 1]).v = r4(snapV(q, v));
+    writeKnob(i, k, q, s);
+    preview = { widget: layerAt(i, k).widget, key: q.key, v: (which === 0 ? c[0] : c[c.length - 1]).v };
+  };
+  const finish = () => {
+    const s = stateOf(i, k, q), c = s.curve;
+    preview = null; drag = null; document.body.classList.remove('dragging');
+    // dragged together: there is no change left, so one handle again, at that value
+    if (c && c.length === 2 && Math.abs(c[0].v - c[1].v) < 0.02) {
+      const nb = Math.round(denorm(q, c[1].v) * 1e4) / 1e4; if (Math.abs(nb - s.base) > (q.max - q.min) * 0.002) s.base = nb; delete s.curve; writeKnob(i, k, q, s);
+      if (ui.lane === q.key) ui.lane = null; laneKey = '';
+      done('remove');
+    }
+    end();
+  };
+  const start = (e, which) => {
+    e.preventDefault(); e.stopPropagation();
+    T.mv.setPointerCapture(e.pointerId);
+    begin(); drag = { kind: 'handle', which }; document.body.classList.add('dragging');
+    setEnd(which, vAt(e.clientX)); done('drag', which); refresh();
+  };
+  T.from.addEventListener('pointerdown', (e) => start(e, 0));
+  T.to.addEventListener('pointerdown', (e) => start(e, 1));
+  T.mv.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.mv-th')) return;
+    const c = stateOf(i, k, q).curve, v = vAt(e.clientX);
+    start(e, Math.abs(v - c[0].v) < Math.abs(v - c[c.length - 1].v) ? 0 : 1);
+  });
+  T.mv.addEventListener('pointermove', (e) => { if (drag && drag.kind === 'handle') { setEnd(drag.which, vAt(e.clientX)); refresh(); } });
+  T.mv.addEventListener('pointerup', () => { if (drag && drag.kind === 'handle') finish(); });
+  T.mv.addEventListener('pointercancel', () => { if (drag && drag.kind === 'handle') finish(); });
+  // keys: each burst one undo step, as the plain slider
+  let keyTimer = 0;
+  [[T.from, 0], [T.to, 1]].forEach(([b, which]) => b.addEventListener('keydown', (e) => {
+    const stepN = q.step ? q.step / (q.max - q.min) : 0.01, d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!d) return;
+    e.preventDefault(); begin();
+    const c = stateOf(i, k, q).curve, p = which === 0 ? c[0] : c[c.length - 1];
+    setEnd(which, clamp01(p.v + d * stepN)); preview = null; refresh();
+    clearTimeout(keyTimer); keyTimer = setTimeout(end, 700);
+  }));
+}
+
+function syncPanel() {
+  for (const r of rows) r.sync();
+  $$('.layer[data-k]', body).forEach((li) => {
+    const l = curSec().layers[Number(li.dataset.k)], p = $('.layer-parts', li);
+    if (l && p) p.textContent = parts(l);
+  });
+  const d = $('.layer.open [data-defaults]', body);
+  if (d && ui.layer !== null) d.hidden = !Object.keys(curSec().layers[ui.layer]?.knobs ?? {}).length;
+  syncWhere();
+}
+function syncWhere() {
+  const el = $('.sec-where', body); if (!el) return;
+  const k = sectionAt(now), here = k === ui.section;
+  el.hidden = here;
+  if (!here) { const name = show.sections[k].label; const t = `The playhead is in section ${k + 1}${name ? ` (${name})` : ''}.`; if (el.firstChild.textContent !== t) el.firstChild.textContent = t; }
+}
+
+// ---- menus ------------------------------------------------------------------------------------------------------------
+let menuEl = null;
+const closeMenu = () => { menuEl?.remove(); menuEl = null; };
+document.addEventListener('pointerdown', (e) => { if (menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+function openMenu(title, items, x, y) {
+  closeMenu();
+  const m = document.createElement('div');
+  m.className = 'lane-menu'; m.setAttribute('role', 'menu');
+  m.innerHTML = (title ? `<div class="lane-menu-title">${esc(title)}</div>` : '');
+  for (const it of items) {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitemradio');
+    if (it.checked) b.setAttribute('aria-checked', 'true');
+    if (it.d) { b.className = 'shape'; b.innerHTML = `<svg viewBox="0 0 26 14"><path d="${it.d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="lm-label">${esc(it.label)}</span>`; }
+    else b.innerHTML = `<span class="lm-label">${esc(it.label)}</span>`;
+    b.onclick = () => { closeMenu(); it.do(); };
+    m.append(b);
+  }
+  document.body.append(m); menuEl = m;
+  const r = m.getBoundingClientRect();
+  m.style.left = `${clamp(x, 8, innerWidth - r.width - 8)}px`;
+  m.style.top = `${y + r.height > innerHeight - 8 ? Math.max(8, y - r.height - 28) : y}px`;
+}
+function openShapeMenu(q, i, k, x, y) {
+  const c = stateOf(i, k, q).curve, sh = shapeWord(c);
+  const items = SHAPES.map((S) => ({ label: S.menu, d: S.d, checked: sh && sh.id === S.id,
+    do: () => once(() => { const s = stateOf(i, k, q), a = s.curve[0], b = s.curve[s.curve.length - 1]; const first = { t: a.t, v: a.v }; S.apply(first); s.curve = [first, { t: b.t, v: b.v }]; writeKnob(i, k, q, s); }) }));
+  openMenu('How it moves', items, x, y);
+}
+
+// ---- lanes ------------------------------------------------------------------------------------------------------------
+const list = $('[data-list]'), lhead = $('[data-lhead]'), ltip = $('[data-ltip]'), lbody = $('.lanes-body');
+let views = [], laneKey = '';
+
+const laneList = () => {
+  const out = [], sec = curSec();
+  for (let k = sec.layers.length - 1; k >= 0; k--) {
+    const l = sec.layers[k], m = metaOf(l.widget), open = ui.layer === k;
+    const moving = open ? m.params.filter((q) => l.knobs?.[q.key]?.curve) : [];
+    const listen = l.listen ? ` · ${l.listen === 'bassline' ? 'bass line' : l.listen}` : '';
+    out.push({ kind: 'int', k, l, hue: m.hue, open: open && !ui.lane, name: m.name + listen + (moving.length ? ' · intensity' : '') });
+    for (const q of moving) out.push({ kind: 'knob', k, l, q, hue: m.hue, open: ui.lane === q.key, name: `${m.name} · ${q.label}` });
+  }
+  return out;
+};
+function buildLanes() {
+  list.innerHTML = ''; views = [];
+  for (const v of laneList()) {
+    const el = document.createElement('div');
+    el.className = `lane${v.open ? ' open' : ''}${v.kind === 'knob' ? ' knob' : ''}`;
+    el.style.setProperty('--hue', v.hue); el.dataset.lane = v.kind === 'knob' ? v.q.key : 'int' + v.k;
+    el.innerHTML = `${v.kind === 'knob' && v.open ? '<div class="lane-pics"><canvas data-p="1"></canvas><canvas data-p="0"></canvas></div>' : ''}<canvas class="draw"></canvas><span class="lane-name">${esc(v.name)}</span>`;
+    v.el = el; v.cv = $('.draw', el);
+    if (v.kind === 'knob' && v.open) { drawIcon($('[data-p="1"]', el), v.q, 1); drawIcon($('[data-p="0"]', el), v.q, 0); }
+    wireLane(v);
+    list.append(el); views.push(v);
+  }
+}
+const geo = (v) => {
+  const sec = curSec(), [a, b] = ui.mode === 'section' ? [sec.start, sec.end] : [0, DUR];
+  const W = Math.max(1, v.cv.clientWidth), H = Math.max(1, v.cv.clientHeight), pad = v.open ? 8 : 3, span = b - a || 1;
+  return { a, b, W, H, pad, x: (t) => ((t - a) / span) * W, t: (x) => a + (x / W) * span, y: (val) => pad + (1 - val) * (H - 2 * pad), v: (y) => 1 - (y - pad) / (H - 2 * pad) };
+};
+/** The lane's pieces: the section, or in Whole show the run of consecutive sections that have this instance. */
+const piecesOf = (v) => {
+  const i = ui.section, key = instKey(v.l), at = (j) => show.sections[j]?.layers.findIndex((x) => instKey(x) === key) ?? -1;
+  let a = i, b = i;
+  if (ui.mode === 'show') { while (a > 0 && at(a - 1) >= 0) a--; while (b + 1 < show.sections.length && at(b + 1) >= 0) b++; }
+  const out = [];
+  for (let j = a; j <= b; j++) {
+    const k = j === i ? v.k : at(j), sp = show.sections[j];
+    if (v.kind === 'knob') { const s = stateOf(j, k, v.q); out.push({ section: j, layer: k, span: sp, pivots: s.curve || [], flat: norm(v.q, s.base), s }); }
+    else out.push({ section: j, layer: k, span: sp, pivots: [], flat: 1 });
+  }
+  return out;
+};
+const pieceAt = (pc, t) => (pc.pivots.length ? automationAt(pc.pivots, t) : pc.flat);
+
+function drawLane(v) {
+  const cv = v.cv, dpr = devicePixelRatio || 1, w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight);
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const G = geo(v), hue = v.hue, pieces = piecesOf(v);
+  if (!pieces.length) return;
+  const px0 = Math.max(0, Math.floor(G.x(pieces[0].span.start))), px1 = Math.min(w, Math.ceil(G.x(pieces[pieces.length - 1].span.end)));
+  if (ui.mode === 'show') { g.fillStyle = '#00000080'; g.fillRect(0, 0, px0, h); g.fillRect(px1, 0, w - px1, h); }
+  if (v.open) {
+    g.fillStyle = v.kind === 'knob' ? '#e9e2da09' : '#e9e2da12'; g.beginPath(); g.moveTo(0, h);
+    for (let x = 0; x <= w; x++) g.lineTo(x, h - act(G.t(x)) * (h - G.pad) * 0.9);
+    g.lineTo(w, h); g.closePath(); g.fill();
+    if (ui.snap && G.x(G.a + 0.72) - G.x(G.a) >= 5) { g.fillStyle = '#e9e2da14'; for (const b of beats) { if (b >= G.a && b <= G.b) g.fillRect(Math.round(G.x(b)), 0, 1, h); } }
+    g.fillStyle = '#e9e2da10'; g.fillRect(px0, Math.round(G.y(1)), px1 - px0, 1); g.fillRect(px0, Math.round(G.y(0)), px1 - px0, 1);
+  }
+  for (const pc of pieces) {
+    const xa = G.x(pc.span.start), xb = G.x(pc.span.end);
+    if (ui.mode === 'show' && pc.span.start > G.a) { g.fillStyle = '#e9e2da30'; g.fillRect(Math.round(xa), 0, 1, h); }
+    const ts = [];
+    for (let x = Math.floor(xa); x <= Math.ceil(xb); x++) ts.push(clamp(G.t(x), pc.span.start, pc.span.end));
+    for (const p of pc.pivots) { ts.push(p.t); if (p.t - 1e-6 > pc.span.start) ts.push(p.t - 1e-6); }
+    ts.sort((p, q) => p - q);
+    // The band: how far the drive can push the knob around the line, cut off by the lane's top and bottom.
+    if (v.kind === 'knob' && v.open && pc.s.drive) {
+      const reach = pc.s.depth, dir = pc.s.drive.endsWith('pitch') ? 0 : pc.s.drive[0] === '+' ? 1 : -1;
+      const up = dir === 0 ? reach / 2 : dir > 0 ? reach : 0, dn = dir === 0 ? reach / 2 : dir < 0 ? reach : 0;
+      g.beginPath();
+      ts.forEach((t, i) => { const Y = G.y(clamp01(pieceAt(pc, t) + up)); i ? g.lineTo(G.x(t), Y) : g.moveTo(G.x(t), Y); });
+      for (let i = ts.length - 1; i >= 0; i--) g.lineTo(G.x(ts[i]), G.y(clamp01(pieceAt(pc, ts[i]) - dn)));
+      g.closePath(); g.fillStyle = `hsl(${hue} 55% 50% / 0.17)`; g.fill();
+    }
+    const none = v.kind === 'int' || !pc.pivots.length;
+    g.beginPath(); ts.forEach((t, i) => { const Y = G.y(pieceAt(pc, t)); i ? g.lineTo(G.x(t), Y) : g.moveTo(G.x(t), Y); });
+    g.setLineDash(none ? [3, 4] : []); g.lineWidth = v.open ? 1.75 : 1.25; g.lineJoin = 'round';
+    g.strokeStyle = none ? `hsl(${hue} 25% 60% / 0.6)` : `hsl(${hue} 70% 66%)`; g.stroke(); g.setLineDash([]);
+    if (!v.open || v.kind !== 'knob') continue;
+    pc.pivots.forEach((p, i) => {
+      const hot = (drag && drag.kind === 'pivot' && drag.pc.section === pc.section && drag.index === i) || (hoverPivot && hoverPivot.section === pc.section && hoverPivot.index === i);
+      g.beginPath(); g.arc(G.x(p.t), G.y(p.v), hot ? 5.5 : 4.25, 0, Math.PI * 2);
+      g.fillStyle = hot ? `hsl(${hue} 80% 76%)` : '#120d10'; g.fill();
+      g.lineWidth = 1.75; g.strokeStyle = `hsl(${hue} 75% 70%)`; g.stroke();
+    });
+  }
+  // The real value now: on the line plus what the music adds.
+  if (v.kind === 'knob' && v.open && now >= G.a && now <= G.b) {
+    const k = sectionAt(now), lk = show.sections[k].layers.findIndex((x) => instKey(x) === instKey(v.l));
+    if (lk >= 0) {
+      const val = norm(v.q, knobValue(v.q, stateOf(k, lk, v.q), features(now), now));
+      g.beginPath(); g.arc(G.x(now), G.y(val), 3.5, 0, Math.PI * 2); g.fillStyle = '#fff6ee'; g.fill();
+    }
+  }
+}
+function placeHead() {
+  const v = views[0]; if (!v) { lhead.hidden = true; return; }
+  const G = geo(v), x = G.x(now);
+  lhead.hidden = !(now >= G.a && now <= G.b);
+  lhead.style.left = `${x}px`;
+}
+const snapTime = (t, span, fine) => {
+  let x = t;
+  if (ui.snap && !fine) { let best = null; for (const b of beats) if (Math.abs(b - t) <= 0.25 && (best === null || Math.abs(b - t) < Math.abs(best - t))) best = b; if (best !== null) x = best; }
+  return ms(clamp(x, span.start, span.end));
+};
+let hoverPivot = null;
+function hitPiece(v, px, py) {
+  const G = geo(v);
+  for (const pc of piecesOf(v)) {
+    if (px < G.x(pc.span.start) - 6 || px > G.x(pc.span.end) + 6) continue;
+    let best = -1, bd = 1e9;
+    pc.pivots.forEach((p, i) => { const d = Math.hypot(G.x(p.t) - px, G.y(p.v) - py); if (d <= 8 && d < bd) { bd = d; best = i; } });
+    if (best >= 0) return { pc, kind: 'pivot', index: best };
+    const t = G.t(px);
+    if (t >= pc.span.start && t <= pc.span.end) {
+      if (pc.pivots.length && Math.abs(G.y(pieceAt(pc, t)) - py) <= 5) {
+        let i = 0; while (i + 1 < pc.pivots.length && pc.pivots[i + 1].t <= t) i++;
+        if (pc.pivots[i + 1] && t >= pc.pivots[0].t) return { pc, kind: 'segment', index: i };
+      }
+      return { pc, kind: 'empty' };
+    }
+  }
+  return null;
+}
+const writeCurve = (pc, curve) => { const s = stateOf(pc.section, pc.layer, metaQ()); if (curve && curve.length) s.curve = curve; else delete s.curve; writeKnob(pc.section, pc.layer, metaQ(), s); };
+let laneQ = null; const metaQ = () => laneQ;
+function showTip(v, t, val) {
+  const G = geo(v), r = v.cv.getBoundingClientRect(), R = lbody.getBoundingClientRect();
+  ltip.hidden = false; ltip.textContent = `${stamp(t)} · ${pct(val)}`;
+  ltip.style.left = `${clamp(r.left - R.left + G.x(t), 60, R.width - 60)}px`; ltip.style.top = `${r.top - R.top + G.y(val)}px`;
+}
+function wireLane(v) {
+  const cv = v.cv;
+  cv.addEventListener('pointerdown', (e) => {
+    if (!v.open) { // a collapsed lane opens on a click, as today
+      if (v.kind === 'knob') ui.lane = v.q.key; else { ui.lane = null; ui.layer = v.k; panelKey = ''; }
+      laneKey = ''; e.preventDefault(); refresh(); return;
+    }
+    if (v.kind !== 'knob' || e.button !== 0) return;
+    laneQ = v.q;
+    const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, G = geo(v);
+    const hit = hitPiece(v, px, py); if (!hit) return;
+    begin(); cv.setPointerCapture(e.pointerId); e.preventDefault();
+    let pc = hit.pc, index = hit.index, kind = hit.kind;
+    if (kind === 'empty') {
+      const t = snapTime(G.t(px), pc.span, e.shiftKey), val = r4(snapV(v.q, clamp01(G.v(py))));
+      let cur = pc.pivots.map((p) => ({ ...p }));
+      if (!cur.length) cur = [{ t: pc.span.start, v: r4(pc.flat) }, { t: pc.span.end, v: r4(pc.flat) }];   // a section with no line: both ends at its slider value, never a lone pivot
+      let at = cur.findIndex((p) => p.t > t); if (at < 0) at = cur.length;
+      if (cur[at] && cur[at - 1] && (cur[at].t === t || cur[at - 1].t === t)) at = cur[at].t === t ? at : at - 1, cur[at].v = val;
+      else { const np = { t, v: val }; const prev = cur[at - 1]; if (prev?.shape) np.shape = prev.shape; if (prev?.bend) { delete prev.bend; } cur.splice(at, 0, np); }
+      writeCurve(pc, cur); kind = 'pivot'; index = at;
+      pc = piecesOf(v).find((x) => x.section === pc.section);
+    } else if (kind === 'segment') {
+      const p = pc.pivots[index], q = pc.pivots[index + 1];
+      kind = Math.abs(q.v - p.v) < 1e-6 || p.shape === 'hold' ? 'level' : 'bend';
+    }
+    drag = { kind, pc, index, sx: e.clientX, sy: e.clientY, t0: pc.pivots[index]?.t, v0: pc.pivots[index]?.v, v1: pc.pivots[index + 1]?.v, bend0: pc.pivots[index]?.bend || 0, moved: false, v };
+    document.body.classList.add('dragging');
+    done('lane');
+    if (kind === 'pivot') { preview = { widget: v.l.widget, key: v.q.key, v: pc.pivots[index].v }; showTip(v, pc.pivots[index].t, pc.pivots[index].v); }
+    refresh();
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!v.open || v.kind !== 'knob') return;
+    laneQ = v.q;
+    const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, G = geo(v);
+    if (!drag || (drag.kind !== 'pivot' && drag.kind !== 'bend' && drag.kind !== 'level') || drag.v !== v) {
+      const hit = hitPiece(v, px, py);
+      const hp = hit && hit.kind === 'pivot' ? { section: hit.pc.section, index: hit.index } : null;
+      if (JSON.stringify(hp) !== JSON.stringify(hoverPivot)) { hoverPivot = hp; dirty = true; }
+      cv.style.cursor = hit && hit.kind === 'pivot' ? 'grab' : hit && hit.kind === 'segment' ? 'ns-resize' : 'crosshair';
+      return;
+    }
+    const pc = piecesOf(v).find((x) => x.section === drag.pc.section), c = pc.pivots.map((p) => ({ ...p })), i = drag.index;
+    if (drag.kind === 'pivot') {
+      const fine = e.shiftKey, dx = e.clientX - drag.sx, dy = e.clientY - drag.sy, k = fine ? 0.1 : 1;
+      const lo = c[i - 1] ? c[i - 1].t + 0.01 : pc.span.start, hi = c[i + 1] ? c[i + 1].t - 0.01 : pc.span.end;
+      const t = clamp(snapTime(G.t(G.x(drag.t0) + dx * k), pc.span, fine), lo, hi);
+      c[i].t = ms(t); c[i].v = r4(snapV(v.q, clamp01(G.v(G.y(drag.v0) + dy * k))));
+      preview = { widget: v.l.widget, key: v.q.key, v: c[i].v };
+      showTip(v, c[i].t, c[i].v);
+    } else if (drag.kind === 'bend') {
+      const d = c[i + 1].v - c[i].v, dy = (e.clientY - drag.sy) / (G.H - 2 * G.pad);
+      const b = clamp(drag.bend0 + -Math.sign(d) * dy * 2, -1, 1);
+      delete c[i].shape; if (Math.abs(b) < 0.01) delete c[i].bend; else c[i].bend = Math.round(b * 1000) / 1000;
+    } else {
+      const dv = -(e.clientY - drag.sy) / (G.H - 2 * G.pad);
+      c[i].v = r4(snapV(v.q, clamp01(drag.v0 + dv))); c[i + 1].v = r4(snapV(v.q, clamp01(drag.v1 + dv)));
+    }
+    writeCurve(pc, c); refresh();
+  });
+  const up = () => {
+    if (drag && drag.v === v) { drag = null; preview = null; ltip.hidden = true; document.body.classList.remove('dragging'); end(); }
+  };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointerleave', () => { if (hoverPivot) { hoverPivot = null; dirty = true; } });
+  const removePivot = (pc, i) => {
+    once(() => {
+      const c = pc.pivots.map((p) => ({ ...p })); c.splice(i, 1);
+      if (c.length < 2) { writeCurve(pc, null); if (pc.section === ui.section) ui.lane = null; laneKey = ''; done('remove'); }
+      else writeCurve(pc, c);
+    });
+  };
+  cv.addEventListener('dblclick', (e) => {
+    if (!v.open || v.kind !== 'knob') return;
+    laneQ = v.q;
+    const r = cv.getBoundingClientRect(), hit = hitPiece(v, e.clientX - r.left, e.clientY - r.top);
+    if (hit && hit.kind === 'pivot') removePivot(hit.pc, hit.index);
+  });
+  cv.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (!v.open || v.kind !== 'knob') return;
+    laneQ = v.q;
+    const r = cv.getBoundingClientRect(), hit = hitPiece(v, e.clientX - r.left, e.clientY - r.top);
+    if (!hit) return;
+    if (hit.kind === 'pivot') { openMenu('', [{ label: 'Delete this pivot', do: () => removePivot(hit.pc, hit.index) }], e.clientX, e.clientY); return; }
+    if (hit.kind === 'segment') {
+      const set = (sh) => once(() => { const c = piecesOf(v).find((x) => x.section === hit.pc.section).pivots.map((p) => ({ ...p })); const p = c[hit.index]; delete p.bend; if (sh) p.shape = sh; else delete p.shape; writeCurve(hit.pc, c); });
+      const p = hit.pc.pivots[hit.index];
+      openMenu('This segment', [{ label: 'Linear', checked: !p.shape, do: () => set() }, { label: 'Ease', checked: p.shape === 'ease', do: () => set('ease') }, { label: 'Hold', checked: p.shape === 'hold', do: () => set('hold') }], e.clientX, e.clientY);
+      return;
+    }
+    if (hit.pc.section === ui.section && hit.pc.pivots.length) openShapeMenu(v.q, ui.section, v.k, e.clientX, e.clientY);
+  });
+}
+
+// ---- lanes bar --------------------------------------------------------------------------------------------------------
+$$('[data-mode]').forEach((b) => { b.onclick = () => { ui.mode = b.dataset.mode; refresh(); }; });
+$('[data-snapb]').onclick = () => { ui.snap = !ui.snap; refresh(); };
+$('[data-presets]').onclick = (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  if (!ui.lane || ui.layer === null) { openMenu('Presets', [{ label: 'The intensity presets, as today (not in this mockup)', do() {} }], r.right - 240, r.bottom + 4); return; }
+  const q = metaOf(curSec().layers[ui.layer].widget).params.find((x) => x.key === ui.lane), i = ui.section, k = ui.layer;
+  const c = stateOf(i, k, q).curve, sh = shapeWord(c);
+  openMenu('How it moves', [...SHAPES.map((S) => ({ label: S.menu, d: S.d, checked: sh && sh.id === S.id,
+    do: () => once(() => { const s = stateOf(i, k, q), a = s.curve[0], b = s.curve[s.curve.length - 1]; const first = { t: a.t, v: a.v }; S.apply(first); s.curve = [first, { t: b.t, v: b.v }]; writeKnob(i, k, q, s); }) })),
+    { label: 'Back to one value', do: () => { once(() => { const s = stateOf(i, k, q); delete s.curve; writeKnob(i, k, q, s); ui.lane = null; }); laneKey = ''; done('remove'); } }], r.right - 240, r.bottom + 4);
+};
+function syncBar() {
+  $$('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === ui.mode)));
+  $('[data-snapb]').setAttribute('aria-pressed', String(ui.snap));
+  const lq = ui.lane && ui.layer !== null ? metaOf(curSec().layers[ui.layer].widget).params.find((x) => x.key === ui.lane) : null;
+  $('[data-ltitle]').textContent = lq ? lq.label : 'Intensity';
+  const s = lq ? stateOf(ui.section, ui.layer, lq) : null;
+  $('[data-hint]').textContent = lq
+    ? `${s.drive ? `Shaded: how far “${driveWord(s.drive)}” can push it · ` : ''}double-click: delete · right-click: shape`
+    : ui.layer !== null ? 'Click to add · drag · Shift: fine · double-click: delete · right-click: shape, presets' : 'Click a lane to draw its intensity';
+  $('[data-presets]').disabled = ui.layer === null;
+}
+
+// ---- the fake picture: a pure function of t and the knobs -----------------------------------------------------------
+const hash = (k, salt = 1) => { let h = (k * 2654435761 + salt * 40503) >>> 0; h ^= h >>> 15; h = Math.imul(h, 1664525) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+const stage = $('#c');
+function drawStage() {
+  const R = stage.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), w = Math.max(1, R.width), h = Math.max(1, R.height);
+  if (stage.width !== Math.round(w * dpr) || stage.height !== Math.round(h * dpr)) { stage.width = Math.round(w * dpr); stage.height = Math.round(h * dpr); }
+  const g = stage.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+  const S = Math.min(w / 1280, h / 720), ox = (w - 1280 * S) / 2, oy = (h - 720 * S) / 2;
+  g.save(); g.translate(ox, oy); g.scale(S, S);
+  const sec = show.sections[sectionAt(now)];
+  const hasW = (id) => sec.layers.some((l) => l.widget === id);
+  if (hasW('squares')) {
+    const P = WIDGETS.squares.params, size = valueAtPlay('squares', P[0], now), life = valueAtPlay('squares', P[1], now), dt = 0.66, K = Math.floor(now / dt);
+    for (let j = 0; j < 10; j++) {
+      const k = K - j, born = k * dt, age = now - born; if (age < 0 || age > life) continue;
+      const a = 1 - age / life, s = (70 + hash(k, 3) * 150) * size;
+      g.fillStyle = `hsla(6,70%,${22 + 12 * hash(k, 9)}%,${0.75 * a})`;
+      g.fillRect(hash(k, 1) * 1280 - s / 2, 420 + hash(k, 2) * 300 - s / 2, s, s);
+    }
+  }
+  if (hasW('flee')) {
+    const P = WIDGETS.flee.params, by = (key) => P.find((q) => q.key === key);
+    const exp = valueAtPlay('flee', by('exp'), now), twitch = valueAtPlay('flee', by('twitch'), now), streak = valueAtPlay('flee', by('streak'), now);
+    const pal = Math.round(valueAtPlay('flee', by('pal'), now));
+    const dt = 0.13, T = 2.6, K = Math.floor(now / dt);
+    for (let j = 0; j < T / dt + 1; j++) {
+      const k = K - j, born = k * dt, age = now - born; if (age < 0 || age > T) continue;
+      const hes = 0.5, x0 = 200 + hash(k, 1) * 880, y0 = 120 + hash(k, 2) * 480;
+      let head = hash(k, 3) * Math.PI * 2;
+      const u = age < hes ? 0 : (age - hes) / (T - hes);
+      head += Math.sin(age * 19 + k) * twitch * 0.5 * (u > 0 ? 1 : 0);
+      const reach = 1000 + hash(k, 4) * 500, d = Math.pow(u, exp) * reach;
+      const speed = u > 0 ? (exp * Math.pow(u, exp - 1) * reach) / (T - hes) : 0;
+      const x = x0 + Math.cos(head) * d, y = y0 + Math.sin(head) * d, heat = Math.min(1, 0.25 + u * 0.95);
+      // real: mix is read when the shape is born, so a change shows only on new notes
+      const mix = valueAtPlay('flee', by('mix'), Math.min(now, born < 0 ? 0 : born));
+      const type = TYPES[clamp(Math.round(mix * 7 + (hash(k, 5) - 0.5) * 2), 0, 7)];
+      const L = streak * speed * 0.09;
+      g.save(); g.translate(x, y); g.rotate(head);
+      if (L > 2) {
+        const gr = g.createLinearGradient(0, 0, -L, 0);
+        gr.addColorStop(0, ramp(pal, heat + 0.1, 0.85)); gr.addColorStop(0.45, ramp(pal, heat - 0.15, 0.42)); gr.addColorStop(1, ramp(pal, heat - 0.2, 0));
+        g.fillStyle = gr; g.beginPath(); g.moveTo(0, -7); g.lineTo(-L, -0.6); g.lineTo(-L, 0.6); g.lineTo(0, 7); g.closePath(); g.fill();
+      }
+      mini(g, type, 0, 0, 24, ramp(pal, heat + 0.2));
+      g.restore();
+    }
+  }
+  if (!hasW('flee') && !hasW('squares')) { g.fillStyle = '#e9e2da30'; g.font = 'italic 30px Georgia, serif'; g.textAlign = 'center'; g.fillText(metaOf(sec.layers[0].widget).name, 640, 360); }
+  g.restore();
+}
+
+// ---- guide ------------------------------------------------------------------------------------------------------------
+const doneSet = new Set();
+function done(s) { if (s && !doneSet.has(s)) { doneSet.add(s); $(`.try [data-s="${s}"]`)?.classList.add('done'); } if (s === 'remove') $(`.try [data-s="undo"]`)?.classList.add('done'); }
+const pre = $('[data-pre]');
+$('[data-json]').onclick = () => { pre.hidden = !pre.hidden; syncJson(); };
+function syncJson() {
+  const l = curSec().layers.find((x) => x.widget === 'flee');
+  const json = JSON.stringify(l ? { widget: l.widget, knobs: l.knobs } : curSec().layers[0], null, 1).replace(/\{\s+"t": ([\d.]+),\s+"v": ([\d.]+)(,\s+"(shape|bend)": ("?[\w.-]+"?))?\s+\}/g, (m, t, v, x, kk, vv) => `{ "t": ${t}, "v": ${v}${x ? `, "${kk}": ${vv}` : ''} }`);
+  if (!pre.hidden && pre.textContent !== json) pre.textContent = json;
+}
+
+// ---- wiring -------------------------------------------------------------------------------------------------------------
+function refresh() {
+  if (ui.lane && !(ui.layer !== null && knobCurve(ui.section, ui.layer, ui.lane))) ui.lane = null;
+  const key = `${ui.section}:${ui.layer}`;
+  if (key !== panelKey) { panelKey = key; buildPanel(); } else syncPanel();
+  buildBand();
+  const lk = JSON.stringify(laneList().map((v) => [v.kind, v.k, v.q?.key, v.open, v.name, ui.section]));
+  if (lk !== laneKey) { laneKey = lk; buildLanes(); }
+  syncBar(); syncJson();
+  const st = $('[data-state]'), diff = JSON.stringify(show) !== savedAs;
+  st.textContent = diff ? 'Unsaved changes' : 'Saved'; st.classList.toggle('dirty', diff);
+  $('[data-undo]').disabled = !hist.undo.length; $('[data-redo]').disabled = !hist.redo.length; $('[data-save]').disabled = !diff;
+  dirty = true;
+}
+$('[data-undo]').onclick = undo; $('[data-redo]').onclick = redo;
+$('[data-save]').onclick = () => { savedAs = JSON.stringify(show); refresh(); };
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  if (e.code === 'Space' && !/INPUT|SELECT|BUTTON|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); togglePlay(); }
+});
+function togglePlay() {
+  playing = !playing; lastFrame = 0;
+  const b = $('[data-play]'); b.innerHTML = playing ? ICONS.pause : ICONS.play; b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  if (playing) done('play');
+  dirty = true;
+}
+$('[data-play]').onclick = togglePlay;
+function frame(ts) {
+  if (playing) { if (lastFrame) now = Math.min(DUR, now + (ts - lastFrame) / 1000); lastFrame = ts; if (now >= DUR) togglePlay(); dirty = true; }
+  if (dirty) {
+    dirty = false;
+    drawStage();
+    for (const v of views) drawLane(v);
+    placeHead();
+    for (const r of rows) r.tick();
+    syncWhere();
+    $('[data-clock]').textContent = clock(now);
+    $('[data-now]').textContent = show.sections[sectionAt(now)].label;
+    $('[data-head]').style.left = `${(now / DUR) * 100}%`;
+  }
+  requestAnimationFrame(frame);
+}
+new ResizeObserver(() => { drawWave(); dirty = true; }).observe($('.tl-top'));
+new ResizeObserver(() => { dirty = true; }).observe($('.stage'));
+new ResizeObserver(() => { document.documentElement.style.setProperty('--top-h', `${$('.app > .top').offsetHeight}px`); }).observe($('.app > .top'));
+if (innerWidth <= 900) $('.try').open = false;
+refresh();
+drawWave();
+requestAnimationFrame(frame);
+if (innerWidth > 900) { const o = $('.layer.open', body); if (o) panelHost.scrollTop = o.getBoundingClientRect().top - panelHost.getBoundingClientRect().top - $('.tabs', body).offsetHeight - 22; }
+
+// for checks
+window.__mock = { show: () => show, initial: () => JSON.stringify(initial), seek, ui, now: () => now, hist };
+})();
+
+</script>
+</body></html>

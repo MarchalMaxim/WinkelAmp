@@ -106,11 +106,16 @@
     'horn', 'trumpet', 'trombone', 'brass', 'flute', 'oboe', 'clarinet', 'bassoon', 'saxophone'];
   var has = function (o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k) && !!o[k]; };
 
-  /** The notes a `listen` hears: all, a derived line, a present track, or the union of a family's present tracks.
-      Anything the song lacks falls back to all its notes, with heard 'all'. */
+  /** The notes a `listen` hears: all, a set of picks, a derived line, a present track, or the union of a family's
+      present tracks. Anything else the song lacks falls back to all its notes, with heard 'all'; a set of picks that is
+      not there hears nothing, or a widget meant for a few notes would fire on every one. */
   WA.listenNotes = function (song, listen) {
     var all = { notes: song.notes, heard: 'all' };
     if (listen === undefined || listen === null || listen === 'all') return all;
+    if (typeof listen === 'string' && listen.indexOf('picks:') === 0) {
+      var id = listen.slice(6);
+      return { notes: has(song.picks, id) && song.picks[id].notes || [], heard: listen };
+    }
     if (LINES.indexOf(listen) >= 0) return { notes: WA.lineNotes(song.notes, listen), heard: listen };
     var tracks = song.tracks;
     if (typeof listen === 'string' && listen.indexOf('family:') === 0) {

@@ -90,6 +90,33 @@ describe('npm run check-show', () => {
     expect(r.out).toMatch(/band\.json: ok, 2 warnings/);
   }, 60_000);
 
+  const picked = (listen: string) => ({ version: 2, id: 'picked', song: 'demo', sections: [
+    { start: 0, end: 50, layers: [{ widget: 'squares' }, { widget: 'pointillism', listen }] },
+    { start: 50, end: 100, layers: [{ widget: 'kandinsky' }] },
+  ], picks: { p1: { notes: [[1, 2, 60, 80], [3, 4, 62, 90]] } } });
+
+  it('passes a file with a valid set of picks', () => {
+    const f = join(tmp, 'picked.json');
+    writeFileSync(f, JSON.stringify(picked('picks:p1')));
+    const r = check([f]);
+    expect(r.out).toMatch(/picked\.json: ok\r?\n/);
+    expect(r.code).toBe(0);
+  }, 60_000);
+
+  it('exits 1 on a listen with no set; --fix drops the layer, never the plain widget', () => {
+    const f = join(tmp, 'dangling.json');
+    writeFileSync(f, JSON.stringify(picked('picks:p9')));
+    const r = check([f]);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/sections\[0\]\.layers\[1\]\.listen: .*no set/);
+    const x = check(['--fix', f]);
+    expect(x.code).toBe(0);
+    expect(x.out).toMatch(/fixed sections\[0\]\.layers\[1\]: .*dropped/);
+    const written = JSON.parse(readFileSync(f, 'utf8')) as Show;
+    expect(validateShow(written, { duration: 100 }).errors).toEqual([]);
+    expect(written.sections[0].layers).toEqual([{ widget: 'squares' }]);
+  }, 60_000);
+
   it('exits 1 on a file that is not JSON', () => {
     const f = join(tmp, 'broken.json');
     writeFileSync(f, '{ nope');

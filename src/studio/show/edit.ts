@@ -6,11 +6,14 @@
  * fall outside it and adds an edge pivot with the curve's value there (env.curve, WaLayers.automationAt), so the
  * visible curve is unchanged; merging joins the same instance's curves, and a boundary drag hands an instance that
  * plays on both sides the part of its joined curve that changed side (plan 2026-10-31 §5).
+ * A set of picks lives as long as a layer uses it: an edit that removes its last layer removes it too, and no edit leaves
+ * a picks listen without its set. Placing, updating and removing a set are one edit each, so one undo step.
  */
-import type { Listen, Pivot, Region } from '../../widgets/types';
+import type { Listen, Note, Pivot, Region } from '../../widgets/types';
+import { sectionAt } from './schedule';
 import {
-  DEFAULT_FADE, MAX_FADE, MAX_PIVOTS, MIN_SECTION, instanceKey, isListen, repairPivots, repairRegion,
-  type KnobSetting, type Layer, type Show, type ShowSection,
+  DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_SECTION, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairPivots, repairRegion,
+  type KnobSetting, type Layer, type PickSet, type Show, type ShowSection,
 } from './show';
 
 export type ShowEdit =
@@ -22,7 +25,12 @@ export type ShowEdit =
   | { kind: 'setKnob'; section: number; layer: number; key: string; value: KnobSetting | null }   // null = back to default
   | { kind: 'setSection'; section: number; patch: { label?: string; fade?: number } }
   /** null removes the field; listen 'all' is the same as null. A listen whose key is already in the section is refused. */
-  | { kind: 'setLayer'; section: number; layer: number; patch: { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null } };
+  | { kind: 'setLayer'; section: number; layer: number; patch: { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null } }
+  /** A new set of picks, with a layer on top of every section from the first pick to the last. */
+  | { kind: 'placePicks'; widget: string; notes: Note[] }
+  /** The set's new notes and widget: it keeps its id, and its layers span the new notes. */
+  | { kind: 'updatePicks'; id: string; widget: string; notes: Note[] }
+  | { kind: 'removePicks'; id: string };
 
 /** The curve, for edge pivots: WaLayers.automationAt. Without it an edge pivot takes the value of the cut pivot
     nearest the edge. */
@@ -101,6 +109,69 @@ function joinPivots(A: readonly Pivot[] | undefined, B: readonly Pivot[] | undef
   return out;
 }
 
+/** The smallest free p<N>. */
+export function nextPicksId(show: Show): string {
+  let n = 1;
+  while (show.picks?.[`p${n}`]) n++;
+  return `p${n}`;
+}
+
+/** The sections a set's layers must play in: from the one holding the first pick to the one holding the last, or the
+    next one when a step can carry the last pick over the boundary, or the widget would miss it. Notes sorted. */
+function picksSpan(show: Show, notes: readonly Note[]): [first: number, last: number] {
+  return [sectionAt(show, notes[0][0]), sectionAt(show, notes[notes.length - 1][0] + LONGEST_STEP)];
+}
+
+/** The show with these sets (none: no picks key, so a show without picks stays as it was). */
+function withPicks(show: Show, picks: Record<string, PickSet>): Show {
+  const { picks: _old, ...rest } = show;
+  return Object.keys(picks).length ? { ...rest, picks } : rest;
+}
+
+/** `after` without the sets whose last layer this edit removed. One used by nobody before it is hand work, and stays. */
+function dropOrphans(before: Show, after: Show): Show {
+  if (!before.picks) return after;
+  const used = (s: Show) => new Set(s.sections.flatMap((x) => x.layers.map((l) => picksId(l.listen))));
+  const had = used(before), has = used(after);
+  const gone = Object.keys(before.picks).filter((id) => had.has(id) && !has.has(id));
+  if (!gone.length) return after;
+  return withPicks(after, Object.fromEntries(Object.entries(before.picks).filter(([id]) => !gone.includes(id))));
+}
+
+/** A picks listen whose set isn't there. */
+const noSet = (show: Show, listen: Listen | null | undefined): boolean => {
+  const id = picksId(listen);
+  return id !== null && !show.picks?.[id];
+};
+
+/** updatePicks: sections in the span keep the set's layer at its place (one layer, and a new widget rewrites it and drops
+    its knobs), sections outside lose it, new ones get it on top with the knobs and region of the nearest layer of the set,
+    its knobs only if the widget stayed. */
+function respanPicks(show: Show, id: string, widget: string, [first, last]: [number, number]): ShowSection[] {
+  const inSet = (l: Layer) => picksId(l.listen) === id;
+  const holders = show.sections.flatMap((s, i) => (s.layers.some(inSet) ? [i] : []));
+  const nearest = (i: number): Layer | undefined => {
+    if (!holders.length) return undefined;
+    const j = holders.reduce((a, b) => (Math.abs(b - i) < Math.abs(a - i) ? b : a));
+    return show.sections[j].layers.find(inSet);
+  };
+  const rewrite = (l: Layer): Layer => {
+    if (l.widget === widget) return l;
+    const { knobs: _knobs, ...rest } = l;
+    return { ...rest, widget };
+  };
+  return show.sections.map((s, i) => {
+    const own = s.layers.find(inSet);
+    if (i < first || i > last) return own ? { ...s, layers: s.layers.filter((l) => !inSet(l)) } : s;
+    if (own) return { ...s, layers: s.layers.filter((l) => !inSet(l) || l === own).map((l) => (l === own ? rewrite(l) : l)) };
+    const near = nearest(i);
+    const layer: Layer = { widget, listen: picksListen(id) };
+    if (near?.widget === widget && near.knobs) layer.knobs = near.knobs;
+    if (near?.region) layer.region = near.region;
+    return { ...s, layers: [...s.layers, layer] };
+  });
+}
+
 export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
   const S = show.sections;
   switch (e.kind) {
@@ -149,11 +220,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       });
       const sections = S.slice();
       sections.splice(e.section, 2, { ...a, end: b.end, layers });
-      return withSections(show, sections);
+      return dropOrphans(show, withSections(show, sections));
     }
     case 'addLayer': {
       if (!isIndex(e.section, S.length) || !e.widget) return show;
-      if (e.listen !== undefined && !isListen(e.listen)) return show;
+      if ((e.listen !== undefined && !isListen(e.listen)) || noSet(show, e.listen)) return show;
       const layer: Layer = e.listen !== undefined && e.listen !== 'all' ? { widget: e.widget, listen: e.listen } : { widget: e.widget };
       const layers = S[e.section].layers;
       if (layers.some((l) => instanceKey(l) === instanceKey(layer))) return show;
@@ -163,7 +234,7 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
     }
     case 'removeLayer': {
       if (!isIndex(e.section, S.length) || !isIndex(e.layer, S[e.section].layers.length)) return show;
-      return withLayers(show, e.section, S[e.section].layers.filter((_, j) => j !== e.layer));
+      return dropOrphans(show, withLayers(show, e.section, S[e.section].layers.filter((_, j) => j !== e.layer)));
     }
     case 'moveLayer': {
       if (!isIndex(e.section, S.length)) return show;
@@ -196,6 +267,7 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       const sec = S[e.section], l = sec.layers[e.layer], p = e.patch;
       const next: Layer = { ...l };
       if (p.listen !== undefined) {
+        if (noSet(show, p.listen)) return show;
         if (p.listen === null || p.listen === 'all') delete next.listen;
         else if (isListen(p.listen)) next.listen = p.listen;
         else return show;
@@ -216,7 +288,29 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       }
       if (JSON.stringify(next) === JSON.stringify(l)) return show;
       const layers = sec.layers.slice(); layers[e.layer] = next;
-      return withLayers(show, e.section, layers);
+      return dropOrphans(show, withLayers(show, e.section, layers));
+    }
+    case 'placePicks': {
+      const notes = repairPickNotes(e.notes);
+      if (!notes.length || !e.widget) return show;
+      const id = nextPicksId(show), [first, last] = picksSpan(show, notes);
+      const layer: Layer = { widget: e.widget, listen: picksListen(id) };
+      return withPicks(withSections(show, S.map((s, i) => (i < first || i > last ? s : { ...s, layers: [...s.layers, { ...layer }] }))),
+        { ...show.picks, [id]: { notes } });
+    }
+    case 'updatePicks': {
+      const old = show.picks?.[e.id], notes = repairPickNotes(e.notes);
+      if (!old || !notes.length || !e.widget) return show;
+      // The sections count too: with the same notes, an update still spans a boundary that moved and places an unused set.
+      const sections = respanPicks(show, e.id, e.widget, picksSpan(show, notes));
+      if (JSON.stringify(notes) === JSON.stringify(old.notes) && JSON.stringify(sections) === JSON.stringify(S)) return show;
+      return withPicks(withSections(show, sections), { ...show.picks, [e.id]: { notes } });
+    }
+    case 'removePicks': {
+      if (!show.picks?.[e.id]) return show;
+      const { [e.id]: _gone, ...rest } = show.picks;
+      const inSet = (l: Layer) => picksId(l.listen) === e.id;
+      return withPicks(withSections(show, S.map((s) => (s.layers.some(inSet) ? { ...s, layers: s.layers.filter((l) => !inSet(l)) } : s))), rest);
     }
   }
 }

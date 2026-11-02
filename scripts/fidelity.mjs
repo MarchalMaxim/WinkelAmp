@@ -45,7 +45,7 @@ for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
 }
 
 // The lab's lists, read the way the studio reads them.
-const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5190, strictPort: false, hmr: false } });
+const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || 5190, strictPort: false, hmr: false } });
 await vite.listen();
 const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
 const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');

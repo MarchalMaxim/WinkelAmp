@@ -106,6 +106,17 @@ npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid
 - `npm run describe-song -- <id>` then lists the tracks and where each instrument plays; `npm run pianoroll` draws
   piano rolls of them.
 
+### Pick the melody's notes for a widget
+
+Some widgets answer every attack and drown the melody. **Pick notes** (in the transport bar) opens a piano roll of the
+song, with the real recording playing: click or box-select notes to mark the melody (Suggest top line gives a start; on
+an ensemble, colours and a legend say which instrument is which, and a name hides that instrument or plays its notes as
+tones). **Pick the notes** from the marks, choose a widget, preview it on your picks against every note, and **Place in
+scene**: the widget then answers those notes only, each as strongly as it was played, and one undo takes the placement
+back. Marks are kept per song in `melodies/<song>.json` (committed, saved by themselves); the picks themselves are in
+the show (`picks`, see [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md)). Studio only; a widget you don't connect
+behaves as before.
+
 ### Have Claude compose a show
 
 Write what you want to see in the **Show** tab's *Describe the show* box (it is saved to
@@ -231,7 +242,7 @@ src/
                         one file per element in elements/
   visual/               Classic: the v1 Canvas2D renderer and scenes; living/ (the fluid's WebGL2 canvas); recorder
   control/, ui/         MIDI and the key synth; the Tweak drawer and MIDI panel
-shows/                  the studio's shows (<song>.json) and their descriptions; songs/ (packs, audio) is local only
+shows/                  the studio's shows (<song>.json) and their descriptions; melodies/ the picker's marks; songs/ (packs, audio) is local only
 corpus/                 the old app's composed shows (<id>.json) and their song data (<id>.data.json)
 scripts/                study packs, script checker and preview, screenshots, end-to-end and melody checks
 tests/                  vitest unit tests
@@ -254,6 +265,8 @@ npm run lab-notes -- <id>                    # the lab's pack file for a song (l
 npm run pianoroll -- <id> --out <png> [--by track]   # a piano roll of a song, coloured by track, class or line
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
 npm run layers-check   # the layer panel: listens to, where, intensity presets, the widget picker's filters
+npm run picker-check  # the note picker on Vivaldi's Winter: marks saved, no key reaches the show, the preview stays out of it, one undo
+npm run picks-check   # widgets on picks in the real runtime: exactly the picked attacks, after a seek, at scale 1 and 2
 npm run overlay-check  # the region overlay on the stage: drags, Shift, Alt, rotation, feather, undo, never in the picture
 npm run lanes-check    # the intensity lanes: add, drag, bend, shapes, presets, undo, save
 npm run runtime-check  # instances, routing, intensity and regions in the runtime: seek invariance, spot and window

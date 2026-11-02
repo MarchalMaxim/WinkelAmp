@@ -11,6 +11,9 @@
  *   PUT  /api/shows/<id>                  validateShow (the pack's duration, the Node catalogue), else 400 { errors };
  *                                         writes canonicalShow, 204
  *   GET|PUT /api/shows/<id>/description   text ≤ 20 KB, shows/<id>.description.md
+ *   GET  /api/songs/<id>/labels           { notes: LabelNote[] }: the rows of songs/<id>/notes.ymt3.json, none without one
+ *   GET  /api/melodies/<song>             the song's marked melody; an empty one (not a 404) when it has no file
+ *   PUT  /api/melodies/<song>             validateMelody, for this song, else 400 { errors }; writes canonicalMelody, 204
  *   GET  /songs/<id>/pack.json|audio.*    from the songs dir (WINKELAMP_SONGS too), with byte ranges for seeking
  *   POST /api/render/<show id>?scale=2&from=&to=   an HD master job (plan §10): `npm run render-show` of the show sent
  *                                         as the body (what the studio shows, saved or not), else shows/<id>.json, else
@@ -28,9 +31,10 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import type { Connect, Plugin } from 'vite';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
+import { canonicalMelody, emptyMelody, validateMelody, type Melody } from '../src/studio/show/melody';
 import { canonicalShow, validateShow, type Show } from '../src/studio/show/show';
 import { loadCatalogue } from './node/catalogue';
-import { isSlug, REPO, showsDir, songsDir } from './node/pack-io';
+import { isSlug, melodiesDir, REPO, showsDir, songsDir } from './node/pack-io';
 
 import type { LibraryEntry } from '../src/studio/ui/api';
 import type { RenderJobView } from '../src/studio/ui/record';
@@ -326,8 +330,9 @@ export interface ApiOptions {
   spawnRender?: RenderSpawner;
 }
 
-export function apiMiddleware(dirs: { songs: string; shows: string }, o: ApiOptions = {}): Connect.NextHandleFunction {
-  const { songs, shows } = dirs;
+/** dirs.melodies: by default melodies/ beside the shows, so a temp shows folder never writes the real one. */
+export function apiMiddleware(dirs: { songs: string; shows: string; melodies?: string }, o: ApiOptions = {}): Connect.NextHandleFunction {
+  const { songs, shows } = dirs, melodies = dirs.melodies ?? resolve(shows, '..', 'melodies');
   const render = renderJobs(dirs, o.spawnRender ?? spawnRenderShow);
   const handle = async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://local');
@@ -384,12 +389,29 @@ export function apiMiddleware(dirs: { songs: string; shows: string }, o: ApiOpti
         writeAtomic(join(songs, id, `audio${ext}`), body);
         return send(res, 204);
       }
+      if (parts.length === 3 && parts[2] === 'labels' && method === 'GET') {
+        const file = join(songs, id, 'notes.ymt3.json');
+        return send(res, 200, { notes: existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { notes: unknown[] }).notes : [] });
+      }
       if (parts.length === 3 && parts[2] === 'pack' && method === 'PUT') {
         const pack = parseJson(await readBody(req, MAX_JSON));
         const errors = validatePack(pack);
         if (!errors.length && (pack as SongPack).id !== id) errors.push(`id: ${(pack as SongPack).id} is not ${id}`);
         if (errors.length) return send(res, 400, { errors });
         writeAtomic(join(songs, id, 'pack.json'), JSON.stringify(pack));
+        return send(res, 204);
+      }
+    }
+
+    if (parts[0] === 'melodies' && parts.length === 2) {
+      const song = slug(parts[1]), file = join(melodies, `${song}.json`);
+      if (method === 'GET') return send(res, 200, existsSync(file) ? readFileSync(file, 'utf8') : emptyMelody(song));
+      if (method === 'PUT') {
+        const m = parseJson(await readBody(req, MAX_JSON)) as Melody;
+        const errors = validateMelody(m);
+        if (!errors.length && m.song !== song) errors.push({ path: 'song', message: `the melody says song '${m.song}' but is saved as '${song}'` });
+        if (errors.length) return send(res, 400, { errors });
+        writeAtomic(file, canonicalMelody(m));
         return send(res, 204);
       }
     }
@@ -431,12 +453,12 @@ export function apiMiddleware(dirs: { songs: string; shows: string }, o: ApiOpti
 }
 
 /** The dev-only plugin: the API, and an HMR event when a show changes on disk. */
-export function studioApi(dirs: { songs?: string; shows?: string } = {}): Plugin {
+export function studioApi(dirs: { songs?: string; shows?: string; melodies?: string } = {}): Plugin {
   return {
     name: 'winkelamp-studio-api',
     apply: 'serve',
     configureServer(server) {
-      const d = { songs: dirs.songs ?? songsDir(), shows: dirs.shows ?? showsDir() };
+      const d = { songs: dirs.songs ?? songsDir(), shows: dirs.shows ?? showsDir(), melodies: dirs.melodies ?? (dirs.shows ? undefined : melodiesDir()) };
       server.middlewares.use(apiMiddleware(d));
       // A render job does not outlive its dev server.
       server.httpServer?.once('close', () => { for (const c of children) killTree(c); });

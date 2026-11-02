@@ -17,7 +17,7 @@
  */
 import './lanes.css';
 import type { SongPack } from '../pack/pack';
-import { instanceKey, type Layer, type Show } from '../show/show';
+import { instanceKey, picksId, type Layer, type Show } from '../show/show';
 import type { Span, WaLayers } from '../../widgets/layers';
 import { studioLayers } from '../../widgets/layers-source';
 import type { Chord, Pivot, Shape } from '../../widgets/types';
@@ -129,7 +129,7 @@ interface Drag {
 
 const PREFS = 'wa-studio.lanes';
 const LISTEN_WORDS: Record<string, string> = { melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents' };
-const listenWord = (l: string): string => LISTEN_WORDS[l] ?? (l.startsWith('family:') ? l.slice(7) : l);
+const listenWord = (l: string): string => (picksId(l) !== null ? 'your picks' : LISTEN_WORDS[l] ?? (l.startsWith('family:') ? l.slice(7) : l));
 const pct = (v: number): string => `${Math.round(v * 100)} %`;
 const stamp = (t: number): string => {
   t = Math.max(0, t);
@@ -231,10 +231,11 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   };
 
   const ticks = (listen: string | undefined): Chord[] => {
-    const k = listen ?? 'all';
+    const k = listen ?? 'all', song = { notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks };
+    if (picksId(listen) !== null) return L.groupChords(L.listenNotes(song, listen).notes);   // a set changes with the show
     let c = ticksFor.get(k);
     if (!c) {
-      c = L.groupChords(L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks }, listen).notes);
+      c = L.groupChords(L.listenNotes(song, listen).notes);
       ticksFor.set(k, c);
     }
     return c;
@@ -312,10 +313,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       }
       // The attacks of the part it listens to.
       g.fillStyle = `hsl(${hue} 30% 80%)`;
+      const onPicks = picksId(v.listen) !== null;   // sparse, so stronger and taller
       for (const ch of ticks(v.listen)) {
         if (ch.t < G.a || ch.t > G.b) continue;
-        g.globalAlpha = 0.15 + 0.5 * Math.min(1, ch.vel / 127) ** 2;
-        g.fillRect(Math.round(G.x(ch.t)), h - 2 - 5 * Math.min(1, 0.4 + ch.notes.length / 6), 1, 5 * Math.min(1, 0.4 + ch.notes.length / 6));
+        const tall = onPicks ? h - 4 : 5 * Math.min(1, 0.4 + ch.notes.length / 6);
+        g.globalAlpha = onPicks ? 0.9 : 0.15 + 0.5 * Math.min(1, ch.vel / 127) ** 2;
+        g.fillRect(Math.round(G.x(ch.t)), h - 2 - tall, 1, tall);
       }
       g.globalAlpha = 1;
       // The 0 and 1 lines.
@@ -645,7 +648,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       { label: 'Gate on loudness', note: `open above ${pct(above)}`, run: () => put(P.gate(span, d.song.loudness, { above })) },
     ];
     if (l.listen && l.listen !== 'all') {
-      const notes = L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks }, l.listen).notes;
+      const notes = L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks }, l.listen).notes;
       items.push({ label: 'While its part plays', note: listenWord(l.listen), run: () => put(P.plays(span, notes)) });
     }
     items.push({ label: 'Clear curve', note: 'always at 100 %', disabled: !l.intensity?.length, run: () => { selected = null; put([]); } });

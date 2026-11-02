@@ -32,3 +32,6 @@ export const nameOf = (file: string): { id: string; title: string } => nameFromF
 
 /** <repo>/shows, or WINKELAMP_SHOWS (tests use temp dirs). */
 export const showsDir = (): string => resolve(process.env.WINKELAMP_SHOWS || resolve(REPO, 'shows'));
+
+/** WINKELAMP_MELODIES, else melodies/ beside the shows folder (a test's temp shows folder keeps its own). */
+export const melodiesDir = (): string => resolve(process.env.WINKELAMP_MELODIES || resolve(showsDir(), '..', 'melodies'));

@@ -46,7 +46,7 @@ export interface WaLayers {
   // lines.js (T4)
   groupChords(notes: readonly Note[]): Chord[]; soundingAt(notes: readonly Note[], t: number): SoundingNote[];
   lineNotes(notes: readonly Note[], line: Line): Note[];
-  listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back
+  listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back; picks:<id> never falls back: a missing set hears nothing
   advancePulse(p: { level: number; rate: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
   // region.js (T5)
   regionBox(r: Region, cw: number, ch: number): { cx: number; cy: number; w: number; h: number; rot: number };   // device px, radians

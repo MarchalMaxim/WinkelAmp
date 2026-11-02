@@ -42,7 +42,7 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 }
 ```
 
-- `version` is 1, or 2 when a layer uses `listen`, `region` or `intensity` (below). `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
+- `version` is 1, or 2 when a layer uses `listen`, `region` or `intensity`, or the show has `picks` (below). `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
   single dashes). One show per song: `id` = `song`. `title` and `composer` (`auto` | `claude` | `user`, with a time)
   are optional; write `"by": "claude"`.
 - `sections` are sorted, start at 0, end at the song's length (±0.5 s) and join without gaps or overlaps (±0.05 s).
@@ -96,6 +96,7 @@ values:
   `family:percussion`, `family:voice` (the union of that family's tracks).
 - **A line** worked out from the notes, on every song, piano too: `melody` (the top line), `bassline`, `inner`,
   `low` (below G3), `high` (C5 and up), `accents` (the loudest 15 % of attacks).
+- **A set of picks**: `picks:p1`, notes the user chose by hand in the studio, kept in the show (below).
 
 A layer listening to a part is its own *instance*: `strings` and `strings@melody` can sit in one section (say woven
 threads on the melody over the same widget on the bass line) and draw independently; each instance appears once per
@@ -106,6 +107,22 @@ section. Removing `listen` gives the plain widget back with its state.
 heard: "Violins" is YourMT3+'s violin track (it does not separate firsts from seconds), "String section" is string
 sound it could not split, and short tracks (a few dozen notes) are guesses. In a section label or a commit, say "the
 violins' line" rather than "the first violins".
+
+**Picks.** The user picks notes in the studio ("Pick notes") and connects them to a widget, which then answers those
+notes only, each as strongly as it was played. The notes themselves are in the show, after `sections`, one a line:
+
+```json
+"picks": { "p1": { "notes": [
+  [12.3456, 13.1, 76, 92],
+  [15.02, 15.4, 79, 70]
+] } }
+```
+
+`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. Each layer on the set says
+`"listen": "picks:p1"`, and is the instance `pointillism@picks:p1`; one set can have layers in many sections. Notes within
+40 ms are one attack, as everywhere. These are the user's hand work: leave them alone unless asked, and make them in the
+studio, not here. A layer on a set that isn't there is an error, and `check-show --fix` drops the layer rather than let it
+play on every note. A set no layer uses, and a pick outside every section using its set (never heard), are warnings.
 
 ### `region`: where the layer is seen
 
