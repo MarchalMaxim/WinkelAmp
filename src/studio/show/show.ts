@@ -56,7 +56,7 @@ const KEYS = {
 
 export const LINES: readonly Line[] = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
 export const FAMILIES: readonly Family[] = ['keys', 'plucked', 'strings', 'winds', 'brass', 'percussion', 'voice'];
-const MODES = ['spot', 'window'], REGION_SHAPES = ['rect', 'ellipse'], BLENDS = ['over', 'lighten'], FITS = ['cover', 'contain', 'stretch'];
+const MODES = ['spot', 'window'], REGION_SHAPES = ['rect', 'ellipse'], BLENDS = ['clear', 'over', 'lighten'], FITS = ['cover', 'contain', 'stretch'];
 const SHAPES: readonly Shape[] = ['linear', 'ease', 'hold'];
 /** Region size (fraction of the canvas) and centre limits. */
 export const REGION_SIZE = [0.02, 2] as const, REGION_CENTRE = [-0.5, 1.5] as const;

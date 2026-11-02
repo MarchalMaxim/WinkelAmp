@@ -254,6 +254,7 @@
       + '<button type="button" data-mode="">whole</button><button type="button" data-mode="window" title="The whole widget, shrunk into a box you place">small copy</button>'
       + '<button type="button" data-mode="spot" title="The full-size widget, seen only through a shape">mask</button></span></div>'
       + '<div class="lyr-row lyr-reg"><span class="lyr-k"></span><span class="lyr-regc"><select data-shape aria-label="Shape"><option value="ellipse">ellipse</option><option value="rect">rectangle</option></select>'
+      + '<select data-blend aria-label="What happens to its black background"><option value="clear">see-through</option><option value="over">keep its black</option><option value="lighten">let the brighter show</option></select>'
       + '<label class="lyr-fea" title="Edge softness"><span>soft</span><input type="range" data-feather min="0" max="1" step="0.05" aria-label="Edge softness"></label>'
       + '<button type="button" data-edit title="Move, size and turn it on the stage">on the stage</button></span></div>'
       + '<div class="lyr-row"><span class="lyr-k">intensity</span><span class="lyr-int"><select data-preset aria-label="How it comes and goes"></select>'
@@ -261,7 +262,7 @@
       + '<div class="lyr-row lyr-amt"><span class="lyr-k"></span><span class="lyr-amtc"><input type="range" data-amount aria-label="How much"><span class="lyr-say"></span></span></div>'
       + '<p class="lyr-note"></p></details>';
     var $ = function (q) { return el.querySelector(q); };
-    var det = $('.lyr-d'), sum = $('.lyr-sum'), sel = $('[data-listen]'), shape = $('[data-shape]'), feather = $('[data-feather]');
+    var det = $('.lyr-d'), sum = $('.lyr-sum'), sel = $('[data-listen]'), shape = $('[data-shape]'), blendSel = $('[data-blend]'), feather = $('[data-feather]');
     var preset = $('[data-preset]'), scope = $('[data-scope]'), amount = $('[data-amount]'), say = $('.lyr-say'), note = $('.lyr-note');
     var regRow = $('.lyr-reg'), amtRow = $('.lyr-amt'), editBtn = $('[data-edit]');
     // Nothing in here switches the card on or off.
@@ -342,6 +343,12 @@
       });
     });
     shape.addEventListener('change', function () { var e = get(); if (e.region) commit({ listen: e.listen, region: Object.assign({}, e.region, { shape: shape.value }), intensity: e.intensity }); });
+    blendSel.addEventListener('change', function () {
+      var e = get(); if (!e.region) return;
+      var r = Object.assign({}, e.region);
+      if (blendSel.value === 'clear') delete r.blend; else r.blend = blendSel.value;
+      commit({ listen: e.listen, region: r, intensity: e.intensity });
+    });
     feather.addEventListener('input', function () { var e = get(); if (e.region) commit({ listen: e.listen, region: Object.assign({}, e.region, { feather: Number(feather.value) }), intensity: e.intensity }); });
     editBtn.addEventListener('click', function () {
       if (editing === toolId && overlay && overlay.visible) { overlay.close(); return; }
@@ -364,7 +371,8 @@
       fillListen(e.listen === undefined ? 'all' : e.listen);
       el.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((r ? r.mode : '') === b.dataset.mode)); });
       regRow.hidden = !r;
-      if (r) { shape.value = r.shape === 'rect' ? 'rect' : 'ellipse'; feather.value = String(r.feather === undefined ? 0.25 : r.feather); }
+      blendSel.hidden = !r || r.mode !== 'window';
+      if (r) { blendSel.value = r.blend || 'clear'; shape.value = r.shape === 'rect' ? 'rect' : 'ellipse'; feather.value = String(r.feather === undefined ? 0.25 : r.feather); }
       editBtn.setAttribute('aria-pressed', String(editing === toolId && !!overlay && overlay.visible));
       var kind = c ? c.kind : e.intensity && e.intensity.length ? 'custom' : 'always';
       preset.value = kind;

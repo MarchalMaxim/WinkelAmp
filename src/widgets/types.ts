@@ -71,7 +71,7 @@ export type Shape = 'linear' | 'ease' | 'hold';
 export interface Pivot { t: number; v: number; shape?: Shape; bend?: number }
 /** Centre and size are fractions of the canvas; feather 0..1 of the smaller half-size (default 0.25); rot degrees. */
 export interface Region { mode: 'spot' | 'window'; shape: 'rect' | 'ellipse'; x: number; y: number; w: number; h: number;
-  rot?: number; feather?: number; blend?: 'over' | 'lighten'; fit?: 'cover' | 'contain' | 'stretch' }
+  rot?: number; feather?: number; blend?: 'clear' | 'over' | 'lighten'; fit?: 'cover' | 'contain' | 'stretch' }
 export type Persist = 'redraw' | 'strokes';
 export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>>;
   picks?: Record<string, { notes: Note[] }> }

@@ -166,12 +166,15 @@ softens the edge (default 0.25; 0 is a hard edge); `shape` is `rect` or `ellipse
   fold, time slice): in a spot they still work on the whole stack under them, only inside the shape.
 - **`window`** (the studio's **Small copy**): the widget draws alone on its own canvas (with the same fade), and that
   whole picture is fitted into the
-  shape (`fit`: `cover` crops, `contain` letterboxes, `stretch`) and laid over the stack (`blend`: `over`, or
-  `lighten` to keep the brighter of the two). A reader in a window only cuts its own picture, which is usually empty:
-  the studio says so.
+  shape (`fit`: `cover` crops, `contain` letterboxes, `stretch`) and laid over the stack. `blend` says how:
+  `clear` (the default, also when `blend` is left out; the studio's **See-through**) turns black see-through and keeps
+  anything lit solid, `over` keeps the black box, `lighten` keeps the brighter of the two. `clear` goes by the colour
+  alone: a widget that paints its own background (Miro, Matisse, Kusama and others) stays a solid rectangle, a few leave
+  a dark veil (Gust, Royal), and black drawn inside a widget goes see-through too (Marbling's rings). A reader in a
+  window only cuts its own picture, which is usually empty: the studio says so.
 
 The studio's and the lab's default for a new place is a small copy for every widget, the readers included: a window,
-a centred rectangle 40 % of the stage (`w` and `h` 0.4), `feather` 0.2, `fit` `contain`. Switch a reader to the mask
+a centred rectangle 40 % of the stage (`w` and `h` 0.4), `feather` 0.2, `fit` `contain`, `blend` left out (`clear`). Switch a reader to the mask
 to let it cut the stack below.
 
 ### `intensity`: how much of the layer there is, over time

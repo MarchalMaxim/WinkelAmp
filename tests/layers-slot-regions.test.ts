@@ -188,3 +188,41 @@ describe('window', () => {
     expect(log.some((l) => l.startsWith('g.drawImage('))).toBe(true);
   });
 });
+
+describe("the 'clear' stamp", () => {
+  const px = (...v: number[]) => [...WA.clearPixels(new Uint8ClampedArray(v))];
+
+  it('black goes see-through, and anything lit stays solid', () => {
+    expect(px(0, 0, 0, 255)[3]).toBe(0);
+    expect(px(200, 10, 0, 255)).toEqual([200, 10, 0, 255]);   // hi × 3 is past 1: solid, the colour as it was
+    expect(px(85, 85, 85, 255)).toEqual([85, 85, 85, 255]);   // a third of full is already solid
+  });
+
+  it('a dim pixel is its colour at less alpha, and looks the same over black', () => {
+    const [r, g, b, a] = px(30, 15, 0, 255);
+    expect([r, g, b, a]).toEqual([85, 42, 0, 90]);            // a = 30 × 3, rgb = rgb / a
+    expect(Math.round(r * a / 255)).toBe(30);
+    expect(Math.round(g * a / 255)).toBe(15);
+  });
+
+  it('what is already part clear keeps that (the edge of a letterbox)', () => {
+    expect(px(0, 0, 0, 0)).toEqual([0, 0, 0, 0]);
+    expect(px(200, 0, 0, 128)[3]).toBe(128);
+  });
+
+  it('is the default for a window; an explicit over or lighten does not run it', () => {
+    const keyed = (blend?: Region['blend']) => {
+      const log: string[] = [], stage = fakeCanvas('g', log);
+      const h: LayerHost = { ctx: { g: stage.getContext('2d'), canvas: stage, sounding() {} } as unknown as WidgetCtx,
+        g: stage.getContext('2d')!, canvas: stage, S: 1, call() {}, scratch: () => fakeCanvas('sg', log),
+        windowOf: () => fakeCanvas('win', log), make: (w, hh) => fakeCanvas('m', log, w, hh) };
+      const region = { ...full('window'), fit: 'cover' } as Region;
+      if (blend) region.blend = blend; else delete region.blend;
+      const keep = WA.clearBox; let n = 0;
+      WA.clearBox = () => { n++; };
+      try { WA.drawLayered(h, slot(inst(), { layer: { region } })); } finally { WA.clearBox = keep; }
+      return n;
+    };
+    expect([keyed(), keyed('clear'), keyed('over'), keyed('lighten')]).toEqual([1, 1, 0, 0]);
+  });
+});

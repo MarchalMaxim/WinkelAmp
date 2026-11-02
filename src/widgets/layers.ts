@@ -62,6 +62,10 @@ export interface WaLayers {
   buildMask(r: Region, cw: number, ch: number, cls: Persist, make: LayerHost['make']): HTMLCanvasElement;   // canvas ops only
   // slot.js (T12; regions in T15)
   drawLayered(h: LayerHost, s: LayeredSlot): void;
+  /** The 'clear' stamp on straight RGBA bytes, in place: black see-through, anything lit solid. */
+  clearPixels<T extends Uint8ClampedArray | number[]>(d: T): T;
+  /** The same on a box canvas: on the graphics card, or by reading its pixels without one. */
+  clearBox(box: HTMLCanvasElement, w: number, h: number): void;
   /** features.ts newFeatures */
   newFeatures(): Features;
   /** cold at t, as after a seek: ci = the first chord after t, pulse 0, fresh features (resets and comebacks) */

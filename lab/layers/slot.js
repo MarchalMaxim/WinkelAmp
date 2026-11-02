@@ -7,8 +7,8 @@
 // through the region's mask (destination-out at the weight), so it is seen only inside; what it queues to draw "after
 // the others" runs at the end of the step as without a region, each pass pasted back through the mask the same way.
 // A window gives the instance its own canvas the size of the shared one (with the same fade and burn), lets it draw
-// there as if alone, and stamps it scaled into the region, masked, at the weight. A region glides from the last
-// section's over the fade (region.js).
+// there as if alone, and stamps it scaled into the region, masked, at the weight; by default its black goes see-through
+// first (blend 'clear'). A region glides from the last section's over the fade (region.js).
 //
 // What a host provides for windows, besides LayerHost: h.call passes h.ctx (read at each call) to the widget, because a
 // windowed call runs with h.ctx set to the instance's window view (an object on the shared ctx whose g and canvas are
@@ -231,9 +231,100 @@
     wg.restore();
   };
 
+  /** The 'clear' stamp on straight RGBA bytes (an ImageData's), in place: black goes see-through and anything lit stays
+      solid. hi = max(r, g, b), a = min(1, hi × 3), rgb = min(1, rgb / a), so laid over black it looks as it did. A pixel
+      already part clear (the edge of contain's letterbox) keeps that too: its alpha is multiplied in. */
+  WA.clearPixels = function (d) {
+    for (var i = 0; i < d.length; i += 4) {
+      var hi = Math.max(d[i], d[i + 1], d[i + 2]), a = Math.min(255, hi * 3);
+      if (a > 0) { var u = 255 / a; d[i] = Math.min(255, d[i] * u); d[i + 1] = Math.min(255, d[i + 1] * u); d[i + 2] = Math.min(255, d[i + 2] * u); }
+      d[i + 3] = a * d[i + 3] / 255;
+    }
+    return d;
+  };
+
+  // The same on the graphics card, as a pixel read costs about 5 ms per frame for a 640 × 360 box. One small canvas and
+  // shader shared by every copy, made at the first clear stamp. The texture and the canvas are both premultiplied, where
+  // the sum is plain: rgb / a × a is the rgb it started as, so only alpha changes.
+  var KEY_FRAG = '#version 300 es\nprecision highp float; uniform sampler2D q; in vec2 uv; out vec4 o;\n'
+    + 'void main() { vec4 c = texture(q, uv); o = vec4(c.rgb, min(c.a, 3.0 * max(c.r, max(c.g, c.b)))); }';
+  var KEY_VERT = '#version 300 es\nout vec2 uv;\n'
+    + 'void main() { vec2 p = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0); uv = 0.5 * p + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+  var KEY_RETRY_MS = 2000;
+  var key = null, keyNever = false, keyRetryAt = 0;
+
+  /** The shared key canvas, or null while there is none: never again without WebGL2 (Node, an old card), and for a
+      moment after a lost context, so a browser short of contexts is not asked for one every frame. */
+  function keyGl() {
+    if (key && !key.gl.isContextLost()) return key;
+    if (key) { key = null; keyRetryAt = Date.now() + KEY_RETRY_MS; }
+    if (keyNever || Date.now() < keyRetryAt) return null;
+    var made = null;
+    try { made = typeof document !== 'undefined' ? makeKey() : null; } catch (err) { made = null; }
+    if (!made) keyNever = true;
+    key = made;
+    return key;
+  }
+
+  function makeKey() {
+    var cv = document.createElement('canvas');
+    var gl = cv.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false });
+    if (!gl) return null;
+    var p = gl.createProgram();
+    [[gl.VERTEX_SHADER, KEY_VERT], [gl.FRAGMENT_SHADER, KEY_FRAG]].forEach(function (x) {
+      var s = gl.createShader(x[0]); gl.shaderSource(s, x[1]); gl.compileShader(s); gl.attachShader(p, s);
+    });
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
+    gl.useProgram(p);
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]
+      .forEach(function (x) { gl.texParameteri(gl.TEXTURE_2D, x[0], x[1]); });
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);             // GL's y runs up: the box's top row ends at the top of the canvas
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);  // as a canvas stores it, so nothing is divided and rounded
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    gl.disable(gl.BLEND);
+    cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); });   // keyGl sees it and makes a new one
+    return { cv: cv, gl: gl };
+  }
+
+  /** The box on the graphics card. False when it was not done, the box as it was. The canvas only ever grows, so copies
+      of different sizes do not reallocate it each step; the picture sits at its top left. */
+  function clearOnCard(box, tg, w, h) {
+    var K = keyGl();
+    if (!K) return false;
+    try {
+      var gl = K.gl, cv = K.cv;
+      if (cv.width < w) cv.width = w;
+      if (cv.height < h) cv.height = h;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, box);
+      gl.viewport(0, cv.height - h, w, h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (gl.isContextLost()) return false;
+      tg.globalCompositeOperation = 'copy';                   // replaces the opaque box: 'source-over' would leave it there
+      tg.drawImage(cv, 0, 0, w, h, 0, 0, w, h);
+      tg.globalCompositeOperation = 'source-over';
+      return true;
+    } catch (err) { return false; }
+  }
+
+  /** Makes a box (a canvas, w × h, nothing rotated on its context) see-through where it is black: on the graphics card,
+      or by reading its pixels without one. A canvas that cannot be read stays as it is. */
+  WA.clearBox = function (box, w, h) {
+    var tg = box.getContext('2d');
+    if (clearOnCard(box, tg, w, h)) return;
+    if (typeof tg.getImageData !== 'function') return;
+    try {
+      var im = tg.getImageData(0, 0, w, h);
+      WA.clearPixels(im.data);
+      tg.putImageData(im, 0, 0);
+    } catch (err) { /* a tainted canvas: it keeps its background */ }
+  };
+
   /** window: the instance's own canvas takes the shared canvas's step (the harness's top-of-step sounding(), then the
-      fade and burn), the widget draws there as if alone, then the window is scaled into the region's box (fit), masked
-      (destination-in) and stamped rotated at the box with globalAlpha w, 'over' or 'lighten'; then the window's
+      fade and burn), the widget draws there as if alone, then the window is scaled into the region's box (fit), its black
+      made see-through ('clear', the default, without a blend too), masked (destination-in) and stamped rotated at the box
+      with globalAlpha w, 'clear' and 'over' laid on top, 'lighten' keeping the brighter; then the window's
       sounding() once more, for a put-back hooked on it (stella), so it never waits for the stage's. A window not drawn
       in the last step (it enters, or comes back) starts black. Its mask and its weight's vis take the 'redraw' class
       whatever the widget's: the stamp is a whole picture, redrawn every step. */
@@ -259,6 +350,7 @@
     tg.clearRect(0, 0, px[0], px[1]);   // contain's letterbox stays clear
     tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high';
     tg.drawImage(win, f.sx, f.sy, f.sw, f.sh, 0, 0, px[0], px[1]);
+    if (r.blend !== 'over' && r.blend !== 'lighten') WA.clearBox(e.box, px[0], px[1]);
     tg.globalCompositeOperation = 'destination-in'; tg.drawImage(m, 0, 0); tg.globalCompositeOperation = 'source-over';
     var g = h.g;
     g.save();

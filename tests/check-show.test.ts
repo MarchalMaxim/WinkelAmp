@@ -24,6 +24,15 @@ const show = (clips: [number, number, string, number?][]) => ({
   version: 3, id: 'demo', song: 'demo', clips: clips.map(([start, end, widget, track], i) => ({ id: `c${i + 1}`, start, end, track: track ?? 0, widget })),
 });
 
+describe('a region\'s blend', () => {
+  const withBlend = (blend: unknown) => ({ ...show([[0, 50, 'squares']]),
+    clips: [{ id: 'c1', start: 0, end: 50, track: 0, widget: 'squares', region: { mode: 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.4, h: 0.4, blend } }] });
+  it('takes clear, over and lighten, and nothing else', () => {
+    for (const blend of ['clear', 'over', 'lighten']) expect(validateShow(withBlend(blend), { duration: 100 }).errors).toEqual([]);
+    expect(validateShow(withBlend('key'), { duration: 100 }).errors.map((e) => e.path)).toEqual(['clips[0].region.blend']);
+  });
+});
+
 describe('npm run check-show', () => {
   it('passes a good show and checks every show in shows/ by default', () => {
     writeFileSync(join(shows, 'demo.json'), JSON.stringify(show([[0, 50, 'squares'], [50, 100, 'kandinsky']])));

@@ -217,7 +217,8 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
         <label class="lc-row"><span>Edge softness</span><input type="range" data-feather min="0" max="1" step="0.05" aria-label="Edge softness"><output data-feather-out></output></label>
         <label class="lc-row lc-win"><span>Fit</span><select data-fit aria-label="How the picture fits the window">
           <option value="cover">Fills the shape</option><option value="contain">Whole picture inside</option><option value="stretch">Stretched to the shape</option></select></label>
-        <label class="lc-check lc-win"><input type="checkbox" data-blend> Lets the layers below through</label>
+        <label class="lc-row lc-win"><span>Background</span><select data-blend aria-label="What happens to the widget's black background">
+          <option value="clear">See-through</option><option value="over">Keep its black</option><option value="lighten">Let the brighter show</option></select></label>
         <button type="button" class="link" data-reset>Reset place</button>
       </div>
       ${reader ? '<p class="lc-hint small">This widget cuts into the picture below it: as a small copy it cuts only its own picture.</p>' : ''}
@@ -239,7 +240,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   const $ = <T extends Element>(q: string) => box.querySelector<T>(q)!;
   const sel = $<HTMLSelectElement>('.lc-listen select'), spark = $<HTMLCanvasElement>('.lc-spark'), note = $<HTMLElement>('.lc-note');
   const shape = $<HTMLSelectElement>('[data-shape]'), feather = $<HTMLInputElement>('[data-feather]'), featherOut = $<HTMLOutputElement>('[data-feather-out]');
-  const fit = $<HTMLSelectElement>('[data-fit]'), blend = $<HTMLInputElement>('[data-blend]');
+  const fit = $<HTMLSelectElement>('[data-fit]'), blend = $<HTMLSelectElement>('[data-blend]');
   const above = $<HTMLInputElement>('[data-above]'), aboveOut = $<HTMLOutputElement>('[data-above-out]');
   above.value = String(gateDefault(d.pack.loudness, d.span()));
 
@@ -328,7 +329,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   blend.addEventListener('change', () => {
     const r = region(); if (!r) return;
     const next: Region = { ...r };
-    if (blend.checked) next.blend = 'lighten'; else delete next.blend;
+    if (blend.value === 'clear') delete next.blend; else next.blend = blend.value as Region['blend'];
     place(next, group('place'));
   });
   $<HTMLButtonElement>('[data-reset]').addEventListener('click', () => place(defaultRegion(d.widget), group('place')));
@@ -371,7 +372,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       feather.value = String(f);
       featherOut.textContent = softWord(f);
       fit.value = r.fit ?? 'cover';
-      blend.checked = r.blend === 'lighten';
+      blend.value = r.blend ?? 'clear';
     }
     const n = l.intensity?.length ?? 0;
     $<HTMLElement>('.lc-curve span').textContent = n ? `Follows a curve of ${n} point${n === 1 ? '' : 's'}: shape it in the lane under the timeline.` : 'Always at full strength.';
