@@ -178,7 +178,8 @@ behaves as before.
 
 Write what you want to see in the **Show** tab's *Describe the show* box (it is saved to
 `shows/<song>.description.md`), then ask a Claude Code session in this repository to compose the show from it. The
-session follows [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md):
+session writes clips as [docs/COMPOSING.md](docs/COMPOSING.md#studio-shows-clips-on-tracks) says, and takes the widgets and
+their knobs from the list in [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md):
 
 ```bash
 npm run describe-song -- <song>                  # the song in words: its stretches, their character, loudness, attacks
@@ -188,7 +189,6 @@ npm run render-show -- <song> --from 120 --to 135 # a look at one stretch, then 
 ```
 
 A studio with the song open follows the show as it changes on disk (it asks first if you have unsaved edits).
-`shows/rach-prelude-recording.json` and `shows/beethoven5.json` were composed this way from the user's words.
 
 Songs (`songs/<id>/`: the audio and its pack) stay on your machine and out of git; shows are committed. The
 widgets live in [`lab/tools/`](lab/README.md): the [widget lab](lab/index.html) is where they are sketched and
