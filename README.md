@@ -316,7 +316,7 @@ npm run render-show -- <show id | file> [--scale 2] [--fps 60] [--from s] [--to 
                        #   with the recording's sound (a song without a show: the one the studio composes)
 npm run setup-ymt3 -- --from <Space folder>  # installs YourMT3+ outside the repo (see above)
 npm run setup-muscriptor -- [--download]     # checks MuScriptor's venv and weights, says its licence (see above)
-npm run lab-notes -- <id>                    # the lab's pack file for a song (lab/pack-<id>.js: tracks, beats, loudness)
+npm run lab-notes -- <id>                    # the lab's files for a song (lab/pack-<id>.js: tracks, beats, loudness; a new song also its audio and notes)
 npm run pianoroll -- <id> --out <png> [--by track]   # a piano roll of a song, coloured by track, class or line
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
 npm run layers-check   # the layer panel: listens to, where, intensity presets, the widget picker's filters

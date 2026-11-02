@@ -199,7 +199,7 @@
 <script>
 // Songs: ?song=b5 switches. Moments carry the Prelude's mood names, which some tools read (e.g. how many shapes spawn).
 const SONGS = {
-  prelude: { title: 'Rachmaninoff: Prelude in C♯ minor', audio: 'prelude.mp3', notes: 'notes.js', dur: 232.1,
+  prelude: { title: 'Rachmaninoff: Prelude in C♯ minor', audio: 'prelude.mp3', notes: 'notes.js', pack: 'pack-prelude.js', dur: 232.1,
     moments: [[0, 'dread', 'Dread'], [83, 'agitato', 'Agitato'], [124, 'casket', 'The casket'], [176, 'return', 'Return'], [208, 'agitato']] },
   // pack: lab/pack-<id>.js (npm run lab-notes -- <id>, git-ignored) sets window.PACK = { tracks, beats, loudness }: the
   // instrument tracks a layer can listen to. Without the file every part falls back to all the notes.
@@ -209,12 +209,12 @@ const SONGS = {
       [258, 'return', 'Oboe’s lament'], [275, 'agitato', 'Recapitulation'], [340, 'casket', 'Coda']] },
   // The three below come from the studio's packs (npm run ingest): notes-<id>.js is the pack's notes, the moments my
   // reading of its sections, loudness and harmony against the score.
-  'chopin-nocturne-48-1': { title: 'Chopin: Nocturne in C minor, Op. 48 No. 1', audio: 'chopin-nocturne-48-1.mp3', notes: 'notes-chopin-nocturne-48-1.js', dur: 381.6,
+  'chopin-nocturne-48-1': { title: 'Chopin: Nocturne in C minor, Op. 48 No. 1', audio: 'chopin-nocturne-48-1.mp3', notes: 'notes-chopin-nocturne-48-1.js', pack: 'pack-chopin-nocturne-48-1.js', dur: 381.6,
     // Lento lament; its climax ~1:42; the C major chorale (poco più lento) at 2:04, broken by octaves; the lament returns
     // doppio movimento at 3:21 over hammering triplets; it dies away from 5:26 (the file rings out to silence after 6:00).
     moments: [[0, 'dread', 'Lento'], [100, 'agitato'], [124, 'casket', 'The chorale'], [186, 'agitato', 'Octaves'],
       [201, 'return', 'Doppio movimento'], [326, 'dread', 'Fading']] },
-  'chopin-winter-wind': { title: 'Chopin: Étude Op. 25 No. 11, Winter Wind', audio: 'chopin-winter-wind.mp3', notes: 'notes-chopin-winter-wind.js', dur: 248.9,
+  'chopin-winter-wind': { title: 'Chopin: Étude Op. 25 No. 11, Winter Wind', audio: 'chopin-winter-wind.mp3', notes: 'notes-chopin-winter-wind.js', pack: 'pack-chopin-winter-wind.js', dur: 248.9,
     // Four bars of lento, then the storm of right-hand runs; far keys from ~1:42; A minor again ~2:42; the closing chords
     // and the last run up end the étude at 3:44. After 3:51 the file holds something else (quiet E-flat bells): not the étude.
     moments: [[0, 'dread', 'Lento'], [20, 'agitato', 'The storm'], [102, 'dread', 'Far keys'], [162, 'agitato', 'A minor again'],
@@ -238,6 +238,19 @@ const SONGS = {
       [343, 'casket', 'The march'], [449, 'return'], [574, 'dread', 'Hushed'], [675, 'agitato', 'Coda']] },
   liebesleid: { title: 'Kreisler, arr. Rachmaninoff: Liebesleid', audio: 'liebesleid.mp3', notes: 'notes-liebesleid.js', pack: 'pack-liebesleid.js', dur: 296.1,
     moments: [[0, 'dread', 'Waltz'], [87, 'return', 'Middle'], [137, 'agitato', 'Fuller'], [194, 'dread', 'Waltz again'], [265, 'casket', 'Last bars']] },
+  // The rest of the transcribed songs (npm run lab-notes -- <id> makes their files). Moments are my guesses from the packs'
+  // sections and silences, not checked by ear or against the scores, except Summer's, which follow its show.
+  'vivaldi-spring': { title: 'Vivaldi: Spring (all three movements)', audio: 'vivaldi-spring.mp3', notes: 'notes-vivaldi-spring.js', pack: 'pack-vivaldi-spring.js', dur: 669.2,
+    moments: [[0, 'return', 'Allegro'], [219, 'dread', 'Largo'], [387, 'agitato', 'Pastoral dance']] },
+  'vivaldi-summer': { title: 'Vivaldi: Summer (all three movements)', audio: 'vivaldi-summer.mp3', notes: 'notes-vivaldi-summer.js', pack: 'pack-vivaldi-summer.js', dur: 664.1,
+    moments: [[0, 'dread', 'The heat'], [77, 'return', 'The cuckoo'], [111, 'agitato', 'A first gust'], [191, 'agitato', 'The north wind'], [236, 'dread', 'The shepherd’s lament'],
+      [328, 'agitato', 'The storm threatens'], [359, 'dread', 'Adagio'], [488, 'casket', 'Presto: the storm breaks']] },
+  'vivaldi-autumn': { title: 'Vivaldi: Autumn (all three movements)', audio: 'vivaldi-autumn.mp3', notes: 'notes-vivaldi-autumn.js', pack: 'pack-vivaldi-autumn.js', dur: 605.6,
+    moments: [[0, 'return', 'Allegro'], [313, 'dread', 'Adagio molto'], [435, 'agitato', 'The hunt']] },
+  'vivaldi-four-seasons': { title: 'Vivaldi: The Four Seasons (all of it, another recording)', audio: 'vivaldi-four-seasons.mp3', notes: 'notes-vivaldi-four-seasons.js', pack: 'pack-vivaldi-four-seasons.js', dur: 2519.6,
+    moments: [[0, 'return', 'Spring'], [632, 'dread', 'Summer'], [1260, 'return', 'Autumn'], [1975, 'agitato', 'Winter']] },
+  'lil-wayne-bells-visualizer': { title: 'Lil Wayne: Bells', audio: 'lil-wayne-bells-visualizer.mp3', notes: 'notes-lil-wayne-bells-visualizer.js', pack: 'pack-lil-wayne-bells-visualizer.js', dur: 204.7,
+    moments: [[0, 'dread', 'Opening'], [74, 'agitato', 'Later (1:14)'], [132, 'casket', 'Later (2:12)']] },
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
