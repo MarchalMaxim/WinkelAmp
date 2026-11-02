@@ -320,7 +320,7 @@ export class Picker {
     this.rowsKey = key;
     box.querySelectorAll('.np-set, .np-empty').forEach((x) => x.remove());
     this.$('.np-scene-head').hidden = !this.rows.length;
-    if (!this.rows.length) box.append(Object.assign(document.createElement('div'), { className: 'np-empty', textContent: 'Widgets you connect land here, lined up with the notes above.' }));
+    if (!this.rows.length) box.append(Object.assign(document.createElement('div'), { className: 'np-empty', textContent: 'The scene is empty. Widgets you connect land here, lined up with the notes above.' }));
     for (const r of this.rows) {
       const name = r.widget ? this.d.meta(r.widget)?.name ?? r.widget : 'In no section';
       const row = Object.assign(document.createElement('div'), { className: 'np-set' });
