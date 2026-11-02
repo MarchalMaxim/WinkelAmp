@@ -109,6 +109,7 @@ try {
   await page.fill('.redo-own', 'violin, viola');
   check('a good own list turns Start on', !(await startOff()));
   await page.keyboard.press('Escape');
+  await page.locator('dialog.redo-dialog').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {}); // the browser closes it a moment after the key
   check('Escape cancels, and no job ran', (await page.locator('dialog.redo-dialog').count()) === 0 && calls.length === 0);
 
   // A saved result says so, for its list only.
