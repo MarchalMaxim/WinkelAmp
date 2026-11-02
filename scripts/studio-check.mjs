@@ -123,13 +123,13 @@ try {
   const back = await page.evaluate(() => window.__studio.store.state.show.sections[1].start);
   check('Ctrl+Z puts it back and the show is clean', !undone.dirty && back === 10, `boundary at ${back}, "${undone.text}"`);
 
-  // Adding the casket shows its 5 knob rows, each with its 3 pictures.
+  // Adding the casket shows its 7 knob rows, each with its 3 pictures.
   await page.click('.band .sec >> nth=1');
   await page.click('[data-act="add"]');
   await page.click('.pick[data-id="casket"]');
   await page.waitForTimeout(200);
   const rows = await page.evaluate(() => [...document.querySelectorAll('.layer.open .prm')].map((r) => r.querySelectorAll('canvas').length));
-  check('adding the casket shows 5 knob rows with 3 pictures each', rows.length === 5 && rows.every((n) => n === 3), JSON.stringify(rows));
+  check('adding the casket shows 7 knob rows with 3 pictures each', rows.length === 7 && rows.every((n) => n === 3), JSON.stringify(rows));
   const added = await page.evaluate(() => window.__studio.store.state.show.sections[1].layers.map((l) => l.widget).join(','));
   check('the casket is on top of the section', added === 'kandinsky,casket', added);
 

@@ -1,5 +1,20 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-02: `claude/tonight-all`, a test branch, not main
+
+This branch merges the night's work for the user to try: the note picker, note types, round 9 and the casket's `keep`, and
+MuScriptor last. "Not merged" in the sections below means not merged into main, which is still the user's call; on this
+branch that work is in.
+
+- A casket layer with no `keep` plays the new one-time casket, and there is no migration. The repo's shows have `keep: 1`
+  where the old look belongs. A show file from outside the repo with a casket layer and no `keep` changes silently.
+- `vivaldi-summer` section 14, "The last blows", is the one repo show whose casket changed (`lab/round9/README.md`); it
+  was composed by Claude 42 minutes before casket v2. `keep: 1` on that layer restores the old look.
+- `runtime-check` step 9 fails here: 3 pixels, each off by 1 in a channel, just below the spot, stella under halftone. Not
+  a bug in round 9: `duet`'s reset draws random numbers, so the seeded picture shifts. With none of the new widgets the
+  same check fails the same way at seed 3 (1 pixel), and with them it passes at seeds 2 and 3. Why a pixel outside the
+  margin moves by 1 is not known. The check is left strict. A whole run of it takes over 9 minutes.
+
 ## 2026-11-02: the note picker (branch `claude/note-picker`, not merged: the user's call)
 
 Built from `docs/superpowers/specs/2026-11-01-note-picker-design.md` along `docs/superpowers/plans/2026-11-01-note-picker.md`.
