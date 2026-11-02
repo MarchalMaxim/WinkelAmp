@@ -49,7 +49,10 @@
     for (const r of recent) { if (r.v < v) below++; else if (r.v === v) same++; }
     const rank = recent.length ? (below + same * 0.5) / recent.length : 1;
     recent.push({ t, v });
-    const d = clamp((recent.length / WINDOW - 2.5) / 3.5, 0, 1);
+    // The last second counts too, so a run is known as a run within half a second of starting, or of a seek into it.
+    let lastSecond = 0;
+    for (const r of recent) if (r.t >= t - 1) lastSecond++;
+    const d = clamp((Math.max(recent.length / WINDOW, lastSecond) - 2.5) / 3.5, 0, 1);
     return { rank, dense: d * d * (3 - 2 * d) };
   }
 
