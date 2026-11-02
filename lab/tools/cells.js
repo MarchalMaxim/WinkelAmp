@@ -180,18 +180,9 @@
           g.globalAlpha = v; g.fillStyle = '#6545a0'; g.fill(); g.globalAlpha = 1;
           g.strokeStyle = ICON.lerp('#b9a0e0', '#6545a0', v); g.lineWidth = 1.8; g.stroke();
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much mosaic builds up: how long cells linger after their note before they close into their neighbours. Sounding notes always hold a cell open. Left: cells close as soon as the note ends, the rest is dark ground. Right: they linger for seconds and fill the picture. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: nearly dark and still; only the hardest notes (in a quiet stretch, one now and then) open a faint cell. Right: every note opens one at full colour (as before).',
-        icon: (g, v, w, h) => {
-          const P = [[[21, 1], [39, 1], [39, 13], [16, 15]], [[1, 1], [21, 1], [16, 15], [1, 19]], [[1, 19], [16, 15], [39, 13], [39, 25], [1, 25]]];
-          ICON.alpha(g, 0.15 + 0.85 * v, () => ['#ddaa45', '#2f5a9e', '#c8432b'].forEach((c, i) => {
-            if (i > 2 * v + 0.2) return;          // more tiles open the further right
-            g.fillStyle = c; poly(g, P[i]); g.fill();
-          }));
-        } },
     ],
     reset(x) { study(); seeds = ground(x); hit = 0; T = 0; polys = []; row = 0.3; waves = []; lay = null; layOn = false; lastAns = -99; },
     onChord(ch, x) {

@@ -131,12 +131,9 @@
       { key: 'weight', label: 'how heavy the line', min: 0.3, max: 2.5, value: 1.2,
         hint: 'How thick the pen line is. Left: a hairline. Right: heavy, pressed graphite.',
         icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.5 + v * 3.3) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much line gets drawn: how fast the pens run, how many pens there are, how long lines stay. Left: one slow pen leaving a short trail. Right: three pens racing, the sheet filling up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint thin lines, slow steady pens, and only the hardest attacks press or scratch. Right: every note jolts the pens at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => coilIcon(g, 3, w - 3, h / 2, 6.5, 1.7, ICON.ink, 0.6 + v * 1.8)) },
     ],
     reset(x) {
       lg.globalCompositeOperation = 'source-over'; lg.globalAlpha = 1; lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);

@@ -253,7 +253,7 @@
             ICON.alpha(g, v, () => ICON.rect(g, 4 + i * 11.5, 6, 8, 14, c));
           });
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much it smears: how far each chord pulls the picture out, how wide a sheet it grabs, how long it hangs, how much of the picture gets sorted, how much of its own paint it adds. Left: short thin flicks of the brightest bits only. Right: long wide sheets of nearly everything. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

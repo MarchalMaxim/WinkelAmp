@@ -81,12 +81,9 @@
           const n = Math.round(v * 16);
           for (let j = 0; j < n; j++) { const a = r() * 6.28, d = 3 + r() * (3 + v * 7);
             ICON.dot(g, w / 2 + Math.cos(a) * d * 1.5, h / 2 + Math.sin(a) * d, 0.8, j % 2 ? ICON.gold : ICON.red); } } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much dust there is: how many grains drift, how hard the notes gather them, and how big a puff each note breathes out. Left: a thin scatter of grains, loose around the notes, with small puffs that only loud notes still raise. Right: a thick cloud with big puffs of new grains. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: nearly dark, a few faint wisps gathering at the notes, and only the hardest notes of the piece glow. Right: every note ignites at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.dots(g, 6 + v * 24, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }); ICON.dot(g, w / 2, h / 2, 1.2 + 3 * v, ICON.gold); }) },
     ],
     reset(x) {
       W = x.W; H = x.H; cx = W / 2; cy = H / 2; R0 = H * 0.4; flash = 0; cur = 0;

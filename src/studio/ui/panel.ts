@@ -226,7 +226,6 @@ export class Panel {
     const params: Param[] = Array.isArray(tool.params) ? tool.params : [];
     if (!params.length) { box.innerHTML = '<p class="dim small">This widget has no knobs.</p>'; return; }
     for (const q of params) {
-      if (studioLayers().oldHidden(q, knobState(q, knobs?.[q.key]))) continue;
       const row = knobRow(q, knobState(q, knobs?.[q.key]), this.d.drives, this.d.icon, (st, phase) => {
         const now = performance.now();
         if ((phase === 'step') !== (this.stepAt > 0) || (phase === 'step' && now - this.stepAt > KEY_IDLE)) this.knobDrag++;

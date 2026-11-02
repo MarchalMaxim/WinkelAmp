@@ -160,19 +160,9 @@
           for (let x = 4; x < w - 4; x += 8) ICON.rect(g, x, 2, 4, h - 4, hex(p[1]));
           g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(1.5, 1.5, w - 3, h - 3);
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much stripe field there is: how many stripes, how hard the notes bend them, how much their edges tremble. Left: a few broad, clean bands that only loud playing still bends. Right: the full fine field, bending and fizzing. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim, almost still field that lets what is under it show, and only the hardest chords bend it. Right: the full field, every note bending it (as before).',
-        icon: (g, v, w, h) => {
-          ICON.alpha(g, 0.14 + 0.86 * v, () => {
-            g.strokeStyle = ICON.ink; g.lineWidth = 2.4;
-            for (let i = 0; i < 6; i++) { const x0 = 5 + i * 6; g.beginPath();
-              for (let y = 2; y <= h - 2; y += 1) { const x = x0 + v * Math.sin(y * 0.42 + i * 0.3) * 2; y === 2 ? g.moveTo(x, y) : g.lineTo(x, y); }
-              g.stroke(); }
-          });
-        } },
     ],
     reset() { chordVels = null; bright = 0.5; act = []; lenses = []; ripples = []; kinks = []; cuts = []; time = 0; drift = 0; bassHold = 0; },
     onChord(ch, x) {

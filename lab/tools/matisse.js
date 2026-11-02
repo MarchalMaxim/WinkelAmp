@@ -302,12 +302,9 @@
       { key: 'ground', label: 'white wall or coloured grounds', min: 0, max: 1, value: 0.6,
         hint: 'What the paper is pinned on. Left: always a plain white wall. Right: loud deep chords slide in bold coloured grounds with big panels.',
         icon: ICONS.ground },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much paper is on the wall: how many pieces it holds and how big they are cut. Left: a few small scraps. Right: a crowded collage of big sheets. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim wall with faint, still paper, and only the hardest notes cut a piece. Right: every chord cuts and gusts at full strength (as before).',
-        icon: ICONS.presence },
     ],
     reset() { vels = null; pieces = []; panels = []; ground = GROUNDS[0]; wipe = null; moveCool = 0; groundCool = 0; trimCool = 0; },
     onChord(ch, x) {

@@ -127,13 +127,9 @@
       { key: 'layout', label: 'where the colours go', min: 0, max: 2, value: 0,
         hint: 'How the notes are laid out. Left: a field (across: how far from the home key; up: high or low). Middle: a keyboard, low to high. Right: a wheel around the home key. In between blends the two.',
         icon: (g, v, w, h) => { for (let f = -5; f <= 6; f++) { const reg = ((f + 5) % 3) / 2, [px, py] = mini(f, reg, v * 2, w, h); ICON.dot(g, px, py, 1.8, iconHue(f)); } } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much paint it throws: how many dots each note dabs and how long the painting stays. Left: a few sparse dabs that vanish soon. Right: dense spray and a long memory. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a still canvas, where only the hardest notes of the piece dab a few faint dots. Right: every note paints at full strength (as before).',
-        icon: (g, v, w, h) => { const r = ICON.rng(4), n = Math.round(2 + v * 10);
-          ICON.alpha(g, 0.2 + 0.8 * v, () => { for (let i = 0; i < n; i++) ICON.dot(g, 6 + r() * (w - 12), 5 + r() * (h - 10), 1 + v * 2, iconHue((i % 5) - 2)); }); } },
     ],
     reset(x) {
       pulse = 0; avgVel = 64; vels = null; lastDab = 0;

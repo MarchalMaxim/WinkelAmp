@@ -256,12 +256,9 @@
           const L = 8 + v * 24;
           for (let i = 0; i < 8; i++) ICON.alpha(g, 1 - i / 9, () => ICON.rect(g, 4 + (L * i) / 8, 9 + i * 0.6, L / 8 + 0.6, 8, i ? IRED : IAMB));
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much smear it makes: how far back the strips reach, how wide each note cuts the present through, how much of the picture is smear rather than live. Left: a short lean with hairline cuts, mostly the live picture. Right: long ribbons and wide cuts. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, short smear that wakes only on the hardest attacks, close to nothing. Right: every note cuts at full strength (as before).',
-        icon: (g, v, w, h) => { ICON.alpha(g, 0.12 + 0.88 * v, () => { lean(g, 6, 5, 15, 2 + v * 8, IAMB); ICON.rect(g, 16, 2, 1.5, h - 4, IBONE); }); } },
     ],
     reset() { VELS = null; swell = 0; armed = false; owner = null; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
     onChord(ch) { pending.push(ch); if (pending.length > 8) pending.shift(); },

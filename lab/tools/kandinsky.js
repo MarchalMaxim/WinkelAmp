@@ -124,12 +124,9 @@
       { key: 'paint', label: 'how much paint', min: 0, max: 1, value: 0.45, less: 0.1,
         hint: 'How bold the painting gets. Left: small, faint shapes that leave soon. Right: big, saturated shapes that stay for many seconds.',
         icon: ICONS.paint },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much painting it makes: how big the shapes get and how long they stay, and how many lines join them. Left: small shapes that leave soon, almost no lines. Right: big shapes that stay for seconds in a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, calm shapes that barely scatter, and only the hardest notes add one. Right: every note paints at full strength (as before).',
-        icon: ICONS.presence },
     ],
     reset() { els = []; lines = []; rings = []; planes = []; lastTop = null; crossCool = 0; planeCool = 0; fx = 640; fy = 360; wx = 0; wy = 0; vels = null; },
     onChord(ch, x) {

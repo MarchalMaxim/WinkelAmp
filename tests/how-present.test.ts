@@ -1,5 +1,6 @@
 /// <reference types="node" />
 // How present writes the widget's other knobs (lab/layers/present.js). The show keeps ordinary knob values.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { loadCatalogue } from '../scripts/node/catalogue';
@@ -34,26 +35,16 @@ describe('presentValues', () => {
   });
 });
 
-describe('an old knob', () => {
-  const q = knob({ key: 'presence', value: 1, old: true });
-  it('stays off the card at its default, and shows as soon as a scene has moved it', () => {
-    expect(WA.oldHidden(q, { base: 1, drive: '', depth: 0.5 })).toBe(true);
-    expect(WA.oldHidden(q, { base: 0.4, drive: '', depth: 0.5 })).toBe(false);
-    expect(WA.oldHidden(q, { base: 1, drive: '+level', depth: 0.5 })).toBe(false);
-    expect(WA.oldHidden({ ...q, old: false }, { base: 1, drive: '', depth: 0.5 })).toBe(false);
-  });
-});
-
 describe('in the studio', () => {
-  const how = knob({ key: 'howmuch', value: 1 });
+  const how = knob({ key: 'presence', value: 1, leads: true });
   const params = [knob({ key: 'a', less: 0.1 }), knob({ key: 'b', less: 0.2, value: 0.4 }), knob({ key: 'free' }), how];
   const at = (s: number, now?: Record<string, KnobSetting>) => Object.fromEntries(knobWrites(params, how, { base: s, drive: '', depth: 0.5 }, now).map((w) => [w.key, w.value]));
 
   it('overwrites a hand-set knob, keeps its drive, and leaves a knob that does not follow', () => {
-    expect(at(0, { a: 0.9, b: { base: 0.3, drive: '+level' }, free: 0.7 })).toEqual({ howmuch: 0, a: 0.1, b: { base: 0.2, drive: '+level' } });
+    expect(at(0, { a: 0.9, b: { base: 0.3, drive: '+level' }, free: 0.7 })).toEqual({ presence: 0, a: 0.1, b: { base: 0.2, drive: '+level' } });
   });
   it('clears them all at the right end', () => {
-    expect(at(1, { howmuch: 0.2, a: 0.1, b: 0.2 })).toEqual({ howmuch: null, a: null, b: null });
+    expect(at(1, { presence: 0.2, a: 0.1, b: 0.2 })).toEqual({ presence: null, a: null, b: null });
   });
   it('an ordinary knob writes only itself', () => {
     expect(knobWrites(params, params[0], { base: 0.7, drive: '', depth: 0.5 }, undefined)).toEqual([{ key: 'a', value: 0.7 }]);
@@ -66,22 +57,22 @@ describe('the widgets', () => {
 
   it('a follower is in range, moves, and belongs to a widget with the slider', () => {
     for (const m of list) {
-      const followers = m.params.filter((q) => typeof q.less === 'number'), how = m.params.find((q) => q.key === 'howmuch');
-      if (how) {
-        expect(followers.length, `${m.id}: a slider with nothing to move`).toBeGreaterThan(0);
-        expect([how.min, how.max, how.value, how.label], m.id).toEqual([0, 1, 1, 'how present']);
-        expect(how.drive ?? '', m.id).toBe('');
-        expect(how.less, m.id).toBeUndefined();
-        const old = m.params.find((q) => q.key === 'presence');
-        if (old) expect(old.old, `${m.id}: two sliders called how present`).toBe(true);
-      } else expect(followers, m.id).toEqual([]);
+      const followers = m.params.filter((q) => typeof q.less === 'number'), how = m.params.filter((q) => q.leads);
+      expect(how.length, `${m.id}: one slider leads, and only with knobs to move`).toBe(followers.length ? 1 : 0);
+      if (how[0]) {
+        expect([how[0].key, how[0].min, how[0].max, how[0].value, how[0].label], m.id).toEqual(['presence', 0, 1, 1, 'how present']);
+        expect(how[0].drive ?? '', m.id).toBe('');
+        expect(how[0].less, m.id).toBeUndefined();
+      }
       for (const q of followers) {
         expect(q.less, `${m.id}.${q.key}`).toBeGreaterThanOrEqual(q.min);
         expect(q.less, `${m.id}.${q.key}`).toBeLessThanOrEqual(q.max);
         expect(q.less, `${m.id}.${q.key}`).not.toBe(q.value);
-        expect(q.old, `${m.id}.${q.key}`).toBeFalsy();
       }
     }
+  });
+  it('a widget with the slider never reads it: all it does is move the other knobs', () => {
+    for (const m of list) if (m.params.some((q) => q.leads)) expect(readFileSync(new URL(`../lab/tools/${m.id}.js`, import.meta.url), 'utf8'), m.id).not.toMatch(/\bp\(\s*'presence'/);
   });
   it('at the right end every knob is where the widget always had it', () => {
     for (const m of list) for (const [key, v] of Object.entries(WA.presentValues(m.params, 1))) expect(v, `${m.id}.${key}`).toBe(m.params.find((q) => q.key === key)!.value);

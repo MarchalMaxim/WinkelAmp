@@ -3,7 +3,7 @@
  * the live one by the name (redrawn as the music drives it), the `i` hint, and what the knob follows in plain words.
  * Knobs without a picture or a hint keep the lab's compact one-line row.
  */
-import { HOW_MUCH, knobValue } from '../../widgets/features';
+import { knobValue } from '../../widgets/features';
 import type { Drive, Features, IconLib, KnobState, Param } from '../../widgets/types';
 import type { KnobSetting } from '../show/show';
 
@@ -55,7 +55,7 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
   const label = esc(q.label ?? q.key);
   const el = document.createElement('div');
   // How present only moves the other knobs: there is nothing for the music to drive.
-  const select = q.key === HOW_MUCH ? '<span></span>' : `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
+  const select = q.leads ? '<span></span>' : `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
   const slider = `<input type="range" data-k aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}">`;
   const rich = !!(q.icon || q.hint);
   el.className = rich ? 'prm' : 'prm plain';

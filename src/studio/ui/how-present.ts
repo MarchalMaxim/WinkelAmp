@@ -11,7 +11,7 @@ export interface KnobWrite { key: string; value: KnobSetting | null }
 
 export function knobWrites(params: readonly Param[], q: Param, st: KnobState, now: Record<string, KnobSetting> | undefined): KnobWrite[] {
   const out: KnobWrite[] = [{ key: q.key, value: settingOf(q, st) }];
-  if (q.key !== 'howmuch') return out;
+  if (!q.leads) return out;
   const bases = studioLayers().presentValues(params, st.base);
   for (const f of params) if (f.key in bases) out.push({ key: f.key, value: settingOf(f, { ...knobState(f, now?.[f.key]), base: bases[f.key] }) });
   return out;

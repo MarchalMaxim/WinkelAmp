@@ -132,12 +132,9 @@
       { key: 'fill', label: 'filled shapes', min: 0, max: 1, value: 0.2, drive: '+level',
         hint: 'How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes.',
         icon: (g, v, w, h) => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, 0, PINK, 1.4, v) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, still web that only the hardest attacks of the piece touch. Right: every attack at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => tri(g, w / 2, h / 2 + 1, 5 + 6 * v, 0.2, 1, 0, PINK, 0.7 + 0.9 * v)) },
     ],
     reset() { vels = null; prevPc = -1; polys = []; trail = []; node.fill(0); nodeR.fill(1); hist.fill(0); keyKnown = false; spinAcc = 0; flash = 0; scale = 1; },
     onChord(ch, x) {

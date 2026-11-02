@@ -21,7 +21,7 @@
       { key: 'shake', label: 'shake on loud notes', min: 0, max: 2, value: 1, drive: '+level',
         hint: 'How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt.',
         icon: (g, v, w, h) => ICON.shake(g, v * 4, () => ICON.square(g, w / 2, h / 2, h - 8, ICON.red)) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How many squares you see: how many notes count as low, how big each is, how long it stays. Left: only the deeper bass makes a square, small, and it soon fades. Right: every low note lands a big square that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

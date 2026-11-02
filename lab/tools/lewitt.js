@@ -189,12 +189,9 @@
       { key: 'full', label: 'how full a wall gets', min: 100, max: 3000, value: 700, less: 150,
         hint: 'How many lines a wall takes before it is painted over and a fresh wall begins with the next rule (a new section of the music always starts one). Left: a clean wall every few chords. Right: the lines pile up into a dense web.',
         icon: (g, v, w, h) => { wallIcon(g, w, h); const r = ICON.rng(9), n = Math.round(3 + v * 30); for (let i = 0; i < n; i++) { const a = r() * (w - 4) + 2, b = r() * (w - 4) + 2; ICON.line(g, a, 2, b, h - 2, PEN[i % 4], 0.7); } } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much gets drawn: how many lines each note makes and how many a wall takes before a fresh one begins. Left: one line per note, and the wall is repainted early. Right: three lines per note piling up into a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim wall you can see through, and only the hardest notes draw a line, slowly. Right: every note draws on the full white wall (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { wallIcon(g, w, h); ICON.line(g, 2, 2, 26, h - 2, PEN[0], 1.1); ICON.line(g, w - 2, 2, 12, h - 2, PEN[1], 1.1); ICON.line(g, 2, h - 2, w - 2, 8, PEN[2], 1.1); }) },
     ],
     reset(x) {
       buffers(x);

@@ -92,12 +92,9 @@
       { key: 'depth', label: 'flat or deep', min: 0, max: 1, value: 0.3,
         hint: 'How far the stack recedes. Left: flat, every line the same width. Right: lines shrink and crowd toward the top, rolling into the distance.',
         icon: (g, v, w, h) => mini(g, w, h, { n: 7, amp: 0.12, persp: v, lw: 1 }) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much ridge it stacks: how many lines, how fast new ones roll in, how high the peaks rise. Left: a sparse stack of slow, low lines, far apart. Right: the full stack. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, low lines rolling slowly, and only the hardest attacks leap up and spark. Right: every attack at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => mini(g, w, h, { n: 4, amp: 0.2 + 0.7 * v })) },
     ],
     reset() { vels = null; rows = []; pend = null; pendNoise = null; pendGap = 0.7; pendLvl = 0; pendGl = []; live = new Float32Array(B); since = 0; hits = []; flash = 0; },
     onChord(ch, x) {

@@ -234,19 +234,9 @@
         icon: (g, v, w, h) => { const night = v < 0.5, bg = night ? '#0d0c0b' : '#e9e1cf', ink = night ? '#e6dcca' : '#16130f';
           ICON.rect(g, 2, 2, w - 4, h - 4, bg); if (night) { g.strokeStyle = '#4a4038'; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); }
           ICON.dot(g, 10, 15, 3, ink); ICON.ring(g, 21, 9, 3, ink, 1); ICON.rect(g, 21, 17, 14, 1.6, ink); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much is on the page: how many attacks are written in full, how ornate the notation is, how soon the writing drifts off the page. Left: only the strongest few, plain dots and lines, and they leave quickly. Right: a well-filled page with brackets, discs and circles. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint page drifting slowly, and only the hardest attacks are written. Right: every attack at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.14 + 0.86 * v, () => {   // the page with its marks, dim and nearly bare, or bright and written over
-          const ink = '#16130f';
-          ICON.rect(g, 3, 3, w - 6, h - 6, '#e9e1cf');
-          ICON.dot(g, 11, 15, 2.8, ink);
-          if (v > 0.3) ICON.rect(g, 19, 9, 14, 1.8, ink);
-          if (v > 0.6) ICON.dot(g, 24, 17, 2, ink);
-          if (v > 0.85) ICON.ring(g, 31, 16, 3, ink, 1);
-        }) },
     ],
     reset(x) { vels = null; rebuild(x); },
     onChord(ch, x) { write(ch, x, 0); },

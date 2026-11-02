@@ -107,7 +107,7 @@
       { key: 'stay', label: 'how long the lines stay', min: 0.3, max: 8, value: 4.5, less: 0.3,
         hint: 'How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other.',
         icon: (g, v, w, h) => { if (v > 0.05) liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, alpha: v * 0.9 }); liss(g, w, h, { fx: 2, fy: 3, ph: 0.6, frac: 0.18, col: ICON.ink, lw: 1.6, nib: true }); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much figure it draws: how fast the pen goes and how long the lines stay. Left: a short, slow trace that fades quickly. Right: the full tangle of lines. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

@@ -1,9 +1,6 @@
 // The lab's step() arithmetic (lab/index.html), in the same operation order, so knob values match to the last bit.
 import type { Chord, Features, KnobMap, KnobState, Param, SoundingNote } from './types';
 
-/** The knob shown as "how present": it writes the knobs that declare `less` (lab/layers/present.js). */
-export const HOW_MUCH = 'howmuch';
-
 export function newFeatures(): Features {
   return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
 }

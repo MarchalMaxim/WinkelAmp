@@ -90,17 +90,9 @@
       { key: 'size', label: 'size', min: 0.4, max: 1.6, value: 0.85, less: 0.55, drive: '+bass',
         hint: 'How big the planes are. Left: small, with lots of empty field. Right: big slabs that fill the frame.',
         icon: (g, v, w, h) => { const L = 8 + v * 28, T = 2.5 + v * 7; g.save(); g.translate(w / 2, h / 2); g.rotate(-0.25); ICON.rect(g, -L / 2, -T / 2, L, T, ICON.red); g.restore(); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How full the field is: how many planes can be on it, how long each stays, how big they are. Left: a few small planes that shrink away soon. Right: a full field of big slabs. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint planes on a dark, level, nearly still field, added only by the hardest notes. Right: every attack adds its planes at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {
-          const bars = [[0, -1, 22, ICON.red], [-9, -7, 12, ICON.gold], [9, 7, 14, ICON.ink]];
-          g.save(); g.translate(w / 2, h / 2); g.rotate(-0.45 * v);
-          bars.slice(0, v < 0.34 ? 1 : v < 0.67 ? 2 : 3).forEach(([bx, by, L, c]) => ICON.rect(g, bx - L / 2, by - 1.6, L, 3.2, c));
-          g.restore();
-        }) },
     ],
     reset() { planes = []; tension = 0; gAng = 0; gVel = 0; time = 0; sinceHit = 9; vels = null; slowSize = null; },
     onChord(ch, x) {

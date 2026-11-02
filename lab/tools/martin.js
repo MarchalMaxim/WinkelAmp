@@ -148,12 +148,9 @@
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc'); const { hs, nv } = gridSteps(v), c = 'rgba(62,60,66,0.75)';
           const nh = Math.round(12 / hs); for (let i = 0; i <= nh; i++) { const y = 4 + (i / nh) * (h - 8); ICON.line(g, 4, y, w - 4, y, c, 0.7); }
           const nvi = Math.round(nv / 5); for (let i = 0; i <= nvi; i++) { if (!nvi) break; const x = 4 + (i / nvi) * (w - 8); ICON.line(g, x, 4, x, h - 4, c, 0.7); } } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much the music and the pencil leave on the page: how strongly a note deepens its band or tints its stripe, how long that mark stays, how many pencil lines rule the grid. Left: the resting bands under a few ruled lines, and marks that are faint and gone in a breath. Right: a fine grid and clear washes that linger for many seconds. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint ghost of the page you can see through, marked only by its softest long notes. Right: the full page, marked by every note (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.12 + 0.88 * v, () => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc'); ICON.rect(g, 4, 5, w - 8, 6, '#dea9a7'); ICON.rect(g, 4, 15, w - 8, 6, '#a6bcd6'); }) },
     ],
     reset(x) { W = x.W; H = x.H; ink.fill(0); inkT.fill(0); tint.fill(0); ranks = null; },
     onChord(ch, x) {

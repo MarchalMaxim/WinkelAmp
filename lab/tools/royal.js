@@ -179,12 +179,9 @@
       { key: 'robe', label: 'the colour', min: 0, max: 2, step: 1, value: 0,
         hint: 'Which colours it wears. Left: purple and gold. Middle: black and gold. Right: oxblood and ivory.',
         icon: (g, v, w, h) => { const r = ROBES[clamp(Math.round(v * 2), 0, 2)]; ICON.palette(g, [r.high, `rgb(${r.edge})`, r.ground], w, h); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much court there is: how many marks come near, how grand the gesture, how far it turns away. Left: one mark at a time and a slight lift of the chin. Right: the full court and the whole turning of the back. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, a small gesture, and only the hardest attacks of the piece send anyone. Right: fully there.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { g.lineWidth = 2 + 2 * v; g.strokeStyle = '#d9b25e'; g.beginPath(); g.moveTo(w / 2, h - 3); g.bezierCurveTo(w / 2 - 7, h - 10, w / 2 + 7, 12, w / 2, 3); g.stroke(); }) },
     ],
     reset() { init(); },
     onChord(ch, x) {

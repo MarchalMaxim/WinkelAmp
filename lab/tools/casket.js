@@ -121,12 +121,9 @@
           ICON.line(g, 2, h - 3, w - 2, h - 3, ICON.dim, 1);
           for (let i = 0; i < 8; i++) { const b = i === 3 ? (1 - v) * 16 : 0, l = v * 11 + b; if (l > 0.5) ICON.rect(g, 4 + i * 4.3, h - 3 - l, 3, l, i === 3 ? SCAR : RED); }
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much it destroys: how often it strikes, how much paint drips, how far the picture melts. Left: a strike about every twelve seconds in busy music, with a short melt and a drip or two. Right: a strike every five or six seconds, several drips, a long melt. Very sparse music strikes on every attack at any setting. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint melt and a hairline cut, and far fewer strikes. Right: at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.line(g, w / 2 - 4 - 7 * v, h - 3, w / 2 + 4 + 7 * v, 3, SCAR, 0.8 + 1.6 * v)) },
     ],
     reset() { drips = []; scars = []; shake = 0; meltAge = 9; phase = 0; lastHit = -Infinity; lastHeard = -Infinity; },
     onChord(ch, x) {

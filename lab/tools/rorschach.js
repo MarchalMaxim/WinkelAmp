@@ -199,12 +199,9 @@
       { key: 'fade', label: 'how long the ink stays', min: 1, max: 13, value: 9, less: 1.6, drive: '-level',
         hint: 'How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.08 + v * 0.92, ICON.red, 'dot') },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much ink there is: how far each drop spreads, how much it sprays, how long it stays. Left: small clean spots that dry at once. Right: big blots filling the page. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint ink on a still page, and only the hardest bass attacks drop it. Right: every low note blooms at full strength (as before).',
-        icon: (g, v, w, h) => { for (const sx of [-1, 1]) ICON.alpha(g, 0.15 + 0.85 * v, () => ICON.dot(g, w / 2 + sx * 7, h / 2, 2 + 5 * v, ICON.red)); } },
     ],
     reset() { lowVels = null; ig.clearRect(0, 0, IW, IH); centres = []; lobes = []; creep = []; flecks = []; wet = []; fadeAcc = 0; bleedAcc = 0; shake = 0; pulse = 0; sinceBlot = 9; },
     onChord(ch, x) {

@@ -592,12 +592,11 @@ function drawIcon(cv, q, v) {
   if (!(typeof q.icon === 'function' && paint(q.icon))) paint(ICON.gauge);
 }
 const norm = (q, x) => (q.max > q.min ? (x - q.min) / (q.max - q.min) : 0);
-const HOW_MUCH = 'howmuch';   // lab/layers/present.js
 let LIVE = []; // [{ tool, q, cv }] live icons on the page, redrawn as sliders move and (while playing) as the music drives them
 function drawLive(item) { const keep = ctx.tool; ctx.tool = item.tool; try { drawIcon(item.cv, item.q, norm(item.q, ctx.p(item.q.key))); } finally { ctx.tool = keep; } }
 /** How present moved: it decides the knobs that follow it, on the card as well if the card is showing. */
-function setHowMuch(tool, s) {
-  const q = tool.params?.find((x) => x.key === HOW_MUCH); if (!q) return;
+function setPresent(tool, s) {
+  const q = tool.params?.find((x) => x.leads); if (!q) return;
   pst(tool, q).base = s;
   const vals = WA_LAYERS.presentValues(tool.params, s), card = document.querySelector(`.tool[data-id="${CSS.escape(tool.id)}"]`);
   for (const [key, v] of Object.entries(vals)) {
@@ -617,9 +616,8 @@ function verdictTag(tool) {
 }
 function paramHTML(tool, q) {
   const st = pst(tool, q), label = esc(q.label ?? q.key);
-  if (WA_LAYERS.oldHidden(q, st)) return '';
   // How present only moves the other knobs: there is nothing for the music to drive.
-  const select = q.key === HOW_MUCH ? '<span></span>' : `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
+  const select = q.leads ? '<span></span>' : `<select data-k="${esc(q.key)}" aria-label="${label}: what it follows">${DRIVES.map(([d, word]) => `<option value="${d}" ${d === st.drive ? 'selected' : ''}>${word}</option>`).join('')}</select>`;
   const slider = `<input type="range" data-k="${esc(q.key)}" aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}" value="${st.base}">`;
   // Older tools' knobs (no picture, no hint) keep the compact one-line row.
   if (!q.icon && !q.hint) return `<div class="prm plain" data-p="${esc(q.key)}"><span class="name">${label}</span>${slider}${select}</div>`;
@@ -656,7 +654,7 @@ function render() {
       if (live) { drawIcon(i0, q, 0); drawIcon(i1, q, 1); LIVE.push(item); drawLive(item); }
       row.querySelector('[data-info]')?.addEventListener('click', () => row.classList.toggle('open'));
       row.querySelectorAll('[data-k]').forEach((el) => {
-        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else if (q.key === HOW_MUCH) setHowMuch(tool, Number(el.value)); else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
+        el.oninput = () => { const st = pst(tool, q); if (el.tagName === 'SELECT') st.drive = el.value; else if (q.leads) setPresent(tool, Number(el.value)); else st.base = Number(el.value); saveP(); if (live) drawLive(item); };
       });
     });
     d.onclick = (ev) => {
@@ -1011,7 +1009,7 @@ if (RENDER) {
     return lastT;
   };
   /** How present, as the slider sets it, for a render at another value. */
-  window.renderPresent = (id, s) => setHowMuch(toolOf(id), s);
+  window.renderPresent = (id, s) => setPresent(toolOf(id), s);
   /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
   window.renderTo = (t) => window.renderStep(t - lastT);
 }

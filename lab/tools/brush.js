@@ -183,15 +183,9 @@
           for (let i = 0; i < n; i++) { const a = 1 - i / n; if (4 + (i / n) * (w - 8) > 4 + L) break; ICON.alpha(g, a, () => ICON.line(g, 4 + (i / n) * (w - 8), h / 2, 4 + ((i + 1) / n) * (w - 8), h / 2, BONE, 6)); }
           ICON.dot(g, 5, h / 2, 3.4, BONE);
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much ink it lays down: how long strokes stay, how often big chords add a red slash, how broad the brush is. Left: a few fine strokes that dry away quickly. Right: the full page of ink. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, thin, nearly level line that answers only the hardest notes and the odd soft one. Right: every note writes at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {   // the same stroke fading out, its red slash thinning until none is left at the far left
-          g.strokeStyle = BONE; g.lineWidth = 1 + 3 * v; g.beginPath(); g.moveTo(5, h * 0.62); g.quadraticCurveTo(w / 2, h * (0.5 - 0.3 * v), w - 5, h * 0.5); g.stroke();
-          if (v > 0.03) ICON.line(g, w * 0.5, h - 4, w * 0.5 + 8, 4, ICON.red, 1 + 2 * v);
-        }) },
     ],
     reset() { vels = null; sinceHit = 9; lg.clearRect(0, 0, W, H); mel = null; gest = []; mean = 66; fadeAcc = 0; lastGest = -9; lastEnso = -99; lastAttack = -9; clock = 0; melTop = 60; lastMel = -9; },
     onChord(ch, x) {

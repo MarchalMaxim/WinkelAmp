@@ -190,7 +190,7 @@
           irr.forEach((p, i) => { const grid = (Math.floor(i / 2) + 0.5) / 4, f = p + (grid - p) * v, x0 = 3 + f * (w - 6);
             ICON.line(g, x0, 4, x0, h - 6, IB, 1.5); });
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How many frames you see: how long each stays and how deep the stripes pile up before restarting at the edge. Left: a lone frame at the edge that soon fades. Right: lingering concentric stripes reaching in. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

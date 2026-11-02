@@ -86,18 +86,9 @@
           ICON.rect(g, 3, h / 2 - 2, w - 6, 4, ICON.gold); ICON.rect(g, w * 0.62, 3, 4, h - 6, ICON.gold);
           ICON.square(g, w * 0.3, h / 2, 4, ICON.red);
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much city there is: how many lanes, how far the blocks hop, how long they stay, how often a crossing flashes. Left: a few wide lanes with blocks that come and go. Right: the full busy grid. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dark, nearly still city, and only the hardest notes drop a faint block. Right: the bright page, every note at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => {   // the page with its traffic, dim and nearly bare, or bright and busy
-          ICON.rect(g, 3, 3, w - 6, h - 6, '#ece6d7');
-          ICON.rect(g, 3, h / 2 - 2, w - 6, 4, ICON.gold); ICON.rect(g, w * 0.62, 3, 4, h - 6, ICON.gold);
-          ICON.square(g, w * 0.3, h / 2, 4, ICON.red);
-          if (v > 0.35) ICON.square(g, w * 0.62 + 2, h * 0.25, 4, ICON.blue);
-          if (v > 0.7) ICON.square(g, w * 0.8, h / 2, 4, ICON.red);
-        }) },
     ],
     reset() { blocks = []; planes = []; turn = 0; flashCool = 0; sinceMark = 9; vels = null; if (G) { G.gv.fill(0); G.gh.fill(0); } },
     onChord(ch, x) {

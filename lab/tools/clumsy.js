@@ -325,12 +325,9 @@
       { key: 'size', label: 'how big they are', min: 0.5, max: 2, value: 1.25,
         hint: 'How big the shapes are. Left: small bits. Right: great lumps.',
         icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * (h - 6), ICON.red, 0.3) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How big the crowd is and how wild: how many shapes are trying to keep up, how high they hop, how hard an attack knocks them. Left: four shapes shuffling and stumbling a little. Right: the whole jostling mob. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: the ground goes dark, few shapes move, and only the hardest attacks reach them. Right: broad daylight, every attack knocks them about.',
-        icon: (g, v, w, h) => { ICON.rect(g, 3, 3, w - 6, h - 6, ICON.lerp('#120e06', '#d8a838', v)); ICON.alpha(g, 0.2 + 0.8 * v, () => ICON.square(g, w / 2, h / 2, 10, ICON.red, 0.4)); } },
     ],
     reset(x) { velsN = null; shapes = []; zc = 0; tilt = 0; tiltV = 0; jolt = 0; lastJolt = -9; lastGoal = -9; lastAll = -9; budget = 9; goal = -1; acc = 0; lastAtk = -9; song = x.t || 0; march = 1; },
     onChord(ch, x) {

@@ -89,13 +89,9 @@
       { key: 'palette', label: 'colours', min: 0, max: 3, step: 1, value: 0,
         hint: 'The colours, from low notes to high ones. Left to right: ember (blood red to gold), ice (deep blue to white), bruise (violet to teal), bone (grey to warm white).',
         icon: (g, v, w, h) => ICON.palette(g, [0, 0.33, 0.66, 1].map((p) => col(p, Math.round(v * 3), 1, 1)), w, h) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How far the tunnel reaches: how fast you fall and how long the walls linger. Left: the outlines stay in a small knot at the mouth, and only a big chord pushes them out. Right: the whole tunnel streaming past you, with glowing walls. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much of the picture it takes. Left: a few faint outlines on a slow drift, thrown only by the hardest notes. Right: every note at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const n = 1 + Math.round(v * 3), c = col(0.3, 0, 1, 1);
-          for (let i = 0; i < n; i++) ICON.ring(g, w / 2, h / 2, 3 + i * 3, c, 1.3); }) },
     ],
     reset(x) { objs = []; surge = 0; spin = 0; kick = 0; vp = { x: x.W / 2, y: x.H / 2 }; allVels = null; },
     onChord(ch, x) {

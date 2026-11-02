@@ -328,12 +328,9 @@
       { key: 'green', label: 'which green', min: 0, max: 1, value: 0.5,
         hint: 'Which greens it lies in. Left: a dark pond. Right: sour acid.',
         icon: (g, v, w, h) => ICON.palette(g, paletteAt(v).map((c) => css(c)), w, h) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much green lies there: how many masses, how fat they are, how high one bothers to lift. Left: a few slim masses that barely stir. Right: the whole slumped heap. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => limbIcon(g, w, h, 2 + 9 * v, 2 + 4 * v, '#7c9a2f')) },
     ],
     reset(x) { vels = null; built = 0; limbs = []; order = []; marks = []; flush = 0; swell = 0; swellT = 0; nextJolt = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
     onChord(ch, x) {

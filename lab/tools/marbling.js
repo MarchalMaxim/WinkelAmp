@@ -167,7 +167,7 @@
             ICON.alpha(g, 1 - v * 0.85, () => ICON.ring(g, w / 2, h / 2, r, ICON.lerp(hex(PAL[0][i + 1]), '#ffffff', 0.35), 1.3));
           });
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much ink goes into the bath: how big the drops are and how much the comb rakes them out. Left: a few small beads on black. Right: floods raked into feathers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

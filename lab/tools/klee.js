@@ -161,12 +161,9 @@
       { key: 'veil', label: 'veil of dots', min: 0, max: 1, value: 0.6, less: 0.15, drive: '-level',
         hint: 'The fine light dots that drift over the picture. Left: bare tiles. Right: a bright veil. It follows the music: quiet passages shimmer, loud ones blaze bare.',
         icon: ICONS.veil },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much mosaic it paints: how long the colour stays on the tiles, how many tiles tall each voice writes, how thick the veil of dots lies over them. Left: a thin line of tiles that is gone in a few seconds, nearly bare. Right: broad bands that build up over the whole passage under the veil. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint tiles with no ground under them, and only the hardest notes paint. Right: every note paints at full strength (as before).',
-        icon: ICONS.presence },
     ],
     reset(x) {
       S = 0; amt = []; build(Math.round(x.p('size')));

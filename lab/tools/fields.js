@@ -122,7 +122,7 @@
           const n = 1 + Math.round(v * 3), gap = 2, fh = (h - 4 - gap * (n - 1)) / n, cols = ['#d0602e', '#8a2a24', '#4a5f96', '#c8903a'];
           for (let i = 0; i < n; i++) ICON.rect(g, 4, 2 + i * (fh + gap), w - 8, fh, cols[i]);
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much is going on in the painting: how many fields are stacked and how much each note lights its field. Left: one big field that hardly reacts. Right: several fields, every note blooming inside. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

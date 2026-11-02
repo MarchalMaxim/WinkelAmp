@@ -108,7 +108,7 @@
           ICON.line(g, 2, h / 2 + 4, w - 2, h / 2 + 4, ICON.dim, 1);
           for (let i = 0; i < 5; i++) { const off = 10 * Math.exp(-i / (0.25 + v * 5)); ICON.rect(g, 3 + i * 7.2, h / 2 - 1 - off, 5.5, 5, IR); }
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much tearing it does: how many pieces each attack tears, how far they are thrown, how long the broken picture hangs before it heals. Left: a rare small shiver that heals at once. Right: a storm of far-flung fragments that linger. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

@@ -130,12 +130,9 @@
       { key: 'speed', label: 'scroll speed', min: 0.3, max: 2.5, value: 1,
         hint: 'How fast the score and the glyph rows scroll. Left: a slow drift. Right: racing past.',
         icon: ICONS.speed },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much data it produces: how many glyph rows and data columns stream, how long a barcode stays, how many lines slam across on loud notes, how often it flashes white. Every note still prints its barcode. Left: two glyph rows, one column, barcodes that vanish quickly, no lines or flashes. Right: more rows and columns, barcodes that crumble slowly, lines and flashes on the loud notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint and slow, and only the hardest notes of the piece print a barcode. Right: everything at full strength (as before).',
-        icon: ICONS.presence },
     ],
     reset,
     onChord(ch, x) {

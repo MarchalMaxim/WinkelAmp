@@ -178,12 +178,9 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
       { key: 'linger', label: 'how long the smoke hangs', min: 0, max: 1, value: 0.45, less: 0.08,
         hint: 'How long the coloured smoke stays. Left: gone in a moment. Right: it hangs for seconds and builds up.',
         icon: (g, v, w, h) => { for (let i = 0; i < 6; i++) ICON.dot(g, 5 + i * 6, h / 2, 3, css([1, 0.69, 0.25], Math.max(0.05, 1 - i / (1 + 5.5 * v)))); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much firework it throws: how big each burst is and how long its smoke hangs. Left: small bursts with few sparks, and the smoke gone in a moment. Right: big bursts and smoke that builds up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint, and only the hardest attacks of the piece go off. Right: all of it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => shell(g, w, h, 3 + 8 * v, '#ffb040')) },
     ],
     reset() { sparks = []; pend = []; lastBurst = -9; clock = 0; vels = null; pitches = null; clearFluid(); },
     onChord(ch, x) {

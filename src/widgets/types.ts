@@ -12,10 +12,10 @@ export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-
 export interface Param {
   key: string; label?: string; min: number; max: number; step?: number; value: number; drive?: Drive;
   hint?: string; icon?: (g: CanvasRenderingContext2D, v: number, w: number, h: number) => void;
-  /** Follows how present (lab/layers/present.js): the value at the slider's left end; at the right end it is `value`. */
+  /** How present (lab/layers/present.js): draws nothing itself, moving it writes the knobs that declare `less`. */
+  leads?: boolean;
+  /** Follows how present: the value at the slider's left end; at the right end it is `value`. */
   less?: number;
-  /** The dimming how present of before: kept working for saved scenes, shown only while off its default. */
-  old?: boolean;
 }
 export interface ToolDef {
   id: string; name: string; blurb?: string; tag?: string; on?: boolean; params?: Param[];

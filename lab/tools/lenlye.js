@@ -268,13 +268,9 @@
           const r = ICON.rng(3), nl = Math.round(v * 4), nd = Math.round(v * 12);
           for (let i = 0; i < nl; i++) { const lx = 4 + r() * (w - 8); ICON.line(g, lx, 2, lx + (r() - 0.5) * 2, h - 2, ICON.ink, 0.8); }
           for (let i = 0; i < nd; i++) ICON.dot(g, 3 + r() * (w - 6), 3 + r() * (h - 6), 0.6 + r() * 0.8, ICON.ink); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much scratching is on the film: how long a mark lingers after its note, how big the bursts on loud chords are, how much dirt runs across. Every note still scratches its mark while it sounds. Left: marks gone with their notes, small or no bursts, nearly clean film. Right: lingering scrawl, bursts and a battered print. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint, calm scratches on almost clean film, mostly on the hardest notes. Right: every note scratches at full strength (as before).',
-        icon: (g, v, w, h) => { const n = 1 + Math.round(v * 3), st = (w - 4) / n;
-          ICON.alpha(g, 0.2 + 0.8 * v, () => { for (let i = 0; i < n; i++) zig(g, 2 + st * (i + 0.5), 4, 2 + st * (i + 0.5), h - 4, 4, 1 + v * 1.5, ICON.ink, 1 + v * 0.6); }); } },
     ],
     reset() {
       lg.setTransform(1, 0, 0, 1, 0, 0); lg.fillStyle = '#000'; lg.fillRect(0, 0, LW, LH);

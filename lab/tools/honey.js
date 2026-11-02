@@ -157,12 +157,9 @@
       { key: 'colour', label: 'how dark the honey is', min: 0, max: 1, value: 0.5,
         hint: 'How dark the honey is. Left: pale, light acacia. Right: dark treacle.',
         icon: (g, v, w, h) => ICON.dot(g, w / 2, h / 2, 8, ICON.lerp(v < 0.5 ? '#f6dd80' : '#d68e1a', v < 0.5 ? '#d68e1a' : '#34160a', v < 0.5 ? v * 2 : v * 2 - 1)) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much honey there is: how readily notes push out a new shape, how heavy each one is, how far the threads stretch. Left: shapes come rarely and stay small, and their threads snap early. Right: the full web of heavy shapes and long sagging threads. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much of it you see. Left: almost nothing, a few faint small shapes that only the hardest attacks disturb. Right: fully there.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => pair(g, 10, 8, 2 + v * 3, w - 10, h - 8, 2 + v * 4, 2)) },
     ],
     reset() { nodes = []; links = []; time = 0; lastBud = -9; vels = null; seeded = false; lvl = 0.5; lvlT = 0; },
     onChord(ch, x) {

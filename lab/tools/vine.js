@@ -305,12 +305,9 @@
       { key: 'weight', label: 'how thick the stems are', min: 0.3, max: 4.5, value: 1,
         hint: 'How thick the lines are drawn. Left: hair. Right: heavy ropes.',
         icon: (g, v, w, h) => stemIcon(g, w, h, 1, '#8fd63f', 0.6 + v * 5) },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much vine it grows: how fast the tips run, how readily they fork, how soon old stems die back. Left: one or two slow stems that do not last. Right: the whole network. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, slow network that only the hardest attacks make grow. Right: every note feeds it at full strength.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => stemIcon(g, w, h, 1, '#8fd63f')) },
     ],
     reset(x) {
       stems = []; tips = []; dust = []; buds = []; live = 0; startIn = 0; health = 0.3; clock = 0; sinceRepaint = 0; dirty = true;

@@ -138,12 +138,9 @@
           }
           g.closePath(); g.fill();
         } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much mandala it builds: how far the figure reaches, how many mirrored copies a chord gets, how long the shapes stay after their notes. Left: a small figure of a few spokes that are soon gone. Right: the full circle with lace piling up behind the notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint figure, nearly still, that answers only the hardest notes and the odd soft one. Right: every note blooms at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => rosette(g, w, h, 8, 0.45 + 0.55 * v, 0, ICON.gold)) },
     ],
     reset() { vels = null; sinceHit = 9; els = []; flashes = []; rot = 0; breath = 0.86; core = 0; kick = 0; star = 6; },
     onChord(ch, x) {

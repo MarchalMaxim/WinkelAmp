@@ -1,7 +1,7 @@
 // The shared layer maths (plan §2): lab/layers/*.js, written once. The lab loads each file as a classic <script>;
 // the studio (src/widgets/layers-source.ts) and Node (scripts/node/layers.ts) evaluate the same text here. Pure: no
 // Vite, no fs, so both loaders can import it.
-import type { Chord, Features, KnobState, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
+import type { Chord, Features, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
 
 export interface Span { start: number; end: number }
 
@@ -54,7 +54,6 @@ export interface WaLayers {
   advancePulse(p: { level: number; rate: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
   // present.js
   presentValues(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less'>[] | undefined, s: number): Record<string, number>;
-  oldHidden(q: Pick<Param, 'value' | 'drive' | 'old'>, s: KnobState): boolean;
   // region.js (T5)
   regionBox(r: Region, cw: number, ch: number): { cx: number; cy: number; w: number; h: number; rot: number };   // device px, radians
   featherAlpha(d: number, feather: number): number;     // d: 0 centre … 1 edge → 1 … 0

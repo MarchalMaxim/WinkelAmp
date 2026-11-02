@@ -71,12 +71,9 @@
       { key: 'heat', label: 'colours', min: 0, max: 1, value: 0.5,
         hint: 'The colours of the threads (low notes darker, high notes paler). Left: ink blue and ice. Middle: blood red and bone. Right: ember and gold.',
         icon: (g, v, w, h) => { [0.05, 0.4, 0.75, 1].forEach((p, i) => { const c = palette(p, v); ICON.line(g, 3, 5 + i * 5.3, w - 3, 5 + i * 5.3, `rgb(${c.map(Math.round).join(',')})`, 2.6); }); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much the weave holds: how many crossings the threads make, how far they sway, how much clashing notes knot. Every sounding note is still a thread. Left: a calm, smooth band with one long crossing and no knots. Right: the dense, knotted, swaying band. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint, nearly still threads, and only the hardest notes pluck one. Right: every note is a thread at full light (as before).',
-        icon: (g, v, w, h) => { ICON.alpha(g, 0.15 + 0.85 * v, () => { ICON.wave(g, w, h, 0.06 + 0.5 * v, 1.5, '#c4483c', 1.4); ICON.wave(g, w, h, -(0.06 + 0.5 * v), 1.5, ICON.ink, 1.4); }); } },
     ],
     reset() { vels = null; th = new Map(); phase = 0; centre = 0.5; whip = 0; time = 0; },
     onChord(ch, x) {

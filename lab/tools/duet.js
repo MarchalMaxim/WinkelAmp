@@ -198,12 +198,9 @@
       { key: 'pair', label: 'the two colours', min: 0, max: 2, step: 1, value: 0,
         hint: 'The two colours. Left: vermilion and cobalt. Middle: magenta and lime. Right: gold and teal.',
         icon: (g, v, w, h) => { const p = PAIRS[Math.round(v * 2)]; ICON.dot(g, w / 2 - 6, h / 2, 7, rgb(p.a)); ICON.dot(g, w / 2 + 6, h / 2, 7, rgb(p.b)); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much liquid there is and how far it goes: how big the two masses are, how hard a clash throws them and their spatter apart. Left: two small drops that flinch. Right: the two full masses, flung apart. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: almost gone, barely moving, and only the hardest attacks reach them. Right: fully there, answering everything.',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => { blobIcon(g, w / 2 - 6, h / 2, 2 + 4 * v, '#ff4a1c'); blobIcon(g, w / 2 + 6, h / 2, 2 + 3.4 * v, '#1f6bff'); }) },
     ],
     reset() {
       time = 0; A = newMass(true); B = newMass(false); ready = false; vels = null;

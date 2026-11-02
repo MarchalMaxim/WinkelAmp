@@ -49,7 +49,7 @@
       { key: 'standing', label: 'stripes from held chords', min: 0, max: 1.5, value: 0.6, less: 0.1, drive: '+density',
         hint: 'While a chord rings, its notes print a faint standing pattern of stripes. Left: none, only the waves. Right: strong stripes.',
         icon: (g, v, w, h) => { for (let y = 4; y < h; y += 6) for (let x = 4; x < w; x += 6) ICON.dot(g, x, y, 1.2 * (1 - v) + v * (0.3 + 2.5 * (0.5 + 0.5 * Math.cos((x - y * 0.7) * 0.33))), ICON.gold); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much gets printed: how long each wave keeps spreading and how strong the held-chord stripes are. Left: short pulses that die quickly, hardly any stripes. Right: slow rings that overlap and a striped field. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

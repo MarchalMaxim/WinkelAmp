@@ -139,12 +139,9 @@
       { key: 'life', label: 'how long they dance', min: 1, max: 10, value: 4, less: 1.5,
         hint: 'How long a shape stays in the company before it sinks back into the blue. Left: a second. Right: ten seconds, a big crowd.',
         icon: ICONS.life },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How crowded the blue is: how long a shape stays in the company, and how many echoes follow each. Left: a few shapes that sink back almost at once. Right: a big crowd with dancers in canon. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a few faint, slow shapes nearly lost in black, and only the hardest notes add one. Right: every note lands at full strength on the deep blue (as before).',
-        icon: ICONS.presence },
     ],
     reset(x) { ds = []; rips = []; form = 0; formRot = 0; fcx = x.W / 2; fcy = x.H / 2; fyOff = 0; glow = 0; lastForm = -1; lastAt = -9; vels = null; },
     onChord(ch, x) {

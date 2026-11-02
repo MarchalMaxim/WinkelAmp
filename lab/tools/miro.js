@@ -174,12 +174,9 @@
       { key: 'web', label: 'lines between the stars', min: 0, max: 1, value: 0.5, less: 0.05,
         hint: 'Thin straight lines tying together the notes of a chord, and each new star to a neighbour. Left: only the one wandering line. Right: a dense web of constellations.',
         icon: ICONS.web },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much sky it fills: how long the shapes stay, how many lines tie the stars, how big the blobs swell. Left: a few small marks that clear within seconds. Right: the whole crowded constellation. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a dim sheet with a slow, faint line, and only the hardest notes add a shape. Right: the bright page, every note marking it (as before).',
-        icon: ICONS.presence },
     ],
     reset(x) {
       els = []; ties = []; trail = []; stains = []; clock = 0; prevTop = null; kick = 1; stainCool = 0; lastMark = null; vels = null;

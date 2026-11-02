@@ -113,12 +113,9 @@
       { key: 'scroll', label: 'how fast the film runs', min: 0, max: 1, value: 0.35,
         hint: 'How fast the film streams down the panels. Left: a slow crawl, notes stack up short and close. Right: streaming, notes stretch out long.',
         icon: ICONS.scroll },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much film it prints: how far each note echoes into the other panels and how long its bars stay. Left: each note only in its own panel, with bars that are gone soon after it ends, so panels stand empty between notes. Right: notes echo into their neighbours and leave long trails, a layered weave. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: a faint, slow film where only the hardest notes print a card. Right: every note prints at full strength (as before).',
-        icon: ICONS.presence },
     ],
     reset() {
       wgt = RANK.map((r) => (r < 3 ? 1 : 0)); prints = Array.from({ length: SLOTS }, () => []);

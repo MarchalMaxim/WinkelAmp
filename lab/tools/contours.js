@@ -54,7 +54,7 @@
       { key: 'tint', label: 'colour', min: 0, max: 1, value: 0.72,
         hint: 'The colour of the hills. Left: icy blue. Middle: bone. Right: blood red and ember.',
         icon: (g, v, w, h) => { for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, i * 2.9, rampHex(v, 0.15 + 0.22 * (4 - i)), 1.6); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much map it draws: how many contour lines and how long the hills stay. Left: a few lines round hills that fade fast. Right: the full, dense map. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],

@@ -244,13 +244,9 @@
           ICON.blur(g, 2.5, () => { g.fillStyle = `rgb(${c})`; g.beginPath(); g.ellipse(w / 2, h / 2 - 2, w / 2 - 6, h / 2 - 6, 0, 0, Math.PI * 2); g.fill(); });
           for (let i = 0; i < 12; i++) ICON.rect(g, 3 + i * (w - 6) / 12, h - 4, Math.ceil((w - 6) / 12), 2.5, `hsl(${i * 30},85%,50%)`);
           ICON.rect(g, 2 + v * (w - 6), h - 6, 2, 5.5, ICON.ink); } },
-      { key: 'howmuch', label: 'how present', min: 0, max: 1, value: 1,
+      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much current it weaves: how many threads braid, how wide they swing, how fast the water runs. Left: the melody\'s lone thread in slow water. Right: the whole braid in a rushing stream. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
-      { key: 'presence', label: 'old: how faint', old: true, min: 0, max: 1, value: 1,
-        hint: 'How much it takes over. Left: faint threads in slow, barely tinted water, and only the hardest chords pour colour. Right: every chord pours and stirs at full strength (as before).',
-        icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const a = 1.5 + v * (h / 2 - 5);
-          strand(g, w, h, a, Math.PI, tc(2), 1.2); strand(g, w, h, a, 0, tc(1), 1.2); strand(g, w, h, a * 0.12, 0, tc(0), 1.6); }) },
     ],
     reset(x) {
       u.fill(0); v.fill(0); p.fill(0); R.fill(0); G.fill(0); B.fill(0);
