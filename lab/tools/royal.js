@@ -21,7 +21,7 @@
   const BRISTLES = [];
   for (let i = 0; i < 18; i++) { const a = Math.floor(lcg() * 56), len = 10 + Math.floor(lcg() * 34); BRISTLES.push({ o: mix(-0.86, 0.86, lcg()), a, b: Math.min(N - 2, a + len), lw: mix(0.7, 2.1, lcg()), dark: i % 3 === 0 }); }
   const WOB = new Float32Array(N); for (let i = 0; i < N; i++) { const s = i / (N - 1); WOB[i] = 1 + 0.05 * Math.sin(s * 19 + 1.3) + 0.012 * Math.sin(s * 47 + 0.4); }
-  const SHAPES = ['lozenge', 'dot', 'ring', 'tri', 'tick', 'half'];
+  const RET = 2.2;   // how long the figure takes to come back to its S
 
   // A note's strength judged against this piece's own notes (recordings differ a lot in how hard they play): 0..1.
   let velOf = null, vels = [];
@@ -32,14 +32,14 @@
     return a / vels.length;
   };
 
-  let time, pets, arcs, glints, flash, sinceTurn, sinceBow, sinceTick, sincePet;
+  let time, pets, glints, flash, sinceTurn, sinceBow, sinceTick, sincePet, sinceNote, sinceBright, sinceSent;
   // The gesture: rest, lift (rises, leans away, cocks the tip), flick (the tip alone, fast), hold, ret. side: who gets it.
-  let st, stT, side, amp, liftDur, holdDur, turn, engage, aim, sting, tick, tickT, tickDir, bowT, arc;
+  let st, stT, side, amp, liftDur, holdDur, turn, engage, aim, aim0, sting, tick, tickT, tickDir, bowT;
   const spine = { x: new Float32Array(N), y: new Float32Array(N), nx: new Float32Array(N), ny: new Float32Array(N), w: new Float32Array(N) };
   let ax = 0;
   const init = () => {
-    time = 0; pets = []; arcs = []; glints = []; flash = 0; sinceTurn = 99; sinceBow = 99; sinceTick = 99; sincePet = 99;
-    st = 'rest'; stT = 0; side = -1; amp = 1; liftDur = 1; holdDur = 2; turn = 0; engage = 0; aim = 0; sting = 0; tick = 0; tickT = 9; tickDir = 1; bowT = 99; arc = null;
+    time = 0; pets = []; glints = []; flash = 0; sinceTurn = 99; sinceBow = 99; sinceTick = 99; sincePet = 99; sinceNote = 99; sinceBright = 99; sinceSent = 99;
+    st = 'rest'; stT = 0; side = -1; amp = 1; liftDur = 1; holdDur = 2; turn = 0; engage = 0; aim = 0; aim0 = 0; sting = 0; tick = 0; tickT = 9; tickDir = 1; bowT = 99;
   };
   init();
 
@@ -55,7 +55,7 @@
     const breath = 1 + 0.045 * (0.3 + 0.7 * pres) * Math.sin(time * 0.55);
     const sway = 0.018 * (0.3 + 0.7 * pres) * Math.sin(time * 0.23 + 0.7);
     const bow = bowAmt() * (0.35 + 0.65 * pres), preen = 0.17 * (0.25 + 0.75 * pres) * (1 - 0.7 * clamp(turn));
-    const belly = H * 0.062 * (1 - 0.42 * clamp(turn * haughty) * q);   // turning, it goes edge-on
+    const belly = H * 0.062 * (1 - 0.28 * clamp(turn * haughty) * q);   // turning, it goes edge-on
     const s0 = mix(0.86, 0.62, flOf(x));             // only this last part of the stroke flicks
     const rise = 1 - 0.26 * clamp(turn) * q;         // turned away, the S draws itself up, but stays an S
     ax = W / 2;
@@ -67,7 +67,7 @@
       th += 0.9 * Math.pow(smooth(0.86, 1, s), 2);                  // an open end, hardly a curl
       th += (lean + sway) * smooth(0, 0.45, s) + tick * tickDir * 0.34 * smooth(0.78, 1, s) + bow * 0.15 * smooth(0.25, 0.8, s);
       th += preen * Math.sin(time * 0.42 - s * 3.1) * smooth(0.35, 1, s);   // the upper stroke is never quite still: it preens
-      th = mix(th, side * aim, clamp(engage) * q * smooth(s0 - 0.08, s0 + (1 - s0) * 0.9, s));   // the flick: the tip alone is aimed
+      th = mix(th, side * aim, clamp(engage) * q * smooth(s0 - 0.16, 1, s));   // the flick: the tip alone is aimed
       const d = ds * (1 - 0.15 * clamp(engage)) * (s > s0 ? 1 + 0.22 * sting : 1);   // drawn in a little, so the tip has room
       px += Math.sin(th) * d; py -= Math.cos(th) * d;
       spine.x[i] = px; spine.y[i] = py; if (py < top) top = py;
@@ -97,7 +97,7 @@
   // Off the page, outward from the figure and never across it, in a straight line: nobody looks back.
   function dismiss(x) {
     st = 'flick'; stT = 0; flash = 1; sting = 1;
-    arc = { pts: [], age: 0 }; arcs.push(arc); sinceTurn = 0;
+    sinceTurn = 0; sinceSent = 0;
     for (const p of pets) {
       if (p.fl || p.side !== side) continue;
       const out = Math.max(0.5, Math.abs(p.x - ax) / (x.W * 0.5));
@@ -107,23 +107,23 @@
   }
 
   function step(x, dt) {
-    time += dt; stT += dt; sinceTurn += dt; sinceBow += dt; sinceTick += dt; sincePet += dt; tickT += dt; bowT += dt;
+    time += dt; stT += dt; sinceTurn += dt; sinceBow += dt; sinceTick += dt; sincePet += dt; sinceNote += dt; sinceBright += dt; sinceSent += dt; tickT += dt; bowT += dt;
     flash *= Math.pow(0.5, dt / 0.11); sting *= Math.pow(0.5, dt / 0.16);
-    const out = 1.05 + 0.5 * flOf(x);       // how far outward the tip ends, in radians from upright
+    const out = 0.5 + 0.45 * flOf(x);       // how far outward the tip ends, in radians from upright: up and out, never flat
     if (st === 'lift') {
       const k = smoother(stT / liftDur);
       turn = amp * k; engage = smooth(0, 0.7, stT / liftDur); aim = -0.5 * k;       // the tip cocks away from whom it will hit
-      if (stT >= liftDur + 0.9) dismiss(x);                                         // it does not wait for ever
+      if (stT >= liftDur + 1.2) { st = 'ret'; stT = 0; aim0 = aim; }                // no note came: not worth the trouble, it sinks back
     } else if (st === 'flick') {
       const k = clamp(stT / 0.2), back = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);   // out, past, and settled
       turn = amp; engage = 1; aim = mix(-0.5, out, back);
-      if (stT >= 0.2) { st = 'hold'; stT = 0; arc = null; }
+      if (stT >= 0.2) { st = 'hold'; stT = 0; }
     } else if (st === 'hold') {
-      turn = amp; engage = 1; aim = mix(out, out * 0.42, smooth(0, 0.8, stT));  // done with them: straight back up, chin in the air
-      if (stT >= holdDur) { st = 'ret'; stT = 0; }
+      turn = amp; engage = 1; aim = mix(out, out * 0.42, smooth(0, 0.55, stT));  // done with them: straight back up, chin in the air
+      if (stT >= holdDur) { st = 'ret'; stT = 0; aim0 = aim; }
     } else if (st === 'ret') {
-      const k = smoother(stT / 3); turn = amp * (1 - k); engage = 1 - k; aim = out * 0.42;
-      if (stT >= 3) { st = 'rest'; stT = 0; turn = 0; engage = 0; }
+      const k = smoother(stT / RET); turn = amp * (1 - k); engage = 1 - k; aim = aim0;
+      if (stT >= RET) { st = 'rest'; stT = 0; turn = 0; engage = 0; }
     }
     tick = tickT < 0.9 ? Math.sin(Math.PI * smooth(0, 1, tickT / 0.9)) : 0;
   }
@@ -133,25 +133,27 @@
     switch (p.shape) {
       case 'lozenge': g.moveTo(r * 1.5, 0); g.lineTo(0, r * 0.6); g.lineTo(-r * 1.5, 0); g.lineTo(0, -r * 0.6); g.closePath(); g.fill(); break;
       case 'dot': g.arc(0, 0, r * 0.72, 0, 7); g.fill(); break;
-      case 'ring': g.arc(0, 0, r * 0.8, 0, 7); g.lineWidth = Math.max(1.2, r * 0.22); g.stroke(); break;
-      case 'tri': g.moveTo(r * 1.15, 0); g.lineTo(-r * 0.7, r * 0.72); g.lineTo(-r * 0.7, -r * 0.72); g.closePath(); g.fill(); break;
-      case 'tick': g.moveTo(-r * 1.2, -r * 0.5); g.lineTo(r * 1.2, r * 0.5); g.lineWidth = Math.max(1.4, r * 0.3); g.stroke(); break;
-      default: g.arc(0, 0, r * 0.85, -Math.PI / 2, Math.PI / 2); g.closePath(); g.fill();
+      default: g.arc(0, 0, r * 0.8, 0, 7); g.lineWidth = Math.max(1.2, r * 0.22); g.stroke();
     }
   }
 
   function spawn(x, pside, r, p, near) {
     const W = x.W, H = x.H;
     const close = clamp(near * 1.1 * Math.pow(r, 0.8) + near * 0.42);          // soft ones stop far off, unnoticed
-    const ty = clamp(mix(H * 0.86, H * 0.12, clamp(p * 1.2)) + x.rnd(-H * 0.27, H * 0.27), H * 0.06, H * 0.94);
+    // Each takes the most open of a few places on its side, so they stand apart and do not heap up.
+    let ty = 0, gapMin = 0, room = -1;
+    for (let c = 0; c < 5; c++) {
+      const cy = clamp(mix(H * 0.86, H * 0.12, clamp(p * 1.2)) + x.rnd(-H * 0.27, H * 0.27), H * 0.06, H * 0.94), cg = mix(W * 0.3, H * 0.05 + 18, close) + x.rnd(0, W * 0.16);
+      let least = 1e9; for (const q of pets) if (q.side === pside && !q.fl && !q.leave) least = Math.min(least, Math.hypot(q.ty - cy, q.gapMin - cg));
+      if (least > room) { room = least; ty = cy; gapMin = cg; }
+    }
     const fromBelow = p < 0.3 && x.rnd() < 0.5;
-    const gapMin = mix(W * 0.3, H * 0.05 + 18, close) + x.rnd(0, W * 0.07);
     const big = Math.pow(r, 1.4) * (1.25 - 0.5 * p);
-    const shape = SHAPES[Math.floor(x.rnd() * SHAPES.length) % SHAPES.length], tint = x.rnd();
+    const pick = x.rnd(), shape = pick < 0.5 ? 'lozenge' : pick < 0.85 ? 'dot' : 'ring', tint = x.rnd();
     pets.push({
       x: fromBelow ? W / 2 + pside * x.rnd(W * 0.15, W * 0.46) : W / 2 + pside * (W / 2 + 12), y: fromBelow ? H + 12 : ty, ty, side: pside,
       gap: gapMin + x.rnd(W * 0.03, W * 0.27), gapMin, hop: 1, flare: 1, dy: 0, a: x.rnd(-0.5, 0.5), seed: x.rnd(0, 7),
-      r: (10 + 13 * big) * x.rnd(0.72, 1.25), shape, tint: tint < 0.62 ? 'pet' : tint < 0.86 ? 'pet2' : 'pet3', timid: x.rnd(0.5, 2.6),
+      r: (9 + 9 * big) * x.rnd(0.85, 1.15), shape, tint: tint < 0.3 ? 'pet' : tint < 0.7 ? 'pet2' : 'pet3', timid: x.rnd(0.5, 2.6),
       age: 0, wait: x.rnd(7, 15), leave: 0,
     });
   }
@@ -166,7 +168,7 @@
         hint: 'How far the figure leans back from them before it flicks. Left: a slight lift of the chin. Right: it turns its whole back.',
         icon: (g, v, w, h) => { g.save(); g.translate(w / 2, h - 2); g.rotate(v * 0.8); g.lineWidth = 3; g.strokeStyle = '#d9b25e'; g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-7, -7, 7, -13, 0, -21); g.stroke(); g.restore(); } },
       { key: 'flourish', label: 'how grand the gesture is', min: 0.2, max: 1.6, value: 1,
-        hint: 'How much of the stroke flicks, and how wide its gold arc is. Left: only the very tip. Right: the whole upper part, in a sweeping arc.',
+        hint: 'How much of the stroke flicks, and how far. Left: only the very tip. Right: the whole upper part, in a sweep.',
         icon: (g, v, w, h) => { const r = 5 + v * 7; g.strokeStyle = '#d9b25e'; g.beginPath(); g.arc(w / 2, h - 5, r, -Math.PI / 2 - 0.4 - v * 1.2, -Math.PI / 2 + 0.4); g.stroke(); } },
       { key: 'crowd', label: 'how many come near', min: 0, max: 1, value: 0.45,
         hint: 'How many small marks come up to it. Left: one at a time. Right: a stream of them.',
@@ -193,10 +195,13 @@
       if (glints.length > 5) glints.shift();
       flash = Math.max(flash, 0.3 + 0.7 * r);
       // ...and the whole court hops forward at once, eager, and flares.
-      for (const q of pets) if (!q.fl && !q.leave) { q.hop = Math.max(q.hop, 0.4 + 0.6 * r); q.flare = Math.max(q.flare, 0.35 + 0.65 * r); q.dy += x.rnd(-1, 1) * H * 0.012; }
+      // Only the top attacks go cream, and not all of them in a dense run, which still pulses but stays in colour.
+      const fresh = Math.max(smooth(0.1, 0.4, sinceNote), sinceBright > 0.35 && r > 0.85 ? 1 : 0), pulse = (0.2 + 0.8 * r * r) * mix(0.6, 1, fresh);
+      sinceNote = 0; if (pulse > 0.6) sinceBright = 0;
+      for (const q of pets) if (!q.fl && !q.leave) { q.hop = Math.max(q.hop, 0.4 + 0.6 * r); q.flare = Math.max(q.flare, pulse); q.dy += x.rnd(-1, 1) * H * 0.012; }
 
       // Who comes: in a burst from the edge. For a while after a flick no one dares on that side.
-      const cool = st === 'flick' || st === 'hold' || st === 'ret';
+      const cool = sinceSent < 6.5;
       const maxAlive = Math.round(mix(2, 46, Math.pow(crowd, 1.5)) * mix(0.4, 1, pres)), gap = mix(0.9, 0.04, Math.sqrt(crowd));
       if (sincePet >= gap * (r > 0.8 ? 0.4 : 1)) {
         sincePet = 0;
@@ -214,12 +219,12 @@
       // Strong means strong for this piece; a long silence of gestures slowly lowers the bar, so it never just sleeps.
       const bar = Math.max(0.58, 0.9 - 0.022 * Math.max(0, sinceTurn - 5)) + (1 - pres) * 0.09;
       let n = 0, sum = 0; for (const q of pets) if (!q.fl && !q.leave && q.age > 0.4) { n++; sum += q.side; }
-      if ((r >= bar || (ch.notes.length >= 4 && r >= bar - 0.12)) && sinceTurn > 3 && n) {
+      if ((r >= bar || (ch.notes.length >= 4 && r >= bar - 0.12)) && sinceTurn > 6 && n) {
         st = 'lift'; stT = 0; sinceTurn = 0;
         side = sum ? Math.sign(sum) : (x.rnd() < 0.5 ? -1 : 1);   // whichever side crowds it more
         amp = 0.72 + 0.28 * r;                 // louder: further...
         liftDur = 0.55 + 1.0 * r * r;          // ...and slower, and colder
-        holdDur = 1.6 + 1.2 * r;
+        holdDur = 1.1 + 0.9 * r;
       } else if (x.pitch01(ch.hi) > 0.42 && sinceTick > 1.2) {
         sinceTick = 0; tickT = 0; tickDir = x.rnd() < 0.5 ? -1 : 1;
       }
@@ -231,7 +236,7 @@
         // A thin passage gives them few notes to come on: a few still creep in unbidden, small, and wait.
         if (pres > 0.35 && sincePet > 1.5) {
           let waiting = 0; for (const q of pets) if (!q.fl && !q.leave) waiting++;
-          if (waiting < Math.round(mix(1, 6, Math.sqrt(x.p('crowd'))))) { sincePet = 0; spawn(x, st === 'rest' || st === 'lift' ? (x.rnd() < 0.5 ? -1 : 1) : -side, x.rnd(0.35, 0.8), x.rnd(0.3, 0.8), x.p('near')); }
+          if (waiting < Math.round(mix(1, 6, Math.sqrt(x.p('crowd'))))) { sincePet = 0; spawn(x, sinceSent >= 6.5 ? (x.rnd() < 0.5 ? -1 : 1) : -side, x.rnd(0.35, 0.8), x.rnd(0.3, 0.8), x.p('near')); }
         }
       }
       layout(x);
@@ -241,6 +246,10 @@
       const want = mix(0.5, 1, pres), keep = 0.88 * (1 - groundA);
       const a0 = want * (1 - keep) / (1 - keep * want);
       const am = clamp(a0 * (pres < 1 ? 1.35 : 1));   // what moves has to be seen before it has moved on
+      const figW = mix(0.6, 1, pres), a0Figure = figW * (1 - keep) / (1 - keep * figW);   // quiet, the figure still outweighs the court
+      // Over a page that fades slowly a moving thing leaves ghosts. So when quiet nothing travels: marks appear and go where
+      // they stand, and being sent away is one still line that the page itself fades.
+      const quiet = 1 - smooth(0.35, 0.65, pres);
 
       // ground: opaque while fully present, and it lets the page through as it goes quiet. Flat when thin (a thin
       // gradient piles its dither up into a visible texture).
@@ -253,43 +262,25 @@
         }
       }
 
-      // the tip's gold arc
-      const tx = spine.x[N - 1], ty = spine.y[N - 1];
-      if (arc && dt > 0) {
-        const lx = arc.pts[arc.pts.length - 2], ly = arc.pts[arc.pts.length - 1];
-        if (!arc.pts.length || Math.hypot(tx - lx, ty - ly) > 5) arc.pts.push(tx, ty);
-      }
       g.lineCap = 'round'; g.lineJoin = 'round';
-      for (const c of arcs) {
-        if (dt > 0 && c !== arc) c.age += dt;
-        const n = c.pts.length / 2; if (n < 2) continue;
-        const fade = (1 - smooth(0.15, 1.1, c.age)) * am;
-        g.strokeStyle = `rgb(${R.arc})`;
-        for (let i = 0; i < n - 1; i++) {
-          const k = (i + 0.5) / (n - 1), sw = Math.sin(Math.PI * Math.pow(k, 0.7));
-          g.globalAlpha = fade * (0.2 + 0.75 * sw); g.lineWidth = 0.6 + 3.4 * sw;
-          g.beginPath(); g.moveTo(c.pts[i * 2], c.pts[i * 2 + 1]); g.lineTo(c.pts[i * 2 + 2], c.pts[i * 2 + 3]); g.stroke();
-        }
-      }
-      arcs = arcs.filter((c) => c === arc || c.age < 1.5);
 
       // the figure: matte, brushed, one broad soft light and the dry grain of the brush
       const coldness = clamp(turn);
       const top = spine.y[N - 1], bottom = spine.y[0];
       const gr = g.createLinearGradient(0, bottom, 0, Math.min(top, H * 0.1));
       gr.addColorStop(0, R.low); gr.addColorStop(0.42, R.high); gr.addColorStop(1, R.low);
-      g.globalAlpha = a0;
+      g.globalAlpha = a0Figure;
       g.fillStyle = gr; ribbon(g, -1, 1, 0, N - 1); g.fill();
-      if (coldness > 0.01) { g.globalAlpha = a0 * 0.32 * coldness; g.fillStyle = R.ground; ribbon(g, -1, 1, 0, N - 1); g.fill(); }
+      if (coldness > 0.01) { g.globalAlpha = a0Figure * 0.2 * coldness; g.fillStyle = R.ground; ribbon(g, -1, 1, 0, N - 1); g.fill(); }
       const shY = mix(bottom, H * 0.05, 0.3 + 0.14 * Math.sin(time * 0.37));
       const shg = g.createLinearGradient(0, shY + H * 0.24, 0, shY - H * 0.24);
       shg.addColorStop(0, `rgba(${R.sheen},0)`); shg.addColorStop(0.5, `rgba(${R.sheen},1)`); shg.addColorStop(1, `rgba(${R.sheen},0)`);
-      g.fillStyle = shg; g.globalAlpha = a0 * (0.17 + 0.2 * flash) * (1 - 0.6 * coldness);
+      g.fillStyle = shg; g.globalAlpha = a0Figure * (0.17 + 0.2 * flash) * (1 - 0.6 * coldness);
       ribbon(g, -0.12, 0.82, 3, N - 16); g.fill();
       // grain: light streaks catch an attack as a shiver down the whole stroke; dark ones split the brush
       for (let dark = 0; dark < 2; dark++) {
         g.strokeStyle = dark ? R.ground : `rgb(${R.grain})`;
-        g.globalAlpha = a0 * (dark ? 0.3 : 0.1 + 0.6 * flash * flash);
+        g.globalAlpha = a0Figure * (dark ? 0.3 : 0.1 + 0.6 * flash * flash);
         for (const b of BRISTLES) {
           if (b.dark !== !!dark) continue;
           g.lineWidth = b.lw; g.beginPath();
@@ -298,7 +289,7 @@
         }
       }
       // the gold edge, along one side only, drawn with a pen that swells and thins; an attack thickens all of it
-      g.fillStyle = `rgb(${R.edge})`; g.globalAlpha = a0 * (0.68 + 0.32 * flash);
+      g.fillStyle = `rgb(${R.edge})`; g.globalAlpha = a0Figure * (0.68 + 0.32 * flash);
       g.beginPath();
       for (let i = 0; i < N; i++) { const w = spine.w[i]; g[i ? 'lineTo' : 'moveTo'](spine.x[i] + spine.nx[i] * w, spine.y[i] + spine.ny[i] * w); }
       for (let i = N - 1; i >= 0; i--) { const s = i / (N - 1), w = spine.w[i] + (0.55 + 1.5 * Math.pow(Math.sin(s * 9.4 + 0.6), 2)) * (1 + 1.6 * flash); g.lineTo(spine.x[i] + spine.nx[i] * w, spine.y[i] + spine.ny[i] * w); }
@@ -317,15 +308,23 @@
       glints = glints.filter((q) => q.age < 0.42);
 
       // the court
-      const d1 = Math.pow(0.5, dt / 0.1), d2 = Math.pow(0.5, dt / 0.13), kx = 1 - Math.exp(-dt * 13), ky = 1 - Math.exp(-dt * 8);
-      const hopPx = H * 0.075 * (0.3 + 0.7 * pres), creep = H * 0.012;
+      const d1 = Math.pow(0.5, dt / 0.1), d2 = Math.pow(0.5, dt / 0.13), kx = 1 - Math.exp(-dt * mix(13, 3.5, quiet)), ky = 1 - Math.exp(-dt * mix(8, 3.5, quiet));
+      const hopPx = H * 0.075 * mix(1, 0.1, quiet) * (0.3 + 0.7 * pres), creep = H * 0.012;
       for (const p of pets) {
         let alpha = 1;
         if (p.fl) {
           // sent away: straight off the page, gathering speed, a gold line behind
           if (dt > 0) p.fl.t += dt;
           const age = Math.max(0, p.fl.t);
-          if (p.fl.t > 0) {
+          if (quiet > 0.5) {
+            // quiet: one still line to the page's edge, on the attack, and the mark goes out where it stands
+            if (p.fl.t > 0 && age < 0.1) {
+              const reach = Math.max(x.W, x.H) * 1.2;
+              g.globalAlpha = am * 0.9; g.strokeStyle = `rgb(${R.arc})`; g.lineWidth = 0.9 + p.r * 0.03;
+              g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + p.fl.vx * reach, p.y + p.fl.vy * reach); g.stroke();
+            }
+            if (p.fl.t > 0.18) continue;
+          } else if (p.fl.t > 0) {
             if (dt > 0) { const sp = H * (1.15 + 2.6 * age); p.x += p.fl.vx * sp * dt; p.y += p.fl.vy * sp * dt; p.a += p.fl.spin * dt; }
             const tk = clamp((age - 0.14) / 0.75), fade = 1 - smooth(0.4, 1.1, age);
             if (fade > 0) {
@@ -339,26 +338,30 @@
           p.timid -= dt;
           if (p.timid < 0) { p.timid = x.rnd(0.9, 3.4) * (0.6 + 0.4 * pres); p.hop = Math.max(p.hop, x.rnd(0.3, 0.7)); p.dy += x.rnd(-1, 1) * H * 0.018; }   // nobody asked: a timid dart anyway
           if (!p.leave) { p.gap = Math.max(p.gapMin, p.gap - dt * creep); if (p.age > p.wait) p.leave = 1e-6; }
-          else { p.leave += dt; p.gap += dt * H * 0.3; }
+          else { p.leave += dt; p.gap += dt * H * 0.3 * (1 - quiet); }
           const yT = p.ty + p.dy + Math.sin(time * (0.5 + p.seed * 0.1) + p.seed) * H * 0.016;
           bodyAt(yT);
           let dist = p.gap - p.hop * hopPx + Math.sin(time * (0.7 + p.seed * 0.08) + p.seed * 3) * H * 0.012;
           dist = Math.max(dist, atW + p.r * 1.7 + 8);                 // never onto the figure
           const xT = clamp(atX + p.side * dist, p.r - 30, W - p.r + 30);
+          if (quiet > 0.5 && p.age <= dt) { p.x = xT; p.y = yT; }
           p.x += (xT - p.x) * kx; p.y += (yT - p.y) * ky;
           p.a += (Math.sin(time * 1.1 + p.seed) * 0.5 - p.a) * (1 - Math.exp(-dt * 3));
         }
         if (p.leave) alpha = 1 - smooth(0, 1.2, p.leave);
+        const gone = p.fl ? smooth(0.05, 0.3, p.fl.t) : 0;   // sent away, the mark dwindles: what is left is the line, not a dot on a stick
+        alpha *= 1 - 0.8 * gone;
         if (pres < 1 && !p.fl) alpha *= mix(smooth(0, 0.3, p.age), 1, pres * pres);   // quiet, the fast arrival isn't shown, or it smears
         if (p.x < -60 || p.x > W + 60 || p.y < -60 || p.y > H + 60) continue;
-        const tr = p.fl ? 0 : (0.05 + 1.55 * pres) * (0.45 + 2.6 * p.flare);   // always trembling, more when it flares
+        const tr = p.fl ? 0 : (0.02 + 1.58 * pres * pres) * (0.45 + 2.6 * p.flare);   // always trembling, more when it flares
         g.save();
         g.translate(p.x + Math.sin(time * 37 + p.seed * 9) * tr, p.y + Math.cos(time * 29 + p.seed * 5) * tr);
         g.rotate(p.a + (p.side > 0 ? Math.PI : 0));                    // facing it, the eager ones
-        g.globalAlpha = am * alpha * mix(0.6, 1, pres) * (0.72 + 0.28 * p.flare) * (p.fl && pres < 1 ? mix(0.3, 1, pres) : 1);   // quiet, the line goes and the mark doesn't smear
-        const col = p.flare > 0.55 ? '#fff6e0' : `rgb(${R[p.tint]})`;
+        g.globalAlpha = am * alpha * mix(0.42, 1, pres) * (0.58 + 0.42 * p.flare);
+        const kc = smooth(0.5, 0.95, p.flare), rgb = R[p.tint].split(',');
+        const col = `rgb(${mix(+rgb[0], 255, kc) | 0},${mix(+rgb[1], 246, kc) | 0},${mix(+rgb[2], 224, kc) | 0})`;
         g.fillStyle = col; g.strokeStyle = col;
-        drawMark(g, p, p.r * (1 + 0.65 * p.flare));
+        drawMark(g, p, p.r * (1 + 0.45 * p.flare) * (1 - 0.6 * gone));
         g.restore();
       }
       pets = pets.filter((p) => (p.fl ? p.fl.t < 1.3 : p.leave < 1.2));
