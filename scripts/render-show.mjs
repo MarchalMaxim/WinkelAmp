@@ -204,7 +204,7 @@ try {
   tmp = mkdtempSync(path.join(tmpdir(), 'wa-render-show-'));
   console.log(`work folder → ${tmp}`);   // the export job removes it if this process is killed before its cleanup
   const W = 1280 * SCALE, H = 720 * SCALE;
-  console.log(`${show.title ?? pack.title} (${from === 'composed' ? (opts.compose ? 'composed for the song (--compose)' : 'composed for the song: no shows/' + show.id + '.json') : `${show.sections.length} sections`}): `
+  console.log(`${show.title ?? pack.title} (${from === 'composed' ? (opts.compose ? 'composed for the song (--compose)' : 'composed for the song: no shows/' + show.id + '.json') : `${show.clips.length} clips`}): `
     + `${clock(start)}–${clock(end)}, ${n} frames of ${W}×${H} at ${FPS} fps (${HZ} Hz steps, scale ${SCALE}) → ${out}`);
 
   await vite.listen();

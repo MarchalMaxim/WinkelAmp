@@ -1,11 +1,12 @@
 /**
- * The auto-composer (plan §6): a default show for any pack, so every song plays well at once. Sections come from the
- * analysis (the most novel boundaries, at least minSection apart, each moved just before the strongest attack near it);
- * each section gets loved/kept widgets by its character. Knobs stay at OUR defaults. Deterministic.
+ * The auto-composer (plan §6): a first show for any pack, one click away on an empty timeline. It reads the song in spans
+ * from the analysis (the most novel boundaries, at least minSection apart, each moved just before the strongest attack near
+ * it), gives each span loved/kept widgets by its character, and places them as clips: a widget that plays on through the next
+ * span is one clip, one that gives way overlaps the next one by a fade, on the next track of its kind. Bases at the bottom,
+ * then accents, the entering part's window, the casket on top. Knobs stay at OUR defaults. Deterministic.
  *
  * Given the shared layer maths and the tag vocabulary (plan 2026-10-31 §9), it also reads the feel words of the user's
- * description, routes accents to the instrument tracks they suit, and gives an instrument that enters a section its own
- * window. Without them the show is byte for byte last night's.
+ * description, routes accents to the instrument tracks they suit, and gives an instrument that enters a span its own window.
  */
 import { groupChords } from '../../widgets/chords';
 import type { WaLayers } from '../../widgets/layers';
@@ -13,8 +14,8 @@ import { feelWordsIn, tracksFor, type TagWords } from '../../widgets/tags';
 import type { Chord, Listen, Note, Region, TrackId, WidgetMeta } from '../../widgets/types';
 import { TRACK_IDS, TRACKS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
-import { DEFAULT_FADE, MAX_LAYERS, usesV2, type Layer, type Show, type ShowSection } from '../show/show';
-import { characterLabel, sectionCharacters, type Character, type Span } from './character';
+import { DEFAULT_FADE, MAX_LAYERS, SHOW_VERSION, freeTrack, type Clip, type Layer, type Show } from '../show/show';
+import { sectionCharacters, type Character, type Span } from './character';
 import { enteringTrack, presence } from './instruments';
 import { FEEL_BONUS, FEEL_BONUS_MAX, INSTRUMENT_BONUS, LINE_BY_INSTRUMENT, PRESENT, TASTE, type TasteRole } from './taste';
 
@@ -22,9 +23,9 @@ export interface ComposeInput {
   pack: Pick<SongPack, 'id' | 'title' | 'duration' | 'notes' | 'sections'> & Partial<Pick<SongPack, 'tracks' | 'beats' | 'loudness' | 'kind'>>;
   /** The collection; a widget's `tags` (lab/tags.json) give its feel and instrument words. */
   widgets: ReadonlyMap<string, WidgetMeta>;
-  /** Shortest section, s (15). */
+  /** Shortest span, s (15). */
   minSection?: number;
-  /** Most sections (max(1, round(duration / 30))). */
+  /** Most spans (max(1, round(duration / 30))). */
   maxSections?: number;
   /** composer.at (the studio passes now); default the epoch, so the same input gives the same show. */
   at?: string;
@@ -82,7 +83,7 @@ function pick(i: ComposeInput, chords: readonly Chord[]): Span[] {
   return edgesOut.slice(1).map((end, k) => ({ start: edgesOut[k], end }));
 }
 
-/** The show's sections: from the analysis sections, dropping the least novel boundaries (first those that touch a span
+/** The spans the show is composed in: from the analysis sections, dropping the least novel boundaries (first those that touch a span
     shorter than minSection, then until there are at most maxSections), then each moved to the strongest attack near it. */
 export function pickSections(i: ComposeInput): Span[] {
   return pick(i, groupChords(i.pack.notes));
@@ -90,14 +91,14 @@ export function pickSections(i: ComposeInput): Span[] {
 
 const score = (fit: Partial<Character>, c: Character) => (Object.keys(fit) as (keyof Character)[]).reduce((a, k) => a + (fit[k] ?? 0) * c[k], 0);
 
-/** The window an entering part gets: left in even sections, right in odd ones. */
+/** The window an entering part gets: left in even spans, right in odd ones. */
 export const enteringRegion = (k: number): Region =>
   ({ mode: 'window', shape: 'ellipse', x: k % 2 ? 0.75 : 0.25, y: 0.5, w: 0.4, h: 0.5, feather: 0.3, blend: 'lighten', fit: 'cover' });
 
-/** What the composer hears of the tracks in one section: each track present in it (presence ≥ PRESENT). */
+/** What the composer hears of the tracks in one span: each track present in it (presence ≥ PRESENT). */
 interface Hearing { present: Map<TrackId, number>; words: TagWords; pack: ComposeInput['pack'] }
 
-/** The track (or family) an instrument word list suits in this section, the most present (ties: TRACKS order, then a
+/** The track (or family) an instrument word list suits in this span, the most present (ties: TRACKS order, then a
     family): a TrackId when it is present; 'family:<f>' when two or more of that family's tracks are present (its
     presence over all its tracks), else the one that is. 'all' (tutti) routes nowhere: it is what a layer hears anyway. */
 function routeFor(instruments: readonly string[], h: Hearing, s: Span): Listen | null {
@@ -133,7 +134,7 @@ export function composeShow(i: ComposeInput): Show {
   const { pack, widgets } = i;
   const chords = groupChords(pack.notes);
   const d = ms(pack.duration);
-  // No attacks at all (a silent recording): one quiet section, whatever the analysis found.
+  // No attacks at all (a silent recording): one quiet span, whatever the analysis found.
   const spans = chords.length ? pick(i, chords) : [{ start: 0, end: d }];
   const chars = sectionCharacters(pack.notes, spans, chords);
   const liked = (id: string) => { const v = widgets.get(id)?.verdict?.v; return v === 'love' || v === 'keep'; };
@@ -156,8 +157,8 @@ export function composeShow(i: ComposeInput): Show {
   };
 
   let prevBase: string | null = null;
-  const sections: ShowSection[] = spans.map((s, k) => {
-    const c = chars[k], layers: Layer[] = [];
+  const stacks: Stacked[] = spans.map((s, k) => {
+    const c = chars[k], layers: Stacked['layers'] = [];
     const hear: Hearing | null = v2 && withTracks.length ? { present: new Map(), words: v2.words, pack } : null;
     if (hear) for (const id of withTracks) { const p = presence(pack.tracks![id]!.notes, s); if (p >= PRESENT) hear.present.set(id, p); }
     const route = (id: string) => (hear ? routeFor(tags(id)?.instruments ?? [], hear, s) : null);
@@ -169,7 +170,7 @@ export function composeShow(i: ComposeInput): Show {
       const prev = bases.find((b) => b.id === prevBase);
       base = prev && val(prev) >= bestScore - 0.1 ? prev.id : best.id;
     } else base = fallback ?? null;
-    if (base) layers.push({ widget: base });   // bases hear all notes
+    if (base) layers.push({ widget: base, role: ROLE.base });   // bases hear all notes
     prevBase = base;
     let accent: { id: string; v: number; listen: Listen | null } | null = null;
     for (const a of accents) {
@@ -179,14 +180,14 @@ export function composeShow(i: ComposeInput): Show {
     if (accent) {
       // A song without tracks: an accent of a low instrument follows the bass line, one of a high instrument the melody.
       const listen = accent.listen ?? (v2 && !withTracks.length ? lineFor(accent.id) : null);
-      layers.push(listen ? { widget: accent.id, listen } : { widget: accent.id });
+      layers.push({ widget: accent.id, role: ROLE.accent, ...(listen ? { listen } : {}) });
     }
-    const top: Layer[] = [];
+    const top: Stacked['layers'] = [];
     if (c.loud >= 0.75 && c.dense >= 0.5) {
-      for (const t of tops) if (t.id === 'casket') { const l = route('casket'); top.push(l ? { widget: 'casket', listen: l } : { widget: 'casket' }); }
+      for (const t of tops) if (t.id === 'casket') { const l = route('casket'); top.push({ widget: 'casket', role: ROLE.top, ...(l ? { listen: l } : {}) }); }
     }
     // An instrument that enters here gets its own window, seen while it plays: the best-scoring loved or kept widget
-    // (a base or an accent) that suits it and is not in the stack yet. At most one per section, under the top.
+    // (a base or an accent) that suits it and is not in the stack yet. At most one per span, under the top.
     const enter = v2 ? enteringTrack(pack, s) : null;
     if (v2 && enter && layers.length + top.length < MAX_LAYERS) {
       let best: { id: string; v: number } | null = null;
@@ -196,18 +197,61 @@ export function composeShow(i: ComposeInput): Show {
         if (!best || v > best.v) best = { id: t.id, v };
       }
       if (best) {
-        const l: Layer = { widget: best.id, listen: enter, region: enteringRegion(k) };
+        const l: Stacked['layers'][number] = { widget: best.id, role: ROLE.entering, listen: enter, region: enteringRegion(k) };
         const intensity = v2.layers.presets.plays(s, pack.tracks![enter]!.notes);
         if (intensity.length) l.intensity = intensity;
         layers.push(l);
       }
     }
     layers.push(...top);
-    const out: ShowSection = { start: s.start, end: s.end, label: characterLabel(c), layers };
-    if (k > 0) out.fade = DEFAULT_FADE;
-    return out;
+    return { span: s, layers };
   });
-  const show: Show = { version: 1, id: pack.id, song: pack.id, title: pack.title, composer: { by: 'auto', at: i.at ?? EPOCH }, sections };
-  if (usesV2(show)) show.version = 2;
-  return show;
+  return { version: SHOW_VERSION, id: pack.id, song: pack.id, title: pack.title, composer: { by: 'auto', at: i.at ?? EPOCH }, clips: place(stacks, d) };
+}
+
+/** A span's stack, bottom → top, each layer with the kind of track it goes on. */
+interface Stacked { span: Span; layers: (Layer & { role: number })[] }
+/** Each kind has two tracks: one that gives way overlaps the next one for its fade, so they must not share. */
+const ROLE = { base: 0, accent: 2, entering: 4, top: 6 } as const;
+/** How long two clips that give way to each other overlap, half on each side of the boundary. */
+const CROSS = DEFAULT_FADE;
+
+const same = (a: Layer, b: Layer): boolean => a.widget === b.widget && a.listen === b.listen
+  && JSON.stringify(a.region) === JSON.stringify(b.region) && !a.intensity?.length && !b.intensity?.length;
+
+/** The stacks as clips: the same widget on the same part, in the same place, in the next span too plays on as one clip; one
+    that gives way runs on past the boundary, under what comes next, while they cross. Then only the tracks in use. */
+function place(stacks: readonly Stacked[], duration: number): Clip[] {
+  const clips: Clip[] = [];
+  const open = new Map<number, Clip & { role: number }>();   // the clip of each kind that reached the last span's end
+  let n = 0;
+  for (const { span, layers } of stacks) {
+    const fresh = new Map<number, Clip & { role: number }>();
+    for (const l of layers) {
+      const was = open.get(l.role);
+      if (was && same(was, l) && Math.abs(was.end - span.start) < 1e-6) {
+        was.end = span.end;
+        fresh.set(l.role, was);
+        continue;
+      }
+      const { role, ...rest } = l;
+      const start = span.start > 0 ? ms(Math.max(0, span.start - CROSS / 2)) : 0;
+      const clip = { id: `c${++n}`, start, end: span.end, track: role, role, ...rest };
+      clips.push(clip);
+      fresh.set(role, clip);
+    }
+    // What does not go on gives way: it runs a little past the boundary.
+    for (const [role, c] of open) if (fresh.get(role) !== c && Math.abs(c.end - span.start) < 1e-6) c.end = ms(Math.min(duration, c.end + CROSS / 2));
+    open.clear();
+    for (const [role, c] of fresh) open.set(role, c);
+  }
+  // On the first of its kind's two tracks unless that one is taken while it plays, in time order.
+  const placed: Clip[] = [];
+  for (const c of clips.sort((a, b) => a.start - b.start || a.track - b.track)) {
+    c.track = freeTrack(placed, c, c.track);
+    placed.push(c);
+  }
+  // Only the tracks in use, in their order.
+  const used = [...new Set(placed.map((c) => c.track))].sort((a, b) => a - b);
+  return placed.map(({ role: _role, ...c }: Clip & { role?: number }) => ({ ...c, track: used.indexOf(c.track) }));
 }
