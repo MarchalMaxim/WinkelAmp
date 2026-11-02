@@ -91,10 +91,12 @@ async function makeClip(page, id) {
   const only = over ? `${over},${id}` : id, tmp = path.join(OUT, `${id}.part.mp4`), n = Math.round(seconds * FPS);
   await page.goto(`${BASE}/lab/index.html?render=1&only=${encodeURIComponent(only)}&song=${encodeURIComponent(song)}`);
   await page.waitForFunction(() => window.renderReady === true, null, { timeout: 60000 });
-  await inTime(page.evaluate(({ start, FPS, warm }) => {
-    window.renderSeek(start - warm, 1);
-    for (let k = -warm * FPS + 1; k <= 0; k++) window.renderTo(start + k / FPS);   // warm-up, not captured
-  }, { start, FPS, warm }), 'warm-up');
+  await page.evaluate((t) => { window.renderSeek(t, 1); }, start - warm);
+  for (let k = -warm * FPS + 1; k <= 0; k += FPS) {   // warm-up, not captured; a second at a time, so that only a stuck widget times out
+    await inTime(page.evaluate(({ start, FPS, k0, k1 }) => {
+      for (let k = k0; k < k1; k++) window.renderTo(start + k / FPS);
+    }, { start, FPS, k0: k, k1: Math.min(k + FPS, 1) }), 'warm-up');
+  }
   const ff = ffmpeg(tmp);
   try {
     for (let k = 0; k < n; k += BATCH) {
