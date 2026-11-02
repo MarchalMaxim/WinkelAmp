@@ -1,7 +1,8 @@
-// Lazy: it can't be bothered. Heavy, shapeless green masses lie slumped in a heap under stale air. Every attack goes through
-// the whole heap as a slow shudder it doesn't bother to answer: it dips, and one mass goes a dull sour colour. Now and then a
-// note asks one to get up: its loose end, thinning as it goes, hauls itself up a little, loses interest, hangs there and flops
-// over onto its neighbours, which sag under it and take seconds to recover. Fast music makes it care less.
+// Lazy: it can't be bothered. Heavy, shapeless green stains lie slumped across the whole picture, seeping through each other.
+// An attack, when it has the patience, goes through them as one heavy jolt they creep back from: they dip, and one goes a dull
+// sour colour. Busy music gets ignored: notes only feed one slow swell, and only the hard ones still land. Now and then a note
+// asks a stain to get up: its loose end, thinning as it goes, hauls itself up a little, loses interest, hangs there and flops
+// over onto its neighbours, which sag under it and take seconds to recover.
 // Each mass is a chain: its base pinned, its free end led along a path while it is up, the rest following by gravity,
 // heavy damping and length constraints, stepped in song seconds so nothing snaps at a low frame rate. Its two edges swell
 // unevenly and independently and taper to nothing at both ends, so it stays a form and never becomes an object.
@@ -9,21 +10,23 @@
   const PTS = 12, SUB = 6, TAU = Math.PI * 2, SAMPLES = (PTS - 1) * SUB + 1, H_STEP = 1 / 60, G = 720, DAMP = 3.4;
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
   const [lay, lg] = mk(1280, 720);
+  // The stains are painted small and enlarged smoothly, so no edge is ever cut out and a tight bend can't show its workings.
+  const K = 4, [wash, wg] = mk(320, 180);
   const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
   const css = (c, k = 1) => `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
   const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
   // [ground, bottle, moss, pea, chartreuse] at the left end of the green knob, the middle (the default), and the right end.
   const GREENS = [
-    ['#121c12', '#0e2a1b', '#21401f', '#37582a', '#7d9a3a'],
-    ['#39401c', '#1f4a2c', '#4f6b22', '#7c9a2f', '#c4d94a'],
-    ['#5a5f14', '#4d8a22', '#88a51e', '#b4c92a', '#e8f55a'],
+    ['#0a140d', '#0e2a1b', '#21401f', '#37582a', '#7d9a3a'],
+    ['#1a3a20', '#1f5a30', '#4f8026', '#86ad30', '#c4d94a'],
+    ['#2c5a1a', '#4d8a22', '#88a51e', '#b4c92a', '#e8f55a'],
   ].map((row) => row.map(hex));
   const paletteAt = (v) => { const k = v < 0.5 ? 0 : 1, t = v < 0.5 ? v * 2 : v * 2 - 1; return GREENS[k].map((c, i) => mix(c, GREENS[k + 1][i], t)); };
   // A fixed little generator, so one song always starts with the same heap, and each song with its own.
   const seeded = (s) => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 
   let limbs = [], order = [], pend = [], marks = [], clock = 0, acc = 0, lastAttack = 0, gapUntil = 0, yawnT = -1, yawned = false, built = 0;
-  let vels = null, pitchLo = 36, pitchHi = 84, pulses = [], heave = 0, flush = 0, stale = [], bedP = [0, 0, 0];
+  let vels = null, pitchLo = 36, pitchHi = 84, pulses = [], heave = 0, flush = 0, swell = 0, swellT = 0, nextJolt = 0;
 
   // This song's own notes: how hard a velocity is among them, and which pitches it really spans.
   function learn() {
@@ -44,21 +47,18 @@
     const R = seeded(seed); limbs = []; pend = []; marks = []; pulses = [];
     const edge = () => {
       const f1 = 0.8 + R() * 0.9, f2 = 2 + R() * 1.6, f3 = 5 + R() * 4, p1 = R(), p2 = R(), p3 = R(), t = new Float32Array(SAMPLES);
-      for (let s = 0; s < SAMPLES; s++) { const u = s / (SAMPLES - 1); t[s] = Math.max(0.2, 0.92 + 0.6 * Math.sin(TAU * (f1 * u + p1)) + 0.2 * Math.sin(TAU * (f2 * u + p2)) + 0.035 * Math.sin(TAU * (f3 * u + p3))); }
+      for (let s = 0; s < SAMPLES; s++) { const u = s / (SAMPLES - 1); t[s] = Math.max(0.45, 0.92 + 0.42 * Math.sin(TAU * (f1 * u + p1)) + 0.16 * Math.sin(TAU * (f2 * u + p2)) + 0.012 * Math.sin(TAU * (f3 * u + p3))); }
       return t;
     };
-    bedP = [R() * TAU, R() * TAU, R() * TAU];
-    stale = [];
-    for (let i = 0; i < 3; i++) stale.push({ y: Ht * (0.36 - i * 0.11 + R() * 0.03), f1: 5 + R() * 5, f2: 11 + R() * 5, tone: R(), sp: (R() < 0.5 ? -1 : 1) * (1.5 + R() * 2.5), p1: R() * TAU, p2: R() * TAU, p3: R() * TAU });
     const slots = []; for (let i = 0; i < n; i++) slots.push((i + 0.5) / n);
     for (let i = n - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)), t = slots[i]; slots[i] = slots[j]; slots[j] = t; }
     for (let i = 0; i < n; i++) {
       const f = n > 1 ? 1 - i / (n - 1) : 0.5;                    // 1: the fattest, at the bottom; 0: thin, on top
-      const w = 58 + 84 * Math.pow(f, 1.1), L = (230 + 340 * f) * (0.85 + 0.3 * R());
-      const bx = W * (0.5 + (slots[i] - 0.5) * (0.62 + 0.62 * f));
+      const w = 100 + 120 * Math.pow(f, 1.1), L = (380 + 380 * f) * (0.85 + 0.3 * R());
+      const bx = W * (0.5 + (slots[i] - 0.5) * (1.05 + 0.2 * f));
       const side = bx < W * 0.3 ? 1 : bx > W * 0.7 ? -1 : (R() < 0.5 ? -1 : 1);
-      const bulge = 0.45 + R() * 1.1;
-      const l = { i, f, w, L, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], sag: new Float32Array(PTS), dim: new Float32Array(PTS), q: new Float32Array(PTS), fl: 0, na: edge(), nb: edge(),
+      const bulge = 0.45 + R() * 1.1, soft = 2 + R() * R() * 6;
+      const l = { i, f, w, L, soft, bx, by: 0, W, Ht, side, A: 16 + R() * 24, fq: 0.012 + R() * 0.009, ph: R() * 6.28, off: (R() - 0.5) * 0.05, cx: (R() - 0.5) * 0.3, state: 'rest', free: 0, sink: 0, slide: 0, bulge, x: [], y: [], px: [], py: [], rx: [], ry: [], dy: [], seg: [], sag: new Float32Array(PTS), dim: new Float32Array(PTS), q: new Float32Array(PTS), fl: 0, na: edge(), nb: edge(),
         sx: new Float32Array(SAMPLES), sy: new Float32Array(SAMPLES), st: new Float32Array(SAMPLES), sb: new Float32Array(SAMPLES), mx: new Float32Array(SAMPLES), my: new Float32Array(SAMPLES), mr: new Float32Array(SAMPLES) };
       pose(l);
       for (let k = 0; k < PTS; k++) { l.x.push(l.rx[k]); l.y.push(l.ry[k]); l.px.push(l.rx[k]); l.py.push(l.ry[k]); }
@@ -68,11 +68,11 @@
     built = n;
   }
   // The shape it lies in, on its current side.
-  // It drapes over the heap: a mound, highest in the middle, and the thinner the limb the higher up the mound it lies.
+  // They lie all over the picture, from the very top down, the thinner ones higher: no mound, no horizon.
   function pose(l) {
     for (let k = 0; k < PTS; k++) {
-      const u = k / (PTS - 1), X = l.bx + l.side * l.L * u, prof = 0.6 + 0.4 * Math.cos(Math.max(-1, Math.min(1, (X / l.W - 0.5 + l.cx) * 1.5)) * Math.PI);
-      l.rx[k] = X; l.ry[k] = l.Ht * (0.96 + l.off - (1 - l.f) * 0.5 * prof + (1 - 0.6 * l.f) * 0.045 * (2 * u - 1) * (2 * u - 1)) + l.A * Math.sin(X * l.fq + l.ph);
+      const u = k / (PTS - 1), X = l.bx + l.side * l.L * u, prof = 0.88 + 0.12 * Math.cos(Math.max(-1, Math.min(1, (X / l.W - 0.5 + l.cx) * 1.5)) * Math.PI);
+      l.rx[k] = X; l.ry[k] = l.Ht * (0.96 + l.off - (1 - l.f) * 0.92 * prof + (1 - 0.6 * l.f) * 0.045 * (2 * u - 1) * (2 * u - 1)) + l.A * Math.sin(X * l.fq + l.ph);
     }
     l.by = l.ry[0];
     for (let k = 0; k < PTS - 1; k++) l.seg[k] = Math.hypot(l.rx[k + 1] - l.rx[k], l.ry[k + 1] - l.ry[k]);
@@ -91,7 +91,7 @@
     const e = PTS - 1;
     l.state = 'lift'; l.lp = 0; l.T = T; l.sink *= 0.35;
     l.x0 = l.x[e]; l.y0 = l.y[e];
-    l.ay = Math.min(l.y[e], l.by) - liftH;
+    l.ay = Math.max(l.Ht * 0.05, Math.min(l.y[e], l.by) - liftH);
     { const reach = l.L * x.rnd(0.72, 0.86), hh = Math.abs(l.ay - l.by); l.ax = l.bx + l.side * Math.sqrt(Math.max(l.L * l.L * 0.1, reach * reach - hh * hh)); }
     l.held = n.d > T * 1.1;
     l.until = clock + (l.held ? Math.min(7, n.d) : T + x.rnd(0.25, 0.85) * (1.3 - 0.6 * lazy));
@@ -101,7 +101,7 @@
   }
 
   // The least possible acknowledgement: a sour smear soaking into whichever mass is uppermost under this pitch.
-  function dimple(px, v01, x) {
+  function dimple(px, v01, x, jolt) {
     const rate = x.feat.rate;
     let best = null, idx = 0, top = 1e9;
     for (const l of limbs) {
@@ -112,9 +112,9 @@
       if (y < top) { top = y; best = l; idx = nk; }
     }
     if (!best) return;
-    best.dim[idx] = Math.min(14, best.dim[idx] + (4 + 10 * v01) * (1 - 0.45 * rate));
+    if (jolt) best.dim[idx] = Math.min(14, best.dim[idx] + (4 + 10 * v01) * (1 - 0.45 * rate));
     if (marks.length > 22) marks.shift();
-    marks.push({ l: best, k: idx * SUB, age: 0, life: 0.6 - 0.25 * rate, r: (18 + 30 * v01) * (1 - 0.3 * rate) });
+    marks.push({ l: best, k: idx * SUB, age: 0, life: 0.6 - 0.25 * rate, r: (50 + 70 * v01) * (1 - 0.3 * rate), a: jolt ? 0.42 : 0.14 });
   }
 
   // It lands: every limb under it sags where it was hit, and the sag spreads slowly along them.
@@ -194,7 +194,7 @@
         if (d < min) { const c = (d - min) / d * 0.5, wa = k === 0 ? 0 : 1, wb = (led && k + 2 === e) ? 0 : 1, s = wa + wb; if (s) { l.x[k] += dx * c * 2 * wa / s; l.y[k] += dy * c * 2 * wa / s; l.x[k + 2] -= dx * c * 2 * wb / s; l.y[k + 2] -= dy * c * 2 * wb / s; } }
       }
       for (let k = 0; k < e - 3; k++) {
-        const dx = l.x[k + 4] - l.x[k], dy = l.y[k + 4] - l.y[k], d = Math.hypot(dx, dy) || 1, min = (l.seg[k] + l.seg[k + 1] + l.seg[k + 2] + l.seg[k + 3]) * 0.62;
+        const dx = l.x[k + 4] - l.x[k], dy = l.y[k + 4] - l.y[k], d = Math.hypot(dx, dy) || 1, min = (l.seg[k] + l.seg[k + 1] + l.seg[k + 2] + l.seg[k + 3]) * 0.76;
         if (d < min) { const c = (d - min) / d * 0.5, wa = k === 0 ? 0 : 1, wb = (led && k + 4 === e) ? 0 : 1, t = wa + wb; if (t) { l.x[k] += dx * c * 2 * wa / t; l.y[k] += dy * c * 2 * wa / t; l.x[k + 4] -= dx * c * 2 * wb / t; l.y[k + 4] -= dy * c * 2 * wb / t; } }
       }
     }
@@ -220,8 +220,8 @@
         l.sx[s] = 0.5 * (2 * x1 + (x2 - x0) * t + (2 * x0 - 5 * x1 + 4 * x2 - x3) * t2 + (3 * x1 - x0 - 3 * x2 + x3) * t3);
         l.sy[s] = 0.5 * (2 * y1 + (y2 - y0) * t + (2 * y0 - 5 * y1 + 4 * y2 - y3) * t2 + (3 * y1 - y0 - 3 * y2 + y3) * t3);
         const u = (k + t) / e, q1 = Math.min(e, k + 1), sg = l.sag[k] + (l.sag[q1] - l.sag[k]) * t, dm = l.dim[k] + (l.dim[q1] - l.dim[k]) * t, qq = l.q[k] + (l.q[q1] - l.q[k]) * t;
-        const env = Math.pow(Math.sin(Math.PI * Math.pow(u, l.bulge)), 0.42), thin = 1 - (1 - hl) * 0.5 * u;
-        const base = 0.5 * l.w * fat * env * thin * (1 + sg * 0.006 + qq * 0.012) * (1 + yawn * 0.12);
+        const env = Math.pow(Math.sin(Math.PI * Math.pow(u, l.bulge)), 0.36), thin = 1 - (1 - hl) * 0.5 * u;
+        const base = 0.5 * l.w * fat * env * thin * (1 + sg * 0.006 + qq * 0.008) * (1 + yawn * 0.12);
         l.st[s] = Math.max(0, base * l.na[s] - dm * 0.5 * env);
         l.sb[s] = Math.max(0, base * l.nb[s] - dm * 0.5 * env);
         s++;
@@ -243,8 +243,8 @@
     for (let s = 0; s < SAMPLES; s++) { l.st[s] *= 1 + (ny[s] > 0 ? 0.42 : 0.26) * ny[s]; l.sb[s] *= 1 - (ny[s] < 0 ? 0.42 : 0.26) * ny[s]; }
     normals(l);
   }
-  // A mass bent gently is one filled outline, which is cheap. One bent tighter than its own thickness would turn an outline
-  // inside out, so it is filled as a run of slices, each wound the same way: the same edges, and no holes.
+  // A mass bent gently is one outline, which is cheap. One bent tighter than its own thickness would turn an outline inside
+  // out, so it is traced as a run of overlapping discs on its middle line: the same width, and no holes or notches.
   function bentTight(l) {
     for (let s = 1; s < SAMPLES; s++) {
       const ds = Math.hypot(l.sx[s] - l.sx[s - 1], l.sy[s] - l.sy[s - 1]), turn = Math.abs(nx[s] * ny[s - 1] - ny[s] * nx[s - 1]);
@@ -252,52 +252,14 @@
     }
     return false;
   }
-  function slices(g, l, a, b, ta, tb, grow) {
-    for (let s = a; s < b; s++) {
-      const r0 = ta(s) + grow, r1 = ta(s + 1) + grow, q0 = tb(s) + grow, q1 = tb(s + 1) + grow;
-      const x0 = l.sx[s] + nx[s] * r0, y0 = l.sy[s] + ny[s] * r0, x1 = l.sx[s + 1] + nx[s + 1] * r1, y1 = l.sy[s + 1] + ny[s + 1] * r1;
-      const x2 = l.sx[s + 1] - nx[s + 1] * q1, y2 = l.sy[s + 1] - ny[s + 1] * q1, x3 = l.sx[s] - nx[s] * q0, y3 = l.sy[s] - ny[s] * q0;
-      // two triangles, each wound the same way, so a slice twisted by a fold still leaves no hole
-      g.moveTo(x0, y0);
-      if ((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0) >= 0) { g.lineTo(x1, y1); g.lineTo(x2, y2); } else { g.lineTo(x2, y2); g.lineTo(x1, y1); }
-      g.closePath();
-      g.moveTo(x0, y0);
-      if ((x2 - x0) * (y3 - y0) - (x3 - x0) * (y2 - y0) >= 0) { g.lineTo(x2, y2); g.lineTo(x3, y3); } else { g.lineTo(x3, y3); g.lineTo(x2, y2); }
-      g.closePath();
-    }
-  }
-  function body(g, l, grow, tight) {
+  function trace(g, l, tight) {
     const n = SAMPLES - 1;
     g.beginPath();
     if (!tight) {
-      for (let s = 0; s <= n; s++) { const r = l.st[s] + grow * Math.min(1, l.mr[s] / 12), X = l.sx[s] + nx[s] * r, Y = l.sy[s] + ny[s] * r; if (s) g.lineTo(X, Y); else g.moveTo(X, Y); }
-      for (let s = n; s >= 0; s--) { const r = l.sb[s] + grow * Math.min(1, l.mr[s] / 12); g.lineTo(l.sx[s] - nx[s] * r, l.sy[s] - ny[s] * r); }
+      for (let s = 0; s <= n; s++) { const r = l.st[s], X = l.sx[s] + nx[s] * r, Y = l.sy[s] + ny[s] * r; if (s) g.lineTo(X, Y); else g.moveTo(X, Y); }
+      for (let s = n; s >= 0; s--) { const r = l.sb[s]; g.lineTo(l.sx[s] - nx[s] * r, l.sy[s] - ny[s] * r); }
     } else {
-      slices(g, l, 0, n, (s) => l.st[s], (s) => l.sb[s], grow);
-    }
-    g.fill();
-  }
-  // What the heap lies on and in: one dark low mound, so the masses are a heap and not a scatter.
-  function bed(g, x, col, sway) {
-    const W = x.W, H = x.H;
-    g.fillStyle = col; g.beginPath(); g.moveTo(0, H);
-    for (let i = 0; i <= 32; i++) {
-      const u = i / 32, top = H * (0.86 - 0.27 * Math.pow(Math.sin(Math.PI * u), 1.3) + 0.06 * Math.sin(u * 8 + bedP[0]) + 0.03 * Math.sin(u * 17 + bedP[1] + clock * 0.04));
-      g.lineTo(u * W, top + sway);
-    }
-    g.lineTo(W, H); g.closePath(); g.fill();
-  }
-  // Stale air: the top of the picture itself sags, in broad slack lobes barely apart from the ground, too idle to come down.
-  function air(g, x, pal, sway) {
-    const [ground, bottle, moss] = pal, W = x.W, H = x.H;
-    for (const a of stale) {
-      g.fillStyle = css(a.tone < 0.5 ? mix(ground, bottle, 0.12 + a.tone * 0.2) : mix(ground, moss, 0.06 + (a.tone - 0.5) * 0.14), 1 + 0.1 * flush);
-      g.beginPath(); g.moveTo(-10, -10);
-      for (let i = 0; i <= 48; i++) {
-        const u = i / 48, X = u * W, wob = Math.sin(u * a.f1 + a.p1 + clock * a.sp * 0.012), lobe = wob > 0 ? Math.pow(wob, 0.7) : -0.5 * Math.pow(-wob, 1.4);
-        g.lineTo(X, a.y + sway + H * (0.13 * lobe + 0.05 * Math.sin(u * a.f2 + a.p2 - clock * a.sp * 0.02) + 0.012 * Math.sin(u * 17 + a.p3)));
-      }
-      g.lineTo(W + 10, -10); g.closePath(); g.fill();
+      for (let s = 0; s <= n; s++) if (l.mr[s] > 0.5) { g.moveTo(l.mx[s] + l.mr[s], l.my[s]); g.arc(l.mx[s], l.my[s], l.mr[s], 0, TAU); }
     }
   }
 
@@ -306,7 +268,7 @@
     for (const l of limbs) {
       const up = 0.55 + 0.9 * (1 - l.f);
       for (let k = 0; k < PTS; k++) {
-        let q = heave;
+        let q = heave + swell;
         for (const p of pulses) { const d = (Math.abs(l.x[k] - p.x) - p.age * 620) / 210; if (d > -2.2 && d < 2.2) q += p.a * Math.exp(-p.age / 1.1 - d * d); }
         l.q[k] = q * up;
       }
@@ -317,39 +279,37 @@
     const W = x.W, H = x.H, fat = x.p('fat');
     const [ground, bottle, moss, pea, acid] = pal;
     g.globalAlpha = 1; g.fillStyle = css(ground); g.fillRect(0, 0, W, H);
-    air(g, x, pal, heave * 0.8);
-    bed(g, x, css(mix(bottle, ground, 0.62), 0.8), heave);
+    const w = wg;
+    w.setTransform(1, 0, 0, 1, 0, 0); w.clearRect(0, 0, wash.width, wash.height); w.setTransform(1 / K, 0, 0, 1 / K, 0, 0);
     shudder();
     for (let o = 0; o < order.length; o++) {
       const l = order[o];
       sample(l, fat, yawn); normals(l); hang(l);
       const c = l.f > 0.5 ? mix(moss, bottle, (l.f - 0.5) * 2) : mix(pea, moss, l.f * 2);
-      const tight = bentTight(l);
-      // no outline and no shine: a soft dark bleed under it, so a mass only just parts from what it lies on
-      g.fillStyle = css(bottle, 0.5);
-      g.globalAlpha = 0.05; body(g, l, 24, tight);
-      g.globalAlpha = 0.05; body(g, l, 15, tight);
-      g.globalAlpha = 0.07; body(g, l, 7, tight);
-      g.globalAlpha = 0.93; g.fillStyle = css(mix(c, acid, 0.34 * l.fl), 1 + 0.08 * flush); body(g, l, 0, tight);
+      l.tight = bentTight(l);
+      w.filter = `blur(${l.soft}px)`; w.globalAlpha = 0.42 + 0.2 * l.f; w.fillStyle = css(mix(c, acid, 0.34 * l.fl), 1 + 0.06 * flush);
+      trace(w, l, l.tight); w.fill();
     }
-    // the smear: a stretch of the mass itself goes sour, inside its own edges, widest in the middle of the stretch
-    g.fillStyle = css(acid);
+    w.filter = 'blur(2px)';
+    // the smear: the stain itself goes sour for a moment, soaking out from one spot and stopping at its own edges
     for (const m of marks) {
-      const l = m.l, f = Math.max(0, 1 - m.age / m.life), half = Math.round(3 + m.r / 5), a = Math.max(0, m.k - half), b = Math.min(SAMPLES - 1, m.k + half);
-      const shape = (s) => Math.sin(Math.PI * (s - a + 0.5) / (b - a + 1));
+      const l = m.l, f = Math.max(0, 1 - m.age / m.life), X = l.sx[m.k], Y = l.sy[m.k], r = Math.max(8, m.r);
+      const gr = w.createRadialGradient(X, Y, 0, X, Y, r);
+      gr.addColorStop(0, `rgba(${acid[0] | 0},${acid[1] | 0},${acid[2] | 0},${m.a * f})`); gr.addColorStop(1, `rgba(${acid[0] | 0},${acid[1] | 0},${acid[2] | 0},0)`);
       normals(l);
-      g.globalAlpha = 0.34 * f; g.beginPath();
-      slices(g, l, a, b, (s) => l.st[s] * shape(s) * 0.92, (s) => l.sb[s] * shape(s) * 0.92, 0);
-      g.fill();
+      w.save(); trace(w, l, l.tight); w.clip(); w.globalAlpha = 1; w.fillStyle = gr; w.fillRect(X - r, Y - r, r * 2, r * 2); w.restore();
     }
-    g.globalAlpha = 1;
+    w.filter = 'none'; w.globalAlpha = 1;
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(wash, 0, 0, W, H);
+    g.imageSmoothingQuality = 'low';
   }
 
   const limbIcon = (g, w, h, up, lw, col) => { g.save(); g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(4, h - 6); g.quadraticCurveTo(w * 0.55, h - 5, w - 6, h - 6 - up); g.stroke(); g.restore(); };
 
   TOOLS.push({
     id: 'lazy', name: 'Lazy', tag: 'new',
-    blurb: 'It can\'t be bothered. A heap of heavy, shapeless green masses: every attack goes through it as a slow shudder, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Fast music makes it care less.',
+    blurb: 'It can\'t be bothered. Heavy, shapeless green stains slumped across the picture: an attack goes through them as one heavy jolt they creep back from, and now and then a note asks one to get up. It gets a third of the way, gives up and flops over onto the others. Busy music it mostly ignores, swelling slowly, and only the hard notes still land.',
     params: [
       { key: 'lazy', label: 'how lazy it is', min: 0, max: 1, value: 0.5,
         hint: 'How much it takes to get a mass moving. Left: gets up fairly readily. Right: takes forever and gives up early.',
@@ -358,7 +318,7 @@
         hint: 'How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 1 + 15 * v, 3.5, '#7c9a2f') },
       { key: 'fat', label: 'how fat the masses are', min: 0.5, max: 1.7, value: 1,
-        hint: 'How thick the masses are. Left: slim. Right: huge, overlapping everything.',
+        hint: 'How thick the stains are. Left: slim. Right: huge, overlapping everything.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 6, 1.5 + 9 * v, '#7c9a2f') },
       { key: 'limbs', label: 'how many masses', min: 4, max: 15, step: 1, value: 12,
         hint: 'How many masses lie in the heap. Left: a few. Right: a big heap.',
@@ -370,22 +330,27 @@
         hint: 'How much it takes over. Left: nearly dark and still, and only the hardest attacks of the piece get any effort. Right: all of it at full strength.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => limbIcon(g, w, h, 2 + 9 * v, 2 + 4 * v, '#7c9a2f')) },
     ],
-    reset(x) { vels = null; built = 0; limbs = []; order = []; pend = []; marks = []; pulses = []; stale = []; heave = 0; flush = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
+    reset(x) { vels = null; built = 0; limbs = []; order = []; pend = []; marks = []; pulses = []; heave = 0; flush = 0; swell = 0; swellT = 0; nextJolt = 0; acc = 0; clock = 0; lastAttack = 0; gapUntil = 0; yawnT = -1; yawned = false; },
     onChord(ch, x) {
       const n0 = Math.round(x.p('limbs'));
       if (built !== n0) build(n0, x.W, x.H);
       lastAttack = clock; if (yawnT < 0) yawned = false;
       const pres = x.p('presence'), cut = (1 - pres) * 0.95, rate = x.feat.rate;
       const notes = ch.notes.slice().sort((a, b) => b.v - a.v);
-      let asked = 0, dims = 0; const seen = new Set();
+      let asked = 0, dims = 0, jolt = false; const seen = new Set();
       if (notes.length && rank(notes[0].v) >= cut) {
-        // the shudder, in this very frame, however little it cares
+        // The jolt, in this very frame, if it has the patience: not while it is still getting over the last one, unless the note
+        // is one of the piece's hard ones. Anything it ignores only feeds one slow swell.
         const v = rank(notes[0].v), a = (0.35 + 0.65 * Math.pow(v, 1.2)) * (1 - 0.4 * rate) * (0.3 + 0.7 * pres);
         const pr = Math.max(0, Math.min(1, (notes[0].m - pitchLo) / (pitchHi - pitchLo)));
-        if (pulses.length >= 6) pulses.shift();
-        pulses.push({ x: pr * x.W, a: 30 * a, age: 0 });
-        heave = Math.min(24, heave + 12 * a); flush = Math.min(1, flush + 0.7 * a);
-        const lm = limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))]; lm.fl = Math.min(1, lm.fl + 1.1 * a);
+        jolt = clock >= nextJolt || (v >= 0.85 && clock >= nextJolt - 0.6);
+        if (jolt) {
+          nextJolt = clock + (0.1 + 0.9 * rate * rate) * x.rnd(0.7, 1.5);
+          if (pulses.length >= 6) pulses.shift();
+          pulses.push({ x: pr * x.W, a: 30 * a, age: 0 });
+          heave = Math.min(24, heave + 12 * a); flush = Math.min(1, flush + 0.7 * a);
+          const lm = limbs[Math.min(limbs.length - 1, Math.round(pr * (limbs.length - 1)))]; lm.fl = Math.min(1, lm.fl + 1.1 * a);
+        } else swellT = Math.min(30, swellT + 2.2 * a);
       }
       for (const n of notes) {
         const v01 = rank(n.v);
@@ -397,7 +362,7 @@
           if (asked === 0) { if (ask(l, n, v01, x, false)) { asked++; continue; } }
           else if (l.state === 'rest' && clock >= l.free) { asked++; pend.push({ l, n, v01, wait: x.rnd(0.02, 0.25) * (1 + 3 * rate) }); continue; }  // the others come raggedly, each late on its own
         }
-        if (dims++ < 3) dimple(x.pitch01(n.m) * x.W * 0.9 + x.W * 0.05 + x.rnd(-30, 30), v01, x);
+        if (dims++ < (jolt ? 3 : 1)) dimple(x.pitch01(n.m) * x.W * 0.9 + x.W * 0.05 + x.rnd(-30, 30), v01, x, jolt);
       }
     },
     frame(x) {
@@ -413,6 +378,7 @@
         for (const p of pulses) p.age += dt;
         pulses = pulses.filter((p) => p.age < 3);
         heave *= Math.exp(-dt / 0.4); flush *= Math.exp(-dt / 0.28);
+        swellT *= Math.exp(-dt / 2.5); swell += (swellT - swell) * (1 - Math.exp(-dt / 0.9));
         for (const l of limbs) l.fl *= Math.exp(-dt / 0.45);
         marks = marks.filter((m) => m.age < m.life);
         // after a long quiet the whole heap swells and subsides, once
