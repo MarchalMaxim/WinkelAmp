@@ -1,20 +1,21 @@
 /**
- * The side panel. Section: its name, where it lies, how the widgets leaving at its start fade, and its layers (top
- * first, as they are seen): add from the collection with the user's verdicts, remove, reorder, and each layer's knobs
- * as the lab draws them. Show: the "Describe the show" box Claude Code composes from, and what the show is made of.
+ * The side panel. Clip: the selected clip (clip-panel.ts draws its frame), its knobs as the lab draws them, what it listens
+ * to, where it is seen and its intensity, and the collection to add from, with the user's verdicts. Show: the "Describe the
+ * show" box Claude Code composes from, and what the show is made of.
  */
 import { TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
-import { sectionAt } from '../show/schedule';
-import type { Layer, ShowSection } from '../show/show';
-import { DEFAULT_FADE, MAX_FADE, instanceKey, listenOf } from '../show/show';
+import type { Layer } from '../show/show';
+import { instanceKey, listenOf } from '../show/show';
 import { studioLayers } from '../../widgets/layers-source';
 import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { Drive, Features, IconLib, Param, Region, ToolDef, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
+import { addWidgetAt, selectedClip } from './clip-actions';
+import { clipHtml, noClipHtml, syncClip, wireClip } from './clip-panel';
 import { knobRow, knobState, settingOf, type KnobRow } from './knobs';
-import { allNotesTaken, describePlace, mountLayerControls, partWords, placedListen } from './layer-controls';
+import { describePlace, mountLayerControls, partWords } from './layer-controls';
 import type { Store, StudioState } from './store';
 import { clock, widgetHue } from './timeline';
 import type { PaletteRequest } from './widget-palette';
@@ -27,7 +28,9 @@ interface Deps {
   catalogue: Map<string, CatalogueEntry>; order: string[];
   drives: [Drive, string][]; icon: IconLib;
   time: () => number; features: () => Features; errors: () => Record<string, string>;
-  splitAtPlayhead(): void; seek(t: number): void;
+  seek(t: number): void;
+  /** The song's length now, and the times of its marks: where a new clip ends. */
+  duration(): number; marks: readonly number[];
   /** Opens the note picker's popup on a set of picks. */
   editPicks(id: string): void;
   /** Opens the dialog that chooses the transcriber and redoes this song's notes. */
@@ -76,11 +79,11 @@ const NOTES_WORDS: Record<SongPack['notesFrom'], string> = {
 
 export class Panel {
   readonly el: HTMLElement;
-  private tab: 'section' | 'show' = 'section';
+  private tab: 'clip' | 'show' = 'clip';
   private factsHtml = '';
   private picking = false;
   private key = '';
-  private rows: { row: KnobRow; layer: number }[] = [];
+  private rows: { row: KnobRow }[] = [];
   private knobDrag = 0;
   /** When the last key press moved a knob (presses less than KEY_IDLE ms apart are one undo step), 0 after a drag. */
   private stepAt = 0;
@@ -91,17 +94,17 @@ export class Panel {
   private controls: { sync(): void } | null = null;
   /** The widget picker's filter, kept while the picker closes and opens. */
   private readonly pickerState = newPickerState();
-  /** A layer's place before it went back to the whole screen, by section:instance key (session only). */
+  /** A clip's place before it went back to the whole screen, by clip id (session only). */
   private readonly places = new Map<string, Region>();
 
   constructor(private readonly d: Deps) {
     this.el = document.createElement('aside');
     this.el.className = 'panel';
     this.el.innerHTML = `<div class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="section">Section</button><button type="button" role="tab" data-tab="show">Show</button>
+        <button type="button" role="tab" data-tab="clip">Clip</button><button type="button" role="tab" data-tab="show">Show</button>
       </div><div class="tab-body"></div>`;
     this.el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => {
-      this.tab = b.dataset.tab as 'section' | 'show'; this.key = ''; this.update(this.d.store.state);
+      this.tab = b.dataset.tab as 'clip' | 'show'; this.key = ''; this.update(this.d.store.state);
     }));
   }
 
@@ -111,117 +114,52 @@ export class Panel {
     this.el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === this.tab)));
     if (!s.show) return;
     if (this.tab === 'show') { if (this.key !== 'show') { this.key = 'show'; this.buildShow(s); } else this.syncShow(s); return; }
-    const i = s.selected.section, sec = s.show.sections[i];
-    const key = JSON.stringify([i, s.show.sections.length, sec.layers.map((l) => l.widget), s.selected.layer, this.picking, s.ui.recording]);
-    if (key !== this.key) { this.key = key; this.buildSection(s); } else this.syncSection(s);
+    const c = selectedClip(s);
+    const key = JSON.stringify([c?.id ?? null, c?.widget ?? null, this.picking, s.ui.recording]);
+    if (key !== this.key) { this.key = key; this.buildClip(s); } else this.syncClip(s);
   }
 
-  /** A widget failed: the section tab is drawn again on the next update, so the open layer shows why. */
-  widgetFailed(): void { if (this.tab === 'section') this.key = ''; }
+  /** A widget failed: the clip tab is drawn again on the next update, so the open clip shows why. */
+  widgetFailed(): void { if (this.tab === 'clip') this.key = ''; }
 
   /** Live knob pictures follow the music ~8 times a second, for knobs that follow something. */
   tick(now: number): void {
     if (now - this.liveAt < 120 || !this.rows.length) return;
     this.liveAt = now;
-    const f = this.d.features(), s = this.d.store.state, sec = s.show?.sections[s.selected.section];
-    for (const { row, layer } of this.rows) {
-      const st = knobState(row.q, sec?.layers[layer]?.knobs?.[row.q.key]);
+    const f = this.d.features(), clip = selectedClip(this.d.store.state);
+    for (const { row } of this.rows) {
+      const st = knobState(row.q, clip?.knobs?.[row.q.key]);
       if (st.drive) row.drawLive(f);
     }
   }
 
   private edit(edit: Parameters<Store['dispatch']>[0]): void { this.d.store.dispatch(edit); }
 
-  // ---- Section ------------------------------------------------------------------------------------------------
+  // ---- Clip -------------------------------------------------------------------------------------------------------
 
-  private buildSection(s: StudioState): void {
-    const show = s.show!, i = s.selected.section, sec = show.sections[i], n = show.sections.length;
-    const locked = s.ui.recording;
-    const body = this.body;
+  private buildClip(s: StudioState): void {
+    const c = selectedClip(s), body = this.body, locked = s.ui.recording;
     this.rows = []; this.controls = null;
-    body.innerHTML = `
-      <header class="sec-head">
-        <div class="sec-nav">
-          <button type="button" class="icon" data-act="prev" aria-label="Previous section" ${i === 0 ? 'disabled' : ''}>‹</button>
-          <span class="dim">Section ${i + 1} of ${n}</span>
-          <button type="button" class="icon" data-act="next" aria-label="Next section" ${i === n - 1 ? 'disabled' : ''}>›</button>
-        </div>
-        <input class="sec-label" aria-label="Section name" placeholder="Name this section" maxlength="60">
-        <p class="sec-time"></p>
-        <p class="sec-where" hidden><span></span> <button type="button" data-act="goto">Go to this section</button></p>
-      </header>
-      <div class="sec-actions">
-        <button type="button" data-act="split" title="Split this section at the playhead (S)">Split at playhead</button>
-        <button type="button" data-act="merge" ${i === n - 1 ? 'disabled' : ''} title="Join this section with the one after it">Merge with next</button>
-      </div>
-      ${i > 0 ? `<label class="fade"><span>Widgets leaving here fade out over</span>
-        <input type="range" min="0" max="${MAX_FADE}" step="0.5" aria-label="Fade"><output></output></label>` : ''}
-      <h3 class="layers-title">Layers <span class="dim">top first, as you see them</span></h3>
-      <button type="button" class="add" data-act="add" aria-expanded="${this.picking}" title="Or press Ctrl+P and type its name">${this.picking ? 'Close the collection' : 'Add a widget on top'}</button>
-      <div class="picker" ${this.picking ? '' : 'hidden'}></div>
-      <ol class="layers"></ol>`;
-    const label = body.querySelector<HTMLInputElement>('.sec-label')!;
-    label.addEventListener('input', () => this.edit({ type: 'edit', edit: { kind: 'setSection', section: i, patch: { label: label.value } }, group: `label:${i}` }));
-    const fade = body.querySelector<HTMLInputElement>('.fade input');
-    fade?.addEventListener('input', () => this.edit({ type: 'edit', edit: { kind: 'setSection', section: i, patch: { fade: Number(fade.value) } }, group: `fade:${i}` }));
-    body.querySelector('[data-act="prev"]')?.addEventListener('click', () => this.edit({ type: 'select', section: i - 1, layer: null }));
-    body.querySelector('[data-act="next"]')?.addEventListener('click', () => this.edit({ type: 'select', section: i + 1, layer: null }));
-    body.querySelector('[data-act="goto"]')!.addEventListener('click', () => this.d.seek(this.d.store.state.show!.sections[i].start));
-    body.querySelector('[data-act="split"]')!.addEventListener('click', () => this.d.splitAtPlayhead());
-    body.querySelector('[data-act="merge"]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'merge', section: i } }));
-    body.querySelector('[data-act="add"]')!.addEventListener('click', () => { this.picking = !this.picking; this.key = ''; this.update(this.d.store.state); });
-    this.buildLayers(s, sec, i);
-    if (this.picking) this.buildPicker(sec, i);
-    body.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input, select').forEach((x) => { if (locked && !x.closest('.sec-nav')) x.disabled = true; });
-    this.syncSection(s);
-  }
-
-  private buildLayers(s: StudioState, sec: ShowSection, i: number): void {
-    const list = this.body.querySelector('.layers')!;
-    if (!sec.layers.length) {
-      list.innerHTML = '<li class="layer none">No widgets here: the picture fades to black. Add one from the collection.</li>';
-      return;
-    }
-    for (let k = sec.layers.length - 1; k >= 0; k--) {
-      const l = sec.layers[k], entry = this.d.catalogue.get(l.widget), m = entry?.meta;
-      const open = s.selected.layer === k, err = this.d.errors()[instanceKey(l)];
-      const li = document.createElement('li');
-      li.className = `layer${open ? ' open' : ''}`;
-      li.style.setProperty('--hue', String(widgetHue(l.widget)));
-      const changed = Object.keys(l.knobs ?? {}).length, usual = usualOf(m, l.widget);
-      li.dataset.k = String(k);
-      li.innerHTML = `<div class="layer-head">
-          <button type="button" class="layer-name" aria-expanded="${open}"><span class="swatch"></span><b>${esc(m?.name ?? l.widget)}</b>${m ? verdictTag(m) : '<span class="tag v-drop">missing</span>'}<span class="layer-parts dim small"></span></button>
-          <span class="layer-tools">
-            <button type="button" class="icon" data-hear-all aria-label="Hear all notes" title="It hears its usual kind of note: back to all notes" ${usual && listenOf(l) === usual ? '' : 'hidden'}>♪</button>
-            <button type="button" class="icon" data-mv="1" aria-label="Move up" title="Move up (draws later, on top)" ${k === sec.layers.length - 1 ? 'disabled' : ''}>↑</button>
-            <button type="button" class="icon" data-mv="-1" aria-label="Move down" title="Move down (draws earlier, beneath)" ${k === 0 ? 'disabled' : ''}>↓</button>
-            <button type="button" class="icon" data-rm aria-label="Remove ${esc(m?.name ?? l.widget)}" title="Remove from this section (Delete)">✕</button>
-          </span></div>
-        ${open ? `<p class="blurb">${m?.blurb ?? ''}</p>${err ? `<p class="err">${esc(err)}</p>` : ''}
-          <div class="params"></div>
-          <button type="button" class="link" data-defaults ${changed ? '' : 'hidden'}>Back to the widget's own settings</button>
-          <div class="layer-controls"></div>`
-        : (changed ? `<p class="dim small">${changed} knob${changed > 1 ? 's' : ''} changed</p>` : '')}`;
-      li.querySelector('.layer-name')!.addEventListener('click', () => this.edit({ type: 'select', section: i, layer: open ? null : k }));
-      li.querySelectorAll<HTMLButtonElement>('[data-mv]').forEach((b) => b.addEventListener('click', () => {
-        const to = k + Number(b.dataset.mv);
-        this.edit({ type: 'edit', edit: { kind: 'moveLayer', section: i, from: k, to } });
-        if (open) this.edit({ type: 'select', section: i, layer: to });
-      }));
-      li.querySelector('[data-hear-all]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'setLayer', section: i, layer: k, patch: { listen: null } } }));
-      li.querySelector('[data-rm]')!.addEventListener('click', () => this.edit({ type: 'edit', edit: { kind: 'removeLayer', section: i, layer: k } }));
-      li.querySelector('[data-defaults]')?.addEventListener('click', () => {
-        const group = `defaults:${i}:${k}:${++this.knobDrag}`;
-        for (const key of Object.keys(this.d.store.state.show!.sections[i].layers[k]?.knobs ?? {})) this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key, value: null }, group });
+    if (!c) {
+      body.innerHTML = noClipHtml(this.picking);
+    } else {
+      const entry = this.d.catalogue.get(c.widget), m = entry?.meta, err = this.d.errors()[instanceKey(c)];
+      body.innerHTML = clipHtml({ name: m?.name ?? c.widget, verdict: m ? verdictTag(m) : '<span class="tag v-drop">missing</span>', blurb: m?.blurb ?? '', hue: widgetHue(c.widget), picking: this.picking, ...(err ? { err } : {}) });
+      wireClip(body, this.d.store, { time: this.d.time, seek: this.d.seek });
+      body.querySelector('[data-defaults]')!.addEventListener('click', () => {
+        const group = `defaults:${c.id}:${++this.knobDrag}`, now = selectedClip(this.d.store.state);
+        for (const key of Object.keys(now?.knobs ?? {})) this.edit({ type: 'edit', edit: { kind: 'setKnob', clip: c.id, key, value: null }, group });
       });
-      if (open && entry) this.buildKnobs(li.querySelector('.params')!, entry.tool, i, k, l.knobs);
-      if (open) this.buildControls(li.querySelector('.layer-controls')!, l.widget, i, k);
-      list.append(li);
+      if (entry) this.buildKnobs(body.querySelector('.params')!, entry.tool, c.id, c.knobs);
+      this.buildControls(body.querySelector('.layer-controls')!, c.widget, c.id);
     }
+    body.querySelector('[data-act="add"]')!.addEventListener('click', () => { this.picking = !this.picking; this.key = ''; this.update(this.d.store.state); });
+    if (this.picking) this.buildPicker();
+    body.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input, select').forEach((x) => { if (locked) x.disabled = true; });
+    this.syncClip(s);
   }
 
-  private buildKnobs(box: HTMLElement, tool: ToolDef, i: number, k: number, knobs: ShowSection['layers'][number]['knobs']): void {
+  private buildKnobs(box: HTMLElement, tool: ToolDef, id: string, knobs: Layer['knobs']): void {
     const params: Param[] = Array.isArray(tool.params) ? tool.params : [];
     if (!params.length) { box.innerHTML = '<p class="dim small">This widget has no knobs.</p>'; return; }
     for (const q of params) {
@@ -229,43 +167,47 @@ export class Panel {
         const now = performance.now();
         if ((phase === 'step') !== (this.stepAt > 0) || (phase === 'step' && now - this.stepAt > KEY_IDLE)) this.knobDrag++;
         this.stepAt = phase === 'step' ? now : 0;
-        this.edit({ type: 'edit', edit: { kind: 'setKnob', section: i, layer: k, key: q.key, value: settingOf(q, st) }, group: `knob:${i}:${k}:${q.key}:${this.knobDrag}` });
+        this.edit({ type: 'edit', edit: { kind: 'setKnob', clip: id, key: q.key, value: settingOf(q, st) }, group: `knob:${id}:${q.key}:${this.knobDrag}` });
         if (phase === 'end') this.knobDrag++;
       });
-      this.rows.push({ row, layer: k });
+      this.rows.push({ row });
       box.append(row.el);
     }
   }
 
-  /** Listens to, Where and Intensity for the open layer: setLayer edits, each its own undo step. */
-  private buildControls(box: HTMLElement, widget: string, i: number, k: number): void {
+  /** Listens to, Where and Intensity for the selected clip: setClip edits, each its own undo step. */
+  private buildControls(box: HTMLElement, widget: string, id: string): void {
     const pack = this.d.store.state.song ?? this.d.song;
-    const sec = () => this.d.store.state.show!.sections[i];
+    const clip = () => this.d.store.state.show!.clips.find((c) => c.id === id);
     this.controls = mountLayerControls(box, {
       layers: studioLayers(), pack, widget, hue: widgetHue(widget), usual: usualOf(this.d.catalogue.get(widget)?.meta, widget),
-      span: () => ({ start: sec().start, end: sec().end }),
-      layer: () => sec()?.layers[k],
+      span: () => { const c = clip(); return { start: c?.start ?? 0, end: c?.end ?? 0 }; },
+      layer: clip,
       edit: (patch, group) => {
         const before = this.d.store.state.show;
-        this.edit({ type: 'edit', edit: { kind: 'setLayer', section: i, layer: k, patch }, group: `layer:${i}:${k}:${group}` });
+        this.edit({ type: 'edit', edit: { kind: 'setClip', clip: id, patch }, group: `clip:${id}:${group}` });
         return this.d.store.state.show !== before;
       },
-      // by section and instance key (unique in a section), not by position, so a reorder or a removal never brings
-      // one layer's remembered place back on another
-      memory: this.places, memoryKey: () => { const l = sec()?.layers[k]; return `${i}:${l ? instanceKey(l) : k}`; },
+      memory: this.places, memoryKey: () => id,
       picks: () => this.d.store.state.show?.picks, editPicks: this.d.editPicks,
     });
   }
 
-  private buildPicker(sec: ShowSection, i: number): void {
+  private buildPicker(): void {
     const box = this.body.querySelector<HTMLElement>('.picker')!;
     const pack = this.d.store.state.song ?? this.d.song;
     mountWidgetPicker(box, {
       metas: this.metas(), words: labTagWords(), tracks: TRACK_IDS.filter((id) => (pack.tracks?.[id]?.notes.length ?? 0) > 0),
-      here: new Set(sec.layers.map((l) => l.widget)), state: this.pickerState,
+      here: this.playingHere(), state: this.pickerState,
       groups: GROUPS, groupOf, verdict: verdictTag, hue: widgetHue,
-      pick: (id) => this.addWidget(id, i),
+      pick: (id) => this.addWidget(id),
     });
+  }
+
+  /** The widgets of the clips under the playhead. */
+  private playingHere(): Set<string> {
+    const t = this.d.time();
+    return new Set(this.d.store.state.show!.clips.filter((c) => c.start <= t && t < c.end).map((c) => c.widget));
   }
 
   /** The collection with its tags, in its order. */
@@ -275,75 +217,48 @@ export class Panel {
       .map((m) => (m.tags !== undefined ? m : { ...m, tags: tagsOf(tags, m.id) }));
   }
 
-  /** A new layer of this widget on top of section i, open. */
-  private addWidget(id: string, i: number): void {
-    const pack = this.d.store.state.song ?? this.d.song, at = this.d.store.state.show!.sections[i], n = at.layers.length;
-    // A second copy of a widget already on its usual type goes on all notes: the same listen twice would be refused.
-    const usual = tagsOf(labTags(), id)?.noteType, taken = at.layers.some((l) => l.widget === id && listenOf(l) === usual);
-    const listen = placedListen(studioLayers(), pack, { start: at.start, end: at.end }, taken ? undefined : usual);
+  /** A new clip of this widget at the playhead, on top, selected. */
+  private addWidget(id: string): void {
     this.picking = false;
-    this.edit({ type: 'edit', edit: { kind: 'addLayer', section: i, widget: id, ...(listen ? { listen } : {}) } });
-    this.edit({ type: 'select', section: i, layer: n });
+    addWidgetAt(this.d.store, this.d.store.state.song ?? this.d.song, id, this.d.time(), this.d.duration(), this.d.marks);
   }
 
-  /** Ctrl+P on the section in the panel: a widget already in it opens (its top copy), any other is added on top. */
+  /** Ctrl+P: a new clip at the playhead. A widget already playing there can go on again, as a copy of its own. */
   paletteRequest(): PaletteRequest {
-    const s = this.d.store.state, i = s.selected.section, sec = s.show!.sections[i];
     const metas = this.metas().map((m, k) => ({ m, k })).sort((a, b) => groupOf(a.m) - groupOf(b.m) || a.k - b.k).map((x) => x.m);
     return {
-      title: `Section ${i + 1}${sec.label ? `: ${sec.label}` : ''}`,
-      metas, here: new Set(sec.layers.map((l) => l.widget)), hereWord: 'in this section, opens it',
+      title: `Add at ${clock(this.d.time())}`,
+      metas, here: this.playingHere(), hereWord: 'playing here',
       verdict: verdictTag, hue: widgetHue,
       pick: (id) => {
-        this.tab = 'section'; this.key = '';
-        const layers = this.d.store.state.show!.sections[i].layers;
-        const top = layers.map((l) => l.widget).lastIndexOf(id);
-        if (top >= 0) this.edit({ type: 'select', section: i, layer: top }); else this.addWidget(id, i);
+        this.tab = 'clip'; this.key = '';
+        this.addWidget(id);
         this.update(this.d.store.state);
       },
     };
   }
 
-  private syncSection(s: StudioState): void {
-    const show = s.show!, i = s.selected.section, sec = show.sections[i];
-    const label = this.body.querySelector<HTMLInputElement>('.sec-label');
-    if (label && document.activeElement !== label) label.value = sec.label ?? '';
-    const time = this.body.querySelector('.sec-time');
-    if (time) time.textContent = `${clock(sec.start)} – ${clock(sec.end)} (${Math.round(sec.end - sec.start)} s)`;
-    const fade = this.body.querySelector<HTMLInputElement>('.fade input'), out = this.body.querySelector('.fade output');
-    const f = sec.fade ?? DEFAULT_FADE;
-    if (fade && document.activeElement !== fade) fade.value = String(f);
-    if (out) out.textContent = f === 0 ? 'a cut' : `${f} s`;
-    for (const { row, layer } of this.rows) row.sync(knobState(row.q, sec.layers[layer]?.knobs?.[row.q.key]));
-    const defaults = this.body.querySelector<HTMLButtonElement>('.layer.open [data-defaults]'), open = s.selected.layer;
-    if (defaults) defaults.hidden = open === null || !Object.keys(sec.layers[open]?.knobs ?? {}).length;
-    this.body.querySelectorAll<HTMLElement>('.layer[data-k]').forEach((li) => {
-      const l = sec.layers[Number(li.dataset.k)], parts = li.querySelector('.layer-parts');
-      if (l && parts) parts.textContent = layerParts(l);
-      const all = li.querySelector<HTMLElement>('[data-hear-all]'), usual = l && usualOf(this.d.catalogue.get(l.widget)?.meta, l.widget);
-      if (l && all) {
-        all.hidden = !usual || listenOf(l) !== usual;
-        // The edit would be refused: two instances on all notes. Say so instead of a click that does nothing.
-        const taken = allNotesTaken(sec.layers, Number(li.dataset.k));
-        (all as HTMLButtonElement).disabled = taken;
-        all.title = taken ? 'This widget already plays on all notes in this section, in another layer' : 'It hears its usual kind of note: back to all notes';
-      }
-    });
+  private syncClip(s: StudioState): void {
+    const c = selectedClip(s);
+    if (!c) return;
+    syncClip(this.body, c);
+    const parts = this.body.querySelector('.layer-parts');
+    if (parts) parts.textContent = layerParts(c);
+    for (const { row } of this.rows) row.sync(knobState(row.q, c.knobs?.[row.q.key]));
+    const defaults = this.body.querySelector<HTMLButtonElement>('[data-defaults]');
+    if (defaults) defaults.hidden = !Object.keys(c.knobs ?? {}).length;
     this.controls?.sync();
     this.where();
   }
 
-  /** When the picture plays another section than the one shown here, says which, with a way to go here: edits to
-      this section then do not change the picture until it plays. */
+  /** When the playhead is outside the selected clip, says so, with a way to it: edits to it then do not change the picture
+      until it plays. */
   where(): void {
-    const el = this.body.querySelector<HTMLElement>('.sec-where'), show = this.d.store.state.show;
-    if (!el || !show || this.tab !== 'section') return;
-    const k = sectionAt(show, this.d.time()), here = k === this.d.store.state.selected.section;
+    const el = this.body.querySelector<HTMLElement>('.sec-where'), c = selectedClip(this.d.store.state);
+    if (!el || !c || this.tab !== 'clip') return;
+    const t = this.d.time(), here = c.start <= t && t < c.end;
     el.hidden = here;
-    if (!here) {
-      const name = show.sections[k].label;
-      el.querySelector('span')!.textContent = `The playhead is in section ${k + 1}${name ? ` (${name})` : ''}.`;
-    }
+    if (!here) el.querySelector('span')!.textContent = 'The playhead is outside this clip.';
   }
 
   // ---- Show ---------------------------------------------------------------------------------------------------
@@ -389,7 +304,7 @@ export class Panel {
     const redo = this.d.api.writable ? '<br><button type="button" class="link" data-act="redo-transcription">Redo the transcription…</button>' : '';
     const html = `
       <dt>Song</dt><dd>${esc(p.title)}, ${clock(p.duration)}</dd>
-      <dt>Show</dt><dd>${show.sections.length} section${show.sections.length > 1 ? 's' : ''}, ${by}${s.origin === 'auto' ? ' (not saved yet)' : ''}</dd>
+      <dt>Show</dt><dd>${show.clips.length} clip${show.clips.length === 1 ? '' : 's'}, ${by}${s.origin === 'auto' ? ' (not saved yet)' : ''}</dd>
       <dt>Notes</dt><dd>${p.notes.length} notes, ${NOTES_WORDS[p.notesFrom]}${redo}</dd>
       ${p.quality.warnings.length ? `<dt>Warnings</dt><dd>${p.quality.warnings.map(esc).join('<br>')}</dd>` : ''}`;
     // Every store update lands here: written only when it changed, so the button keeps its focus and its click.

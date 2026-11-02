@@ -7,20 +7,23 @@ import './style.css';
 import { composeShow } from '../compose/compose';
 import { isChecking } from '../ingest/ears-client';
 import type { SongPack } from '../pack/pack';
+import { characterLabel, sectionCharacters } from '../compose/character';
 import { Conductor } from '../show/conductor';
-import { sectionAt } from '../show/schedule';
-import { canonicalShow, repairShow, validateShow, type Show } from '../show/show';
+import { markLabelAt, songMarks, structureTimes } from '../show/marks';
+import { clipsAt } from '../show/schedule';
+import { SHOW_VERSION, canonicalShow, repairShow, validateShow, widgetOfKey, type Show } from '../show/show';
 import { toMeta } from '../../widgets/catalogue';
 import { groupChords } from '../../widgets/chords';
 import { instantiate } from '../../widgets/instantiate';
 import { makeIcon } from '../../widgets/lab-harness';
 import { studioLayers } from '../../widgets/layers-source';
 import { WidgetRuntime } from '../../widgets/runtime';
-import { labHarness, labTags, labTagWords, labWidgetSources } from '../../widgets/sources';
+import { labHarness, labSongs, labTags, labTagWords, labWidgetSources } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { WidgetMeta } from '../../widgets/types';
 import { SongAdder, takeFlash } from './add-song';
 import { ApiError, connectStore, type LibraryEntry, type ShowStore } from './api';
+import { duplicateSelected, removeSelected, splitAt } from './clip-actions';
 import { installKeys } from './keys';
 import { Library, splitTitle } from './library';
 import { Panel, type CatalogueEntry } from './panel';
@@ -30,6 +33,7 @@ import { installExport } from './record';
 import { mountRegionOverlay } from './region-overlay';
 import { isDirty, Store, type Notice } from './store';
 import { clock, Timeline } from './timeline';
+import { jumpTime } from './timeline-logic';
 import { WidgetPalette } from './widget-palette';
 
 const LAST_SONG = 'wa-studio.last-song';
@@ -117,8 +121,8 @@ function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () 
       <p class="composer">WinkelAmp studio</p>
       <h2>Bring a recording</h2>
       <p>${problem ? esc(problem) : api.writable
-        ? 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with a show composed for it.'
-        : 'Drop a recording anywhere on this page: this browser analyses it (approximate notes, no transcription) and it opens with a show composed for it.'}</p>
+        ? 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with an empty timeline, ready to place widgets on.'
+        : 'Drop a recording anywhere on this page: this browser analyses it (approximate notes, no transcription) and it opens with an empty timeline, ready to place widgets on.'}</p>
       <p><button type="button" class="primary" data-choose>Choose a recording…</button></p>
       <p class="links">${api.writable ? '<a href="lab/index.html">Open the widget lab</a> ' : ''}<a href="legacy.html">Old app: microphone, MIDI</a></p>
     </div>`;
@@ -128,7 +132,8 @@ function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () 
 
 async function boot(): Promise<void> {
   const ui = shell();
-  const store = new Store({ curve: (p, t) => studioLayers().automationAt(p, t) });   // edge pivots keep a curve on a boundary drag
+  let songLength = Infinity;
+  const store = new Store({ curve: (p, t) => studioLayers().automationAt(p, t), duration: () => songLength });   // edge pivots keep a curve on a resize; clips stay in the song
   const api = await connectStore();
   const params = new URLSearchParams(location.search);
 
@@ -183,21 +188,27 @@ async function boot(): Promise<void> {
   }
   if (failed.length) store.dispatch({ type: 'notice', notice: { id: 'widgets', level: 'warn', text: `Some widgets did not load: ${failed.join('; ')}.` } });
 
-  // The show: the saved one, repaired if it must be, or one composed for the song now, from the widgets' tags, the
-  // instruments the song has and the feel words of its description (if one was written).
+  // The show: the saved one, repaired if it must be, or an empty timeline to place widgets on. The composer is one click
+  // away there: from the widgets' tags, the instruments the song has and the feel words of its description.
+  songLength = pack.duration;
   const ctxShow = { duration: pack.duration, widgets: metas, tracks: Object.keys(pack.tracks ?? {}) };
   const compose = async () => composeShow({ pack, widgets: metas, at: new Date().toISOString(),
     description: await api.description(pack.id).catch(() => ''), layers: studioLayers(), words: labTagWords() });
-  let show: Show, origin: 'file' | 'auto' | 'repaired' = 'file';
+  const emptyShow = (): Show => ({ version: SHOW_VERSION, id: pack.id, song: pack.id, title: pack.title, clips: [] });
+  let show: Show = emptyShow(), origin: 'file' | 'auto' | 'repaired' = 'auto';
   let saved: Show | null = null;
   // Only a song with a show of its own asks for it: a 404 for the others would be a red line in every console.
   try { saved = entry.hasShow ? await api.show(pack.id) : null; } catch (e) {
-    store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'error', text: `Could not read the saved show: ${(e as Error).message}. Playing a composed one.` } });
+    store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'error', text: `Could not read the saved show: ${(e as Error).message}. Starting from an empty timeline.` } });
   }
-  if (!saved) { show = await compose(); origin = 'auto'; }
-  else {
+  if (saved && saved.version !== SHOW_VERSION) {
+    // No reader for the old format: what is on disk stays until a save replaces it.
+    store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'warn', text: 'The saved show is in an old format this studio no longer reads: this is an empty timeline, and saving replaces it.' } });
+    saved = null;
+  }
+  if (saved) {
     const { errors } = validateShow(saved, ctxShow);
-    if (!errors.length) show = saved;
+    if (!errors.length) { show = saved; origin = 'file'; }
     else {
       try {
         const r = repairShow(saved, ctxShow);
@@ -206,8 +217,7 @@ async function boot(): Promise<void> {
         store.dispatch({ type: 'notice', notice: { id: 'repaired', level: 'warn',
           text: `The saved show had ${errors.length} problem${errors.length > 1 ? 's' : ''} (${errors[0].path}: ${errors[0].message}). It was repaired here; save to keep the repair.` } });
       } catch (e) {
-        show = await compose(); origin = 'auto';
-        store.dispatch({ type: 'notice', notice: { id: 'repaired', level: 'error', text: `The saved show could not be repaired (${(e as Error).message}): playing a composed one instead.` } });
+        store.dispatch({ type: 'notice', notice: { id: 'repaired', level: 'error', text: `The saved show could not be repaired (${(e as Error).message}): this is an empty timeline.` } });
       }
     }
   }
@@ -238,29 +248,36 @@ async function boot(): Promise<void> {
   // The picture and the clock.
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks }, { sources, harness, layers: studioLayers() });
-  const conductor = new Conductor(runtime, show, (id) => metas.get(id) ?? (runtime.tool(id) ? toMeta(runtime.tool(id)!, null) : undefined));
+  const structure = structureTimes(pack.sections);
+  const conductor = new Conductor(runtime, show, (id) => metas.get(id) ?? (runtime.tool(id) ? toMeta(runtime.tool(id)!, null) : undefined), structure);
   const audio = new Audio();
   audio.preload = 'auto';
   audio.src = api.audioUrl(pack);
   const player = new Player(canvas, audio, conductor, runtime);
   store.dispatch({ type: 'loaded', song: pack, show, origin });
   runtime.reset(0);
-  // A seek (the timeline, the keys, a section's start) shows the picture there, also before the first play: the
+  // A seek (the timeline, the keys, a clip's start) shows the picture there, also before the first play: the
   // poster would hide the preview the seek draws, and every edit's refresh after it.
   const seek = (t: number) => { ui.poster.hidden = true; player.seek(t); };
 
+  // The song's structure as marks: the lab's names for its moments where it has them, else what each stretch is like.
+  const labSong = Object.entries(labSongs()).find(([id, x]) => id === pack.id || (x as { pack?: string }).pack === `pack-${pack.id}.js`)?.[1];
+  const named = (labSong?.moments ?? []).flatMap(([t, , label]) => (label ? [[t, label] as const] : []));
+  const words = sectionCharacters(pack.notes, pack.sections, chords).map(characterLabel);
+  const marks = songMarks(pack.sections, words, named);
+  const markTimes = marks.map((m) => m.t);
+  const openPalette = () => {
+    if (palette.isOpen) { palette.close(); return; }
+    // Not over another dialog or the songs drawer, nor while a recording runs: nothing could be edited.
+    if (store.state.ui.recording || !library.el.hidden || document.querySelector('dialog[open]')) return;
+    palette.open(panel.paletteRequest());
+  };
   const timeline = new Timeline({
-    store, song: pack, chords, duration: () => player.duration || pack.duration, seek,
-    refresh: () => player.refresh(), names: (id) => metas.get(id)?.name ?? id,
+    store, song: pack, chords, marks, duration: () => player.duration || pack.duration, time: () => player.time, seek,
+    refresh: () => player.refresh(), names: (id) => metas.get(id)?.name ?? id, add: openPalette,
+    compose: () => void compose().then((s) => store.dispatch({ type: 'loaded', song: pack, show: s, origin: 'auto', keepUndo: true })),
   });
   ui.timeline.append(timeline.el);
-  const splitAtPlayhead = () => {
-    if (store.state.ui.recording) return;
-    const s = store.state.show!, t = player.time, i = sectionAt(s, t);
-    store.dispatch({ type: 'edit', edit: { kind: 'split', section: i, t } });
-    if (store.state.show === s) store.dispatch({ type: 'notice', notice: { id: 'split', level: 'info', text: 'Too close to where the section starts or ends to split: sections last at least a second.' } });
-    else store.dispatch({ type: 'select', section: i + 1, layer: null });
-  };
   const palette = new WidgetPalette();
   const picker = new Picker({
     store, player, api, pack, canvas, catalogue, order, palette, lib: { sources, harness, layers: studioLayers() },
@@ -271,18 +288,19 @@ async function boot(): Promise<void> {
   ui.pick.addEventListener('click', () => openPicker());
   const panel = new Panel({
     store, api, song: pack, catalogue, order, drives: harness.drives, icon,
-    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, splitAtPlayhead, seek, editPicks: openPicker,
+    time: () => player.time, features: () => runtime.ctx.feat, errors: () => runtime.errors, seek, editPicks: openPicker,
+    duration: () => player.duration || pack.duration, marks: markTimes,
     redoTranscription: () => void adder.redo(pack),
   });
   ui.panel.append(panel.el);
-  // The open layer's region, placed with handles on the stage (an SVG over the canvas, never drawn into it).
+  // The selected clip's region, placed with handles on the stage (an SVG over the canvas, never drawn into it).
   const overlay = mountRegionOverlay(ui.stage, canvas, store);
 
   // Poster: the piece's name on black until the music starts.
   ui.poster.hidden = false;
   ui.poster.innerHTML = `<button type="button" class="poster-inner" data-start>
       ${composer ? `<span class="composer">${esc(composer)}</span>` : ''}<span class="poster-title">${esc(piece)}</span>
-      <span class="poster-play">${ICONS.play}<span>Play</span></span><span class="dim small">${clock(pack.duration)}, ${show.sections.length} sections</span></button>`;
+      <span class="poster-play">${ICONS.play}<span>Play</span></span><span class="dim small">${clock(pack.duration)}${show.clips.length ? `, ${show.clips.length} clip${show.clips.length === 1 ? '' : 's'}` : ''}</span></button>`;
   ui.poster.querySelector('[data-start]')!.addEventListener('click', () => player.toggle());
 
   // Repaint a paused picture after edits, at most every 150 ms.
@@ -293,39 +311,39 @@ async function boot(): Promise<void> {
     refreshTimer = window.setTimeout(() => { refreshTimer = 0; refreshAt = performance.now(); if (!ui.poster.hidden) return; player.refresh(); }, wait);
   };
 
-  let shown: Show | null = null, lastSecond = -1, lastNow = -1;
+  let shown: Show | null = null, lastSecond = -1, lastNow = '';
   const drawHeader = () => {
     const s = store.state, dirty = isDirty(s);
     ui.saveState.textContent = !api.writable ? (dirty ? 'Unsaved changes; Save downloads the show' : 'Save downloads the show')
-      : dirty ? 'Unsaved changes' : s.origin === 'auto' ? 'Composed for this song, not saved yet' : 'Saved';
+      : dirty ? 'Unsaved changes' : s.origin === 'auto' ? (s.show?.clips.length ? 'Composed for this song, not saved yet' : 'Nothing placed yet') : 'Saved';
     ui.saveState.classList.toggle('dirty', dirty);
     (ui.undo as HTMLButtonElement).disabled = !store.history.canUndo || s.ui.recording;
     (ui.redo as HTMLButtonElement).disabled = !store.history.canRedo || s.ui.recording;
-    (ui.save as HTMLButtonElement).disabled = !(dirty || s.origin !== 'file');
+    (ui.save as HTMLButtonElement).disabled = !(dirty || (s.origin !== 'file' && !!s.show?.clips.length));
   };
   const drawNow = (t: number) => {
-    const s = store.state.show!, i = sectionAt(s, t);
-    if (i === lastNow) return;
-    lastNow = i;
-    ui.now.textContent = s.sections[i].label ?? `Section ${i + 1}`;
+    const here = clipsAt(store.state.show!, t).map((c) => c.id).join(), label = markLabelAt(marks, t), key = `${here}|${label}`;
+    if (key === lastNow) return;
+    lastNow = key;
+    ui.now.textContent = label;
     panel.where();
   };
   store.subscribe((s) => {
-    if (s.show && s.show !== shown) { shown = s.show; conductor.setShow(s.show); refreshSoon(); lastNow = -1; drawNow(player.time); }
+    if (s.show && s.show !== shown) { shown = s.show; conductor.setShow(s.show); refreshSoon(); lastNow = ''; drawNow(player.time); }
     timeline.update(s); panel.update(s); overlay.update(s); drawHeader();
     (ui.pick as HTMLButtonElement).disabled = s.ui.recording;
     document.body.classList.toggle('ui-hidden', s.ui.hidden);
   });
   store.notify();
 
-  // A widget that throws is stopped by the runtime (its first error kept): say so once, and show it on its layer.
+  // A widget that throws is stopped by the runtime (its first error kept): say so once, and show it on its clip.
   const reported = new Set<string>();
   const reportWidgetErrors = () => {
     for (const id in runtime.errors) {
       if (reported.has(id)) continue;
       reported.add(id);
       panel.widgetFailed();
-      store.dispatch({ type: 'notice', notice: { id: `widget:${id}`, level: 'error', text: `${metas.get(id.split('@')[0])?.name ?? id} stopped: ${runtime.errors[id].replace(/^Error: /, '')}` } });
+      store.dispatch({ type: 'notice', notice: { id: `widget:${id}`, level: 'error', text: `${metas.get(widgetOfKey(id))?.name ?? id} stopped: ${runtime.errors[id].replace(/^Error: /, '')}` } });
     }
   };
 
@@ -411,24 +429,16 @@ async function boot(): Promise<void> {
   installKeys({
     toggle: () => player.toggle(),
     nudge: (s) => seek(player.time + s),
-    section: (dir) => {
-      const s = store.state.show!, t = player.time, i = sectionAt(s, t);
-      const j = dir < 0 ? (t - s.sections[i].start > 1.5 ? i : Math.max(0, i - 1)) : Math.min(s.sections.length - 1, i + 1);
-      seek(s.sections[j].start);
-      store.dispatch({ type: 'select', section: j, layer: null });
-    },
+    jump: (dir) => seek(jumpTime([...markTimes, ...store.state.show!.clips.map((c) => c.start)], player.time, dir)),
     fullscreen, hideUi: () => hideUi(),
-    split: splitAtPlayhead,
-    removeLayer: () => { const { section, layer } = store.state.selected; if (layer !== null) store.dispatch({ type: 'edit', edit: { kind: 'removeLayer', section, layer } }); },
+    split: () => splitAt(store, player.time),
+    remove: () => removeSelected(store),
+    duplicate: () => duplicateSelected(store),
+    deselect: () => store.dispatch({ type: 'select', clip: null }),
     undo: () => store.dispatch({ type: 'undo' }), redo: () => store.dispatch({ type: 'redo' }),
     save: () => void save(),
     zoom: (dir) => timeline.zoomStep(dir),
-    palette: () => {
-      if (palette.isOpen) { palette.close(); return; }
-      // Not over another dialog or the songs drawer, nor while a recording runs: nothing could be edited.
-      if (store.state.ui.recording || !library.el.hidden || document.querySelector('dialog[open]')) return;
-      palette.open(panel.paletteRequest());
-    },
+    palette: openPalette,
   });
 
   // Claude (or anyone) edits shows/<id>.json on disk: a clean show follows it; a dirty one asks.

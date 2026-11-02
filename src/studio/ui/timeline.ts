@@ -1,19 +1,24 @@
 /**
- * The timeline: the song's loudness as a silhouette, tinted section by section by the widget at the bottom of each
- * stack, with the attacks as ticks beneath (click or drag there to move the playhead and select the section there);
- * below it the sections, to select, with boundaries to drag (snapping just before an attack within 0.25 s; Alt drags
- * freely); under them the intensity lanes of the selected section's layers (lanes.ts).
+ * The timeline, as in DJ software: the song's loudness as a silhouette with the attacks as ticks beneath and its
+ * structure marks over it (click or drag there to move the playhead); below it the clips on their tracks, the top track
+ * drawn last, as you see them. Drag a clip to move it, across tracks too, drag its edges to resize it, click to select,
+ * double-click to go to it. It snaps to beats, clip edges and the marks (the Snap button, or Alt, turns that off). Under
+ * them the selected clip's intensity lane (lanes.ts).
  *
  * The x axis zooms, as the note picker's does: Ctrl-scroll where the pointer is, the +/− buttons or keys, scroll to move,
- * a strip of the whole song to drag. The lanes follow the same view.
+ * a strip of the whole song to drag. The lane follows the same view.
  */
+import type { Mark } from '../show/marks';
 import type { SongPack } from '../pack/pack';
-import { sectionAt } from '../show/schedule';
-import { instanceKey, type Show } from '../show/show';
+import { edgeSeconds } from '../show/schedule';
+import { instanceKey, type Clip, type Show } from '../show/show';
 import type { Chord } from '../../widgets/types';
-import { mountLanes, type Lanes } from './lanes';
+import { duplicateSelected, removeSelected, selectedClip, splitAt } from './clip-actions';
+import { clipViewTime } from './clip-panel';
+import { mountLanes, listenWord, type Lanes } from './lanes';
 import { moveView, zoomView, type View } from './picker-logic';
 import type { Store, StudioState } from './store';
+import { handleWidth, rowCount, snapMove, snapPoint, snapTargets, trackAtHeight } from './timeline-logic';
 
 /** The loved widgets' hues echo their own pictures (red squares, Kandinsky's blue circles, the casket's crimson,
     rorschach's ink…); every other widget gets one of a few muted hues from its id. */
@@ -47,88 +52,91 @@ export function activity(chords: readonly Chord[], loudness: SongPack['loudness'
     return 0.7 * Math.sqrt(act) + 0.3 * (Number.isFinite(l) ? Math.max(0, Math.min(1, l)) : 0);
   });
 }
-export const sectionHue = (show: Show, i: number): number | null => {
-  const w = show.sections[i]?.layers[0]?.widget;
-  return w ? widgetHue(w) : null;
-};
 
 export const clock = (s: number): string => {
   s = Math.max(0, s);
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 };
 
-/** Where a dragged boundary lands: just before the nearest attack within 0.25 s, else where the pointer is. */
-export function snapToAttack(t: number, chords: readonly Chord[], free: boolean): number {
-  if (free) return t;
-  let best: number | null = null;
-  for (const ch of chords) {
-    if (ch.t < t - 0.3) continue;
-    if (ch.t > t + 0.3) break;
-    if (Math.abs(ch.t - t) <= 0.25 && (best === null || Math.abs(ch.t - t) < Math.abs(best - t))) best = ch.t;
-  }
-  return best === null ? t : Math.max(0, best - 0.05);
+const ROW = 26;
+/** How near a target a dragged edge snaps, in px. */
+const SNAP_PX = 8;
+const PREFS = 'wa-studio.timeline';
+
+interface Deps {
+  store: Store; song: SongPack; chords: Chord[]; marks: readonly Mark[];
+  duration: () => number; time: () => number; seek(t: number): void; refresh(): void; names: (id: string) => string;
+  /** Opens the way to add a widget at the playhead. */
+  add(): void;
+  /** Fills an empty timeline with a composed show. */
+  compose(): void;
 }
-
-/** How wide a boundary's grab area is between two blocks this wide (px): it leaves the middle of a short section to click. */
-export const handleWidth = (leftPx: number, rightPx: number): number => Math.max(6, Math.min(24, Math.min(leftPx, rightPx) * 0.5));
-
-/** Which layer stays open when the selection moves to another section: the same widget's, if it plays there too. */
-export function sameLayerIn(show: Show, from: number, layer: number | null, to: number): number | null {
-  const open = layer === null ? undefined : show.sections[from]?.layers[layer];
-  if (!open) return null;
-  const k = show.sections[to]?.layers.findIndex((l) => instanceKey(l) === instanceKey(open)) ?? -1;
-  return k >= 0 ? k : null;
-}
-
-interface Deps { store: Store; song: SongPack; chords: Chord[]; duration: () => number; seek(t: number): void; refresh(): void; names: (id: string) => string }
 
 export class Timeline {
   readonly el: HTMLElement;
   private readonly wave: HTMLCanvasElement;
-  private readonly band: HTMLElement;
+  private readonly tracks: HTMLElement;
   private readonly head: HTMLElement;
   private readonly ghost: HTMLElement;
   private readonly tip: HTMLElement;
+  private readonly snapLine: HTMLElement;
   private readonly lanes: Lanes;
-  /** What the silhouette was drawn for: the sections' spans and bottom widgets (not the show's identity, which every
-      edit changes: a pivot drag would redraw it on every move). */
+  /** What the silhouette was drawn for: the view (not the show's identity, which every edit changes). */
   private drawnFor = '';
   private drawnWidth = 0;
   private act: number[] | null = null;
-  private bandKey = '';
   private dragging = false;
   private drag = 0;
+  /** The rows while a clip is dragged: fixed, or the pointer's row would move under it as a new row opens. */
+  private frozenRows: number | null = null;
   /** What of the song the strips show. Whole until zoomed, and then it follows the song's length. */
   private view: View = { a: 0, b: 1 };
   private zoomed = false;
   private now = 0;
-  private lastSelected = -1;
+  private lastSelected: string | null = null;
   private readonly over: HTMLElement;
   private readonly fitBtn: HTMLButtonElement;
+  private readonly clipEls = new Map<string, HTMLElement>();
+  private marksKey = '';
+  private snap = true;
 
   constructor(private readonly d: Deps) {
+    try { this.snap = (JSON.parse(localStorage.getItem(PREFS) ?? '{}') as { snap?: boolean }).snap !== false; } catch { /* private window */ }
     this.el = document.createElement('div');
     this.el.className = 'timeline';
-    // The playhead spans the song-wide strips only: the lanes keep their own (a section's lane is zoomed to it).
-    this.el.innerHTML = `<div class="tl-top"><div class="scrub" title="Click or drag to move the playhead and select the section there. Ctrl-scroll zooms."><canvas class="wave"></canvas><div class="ghost"></div>
+    // The playhead spans the song-wide strips only: the lane keeps its own (a clip's lane is zoomed to it).
+    this.el.innerHTML = `<div class="tl-bar" role="toolbar" aria-label="Clips">
+        <button type="button" data-tl="add" title="Add a widget at the playhead (Ctrl+P)">Add widget</button>
+        <button type="button" data-tl="duplicate" title="A copy of its own (Ctrl+D)">Duplicate</button>
+        <button type="button" data-tl="split" title="Split it at the playhead (S)">Split</button>
+        <button type="button" data-tl="remove" title="Delete the selected clip (Delete)">Delete</button>
+        <span class="tl-hint"></span><span class="lanes-spacer"></span>
+        <button type="button" class="lanes-toggle" data-tl="snap" title="Clips snap to beats, clip edges and the song's marks (hold Alt to place one freely)">Snap</button>
+      </div>
+      <div class="tl-top"><div class="scrub" title="Click or drag to move the playhead. Ctrl-scroll zooms."><canvas class="wave"></canvas><div class="ghost"></div>
         <div class="tl-zoom" role="group" aria-label="Zoom the timeline"><button type="button" data-z="-1" aria-label="Zoom out" title="Zoom out (−)">−</button><button type="button" data-z="1" aria-label="Zoom in" title="Zoom in (+)">+</button><button type="button" data-z="0" title="Show the whole song (0)">Whole song</button></div></div>
-      <div class="band" role="listbox" aria-label="Sections"></div><div class="playhead"></div><div class="tip" hidden></div></div>
+      <div class="tracks-scroll"><div class="tracks" role="listbox" aria-label="Clips on the timeline"><div class="tl-marks"></div><div class="tl-snap" hidden></div></div>
+        <div class="tracks-empty" hidden><p>Nothing placed yet. Add a widget: it lands at the playhead.</p><p><button type="button" data-tl="add">Add widget</button> <button type="button" data-tl="compose" title="A show made from the song's structure and your verdicts. One undo takes it away.">Compose a show for me</button></p></div>
+      </div><div class="playhead"></div><div class="tip" hidden></div></div>
       <div class="tl-over" hidden title="The whole song: drag to move the view"><div class="tl-win"></div><div class="tl-at"></div></div><div class="lanes-host"></div>`;
     this.wave = this.el.querySelector('.wave')!;
-    this.band = this.el.querySelector('.band')!;
+    this.tracks = this.el.querySelector('.tracks')!;
     this.head = this.el.querySelector('.playhead')!;
     this.ghost = this.el.querySelector('.ghost')!;
     this.tip = this.el.querySelector('.tip')!;
+    this.snapLine = this.el.querySelector('.tl-snap')!;
     this.over = this.el.querySelector('.tl-over')!;
     this.fitBtn = this.el.querySelector('[data-z="0"]')!;
     this.wireScrub();
     this.wireZoom();
+    this.wireBar();
+    this.wireClips();
     this.lanes = mountLanes(this.el.querySelector<HTMLElement>('.lanes-host')!, { store: d.store, song: d.song, duration: d.duration, names: d.names, hue: widgetHue, view: () => this.view });
     new ResizeObserver(() => { this.drawnFor = ''; this.update(this.d.store.state); }).observe(this.el.querySelector('.tl-top')!);
   }
 
   private tAt(clientX: number): number {
-    const r = this.band.getBoundingClientRect(), { a, b } = this.view;
+    const r = this.tracks.getBoundingClientRect(), { a, b } = this.view;
     return a + Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * (b - a);
   }
 
@@ -139,7 +147,7 @@ export class Timeline {
     const D = this.d.duration();
     this.zoomed = v.b - v.a < D - 1e-6;
     this.view = this.zoomed ? v : { a: 0, b: D };
-    this.bandKey = ''; this.drawnFor = '';
+    this.drawnFor = ''; this.marksKey = '';
     this.update(this.d.store.state);
     this.setTime(this.now);
   }
@@ -162,7 +170,9 @@ export class Timeline {
     this.el.querySelector<HTMLElement>('.tl-top')!.addEventListener('wheel', (e) => {
       if (this.dragging) return;
       if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.setView(zoomView(this.view, Math.exp(e.deltaY * 0.0015), this.tAt(e.clientX), this.d.duration())); }
-      else if (this.zoomed) { e.preventDefault(); this.setView(moveView(this.view, this.view.a + ((e.deltaX || e.deltaY) / 800) * span(), this.d.duration())); }
+      else if (this.zoomed && !(e.deltaY && !e.deltaX && (e.target as Element).closest('.tracks-scroll') && this.scrollsY())) {
+        e.preventDefault(); this.setView(moveView(this.view, this.view.a + ((e.deltaX || e.deltaY) / 800) * span(), this.d.duration()));
+      }
     }, { passive: false });
     this.el.querySelector<HTMLElement>('.lanes-host')!.addEventListener('wheel', (e) => {
       if (!(e.ctrlKey || e.metaKey) || this.dragging) return;
@@ -181,12 +191,38 @@ export class Timeline {
     this.over.addEventListener('pointercancel', up);
   }
 
-  /** Selects the section at a song time, with the same widget open if it plays there too. */
-  private selectAt(t: number): void { const show = this.d.store.state.show; if (show) this.selectSection(sectionAt(show, t)); }
-  private selectSection(i: number): void {
-    const s = this.d.store.state, show = s.show;
-    if (!show || i === s.selected.section) return;
-    this.d.store.dispatch({ type: 'select', section: i, layer: sameLayerIn(show, s.selected.section, s.selected.layer, i) });
+  /** Whether the rows are taller than their box, so a plain scroll over them moves them. */
+  private scrollsY(): boolean {
+    const box = this.tracks.parentElement!;
+    return box.scrollHeight > box.clientHeight + 1;
+  }
+
+  private wireBar(): void {
+    const { store, time } = this.d;
+    this.el.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLElement>('[data-tl]');
+      switch (b?.dataset.tl) {
+        case 'add': this.d.add(); break;
+        case 'compose': this.d.compose(); break;
+        case 'duplicate': duplicateSelected(store); break;
+        case 'split': splitAt(store, time()); break;
+        case 'remove': removeSelected(store); break;
+        case 'snap':
+          this.snap = !this.snap;
+          try { localStorage.setItem(PREFS, JSON.stringify({ snap: this.snap })); } catch { /* private window */ }
+          this.syncBar(store.state);
+          break;
+      }
+    });
+  }
+
+  private syncBar(s: StudioState): void {
+    const sel = selectedClip(s), locked = s.ui.recording;
+    const on = (name: string, enabled: boolean) => this.el.querySelectorAll<HTMLButtonElement>(`[data-tl="${name}"]`).forEach((b) => { b.disabled = !enabled; });
+    on('add', !locked); on('compose', !locked); on('duplicate', !!sel && !locked); on('remove', !!sel && !locked);
+    on('split', !locked && !!s.show?.clips.some((c) => c.start < this.now && this.now < c.end));
+    this.el.querySelector('[data-tl="snap"]')!.setAttribute('aria-pressed', String(this.snap));
+    this.el.querySelector('.tl-hint')!.textContent = sel ? `${this.d.names(sel.widget)}: drag to move, its edges to resize` : '';
   }
 
   private wireScrub(): void {
@@ -197,7 +233,7 @@ export class Timeline {
       if (pending === null) requestAnimationFrame(() => { const x = pending; pending = null; if (x !== null) this.d.seek(x); });
       pending = t;
     };
-    scrub.addEventListener('pointerdown', (e) => { down = true; scrub.setPointerCapture(e.pointerId); const t = this.tAt(e.clientX); this.d.seek(t); this.selectAt(t); });
+    scrub.addEventListener('pointerdown', (e) => { down = true; scrub.setPointerCapture(e.pointerId); this.d.seek(this.tAt(e.clientX)); });
     scrub.addEventListener('pointermove', (e) => {
       const t = this.tAt(e.clientX);
       this.ghost.style.left = `${this.pc(t)}%`;
@@ -205,7 +241,7 @@ export class Timeline {
       if (down) seekSoon(t);
     });
     const up = () => { down = false; this.tip.hidden = true; };
-    scrub.addEventListener('pointerup', (e) => { if (down) this.selectAt(this.tAt(e.clientX)); up(); });
+    scrub.addEventListener('pointerup', up);
     scrub.addEventListener('pointercancel', up);
     scrub.addEventListener('pointerleave', () => { if (!down) this.tip.hidden = true; });
   }
@@ -239,17 +275,18 @@ export class Timeline {
     if (!show) return;
     const D = this.d.duration();
     if (!this.zoomed) this.view = { a: 0, b: D };
-    if (s.selected.section !== this.lastSelected) {
-      // A section chosen elsewhere (the panel, the keys) comes into view.
-      this.lastSelected = s.selected.section;
-      const sec = show.sections[s.selected.section];
-      if (this.zoomed && sec && (sec.end <= this.view.a || sec.start >= this.view.b)) this.view = moveView(this.view, sec.start - (this.view.b - this.view.a) * 0.1, D);
+    const sel = selectedClip(s);
+    if (s.selected.clip !== this.lastSelected) {
+      // A clip chosen elsewhere (the picker, the keys) comes into view.
+      this.lastSelected = s.selected.clip;
+      if (this.zoomed && sel && (sel.end <= this.view.a || sel.start >= this.view.b)) this.view = moveView(this.view, sel.start - (this.view.b - this.view.a) * 0.1, D);
     }
     this.syncZoom(D);
-    const w = this.wave.clientWidth, drawn = JSON.stringify([this.view, show.sections.map((x) => [x.start, x.end, x.layers[0]?.widget ?? null])]);
-    if (drawn !== this.drawnFor || w !== this.drawnWidth) { this.drawWave(show); this.drawnFor = drawn; this.drawnWidth = w; }
-    const key = JSON.stringify([this.view, this.band.clientWidth, s.selected.section, show.sections.map((x) => [x.start, x.end, x.label, x.layers.map((l) => l.widget)])]);
-    if (key !== this.bandKey && !this.dragging) { this.bandKey = key; this.buildBand(s); }
+    const w = this.wave.clientWidth, drawn = JSON.stringify(this.view);
+    if (drawn !== this.drawnFor || w !== this.drawnWidth) { this.drawWave(); this.drawnFor = drawn; this.drawnWidth = w; }
+    this.syncClips(s, show);
+    this.syncMarks();
+    this.syncBar(s);
     this.lanes.update(s);
     this.lanes.redraw();
   }
@@ -263,83 +300,132 @@ export class Timeline {
     win.style.width = `${((this.view.b - this.view.a) / D) * 100}%`;
   }
 
-  private buildBand(s: StudioState): void {
-    const show = s.show!, sel = s.selected.section, { a, b: z } = this.view, span = z - a, bw = this.band.clientWidth;
-    this.band.textContent = '';
-    show.sections.forEach((sec, i) => {
-      const hue = sectionHue(show, i);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `sec${i === sel ? ' on' : ''}${hue === null ? ' empty' : ''}`;
-      b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === sel));
-      b.style.left = `${this.pc(sec.start)}%`; b.style.width = `${((sec.end - sec.start) / span) * 100}%`;
-      // Started before the view: its words stay where they can be read.
-      if (sec.start < a && sec.end > a) b.style.paddingLeft = `${((a - sec.start) / span) * bw}px`;
-      if (hue !== null) b.style.setProperty('--hue', String(hue));
-      const cast = sec.layers.map((l) => this.d.names(l.widget)).reverse().join(', ');
-      b.title = `${sec.label ?? 'Section'}, ${clock(sec.start)}–${clock(sec.end)}: ${cast || 'no widgets'}. Double-click to play from here.`;
-      b.innerHTML = `<span class="sec-name"></span><span class="sec-cast"></span>`;
-      b.querySelector('.sec-name')!.textContent = sec.label ?? `Section ${i + 1}`;
-      b.querySelector('.sec-cast')!.textContent = cast || 'empty';
-      b.addEventListener('click', () => this.selectSection(i));
-      b.addEventListener('dblclick', () => this.d.seek(sec.start));
-      this.band.append(b);
-    });
-    for (let i = 1; i < show.sections.length; i++) {
-      const h = document.createElement('div');
-      h.className = `handle${i === sel || i === sel + 1 ? ' near' : ''}`;
-      h.style.left = `${this.pc(show.sections[i].start)}%`;
-      const px = (j: number) => ((show.sections[j].end - show.sections[j].start) / span) * bw, hw = handleWidth(px(i - 1), px(i));
-      h.style.width = `${hw}px`; h.style.marginLeft = `${-hw / 2}px`;
-      h.setAttribute('role', 'separator'); h.setAttribute('aria-label', `Boundary at ${clock(show.sections[i].start)}: drag to move`);
-      h.title = 'Drag to move where the sections change (Alt: no snapping to attacks)';
-      this.wireHandle(h, i);
-      this.band.append(h);
+  /** The clips as they are now: each keeps its element, so a drag keeps its pointer whatever the store does. */
+  private syncClips(s: StudioState, show: Show): void {
+    const { a, b: z } = this.view, span = z - a, width = this.tracks.clientWidth;
+    const rows = this.frozenRows === null ? rowCount(show.clips) : Math.max(this.frozenRows, rowCount(show.clips) - 1);
+    this.tracks.style.height = `${rows * ROW}px`;
+    this.tracks.style.setProperty('--row', `${ROW}px`);
+    const empty = this.el.querySelector<HTMLElement>('.tracks-empty')!;
+    empty.hidden = show.clips.length > 0;
+    this.tracks.classList.toggle('none', !show.clips.length);
+    const seen = new Set<string>();
+    for (const c of show.clips) {
+      seen.add(c.id);
+      let el = this.clipEls.get(c.id);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'clip';
+        el.dataset.id = c.id;
+        el.setAttribute('role', 'option');
+        el.tabIndex = 0;
+        el.innerHTML = '<span class="clip-fade l"></span><span class="clip-fade r"></span><span class="clip-name"></span><span class="clip-edge l" data-edge="start"></span><span class="clip-edge r" data-edge="end"></span>';
+        this.tracks.append(el);
+        this.clipEls.set(c.id, el);
+      }
+      this.placeClip(el, c, s.selected.clip === c.id, span, width);
     }
+    for (const [id, el] of this.clipEls) if (!seen.has(id)) { el.remove(); this.clipEls.delete(id); }
   }
 
-  private wireHandle(h: HTMLElement, index: number): void {
-    h.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      h.setPointerCapture(e.pointerId);
-      this.dragging = true; this.drag++;
-      h.classList.add('drag');
-      const group = `boundary:${index}:${this.drag}`, x0 = e.clientX;
+  private placeClip(el: HTMLElement, c: Clip, on: boolean, span: number, width: number): void {
+    const { a } = this.view, px = ((c.end - c.start) / span) * width, name = this.d.names(c.widget);
+    const words = c.listen && c.listen !== 'all' ? `${name} · ${listenWord(c.listen)}` : name, f = edgeSeconds(c) / (c.end - c.start) * 100;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-selected', String(on));
+    el.style.left = `${this.pc(c.start)}%`;
+    el.style.width = `${((c.end - c.start) / span) * 100}%`;
+    el.style.bottom = `${c.track * ROW}px`;
+    el.style.setProperty('--hue', String(widgetHue(c.widget)));
+    el.style.setProperty('--fade', `${f}%`);
+    const edge = handleWidth(px);
+    el.style.setProperty('--edge', `${edge}px`);
+    el.classList.toggle('tiny', edge === 0);
+    // Started before the view: its words stay where they can be read.
+    const label = el.querySelector<HTMLElement>('.clip-name')!;
+    label.style.paddingLeft = c.start < a ? `${((a - c.start) / span) * width + 6}px` : '';
+    if (label.textContent !== words) label.textContent = words;
+    el.title = `${words}, ${clock(c.start)}–${clock(c.end)}, track ${c.track + 1}. Drag to move, drag an edge to resize, double-click to go there.`;
+    el.setAttribute('aria-label', `${words}, ${clock(c.start)} to ${clock(c.end)}, track ${c.track + 1}`);
+    el.dataset.key = instanceKey(c);
+  }
+
+  private syncMarks(): void {
+    const key = JSON.stringify(this.view);
+    if (key === this.marksKey) return;
+    this.marksKey = key;
+    const box = this.tracks.querySelector<HTMLElement>('.tl-marks')!;
+    box.innerHTML = this.d.marks.filter((m) => m.t >= this.view.a && m.t <= this.view.b)
+      .map((m) => `<span class="tl-mark${m.label ? ' named' : ''}" style="left:${this.pc(m.t)}%"></span>`).join('');
+  }
+
+  private wireClips(): void {
+    this.tracks.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement, el = target.closest<HTMLElement>('.clip');
+      const store = this.d.store;
+      if (!el) {
+        // Empty space: nothing selected, and the playhead goes there, where a new clip will land.
+        store.dispatch({ type: 'select', clip: null });
+        this.d.seek(this.tAt(e.clientX));
+        return;
+      }
+      const id = el.dataset.id!, show = store.state.show!, c0 = show.clips.find((c) => c.id === id);
+      if (!c0) return;
+      store.dispatch({ type: 'select', clip: id });
+      if (store.state.ui.recording) return;
+      e.preventDefault();
+      el.focus({ preventScroll: true });
+      el.setPointerCapture(e.pointerId);
+      this.drag++;
+      const edge = (target.closest<HTMLElement>('.clip-edge')?.dataset.edge ?? null) as 'start' | 'end' | null;
+      const group = `clip:${id}:${this.drag}`, x0 = e.clientX, y0 = e.clientY, grab = this.tAt(e.clientX) - c0.start, len = c0.end - c0.start;
+      const T = snapTargets(show.clips, id, this.d.marks.map((m) => m.t), this.d.song.beats);
       let moved = false;
+      const radius = () => (SNAP_PX / Math.max(1, this.tracks.clientWidth)) * (this.view.b - this.view.a);
       const move = (ev: PointerEvent) => {
-        // A click on a boundary is a click on the section under it: a shaky hand must not move the boundary.
-        if (!moved && Math.abs(ev.clientX - x0) < 4) return;
-        moved = true;
-        const t = snapToAttack(this.tAt(ev.clientX), this.d.chords, ev.altKey);
-        this.d.store.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index, t }, group });
-        const now = this.d.store.state.show!.sections[index].start;
-        h.style.left = `${this.pc(now)}%`;
-        this.place(index);
-        this.showTip(ev.clientX, clock(now) + (ev.altKey ? '' : ', at an attack'));
+        // A click on a clip is a click: a shaky hand must not move it.
+        if (!moved && Math.abs(ev.clientX - x0) < 4 && Math.abs(ev.clientY - y0) < 4) return;
+        if (!moved) {
+          moved = true; this.dragging = true;
+          this.frozenRows = rowCount(store.state.show!.clips);
+          el.classList.add('dragging');
+        }
+        const free = !this.snap || ev.altKey, r = free ? 0 : radius();
+        let line: number | null = null, word = '';
+        if (edge) {
+          const raw = this.tAt(ev.clientX), s = free ? { t: raw, kind: null } : snapPoint(raw, T, r);
+          store.dispatch({ type: 'edit', edit: { kind: 'resizeClip', clip: id, edge, t: s.t, ...(c0.intensity ? { from: c0.intensity } : {}) }, group });
+          line = s.kind ? s.t : null; word = s.kind === 'edge' ? ', on an edge or mark' : s.kind === 'beat' ? ', on a beat' : '';
+        } else {
+          const raw = this.tAt(ev.clientX) - grab, s = free ? { start: raw, at: null, kind: null } : snapMove(raw, len, T, r);
+          const rect = this.tracks.getBoundingClientRect();
+          const track = trackAtHeight(rect.bottom - ev.clientY, ROW, this.frozenRows!);
+          store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: id, start: s.start, track }, group });
+          line = s.at; word = s.kind === 'edge' ? ', on an edge or mark' : s.kind === 'beat' ? ', on a beat' : '';
+        }
+        const now = store.state.show!.clips.find((c) => c.id === id);
+        if (now) this.showTip(ev.clientX, `${clock(now.start)}–${clock(now.end)}${word}`);
+        this.snapLine.hidden = line === null;
+        if (line !== null) this.snapLine.style.left = `${this.pc(line)}%`;
       };
-      const end = (ev: PointerEvent) => {
-        h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', end); h.removeEventListener('pointercancel', end);
-        h.classList.remove('drag'); this.dragging = false; this.tip.hidden = true; this.bandKey = '';
-        if (!moved && ev.type === 'pointerup') this.selectAt(this.tAt(ev.clientX));
-        this.update(this.d.store.state); this.d.refresh();
+      const end = () => {
+        el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', end); el.removeEventListener('pointercancel', end);
+        el.classList.remove('dragging');
+        this.dragging = false; this.frozenRows = null; this.tip.hidden = true; this.snapLine.hidden = true;
+        this.update(store.state);
+        if (moved) this.d.refresh();
       };
-      h.addEventListener('pointermove', move); h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+      el.addEventListener('pointermove', move); el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    });
+    this.tracks.addEventListener('dblclick', (e) => {
+      const el = (e.target as Element).closest<HTMLElement>('.clip'), c = this.d.store.state.show?.clips.find((x) => x.id === el?.dataset.id);
+      if (c) this.d.seek(clipViewTime(c));
     });
   }
 
-  /** Moves the two section blocks next to boundary i while it is dragged (the band is rebuilt when it ends). */
-  private place(i: number): void {
-    const show = this.d.store.state.show!, span = this.view.b - this.view.a;
-    const blocks = this.band.querySelectorAll<HTMLElement>('.sec');
-    for (const j of [i - 1, i]) {
-      const sec = show.sections[j], b = blocks[j];
-      if (!sec || !b) continue;
-      b.style.left = `${this.pc(sec.start)}%`; b.style.width = `${((sec.end - sec.start) / span) * 100}%`;
-    }
-  }
-
-  /** The loudness silhouette in each section's hue, the attacks as ticks beneath. */
-  private drawWave(show: Show): void {
+  /** The loudness silhouette, the attacks as ticks beneath, the song's marks with their names over it. */
+  private drawWave(): void {
     const cv = this.wave, dpr = window.devicePixelRatio || 1;
     const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight);
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
@@ -349,24 +435,12 @@ export class Timeline {
     const X = (t: number) => ((t - va) / span) * w, T = (x: number) => va + (x / w) * span;
     const A = (this.act ??= activity(this.d.chords, this.d.song.loudness, D, HOP));
     const at = (t: number) => A[Math.min(A.length - 1, Math.max(0, Math.floor(t / HOP)))] ?? 0;
-    show.sections.forEach((sec, i) => {
-      if (sec.end <= va || sec.start >= vb) return;
-      const hue = sectionHue(show, i);
-      const x0 = Math.max(0, X(sec.start)), x1 = Math.min(w, X(sec.end));
-      g.fillStyle = hue === null ? '#3a3336' : `hsl(${hue} 30% 44%)`;
-      g.beginPath(); g.moveTo(x0, mid);
-      for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) {
-        const t0 = T(x), t1 = T(x + 1);
-        let v = 0; for (let t = t0; t < t1 + 1e-9; t += HOP) v = Math.max(v, at(t));
-        g.lineTo(Math.min(x1, Math.max(x0, x)), mid - Math.max(0.6, v * mid * 0.95));
-      }
-      for (let x = Math.ceil(x1); x >= Math.floor(x0); x--) {
-        const t0 = T(x), t1 = T(x + 1);
-        let v = 0; for (let t = t0; t < t1 + 1e-9; t += HOP) v = Math.max(v, at(t));
-        g.lineTo(Math.min(x1, Math.max(x0, x)), mid + Math.max(0.6, v * mid * 0.95));
-      }
-      g.closePath(); g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
-    });
+    const level = (x: number) => { let v = 0; for (let t = T(x); t < T(x + 1) + 1e-9; t += HOP) v = Math.max(v, at(t)); return Math.max(0.6, v * mid * 0.95); };
+    g.fillStyle = 'hsl(30 12% 40%)';
+    g.beginPath(); g.moveTo(0, mid);
+    for (let x = 0; x <= w; x++) g.lineTo(x, mid - level(x));
+    for (let x = w; x >= 0; x--) g.lineTo(x, mid + level(x));
+    g.closePath(); g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
     g.fillStyle = '#e9e2da';
     for (const ch of this.d.chords) {
       if (ch.t < va || ch.t > vb) continue;
@@ -375,5 +449,21 @@ export class Timeline {
       g.fillRect(x, h - 6, 1, 3 + 3 * Math.min(1, ch.notes.length / 6));
     }
     g.globalAlpha = 1;
+    // The marks: a line each, and a name wherever there is room for it.
+    g.font = '10.5px system-ui, sans-serif';
+    g.textBaseline = 'top';
+    let room = 0;
+    for (const m of this.d.marks) {
+      if (m.t < va || m.t > vb) continue;
+      const x = X(m.t);
+      g.fillStyle = m.label ? '#e9e2da70' : '#e9e2da30';
+      g.fillRect(Math.round(x), 0, 1, h);
+      if (!m.label || x < room) continue;
+      const tw = g.measureText(m.label).width;
+      if (x + 3 + tw > w) continue;
+      g.fillStyle = '#e9e2dacc';
+      g.fillText(m.label, x + 3, 3);
+      room = x + tw + 12;
+    }
   }
 }

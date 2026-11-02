@@ -1,7 +1,7 @@
 /**
  * The open layer's controls under its knobs (plan 2026-10-31 T16), in plain words:
  * - Listens to: all notes, an instrument track of this recording, a family of them, or a line derived from the notes,
- *   with a small picture of where that part plays in the section. A layer on hand-picked notes says how many instead,
+ *   with a small picture of where that part plays in the clip. A layer on hand-picked notes says how many instead,
  *   with a way back to the picker: the select could only orphan its set.
  * - Where: the whole screen, a spotlight (the widget seen only through a shape) or a window (the whole widget shrunk
  *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
@@ -91,10 +91,6 @@ export function placedListen(L: WaLayers, pack: Pick<SongPack, 'notes' | 'tracks
   return usual && enoughAttacks(attackTimes(L, pack, usual, s), s) ? usual : undefined;
 }
 
-/** Whether another layer of this section already plays this widget on all notes: "back to all notes" would be refused. */
-export const allNotesTaken = (layers: readonly Layer[], k: number): boolean =>
-  layers.some((x, j) => j !== k && x.widget === layers[k].widget && listenOf(x) === undefined);
-
 export interface UsualLine { text: string; action: 'all' | 'use' | null }
 
 /** The line under "Listens to" for a widget with a usual note type: what it hears against what it usually hears, and
@@ -104,12 +100,12 @@ export function usualLine(usual: NoteType, listen: Listen | undefined, times: re
   if (picksId(listen) !== null) return { text: `This widget usually hears ${words}; here it hears your picks.`, action: null };   // hand-picked: no one click takes it off them
   if (listen === usual) {
     const far = attacks > 0 && nearShare(times, s) < NEAR_SHARE;
-    return { text: `Hears ${words}, as this widget usually does${far ? ', but most of this section is far from any: it stays still there' : ''}.`, action: 'all' };
+    return { text: `Hears ${words}, as this widget usually does${far ? ', but most of this clip is far from any: it stays still there' : ''}.`, action: 'all' };
   }
-  if (!attacks) return { text: `This widget usually hears ${words}, but this section has none${listen === undefined ? ': it plays on all notes' : ''}.`, action: null };
+  if (!attacks) return { text: `This widget usually hears ${words}, but this clip has none${listen === undefined ? ': it plays on all notes' : ''}.`, action: null };
   if (listen !== undefined || enoughAttacks(times, s)) return { text: `This widget usually hears ${words}.`, action: 'use' };
-  if (attacks < neededAttacks(s)) return { text: `This widget usually hears ${words}, but this section has only ${attacks}: it plays on all notes.`, action: 'use' };
-  return { text: `This widget usually hears ${words}, but most of this section is far from any: it plays on all notes.`, action: 'use' };
+  if (attacks < neededAttacks(s)) return { text: `This widget usually hears ${words}, but this clip has only ${attacks}: it plays on all notes.`, action: 'use' };
+  return { text: `This widget usually hears ${words}, but most of this clip is far from any: it plays on all notes.`, action: 'use' };
 }
 
 /** The note under "Listens to". notes: the part's in the whole song; here: those sounding in the section; starts: those
@@ -118,9 +114,9 @@ export function partNote(listen: Listen | undefined, fellBack: boolean, notes: n
   const type = isNoteType(listen);
   if (listen && fellBack) return { text: `This song has no ${partWords(listen)}: the layer plays on all notes.`, warn: true };
   if (type && !notes) return { text: `This song has no ${partWords(listen!)}: the layer stays still.`, warn: true };
-  if (!here) return { text: 'Silent in this section: the layer stays still here.', warn: type };
-  if (type && !starts) return { text: `This section has no ${partWords(listen!)} of its own, only ${here} ringing on from before: the layer barely moves here.`, warn: true };
-  return { text: `${here} note${here === 1 ? '' : 's'} in this section${listen ? '; it moves with these only' : ''}.`, warn: false };
+  if (!here) return { text: 'Silent in this clip: it stays still.', warn: type };
+  if (type && !starts) return { text: `This clip has no ${partWords(listen!)} of its own, only ${here} ringing on from before: it barely moves.`, warn: true };
+  return { text: `${here} note${here === 1 ? '' : 's'} in this clip${listen ? '; it moves with these only' : ''}.`, warn: false };
 }
 
 /** The widgets that read the shared canvas (they cut or smear what is below): a spotlight keeps them doing that in
@@ -178,14 +174,14 @@ export interface LayerControlsDeps {
   widget: string; hue: number;
   /** The note type this widget usually hears (lab/tags.json). */
   usual?: NoteType;
-  /** The section's span now (a boundary drag changes it without a redraw). */
+  /** The clip's span now (a drag changes it without a redraw). */
   span(): Span;
   /** The layer now (undo changes it without a redraw). */
   layer(): Layer | undefined;
   /** One setLayer edit; group: the undo step it belongs to. Returns whether the show changed. */
   edit(patch: LayerPatch, group: string): boolean;
   /** The place a layer had before it went back to the whole screen (so Spotlight/Window bring it back), under the
-      key memoryKey() gives for this layer now (its section and instance key, so a reorder never hands it to another). */
+      key memoryKey() gives for this layer now (its clip, so it never goes to another). */
   memory: Map<string, Region>; memoryKey(): string;
   /** The show's sets of picks now, and the way to the popup on one. */
   picks(): Show['picks'];
@@ -286,7 +282,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     g.fillStyle = `hsl(${d.hue} 46% 62%)`;
     for (let x = 0; x < SPARK_W; x++) if (cols[x]) { const h = Math.max(2, Math.round((Math.sqrt(cols[x] / top)) * SPARK_H)); g.fillRect(x, SPARK_H - h, 1, h); }
     g.fillStyle = '#ffffff22'; g.fillRect(0, SPARK_H - 1, SPARK_W, 1);
-    spark.title = `${here} notes in this section`;
+    spark.title = `${here} notes in this clip`;
     const said = partNote(listen, heard === 'all', notes.length, here, starts);
     note.textContent = said.text;
     note.classList.toggle('warn', said.warn);
@@ -294,12 +290,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
 
   // Listens to
   const hear = (want: Listen) => {
-    const was = listenOf(d.layer() ?? { widget: d.widget }) ?? 'all';
-    if (!d.edit({ listen: want === 'all' ? null : want }, group('listen'))) {
-      sel.value = was;
-      note.textContent = `This widget already plays on ${partWords(want)} in this section, in another layer.`;
-      note.classList.add('warn');
-    }
+    d.edit({ listen: want === 'all' ? null : want }, group('listen'));
   };
   sel.addEventListener('change', () => hear(sel.value));
   const usualBtn = $<HTMLButtonElement>('[data-usual]');

@@ -1,11 +1,12 @@
 /**
- * The studio's keys (plan §7): Space play/pause · ←/→ ∓5 s · Shift+←/→ previous/next section start · F full screen ·
- * H hide the controls · S split at the playhead · Delete (or Backspace) remove the selected layer · Ctrl+Z undo ·
- * Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save · Ctrl+P find a widget · +/− zoom the timeline, 0 the whole song. Ignored while typing; arrows are left to a focused slider or list.
+ * The studio's keys (plan §7): Space play/pause · ←/→ ∓5 s · Shift+←/→ the previous/next mark or clip start · F full
+ * screen · H hide the controls · S split at the playhead · Delete (or Backspace) remove the selected clip · Ctrl+D
+ * duplicate it · Esc let go of it · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save · Ctrl+P find a widget · +/− zoom
+ * the timeline, 0 the whole song. Ignored while typing; arrows are left to a focused slider or list.
  */
 export interface KeyActions {
-  toggle(): void; nudge(s: number): void; section(dir: -1 | 1): void; fullscreen(): void; hideUi(): void;
-  split(): void; removeLayer(): void; undo(): void; redo(): void; save(): void; palette(): void; zoom(dir: -1 | 0 | 1): void;
+  toggle(): void; nudge(s: number): void; jump(dir: -1 | 1): void; fullscreen(): void; hideUi(): void;
+  split(): void; remove(): void; duplicate(): void; deselect(): void; undo(): void; redo(): void; save(): void; palette(): void; zoom(dir: -1 | 0 | 1): void;
 }
 
 export type KeyAction = keyof KeyActions;
@@ -20,6 +21,7 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
     if (focus.typing) return null;                                   // the field's own undo
     if (k === 'z') return { action: e.shiftKey ? 'redo' : 'undo' };
     if (k === 'y') return { action: 'redo' };
+    if (k === 'd' && !e.shiftKey) return { action: 'duplicate' };
     return null;
   }
   if (focus.typing || e.altKey) return null;
@@ -27,7 +29,7 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
   if (k === 'ArrowLeft' || k === 'ArrowRight') {
     if (focus.control) return null;                                  // a slider or select moves itself
     const dir = k === 'ArrowLeft' ? -1 : 1;
-    return e.shiftKey ? { action: 'section', arg: dir } : { action: 'nudge', arg: dir * 5 };
+    return e.shiftKey ? { action: 'jump', arg: dir } : { action: 'nudge', arg: dir * 5 };
   }
   if (k === '+' || k === '=') return { action: 'zoom', arg: 1 };     // + is Shift+= on many keyboards
   if (e.shiftKey) return null;
@@ -36,7 +38,8 @@ export function keyAction(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'm
   if (k === 'f') return { action: 'fullscreen' };
   if (k === 'h') return { action: 'hideUi' };
   if (k === 's') return { action: 'split' };
-  if (k === 'Delete' || k === 'Backspace') return { action: 'removeLayer' };   // a Mac's delete key sends Backspace
+  if (k === 'Delete' || k === 'Backspace') return { action: 'remove' };   // a Mac's delete key sends Backspace
+  if (k === 'Escape') return { action: 'deselect' };
   return null;
 }
 
@@ -57,7 +60,7 @@ export function installKeys(a: KeyActions): () => void {
     e.preventDefault();   // Space on a focused button would also click it; Ctrl+S would save the page, Ctrl+P print it
     switch (r.action) {
       case 'nudge': a.nudge(r.arg!); break;
-      case 'section': a.section(r.arg as -1 | 1); break;
+      case 'jump': a.jump(r.arg as -1 | 1); break;
       case 'zoom': a.zoom(r.arg as -1 | 0 | 1); break;
       default: a[r.action]();
     }

@@ -1,12 +1,8 @@
-/* ---- Intensity lanes (lanes.ts): under the sections strip ---------------------------------------------------- */
+/* ---- The intensity lane (lanes.ts): under the clips ---------------------------------------------------- */
 .tl-top { position: relative; }   /* the song-wide strips and their playhead */
 .lanes { margin-top: 8px; }
 .lanes-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 28px; font-size: 12.5px; color: var(--dim); }
 .lanes-title { font: italic 14px/1.2 var(--serif); color: var(--fg); margin-right: 2px; }
-.lanes-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.lanes-seg button { border: none; border-radius: 0; padding: 3px 9px; font-size: 12px; background: transparent; color: var(--dim); }
-.lanes-seg button + button { border-left: 1px solid var(--line); }
-.lanes-seg button[aria-pressed="true"] { background: var(--raised); color: var(--fg); }
 .lanes-toggle { padding: 3px 9px 3px 22px; font-size: 12px; position: relative; background: transparent; color: var(--dim); }
 .lanes-toggle::before { content: ""; position: absolute; left: 8px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 2px; border: 1px solid #5a4b4f; }
 .lanes-toggle[aria-pressed="true"] { color: var(--fg); }
