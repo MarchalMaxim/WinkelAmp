@@ -1,14 +1,17 @@
-// Comfort: big soft fields of colour, flat and overlapping, melting into each other with no light on them and no edge to
-// hold on to, nearer a Rothko than a still life. They breathe together about once in 10 seconds. A note is a gentle press:
-// the field's own colour starts rising in the same frame (never a flash), its edge gives over half a second and takes
-// about 5 seconds to come back, while the fields nearby slowly lean in. Everything is overdamped, so nothing overshoots.
+// Comfort: big soft fields of colour, flat and overlapping, melting into each other with no light on them, nearer a Rothko
+// than a still life. Each field is held on one side and dissolves on the other, the side turning over minutes, so its
+// silhouette never closes into a shape on a surface. They breathe together about once in 10 seconds. A note is a gentle
+// press: the field's own colour starts rising in the same frame (never a flash), its edge gives over half a second and takes
+// about 5 seconds to come back, while the fields nearby slowly lean in. Each attack also blushes: a wide, faint rise in that
+// field's colour, kept inside the frame and as large for a high note on a tiny field as for any, and fresh for every attack,
+// so a melody shows. Everything is overdamped, so nothing overshoots.
 // The fields are laid out for each song and wander over minutes, so the picture at minute 5 is not the one at minute 1.
 // Drawn crisp into a small buffer, blurred once and scaled up, which is what melts every edge, and keeps it cheap.
 (() => {
-  const S = 0.22, MARGIN = 18, SOFT = 4.6, NODES = 40, TAU = Math.PI * 2;
+  const S = 0.22, MARGIN = 18, SOFT = 4.6, NODES = 40, BLUSH = 0.22, TAU = Math.PI * 2;
   const COS = new Float32Array(NODES), SIN = new Float32Array(NODES);
   for (let i = 0; i < NODES; i++) { COS[i] = Math.cos((i / NODES) * TAU); SIN[i] = Math.sin((i / NODES) * TAU); }
-  const PAL = [[184, 105, 74], [217, 196, 160], [141, 148, 120], [184, 140, 148]];   // terracotta, oat, sage, dusty mauve-rose (a warmer pink reads as skin)
+  const PAL = [[184, 105, 74], [208, 188, 154], [141, 148, 120], [184, 140, 148]];   // terracotta, oat, sage, dusty mauve-rose (a warmer pink reads as skin)
   const ORDER = [0, 1, 2, 3, 1, 0, 3, 2, 1, 3, 0, 2, 3, 1];
   const UMBER = [36, 26, 20], AMBER = [240, 176, 112], ROSE = [214, 170, 164], DUSK = [135, 122, 128], LAMP = [216, 154, 92];
   const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -18,11 +21,14 @@
   const inner = (c, room) => {
     const l = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11, f = 1.18;
     const o = [(c[0] + (c[0] - l) * 0.35) * f, (c[1] + (c[1] - l) * 0.35) * f, (c[2] + (c[2] - l) * 0.35) * f];
-    return mix([Math.min(246, o[0]), Math.min(246, o[1]), Math.min(246, o[2])], room, 0.08);
+    const lo = o[0] * 0.3 + o[1] * 0.59 + o[2] * 0.11, k = Math.min(1, 195 / lo);   // the pale colours stop short of bright
+    return mix([o[0] * k, o[1] * k, o[2] * k], room, 0.08);
   };
 
   let lay = null, lg = null, buf = null, bg = null, grain = null, grainPat = null, forms = [], builtN = 0, builtW = 0, builtSeed = -1, snap = true;
   let phase = 0, sigh = 0, sighGoal = 0, lamp = 0, pitches = null, vels = null;
+  const mkBlushes = () => Array.from({ length: 7 }, () => ({ F: null, goal: 0, a: 0 }));
+  let blushes = mkBlushes();
 
   function sprites(W, H) {
     const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -53,6 +59,7 @@
         wx: TAU / (110 + 170 * R()), wy: TAU / (130 + 190 * R()), px: R() * TAU, py: R() * TAU, slots: [mkSlot(), mkSlot()], sag: 0, delay: 0, fx: 0, fy: 0 };
     });
     for (const F of forms) F.delay = (F.x0 / W) * 1.5 + (F.y0 / H) * 0.5;
+    blushes = mkBlushes();
     builtN = n; builtW = W; builtSeed = seed; snap = true;
   }
   const count = (v) => Math.round(v < 0.5 ? 14 - 12 * v : 8 - 8 * (v - 0.5));
@@ -84,6 +91,18 @@
     s.wg = Math.max(s.wg, amp * gentle); s.flush = Math.max(s.flush, amp * gentle);
     s.tw = Math.max(s.tw, x.p('stay') * 0.42 * (0.55 + Math.min(4, n.d) * 0.55));
   }
+  // One blush for an attack, on the field of its melody: the highest note that is not much softer than the loudest. It always
+  // starts afresh, so a note on a field that is still warm shows like any other. Only really fast music gets less of it per note.
+  function blush(notes, x) {
+    let vm = 0, top = null;
+    for (const n of notes) vm = Math.max(vm, n.v);
+    for (const n of notes) if (n.v >= vm * 0.7 && (!top || n.m > top.m)) top = n;
+    const F = forms[clamp(Math.floor(rank(pitches, top.m) * forms.length), 0, forms.length - 1)];
+    let b = blushes[0];
+    for (const q of blushes) if (q.goal < b.goal) b = q;
+    b.F = F; b.a = 0;
+    b.goal = Math.sqrt(clamp(vm / 112, 0.06, 1)) * (0.3 + 0.7 * F.f) * Math.min(1.4, x.p('press')) / (1 + Math.max(0, x.rate - 5) * 0.25);
+  }
   // The edge of a field, in buffer space. It slowly changes shape with the song's clock.
   const NX = new Float32Array(NODES), NY = new Float32Array(NODES);
   function outline(F, t) {
@@ -107,13 +126,13 @@
 
   TOOLS.push({
     id: 'comfort', name: 'Comfort', tag: 'new',
-    blurb: 'Big flat fields of soft colour melting into each other, breathing slowly together and wandering over minutes. A note is a gentle press: the field\'s own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones.',
+    blurb: 'Big flat fields of soft colour, each held on one side and dissolving into the others on the other, breathing slowly together and wandering over minutes. A note is a gentle press and a wide, faint blush: the field\'s own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones, and a melody blushes as clearly as a chord.',
     params: [
       { key: 'breath', label: 'how slowly it breathes', min: 3.5, max: 20, value: 10,
         hint: 'How long one breath takes. Left: a quick, light rise and fall. Right: one long breath every 20 seconds.',
         icon: (g, v, w, h) => ICON.wave(g, w, h, 0.55, 3.2 - 2.6 * v, '#d9c4a0') },
       { key: 'press', label: 'how far a note presses', min: 0.15, max: 2, value: 1,
-        hint: 'How far a note pushes in the edge of a field. Left: a faint touch. Right: a deep, slow give.',
+        hint: 'How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give.',
         icon: (g, v, w, h) => { ICON.dot(g, w / 2, h / 2 + 3, 9.5, '#b8694a'); ICON.dot(g, w / 2, h / 2 - 9 + v * 7, 3 + v * 4, '#241a14'); } },
       { key: 'size', label: 'how big the fields are', min: 0, max: 1, value: 0.5,
         hint: 'How many fields share the picture. Left: many small ones. Right: a few huge ones.',
@@ -131,6 +150,7 @@
     reset() {
       pitches = null; vels = null; sigh = 0; sighGoal = 0; lamp = 0; snap = true;
       for (const F of forms) { F.sag = 0; F.slots = [mkSlot(), mkSlot()]; }
+      blushes = mkBlushes();
     },
     onChord(ch, x) {
       if (!pitches) loadSong();
@@ -139,8 +159,10 @@
       const gentle = 1 / (1 + Math.max(0, x.rate - 3) * 0.05);    // fast music: the presses merge rather than pile up
       const wide = 1 + Math.min(4, ch.notes.length - 1) * 0.22;
       const loudest = ch.notes.length > 5 ? [...ch.notes].sort((a, b) => b.v - a.v).slice(0, 5) : ch.notes;
-      let took = 0;
-      for (const m of loudest) if (cut <= 0 || rank(vels, m.v) >= cut) { pressNote(m, wide, x, gentle); took++; }
+      const taken = [];
+      for (const m of loudest) if (cut <= 0 || rank(vels, m.v) >= cut) { pressNote(m, wide, x, gentle); taken.push(m); }
+      const took = taken.length;
+      if (took && forms.length) blush(taken, x);
       if (took && ch.notes.length >= 4) sighGoal = Math.max(sighGoal, Math.min(1, (ch.notes.length - 2) * 0.22) * Math.sqrt(clamp(ch.vel / 112, 0, 1)) * pres);
     },
     frame(x) {
@@ -190,12 +212,17 @@
       u.fillStyle = css(gc); u.fillRect(0, 0, lay.width, lay.height);
       u.setTransform(S, 0, 0, S, MARGIN, MARGIN);
 
+      for (const b of blushes) { b.goal *= Math.exp(-dt / 0.45); b.a += (b.goal - b.a) * (1 - Math.exp(-dt / 0.06)); }
       for (const F of forms) {
         const path = outline(F, t), [s0, s1] = F.slots;
         const c = mix(tint(mix(F.c0, F.c1, 0.3 + 0.3 * Math.sin(t * F.cw + F.cph))), gc, 0.14), lit = inner(c, room), small = 1 + 0.7 * F.f;
         const warm = Math.min(1, (s0.warm * 0.42 + s0.fl * 0.2 + s1.warm * 0.42 + s1.fl * 0.2) * small + lamp * 0.1);
-        u.globalAlpha = 0.76 + 0.14 * F.f; u.fillStyle = css(mix(c, lit, warm)); u.fill(path);
-        u.save(); u.clip(path);
+        { const l = lit[0] * 0.3 + lit[1] * 0.59 + lit[2] * 0.11; F.lit = [lit[0] * 150 / l, lit[1] * 150 / l, lit[2] * 150 / l]; }   // the same strength of blush from any colour
+        // Held on one side, dissolving on the other, and the side turns with the song's clock: no closed silhouette.
+        const body = mix(c, lit, warm), hold = 0.84 + 0.1 * F.f, fa = F.px + F.py + t * F.cw * 0.7, rim = F.R * 1.45 * Math.max(F.ax, F.ay);
+        const hx = F.cx + Math.cos(fa) * F.R * 0.55, hy = F.cy + Math.sin(fa) * F.R * 0.55, fade = u.createRadialGradient(hx, hy, 0, hx, hy, rim);
+        fade.addColorStop(0, css(body, hold)); fade.addColorStop(0.4, css(body, hold * 0.92)); fade.addColorStop(0.72, css(body, hold * 0.42)); fade.addColorStop(1, css(body, 0));
+        u.fillStyle = fade; u.fill(path);
         const cr = Math.cos(F.rot), sr = Math.sin(F.rot);
         for (const s of F.slots) {
           const a = Math.min(0.85, (s.warm * 0.5 + s.fl * 0.32) * small);
@@ -207,8 +234,20 @@
             u.fillStyle = wg; u.beginPath(); u.arc(px, py, rho, 0, TAU); u.fill();
           }
         }
-        u.restore();
       }
+      // The blushes add a little of the field's colour, the same on any field and on the ground. Their sum is capped so that
+      // a run of notes stays a warm room and never climbs.
+      let held = 0;
+      for (const b of blushes) held += b.a;
+      const room2 = BLUSH * Math.min(1, 2.4 / Math.max(2.4, held));
+      u.globalCompositeOperation = 'lighter';
+      for (const b of blushes) if (b.a > 0.004 && b.F && b.F.lit) {
+        const px = clamp(b.F.cx, W * 0.16, W * 0.84), py = clamp(b.F.cy, H * 0.2, H * 0.8), rho = clamp(b.F.R * 0.9, H * 0.34, H * 0.55), al = b.a * room2;
+        const wg = u.createRadialGradient(px, py, 0, px, py, rho);
+        wg.addColorStop(0, css(b.F.lit, al)); wg.addColorStop(0.45, css(b.F.lit, al * 0.6)); wg.addColorStop(1, css(b.F.lit, 0));
+        u.fillStyle = wg; u.beginPath(); u.arc(px, py, rho, 0, TAU); u.fill();
+      }
+      u.globalCompositeOperation = 'source-over';
       u.globalAlpha = 1;
       bg.setTransform(1, 0, 0, 1, 0, 0); bg.globalAlpha = 1;
       bg.filter = `blur(${SOFT}px)`; bg.drawImage(lay, -MARGIN, -MARGIN); bg.filter = 'none';
