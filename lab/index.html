@@ -514,7 +514,14 @@ const VERDICTS = {
 };
 const VCLASS = { love: 'v-love', keep: 'v-keep', 'needs work': 'v-work' };
 const isRevised = (tool) => VERDICTS[tool.id] && (tool.tag ?? '') !== VERDICTS[tool.id].on;
-const sortKey = (tool) => (!VERDICTS[tool.id] || isRevised(tool) ? 0 : 1000) + (TOOL_IDS.includes(tool.id) ? TOOL_IDS.indexOf(tool.id) : 999);
+// Every rating the saver has, from any browser, and this browser's own, read once as the page opens: a card you rate moves
+// down the next time the page opens, not from under the pointer.
+const RATED = new Set();
+const loadRated = () => fetch('ratings.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((all) => {
+  for (const b of [...Object.values(all).map((x) => x.ratings ?? {}), ratings]) for (const [id, v] of Object.entries(b)) if (v) RATED.add(id);
+});
+// Not rated yet first, then reworked since your verdict, then the rest.
+const sortKey = (tool) => (!VERDICTS[tool.id] && !RATED.has(tool.id) ? 0 : isRevised(tool) ? 1000 : 2000) + (TOOL_IDS.includes(tool.id) ? TOOL_IDS.indexOf(tool.id) : 999);
 
 // Parameters: a tool lists params [{ key, label, min, max, step?, value, drive?, hint?, icon? }] and reads ctx.p('key') each
 // frame. The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
@@ -983,7 +990,7 @@ audio.onpause = () => (document.getElementById('play').textContent = '▶ Play')
 document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
-Promise.all([loadTools(), loadPack(), loadTags()]).then(() => {
+Promise.all([loadTools(), loadPack(), loadTags(), loadRated()]).then(() => {
   applyLayers(layerList());
   if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
   let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}
