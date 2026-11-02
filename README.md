@@ -4,8 +4,8 @@
 
 WinkelAmp is a studio for visual music. Drop in a recording of a piece (the great masters first: Rachmaninoff,
 Beethoven…); its notes are transcribed once by a GPU piano model, and a show of hand-made canvas widgets plays
-with it section by section, in sync with every attack. Reshape the show with the mouse (which widgets, where the
-sections change, each widget's knobs), or have Claude compose it from a description in your own words.
+with it in sync with every attack. Place the widgets on tracks under the song like clips in DJ software, where you
+want them, overlapping as you like, or have Claude compose the show from a description in your own words.
 
 ## Try it
 
@@ -22,22 +22,25 @@ recording itself and makes **approximate** notes (the song and the library say s
 fixes it once ears runs). From a terminal, `npm run ingest -- path/to/recording.mp3 --title "Rachmaninoff: Prelude in
 C♯ minor"` does the same as a drop.
 
-Pick a song under **Songs**; a song without a show of its own gets one composed from its analysis and the widgets
-you loved. Then:
+Pick a song under **Songs**; a song without a show of its own opens with an empty timeline. Add widgets, or press
+**Compose a show for me** there for a first draft from its analysis and the widgets you loved. Then:
 
-- **Play** (Space), seek on the timeline, `←` / `→` five seconds, `Shift` + arrows from section to section.
-- **The timeline** shows the music's activity in each section's colour (the colour of its bottom widget). Click a
-  section to select it; drag a boundary to move it (it snaps just before an attack; hold Alt to drag freely);
-  **Split at playhead** (S) and **Merge with next**.
-- **The side panel** holds the selected section: its name, how the widgets leaving at its start fade out, and its
-  layers, top first. **Add a widget on top** opens the collection with your verdicts from the lab; each layer
-  opens to its knobs, drawn as the lab draws them (a picture at each end, the live one moving with the music, the
-  `i` hint, and what the knob follows: fixed, louder → more, …). Delete (or Backspace) removes the selected layer.
+- **Play** (Space), seek on the timeline, `←` / `→` five seconds, `Shift` + arrows from one clip start or mark to the next.
+- **The timeline** holds the widgets as clips on tracks: a higher track draws over a lower one, clips overlap freely
+  across tracks, the same widget can play twice at once, and gaps are simply dark. Drag a clip to move it (over a taken
+  spot it goes to the nearest free track at or above it, a new one if needed), drag its edges to resize it (an edge stops
+  at the next clip on its track), click to select. **Ctrl+D** or **Duplicate**, **S** or **Split**, Delete removes it,
+  Esc deselects. **Snap** catches beats, clip edges and the song's marks ("First theme" and so on, which you see above
+  the tracks and which own nothing); turn it off, or hold Alt for one drag. Ctrl + wheel zooms.
+- **The side panel** holds the selected clip: when it plays and how long its edges fade, then its knobs, drawn as the
+  lab draws them (a picture at each end, the live one moving with the music, the `i` hint, and what the knob follows:
+  fixed, louder → more, …). **Add a widget** opens the collection with your verdicts from the lab and places a clip at
+  the playhead, on top; so does Ctrl+P.
 - **Undo** (Ctrl+Z), **redo** (Ctrl+Shift+Z), **Save show** (Ctrl+S) writes `shows/<song>.json`.
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
   the show from it ([docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md), `npm run check-show`).
 - **F** full screen, **H** hides the controls.
-- **Each layer** can also *listen to* one part (a track of the recording such as Violins or Cellos, a family, or a
+- **Each clip** can also *listen to* one part (a track of the recording such as Violins or Cellos, a family, or a
   line worked out from the notes: melody, bass line, inner voices, low, high, accents), be seen only in a **place**
   (a small copy of the widget, or a mask over the full-size picture, that you drag, turn and soften on the stage), and follow an **intensity** curve drawn in a lane
   under the timeline like DJ automation (presets: fade in or out, swell, pulse every beat or bar, gate on loudness,
@@ -175,17 +178,17 @@ behaves as before.
 
 Write what you want to see in the **Show** tab's *Describe the show* box (it is saved to
 `shows/<song>.description.md`), then ask a Claude Code session in this repository to compose the show from it. The
-session follows [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md):
+session writes clips as [docs/COMPOSING.md](docs/COMPOSING.md#studio-shows-clips-on-tracks) says, and takes the widgets and
+their knobs from the list in [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md):
 
 ```bash
-npm run describe-song -- <song>                  # the song in words: sections, their character, loudness, attacks
-# read shows/<song>.description.md, write shows/<song>.json (sections → widget stacks, knobs where the words ask)
-npm run check-show -- shows/<song>.json          # exit 0 = it plays; --fix repairs overlaps, gaps and typos
+npm run describe-song -- <song>                  # the song in words: its stretches, their character, loudness, attacks
+# read shows/<song>.description.md, write shows/<song>.json (clips on tracks, knobs where the words ask)
+npm run check-show -- shows/<song>.json          # exit 0 = it plays; --fix repairs overlaps and typos
 npm run render-show -- <song> --from 120 --to 135 # a look at one stretch, then a contact sheet of its frames
 ```
 
 A studio with the song open follows the show as it changes on disk (it asks first if you have unsaved edits).
-`shows/rach-prelude-recording.json` and `shows/beethoven5.json` were composed this way from the user's words.
 
 Songs (`songs/<id>/`: the audio and its pack) stay on your machine and out of git; shows are committed. The
 widgets live in [`lab/tools/`](lab/README.md): the [widget lab](lab/index.html) is where they are sketched and

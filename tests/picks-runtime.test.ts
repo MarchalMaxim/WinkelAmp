@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { loadLayers } from '../scripts/node/layers';
 import { Conductor, samePreview, showInstances } from '../src/studio/show/conductor';
 import { applyEdit } from '../src/studio/show/edit';
-import type { Show } from '../src/studio/show/show';
+import type { Clip, Show } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
 import { WidgetRuntime } from '../src/widgets/runtime';
 import type { LabHarness, Note, WidgetMeta } from '../src/widgets/types';
@@ -53,12 +53,14 @@ const SONG: Note[] = Array.from({ length: 100 }, (_, i) => [Math.round((0.1 + i 
 const PICKS: Note[] = [[1.234, 1.5, 72, 60], [4.1, 4.4, 74, 110], [4.13, 4.5, 77, 40], [6.05, 6.5, 70, 30], [8.2, 8.6, 79, 90]];
 const asHeard = (notes: Note[]) => groupChords(notes).map((c) => [c.t, c.vel, c.notes.length]);
 
+const pickClip: Clip = { id: 'p', start: 0, end: 30, track: 0, fade: 0, widget: 'pick', listen: 'picks:p1' };
 const show = (notes: Note[] = PICKS): Show => ({
-  version: 2, id: 'demo', song: 'demo',
-  sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }, { widget: 'plain' }] }],
+  version: 3, id: 'demo', song: 'demo',
+  clips: [pickClip, { id: 'q', start: 0, end: 30, track: 1, fade: 0, widget: 'plain' }],
   picks: { p1: { notes } },
 });
-const KEY = 'pick@picks:p1';
+const KEY = 'pick@picks:p1#p';
+const song = (...clips: Clip[]): Show => ({ version: 3, id: 'demo', song: 'demo', clips });
 
 const start = (s: Show = show()) => {
   const rt = new WidgetRuntime(fakeCanvas(), { notes: SONG }, { sources: SOURCES, harness: HARNESS, layers: WA });
@@ -109,50 +111,42 @@ describe('a widget on a set of picks', () => {
     expect(log().loaded.plain).toEqual([100, 100]);
   });
 
-  it('across a boundary: all heard, no reset at the boundary', () => {
-    const two = (): Show => ({ ...show(), sections: [
-      { start: 0, end: 5, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
-      { start: 5, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
-    ] });
-    const { c } = start(two());
-    c.reset(0);
-    const before = log().resets.pick;
-    play(c, 0, 10);
-    expect(log().heard.pick).toEqual(asHeard(PICKS));
-    expect(log().resets.pick).toBe(before);
-  });
-
-  it('entering at a boundary: a pick in the first step of its section is heard', () => {
-    const s: Show = { ...show([[5, 5.5, 72, 80], [8, 8.5, 72, 80]]), sections: [
-      { start: 0, end: 5, layers: [{ widget: 'plain' }] },
-      { start: 5, end: 30, layers: [{ widget: 'plain' }, { widget: 'pick', listen: 'picks:p1' }] },
+  it('entering: a pick in the first step of its clip is heard, and it is reset as it starts', () => {
+    const s: Show = { ...show([[5, 5.5, 72, 80], [8, 8.5, 72, 80]]), clips: [
+      { id: 'q', start: 0, end: 30, track: 0, widget: 'plain' }, { ...pickClip, start: 5, track: 1 },
     ] };
     const { c } = start(s);
     c.reset(0);
+    const before = log().resets.pick;
     play(c, 0, 10);
     expect(log().heard.pick).toEqual(asHeard(s.picks!.p1.notes));
+    expect(log().resets.pick).toBe(before + 1);
   });
 
-  it('a placement holds a pick that a step carries over its section\'s end', () => {
-    const s0: Show = { version: 2, id: 'demo', song: 'demo', sections: [
-      { start: 0, end: 5, layers: [{ widget: 'plain' }] }, { start: 5, end: 30, layers: [{ widget: 'plain' }] },
-    ] };
+  it('a placement holds the last pick, whatever a step does', () => {
     const notes: Note[] = [[1, 1.5, 72, 80], [4.995, 5.2, 72, 90]];
-    const { c } = start(applyEdit(s0, { kind: 'placePicks', widget: 'pick', notes }));
+    const { c } = start(applyEdit(song({ id: 'q', start: 0, end: 30, track: 0, widget: 'plain' }), { kind: 'placePicks', widget: 'pick', notes }));
     c.reset(0);
-    play(c, 0, 8);   // the step from 4.983 to 5 lands on the boundary, with the pick inside it
+    play(c, 0, 8);
     expect(log().heard.pick).toEqual(asHeard(notes));
   });
 
-  it('decay: the layer only in section 0, a pick in the next section\'s fade is not heard', () => {
-    const s: Show = { ...show([[1, 1.5, 72, 80], [5.5, 6, 72, 80]]), sections: [
-      { start: 0, end: 5, layers: [{ widget: 'pick', listen: 'picks:p1' }] },
-      { start: 5, end: 30, fade: 3, layers: [{ widget: 'plain' }] },
-    ] };
+  it('a pick after the clip\'s end is not heard', () => {
+    const s: Show = { ...show([[1, 1.5, 72, 80], [5.5, 6, 72, 80]]), clips: [{ ...pickClip, end: 5 }, { id: 'q', start: 5, end: 30, track: 0, widget: 'plain' }] };
     const { c } = start(s);
     c.reset(0);
     play(c, 0, 10);
     expect(log().heard.pick).toEqual([[1, 80, 1]]);
+  });
+
+  it('two clips on one set: independent instances, each hearing its own stretch of it', () => {
+    const s: Show = { ...show(), clips: [{ ...pickClip, end: 5 }, { ...pickClip, id: 'p2', start: 5, end: 30 }] };
+    const { rt, c } = start(s);
+    c.reset(0);
+    play(c, 0, 10);
+    expect(rt.loaded().filter((k) => k.startsWith('pick@'))).toHaveLength(2);
+    expect(rt.deliveredLog!.filter(([k]) => k === KEY).map(([, t]) => t)).toEqual([1.234, 4.1]);
+    expect(rt.deliveredLog!.filter(([k]) => k === 'pick@picks:p1#p2').map(([, t]) => t)).toEqual([6.05, 8.2]);
   });
 
   it('a seek: only attacks after it; a seek exactly onto a pick does not fire it, a seek back before it does', () => {
@@ -230,13 +224,13 @@ describe('a widget on a set of picks', () => {
   });
 
   it('an unknown set hears nothing: never all the notes', () => {
-    const s: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p9' }] }] };
+    const s = song({ ...pickClip, listen: 'picks:p9' });
     const { rt, c } = start(s);
     c.reset(0);
     play(c, 0, 31);
     expect(log().heard.pick ?? []).toEqual([]);
     expect(log().loaded.pick).toEqual([0, 0]);
-    expect(rt.instance('pick@picks:p9')!.routed).toBe(true);
+    expect(rt.instance('pick@picks:p9#p')!.routed).toBe(true);
     expect(rt.errors).toEqual({});
   });
 
@@ -248,7 +242,7 @@ describe('a widget on a set of picks', () => {
   });
 
   it('a malformed picks listen hears nothing', () => {
-    const s: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:' }] }] };
+    const s = song({ ...pickClip, listen: 'picks:' });
     const { c } = start(s);
     c.reset(0);
     play(c, 0, 31);
@@ -256,17 +250,17 @@ describe('a widget on a set of picks', () => {
   });
 
   it('showInstances of a show without picks has no notes key on any spec; with picks only that spec has', () => {
-    const plain: Show = { version: 2, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'plain' }, { widget: 'other', listen: 'melody' }] }] };
+    const plain = song({ id: 'q', start: 0, end: 30, track: 0, widget: 'plain' }, { id: 'o', start: 0, end: 30, track: 1, widget: 'other', listen: 'melody' });
     for (const s of showInstances(plain)) expect('notes' in s).toBe(false);
     const specs = showInstances(show());
     expect(specs.find((s) => s.key === KEY)!.notes).toBe(PICKS);
-    expect('notes' in specs.find((s) => s.key === 'plain')!).toBe(false);
+    expect('notes' in specs.find((s) => s.key === 'plain#q')!).toBe(false);
   });
 
   describe('a queued pass', () => {
     /** Plays with queueMicrotask routed to rt.post, as the render page does. */
-    const playLate = (layer: Show['sections'][number]['layers'][number]) => {
-      const { rt, c } = start({ ...show(), sections: [{ start: 0, end: 30, layers: [layer] }] });
+    const playLate = (layer: Pick<Clip, 'widget' | 'listen'>) => {
+      const { rt, c } = start({ ...show(), clips: [{ id: 'l', start: 0, end: 30, track: 0, fade: 0, listen: undefined, ...layer }] });
       const real = globalThis.queueMicrotask;
       vi.stubGlobal('queueMicrotask', (f: () => void) => { rt.post.push(f); });
       try { c.reset(0); play(c, 0, 5); }
@@ -288,7 +282,7 @@ describe('a widget on a set of picks', () => {
     });
 
     it('queueMicrotask is back as it was after each call', () => {
-      const real = globalThis.queueMicrotask, { c } = start({ ...show(), sections: [{ start: 0, end: 30, layers: [{ widget: 'late', listen: 'picks:p1' }] }] });
+      const real = globalThis.queueMicrotask, { c } = start({ ...show(), clips: [{ id: 'l', start: 0, end: 30, track: 0, widget: 'late', listen: 'picks:p1' }] });
       c.reset(0);
       c.step(1 / 60, 1 / 60);
       expect(globalThis.queueMicrotask).toBe(real);
@@ -301,8 +295,8 @@ describe('a widget on a set of picks', () => {
   });
 
   it('a widget that failed to load on a set tries again on another, not on the same; its knobs kept', () => {
-    const s = (notes: Note[]): Show => ({ ...show(notes), sections: [{ start: 0, end: 30, layers: [{ widget: 'fussy', listen: 'picks:p1' }] }] });
-    const K = 'fussy@picks:p1', a = s(PICKS), { rt, c } = start(a);
+    const s = (notes: Note[]): Show => ({ ...show(notes), clips: [{ id: 'f', start: 0, end: 30, track: 0, widget: 'fussy', listen: 'picks:p1' }] });
+    const K = 'fussy@picks:p1#f', a = s(PICKS), { rt, c } = start(a);
     expect(rt.errors[K]).toContain('not on five');
     rt.setKnobs(K, { size: { base: 7, drive: '', depth: 0.5 } });
     rt.load(showInstances(a));
@@ -321,7 +315,7 @@ describe('a widget on a set of picks', () => {
   });
 
   it('a set shared by two widgets: each hears it', () => {
-    const s: Show = { ...show(), sections: [{ start: 0, end: 30, layers: [{ widget: 'pick', listen: 'picks:p1' }, { widget: 'other', listen: 'picks:p1' }] }] };
+    const s: Show = { ...show(), clips: [pickClip, { ...pickClip, id: 'o', track: 1, widget: 'other' }] };
     const { c } = start(s);
     c.reset(0);
     play(c, 0, 10);

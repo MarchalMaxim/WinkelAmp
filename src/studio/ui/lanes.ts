@@ -1,7 +1,6 @@
 /**
- * Intensity lanes under the timeline (plan T18, spec Goals 4 and Decisions 5): one lane per layer of the selected
- * section, top layer first as in the panel. The open layer's lane is tall and editable, like an automation lane in DJ
- * software: its curve in the widget's hue, the attacks of the part it listens to as ticks, the loudness faint behind.
+ * The intensity lane under the timeline (the user's "modulator"): the selected clip's curve, like an automation lane in DJ
+ * software, in the widget's hue, the attacks of the part it listens to as ticks, the loudness faint behind.
  *
  * - Click on empty space: a pivot there (snapped to the nearest beat when Snap is on), and keep the button down to
  *   drag it at once.
@@ -10,18 +9,17 @@
  *   up and down instead.
  * - Double-click or right-click a pivot: delete it. Right-click a segment: Linear / Ease / Hold.
  * - The shapes on the strip above the lanes (or right-click empty space): the shared presets (lab/layers/automation.js)
- *   in one click, shown on the lane as a dashed line while the pointer is on one. In "This section" they fill the section;
- *   in "Whole show" they stretch over all the consecutive sections it plays in. "Lowest" sets how far they go down.
+ *   in one click, shown on the lane as a dashed line while the pointer is on one. They fill the clip. "Lowest" sets how far
+ *   they go down.
  * - Draw: drag across the lane and the line you draw becomes the curve there, in one gesture.
  * - Bigger: a taller open lane; the picture gives up the room.
- * - Every gesture is one undo step. "Whole show" lays the instance's lane over the song, as the sections strip above
- *   does, across the consecutive sections it plays in; a pivot added at t goes to the section containing t.
+ * - Every gesture is one undo step. The lane follows the timeline's zoom, inside the clip.
  *
  * The curve is drawn and hit-tested through the shared automationAt: no second formula here.
  */
 import './lanes.css';
 import type { SongPack } from '../pack/pack';
-import { instanceKey, picksId, type Layer, type Show } from '../show/show';
+import { picksId, type Clip, type Show } from '../show/show';
 import { NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { Span, WaLayers } from '../../widgets/layers';
 import { studioLayers } from '../../widgets/layers-source';
@@ -62,7 +60,7 @@ export function bendFromDrag(v0: number, v1: number, dyFraction: number): number
 const BEND_PER_LANE = 2;
 
 /** The pivots with a new one at t (value v) in order, a split segment keeping its hold or ease, and its index; null
-    when the layer already has `max` pivots in the section (an edit would keep only the first max, dropping the last). */
+    when the clip already has `max` pivots (an edit would keep only the first max, dropping the last). */
 export function addPivot(piv: readonly Pivot[], t: number, v: number, max: number): { pivots: Pivot[]; index: number } | null {
   if (piv.length >= max) return null;
   const out = piv.map((p) => ({ ...p }));
@@ -164,10 +162,9 @@ export interface LaneDeps {
 }
 export interface Lanes { update(s: StudioState): void; setTime(t: number): void; redraw(): void; timeAt(clientX: number): number | null }
 
-type Mode = 'section' | 'show';
-/** One section's part of a lane: that section's layer of the instance, its span and its pivots. */
-interface Piece { section: number; layer: number; span: Span; pivots: Pivot[] }
-interface LaneView { key: string; layer: number; widget: string; listen?: string; open: boolean; el: HTMLElement; cv: HTMLCanvasElement }
+/** The selected clip's lane: its span and its pivots. */
+interface Piece { clip: string; span: Span; pivots: Pivot[] }
+interface LaneView { clip: string; widget: string; listen?: string; el: HTMLElement; cv: HTMLCanvasElement }
 interface Geo { a: number; b: number; W: number; H: number; pad: number; x(t: number): number; y(v: number): number; t(x: number): number; v(y: number): number }
 type Target = { piece: Piece; hit: Hit } | null;
 /** A shape on the strip: its word, what it does, and a small picture of it (an SVG path in 24×12). */
@@ -205,7 +202,7 @@ const samePivots = (a: readonly Pivot[] | undefined, b: readonly Pivot[] | undef
 
 export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const L: WaLayers = studioLayers();
-  let prefs: { mode: Mode; snap: boolean; draw: boolean; big: boolean; floor: number } = { mode: 'section', snap: true, draw: false, big: false, floor: 0 };
+  let prefs: { snap: boolean; draw: boolean; big: boolean; floor: number } = { snap: true, draw: false, big: false, floor: 0 };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREFS) ?? '{}') }; } catch { /* private window */ }
   const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch { /* private window */ } };
 
@@ -213,9 +210,6 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   root.className = 'lanes';
   root.innerHTML = `<div class="lanes-bar">
       <span class="lanes-title">Intensity</span>
-      <span class="lanes-seg" role="group" aria-label="What the lanes show">
-        <button type="button" data-mode="section">This section</button><button type="button" data-mode="show">Whole show</button>
-      </span>
       <button type="button" class="lanes-toggle" data-snap title="Pivots snap to the nearest beat (hold Shift for fine moves without snapping, Alt to place freely)">Snap to beats</button>
       <button type="button" class="lanes-toggle" data-draw title="Drag across the lane to draw the curve in one go">Draw</button>
       <button type="button" class="lanes-toggle" data-big title="A taller lane, with less room for the picture">Bigger</button>
@@ -232,9 +226,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const snapBtn = root.querySelector<HTMLButtonElement>('[data-snap]')!, drawBtn = root.querySelector<HTMLButtonElement>('[data-draw]')!, bigBtn = root.querySelector<HTMLButtonElement>('[data-big]')!;
   const floorIn = root.querySelector<HTMLInputElement>('[data-floor]')!, floorOut = root.querySelector<HTMLOutputElement>('.lanes-floor output')!;
 
-  let views: LaneView[] = [], builtKey = '', drag: Drag | null = null, gesture = 0, raf = 0, now = 0;
-  let hover: { lane: number; target: Target } | null = null;
-  let selected: { section: number; layer: number; index: number } | null = null;
+  let view: LaneView | null = null, builtKey = '', drag: Drag | null = null, gesture = 0, raf = 0, now = 0;
+  let hover: Target = null;
+  let selected: { clip: string; index: number } | null = null;
   /** The arrow-key nudge in progress: one undo step per pivot from the first press until the key is let go (a held
       key's repeats are one step; another pivot, a key-up or leaving the lane starts a new one). */
   let nudge: { at: string; group: string } | null = null;
@@ -242,34 +236,29 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   /** The shape under the pointer, as it would land (dashed on the lane). */
   let ghost: Pivot[] | null = null;
   /** The line being drawn, in time order. */
-  let pen: { pts: { t: number; v: number }[]; pieces: Piece[] } | null = null;
-  /** The shape last put on the open layer, while the curve is still what it wrote: "Lowest" reshapes it. */
+  let pen: { pts: { t: number; v: number }[]; piece: Piece } | null = null;
+  /** The shape last put on the clip, while the curve is still what it wrote: "Lowest" reshapes it. */
   let lastShape: { id: string; at: string; wrote: string } | null = null;
   const ticksFor = new Map<string, Chord[]>();
 
   const state = () => d.store.state;
   const show = (): Show | null => state().show;
 
+  const selectedClip = (): Clip | null => { const st = state(); return st.show?.clips.find((c) => c.id === st.selected.clip) ?? null; };
+
   const syncBar = () => {
-    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === prefs.mode)));
     snapBtn.setAttribute('aria-pressed', String(prefs.snap));
     drawBtn.setAttribute('aria-pressed', String(prefs.draw));
     bigBtn.setAttribute('aria-pressed', String(prefs.big));
     root.classList.toggle('big', prefs.big);
     root.classList.toggle('drawing', prefs.draw);
     floorIn.value = String(prefs.floor); floorOut.textContent = pct(prefs.floor);
-    const s = state(), sec = s.show?.sections[s.selected.section];
-    const open = s.selected.layer !== null && !!sec?.layers[s.selected.layer];
-    const run = open ? piecesOf(s.selected.layer!).length : 0;
-    hint.textContent = !sec?.layers.length ? '' : !open ? 'Click a lane to shape its intensity'
+    const open = !!selectedClip();
+    hint.textContent = !open ? 'Select a clip to shape its intensity'
       : prefs.draw ? 'Drag across the lane to draw the curve'
-      : prefs.mode === 'show' && run > 1 ? `Shapes stretch over the ${run} sections it plays in a row`
       : 'Click to add · drag · Shift: fine · double-click: delete';
-    drawShapes(open && !s.ui.recording);
+    drawShapes(open && !state().ui.recording);
   };
-  root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => {
-    prefs.mode = b.dataset.mode as Mode; savePrefs(); builtKey = ''; update(state());
-  }));
   snapBtn.addEventListener('click', () => { prefs.snap = !prefs.snap; savePrefs(); syncBar(); draw(); });
   drawBtn.addEventListener('click', () => { prefs.draw = !prefs.draw; savePrefs(); syncBar(); });
   bigBtn.addEventListener('click', () => { prefs.big = !prefs.big; savePrefs(); syncBar(); });
@@ -280,31 +269,20 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   });
   floorIn.addEventListener('change', () => { savePrefs(); floorGroup = `intensity:floor:${++gesture}`; });
 
-  // ---- what each lane covers ----
+  // ---- what the lane covers ----
 
-  /** The pieces of the lane of layer k of the selected section: that layer alone, or in Whole show the run of
-      consecutive sections around it that have the same instance. */
-  const piecesOf = (k: number): Piece[] => {
-    const sh = show(), i = state().selected.section, sec = sh?.sections[i], l = sec?.layers[k];
-    if (!sh || !sec || !l) return [];
-    const piece = (j: number, layer: number): Piece => ({ section: j, layer, span: { start: sh.sections[j].start, end: sh.sections[j].end },
-      pivots: (sh.sections[j].layers[layer].intensity ?? []).map((p) => ({ ...p })) });
-    if (prefs.mode === 'section') return [piece(i, k)];
-    const key = instanceKey(l), at = (j: number) => sh.sections[j]?.layers.findIndex((x) => instanceKey(x) === key) ?? -1;
-    let a = i, b = i;
-    while (a > 0 && at(a - 1) >= 0) a--;
-    while (b + 1 < sh.sections.length && at(b + 1) >= 0) b++;
-    const out: Piece[] = [];
-    for (let j = a; j <= b; j++) out.push(piece(j, at(j)));
-    return out;
+  /** The selected clip's part: its span and a copy of its pivots. */
+  const pieceOf = (): Piece | null => {
+    const c = selectedClip();
+    return c ? { clip: c.id, span: { start: c.start, end: c.end }, pivots: (c.intensity ?? []).map((p) => ({ ...p })) } : null;
   };
 
   const geo = (v: LaneView): Geo => {
-    const sh = show()!, sec = sh.sections[state().selected.section];
-    // Whole show: the timeline's view. This section: the section, or the part of it the timeline is zoomed to.
-    const z = d.view(), oa = Math.max(sec.start, z.a), ob = Math.min(sec.end, z.b);
-    const [a, b] = prefs.mode === 'show' ? [z.a, z.b] : ob - oa >= 2 ? [oa, ob] : [sec.start, sec.end];
-    const W = Math.max(1, v.cv.clientWidth), H = Math.max(1, v.cv.clientHeight), pad = v.open ? 8 : 3;
+    const c = selectedClip() ?? { start: 0, end: 1 };
+    // The clip, or the part of it the timeline is zoomed to.
+    const z = d.view(), oa = Math.max(c.start, z.a), ob = Math.min(c.end, z.b);
+    const [a, b] = ob - oa >= 2 ? [oa, ob] : [c.start, c.end];
+    const W = Math.max(1, v.cv.clientWidth), H = Math.max(1, v.cv.clientHeight), pad = 8;
     const span = b - a || 1;
     return {
       a, b, W, H, pad,
@@ -317,18 +295,11 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
   let floorGroup = 'intensity:floor:0', chipsKey = '';
   const beatGap = (): number => { const b = d.song.beats, g = median(b.slice(1).map((x, i) => x - b[i])); return g > 0 ? g : 0.5; };
-  /** What a shape's span is on the open layer: its section, or in Whole show its whole run. */
-  const targetPieces = (): Piece[] => {
-    const s = state(), k = s.selected.layer;
-    if (k === null) return [];
-    const ps = piecesOf(k);
-    return prefs.mode === 'show' ? ps : ps.filter((p) => p.section === s.selected.section);
-  };
-  const openKey = () => { const s = state(), l = s.show?.sections[s.selected.section]?.layers[s.selected.layer ?? -1]; return l ? `${s.selected.section}:${instanceKey(l)}:${prefs.mode}` : ''; };
-  const curveKey = () => JSON.stringify(targetPieces().map((p) => p.pivots));
+  const openKey = () => selectedClip()?.id ?? '';
+  const curveKey = () => JSON.stringify(selectedClip()?.intensity ?? []);
 
   const shapes = (): ShapeChip[] => {
-    const P = L.presets, s = state(), l = s.show?.sections[s.selected.section]?.layers[s.selected.layer ?? -1], beats = d.song.beats, gap = beatGap();
+    const P = L.presets, l = selectedClip(), beats = d.song.beats, gap = beatGap();
     const fade = (span: Span) => Math.min(span.end - span.start, 4 * gap);
     const chips: ShapeChip[] = [
       { id: 'in', label: 'Fade in', menu: 'Fade in', note: `over 4 beats (${(4 * gap).toFixed(1)} s)`, icon: ICONS.in, make: (sp, floor) => P.fadeIn(sp, fade(sp), { floor }) },
@@ -356,15 +327,13 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     return chips;
   };
 
-  /** The whole span's curve, cut per section; one undo step. */
+  /** The curve over the clip's span; one undo step. */
   const putShape = (id: string, group?: string) => {
-    const chip = shapes().find((c) => c.id === id), pieces = targetPieces();
-    if (!chip || !pieces.length) return;
-    const span = { start: pieces[0].span.start, end: pieces[pieces.length - 1].span.end };
-    const piv = chip.make(span, prefs.floor).map((p) => ({ ...p, t: ms(p.t) }));
-    const g = group ?? `intensity:shape:${++gesture}`;
+    const chip = shapes().find((c) => c.id === id), pc = pieceOf();
+    if (!chip || !pc) return;
+    const piv = chip.make(pc.span, prefs.floor).map((p) => ({ ...p, t: ms(p.t) }));
     selected = null;
-    for (const pc of pieces) commit(pc, sliceCurve(piv, pc.span, (t) => L.automationAt(piv, t)), g);
+    commit(pc, sliceCurve(piv, pc.span, (t) => L.automationAt(piv, t)), group ?? `intensity:shape:${++gesture}`);
     lastShape = { id, at: openKey(), wrote: curveKey() };
     syncBar();
     draw();
@@ -383,9 +352,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const chipOf = (e: Event) => (e.target as Element).closest<HTMLButtonElement>('[data-shape]');
   strip.addEventListener('click', (e) => { const b = chipOf(e); if (b) { ghost = null; putShape(b.dataset.shape!); } });
   strip.addEventListener('pointerover', (e) => {
-    const b = chipOf(e), chip = b && !b.disabled ? shapes().find((c) => c.id === b.dataset.shape) : null, pieces = targetPieces();
-    if (!chip || !pieces.length) return;
-    ghost = chip.make({ start: pieces[0].span.start, end: pieces[pieces.length - 1].span.end }, prefs.floor);
+    const b = chipOf(e), chip = b && !b.disabled ? shapes().find((c) => c.id === b.dataset.shape) : null, pc = pieceOf();
+    if (!chip || !pc) return;
+    ghost = chip.make(pc.span, prefs.floor);
     draw();
   });
   strip.addEventListener('pointerout', (e) => { if (chipOf(e)) { ghost = null; draw(); } });
@@ -403,38 +372,30 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
   // ---- building and drawing ----
 
-  const build = (s: StudioState) => {
+  const build = (c: Clip | null) => {
     list.textContent = '';
-    views = [];
-    const sec = s.show?.sections[s.selected.section];
-    if (!sec || !sec.layers.length) {
-      list.innerHTML = '<p class="lanes-empty">No widgets in this section: nothing to automate.</p>';
+    view = null;
+    if (!c) {
+      list.innerHTML = '<p class="lanes-empty">No clip selected: click one to shape its intensity.</p>';
       return;
     }
-    for (let k = sec.layers.length - 1; k >= 0; k--) {
-      const l: Layer = sec.layers[k], open = s.selected.layer === k;
-      const el = document.createElement('div');
-      el.className = `lane${open ? ' open' : ''}`;
-      el.style.setProperty('--hue', String(d.hue(l.widget)));
-      const name = d.names(l.widget) + (l.listen && l.listen !== 'all' ? ` · ${listenWord(l.listen)}` : '');
-      el.innerHTML = `<canvas></canvas><span class="lane-name"></span>`;
-      el.querySelector('.lane-name')!.textContent = name;
-      const cv = el.querySelector('canvas')!;
-      if (open) {
-        cv.tabIndex = 0;
-        cv.setAttribute('role', 'application');
-        cv.setAttribute('aria-label', `${name}: intensity curve. Click to add a pivot, drag to move it, Delete to remove the selected one, arrows up and down to change it.`);
-      } else {
-        el.title = `${name}: click to edit its intensity`;
-      }
-      const v: LaneView = { key: instanceKey(l), layer: k, widget: l.widget, listen: l.listen, open, el, cv };
-      wire(v);
-      list.append(el);
-      views.push(v);
-    }
+    const el = document.createElement('div');
+    el.className = 'lane open';
+    el.style.setProperty('--hue', String(d.hue(c.widget)));
+    const name = d.names(c.widget) + (c.listen && c.listen !== 'all' ? ` · ${listenWord(c.listen)}` : '');
+    el.innerHTML = `<canvas></canvas><span class="lane-name"></span>`;
+    el.querySelector('.lane-name')!.textContent = name;
+    const cv = el.querySelector('canvas')!;
+    cv.tabIndex = 0;
+    cv.setAttribute('role', 'application');
+    cv.setAttribute('aria-label', `${name}: intensity curve. Click to add a pivot, drag to move it, Delete to remove the selected one, arrows up and down to change it.`);
+    const v: LaneView = { clip: c.id, widget: c.widget, listen: c.listen, el, cv };
+    wire(v);
+    list.append(el);
+    view = v;
   };
 
-  const draw = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; for (const v of views) drawLane(v); placeHead(); }); };
+  const draw = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (view) drawLane(view); placeHead(); }); };
 
   const drawLane = (v: LaneView) => {
     const cv = v.cv, dpr = window.devicePixelRatio || 1;
@@ -442,109 +403,95 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     const g = cv.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const G = geo(v), hue = d.hue(v.widget), pieces = piecesOf(v.layer);
-    if (!pieces.length) return;
-    const px0 = Math.max(0, Math.floor(G.x(pieces[0].span.start))), px1 = Math.min(w, Math.ceil(G.x(pieces[pieces.length - 1].span.end)));
+    const G = geo(v), hue = d.hue(v.widget), pc = pieceOf();
+    if (!pc) return;
+    const px0 = Math.max(0, Math.floor(G.x(pc.span.start))), px1 = Math.min(w, Math.ceil(G.x(pc.span.end)));
 
-    // Outside the instance's run (Whole show): dimmed, nothing to edit there.
-    if (prefs.mode === 'show') {
-      g.fillStyle = '#00000080';
-      g.fillRect(0, 0, px0, h); g.fillRect(px1, 0, w - px1, h);
+    // The loudness, faint, from the bottom.
+    const lo = d.song.loudness, hop = lo.hop;
+    g.fillStyle = '#e9e2da12';
+    g.beginPath(); g.moveTo(0, h);
+    for (let x = 0; x <= w; x++) {
+      const t0 = G.t(x), t1 = G.t(x + 1);
+      let m = 0;
+      for (let i = Math.max(0, Math.floor(t0 / hop)); i <= Math.min(lo.values.length - 1, Math.floor(t1 / hop)); i++) m = Math.max(m, lo.values[i]);
+      g.lineTo(x, h - m * (h - G.pad) * 0.9);
     }
-    if (v.open) {
-      // The loudness, faint, from the bottom.
-      const lo = d.song.loudness, hop = lo.hop;
-      g.fillStyle = '#e9e2da12';
-      g.beginPath(); g.moveTo(0, h);
-      for (let x = 0; x <= w; x++) {
-        const t0 = G.t(x), t1 = G.t(x + 1);
-        let m = 0;
-        for (let i = Math.max(0, Math.floor(t0 / hop)); i <= Math.min(lo.values.length - 1, Math.floor(t1 / hop)); i++) m = Math.max(m, lo.values[i]);
-        g.lineTo(x, h - m * (h - G.pad) * 0.9);
+    g.lineTo(w, h); g.closePath(); g.fill();
+    // The beats, while Snap is on and they are not too dense to see.
+    if (prefs.snap) {
+      const beats = d.song.beats, gap = median(beats.slice(1).map((b, i) => b - beats[i]));
+      if (gap > 0 && G.x(G.a + gap) - G.x(G.a) >= 5) {
+        g.fillStyle = '#e9e2da14';
+        for (const b of beats) { if (b < G.a || b > G.b) continue; g.fillRect(Math.round(G.x(b)), 0, 1, h); }
       }
-      g.lineTo(w, h); g.closePath(); g.fill();
-      // The beats, while Snap is on and they are not too dense to see.
-      if (prefs.snap) {
-        const beats = d.song.beats, gap = median(beats.slice(1).map((b, i) => b - beats[i]));
-        if (gap > 0 && G.x(G.a + gap) - G.x(G.a) >= 5) {
-          g.fillStyle = '#e9e2da14';
-          for (const b of beats) { if (b < G.a || b > G.b) continue; g.fillRect(Math.round(G.x(b)), 0, 1, h); }
-        }
-      }
-      // The attacks of the part it listens to.
-      g.fillStyle = `hsl(${hue} 30% 80%)`;
-      const onPicks = picksId(v.listen) !== null;   // sparse, so stronger and taller
-      for (const ch of ticks(v.listen)) {
-        if (ch.t < G.a || ch.t > G.b) continue;
-        const tall = onPicks ? h - 4 : 5 * Math.min(1, 0.4 + ch.notes.length / 6);
-        g.globalAlpha = onPicks ? 0.9 : 0.15 + 0.5 * Math.min(1, ch.vel / 127) ** 2;
-        g.fillRect(Math.round(G.x(ch.t)), h - 2 - tall, 1, tall);
-      }
-      g.globalAlpha = 1;
-      // The 0 and 1 lines.
-      g.fillStyle = '#e9e2da10';
-      g.fillRect(px0, Math.round(G.y(1)), px1 - px0, 1); g.fillRect(px0, Math.round(G.y(0)), px1 - px0, 1);
     }
+    // The attacks of the part it listens to.
+    g.fillStyle = `hsl(${hue} 30% 80%)`;
+    const onPicks = picksId(v.listen) !== null;   // sparse, so stronger and taller
+    for (const ch of ticks(v.listen)) {
+      if (ch.t < G.a || ch.t > G.b) continue;
+      const tall = onPicks ? h - 4 : 5 * Math.min(1, 0.4 + ch.notes.length / 6);
+      g.globalAlpha = onPicks ? 0.9 : 0.15 + 0.5 * Math.min(1, ch.vel / 127) ** 2;
+      g.fillRect(Math.round(G.x(ch.t)), h - 2 - tall, 1, tall);
+    }
+    g.globalAlpha = 1;
+    // The 0 and 1 lines.
+    g.fillStyle = '#e9e2da10';
+    g.fillRect(px0, Math.round(G.y(1)), px1 - px0, 1); g.fillRect(px0, Math.round(G.y(0)), px1 - px0, 1);
 
-    // Each piece's curve: sampled per pixel through the shared automationAt, with the pivots' own times so steps
-    // and corners are exact.
-    for (const pc of pieces) {
-      const xa = G.x(pc.span.start), xb = G.x(pc.span.end);
-      if (prefs.mode === 'show' && pc.span.start > G.a) { g.fillStyle = '#e9e2da30'; g.fillRect(Math.round(xa), 0, 1, h); }
-      const curve = (t: number) => L.automationAt(pc.pivots, t);
-      const ts: number[] = [];
-      for (let x = Math.max(-1, Math.floor(xa)); x <= Math.min(w + 1, Math.ceil(xb)); x++) ts.push(clamp(G.t(x), pc.span.start, pc.span.end));
-      for (const p of pc.pivots) { ts.push(p.t); if (p.t - 1e-6 > pc.span.start) ts.push(p.t - 1e-6); }
-      ts.sort((p, q) => p - q);
-      const none = !pc.pivots.length;
+    // The curve: sampled per pixel through the shared automationAt, with the pivots' own times so steps and corners are exact.
+    const xa = G.x(pc.span.start), xb = G.x(pc.span.end);
+    const curve = (t: number) => L.automationAt(pc.pivots, t);
+    const ts: number[] = [];
+    for (let x = Math.max(-1, Math.floor(xa)); x <= Math.min(w + 1, Math.ceil(xb)); x++) ts.push(clamp(G.t(x), pc.span.start, pc.span.end));
+    for (const p of pc.pivots) { ts.push(p.t); if (p.t - 1e-6 > pc.span.start) ts.push(p.t - 1e-6); }
+    ts.sort((p, q) => p - q);
+    const none = !pc.pivots.length;
+    g.beginPath();
+    ts.forEach((t, i) => { const X = G.x(t), Y = G.y(curve(t)); if (i) g.lineTo(X, Y); else g.moveTo(X, Y); });
+    if (!none) {
+      g.lineTo(G.x(ts[ts.length - 1]), G.y(0)); g.lineTo(G.x(ts[0]), G.y(0)); g.closePath();
+      g.fillStyle = `hsl(${hue} 55% 50% / 0.2)`; g.fill();
       g.beginPath();
       ts.forEach((t, i) => { const X = G.x(t), Y = G.y(curve(t)); if (i) g.lineTo(X, Y); else g.moveTo(X, Y); });
-      if (!none) {
-        g.lineTo(G.x(ts[ts.length - 1]), G.y(0)); g.lineTo(G.x(ts[0]), G.y(0)); g.closePath();
-        g.fillStyle = `hsl(${hue} 55% 50% / ${v.open ? 0.2 : 0.28})`; g.fill();
-        g.beginPath();
-        ts.forEach((t, i) => { const X = G.x(t), Y = G.y(curve(t)); if (i) g.lineTo(X, Y); else g.moveTo(X, Y); });
-      }
-      g.setLineDash(none ? [3, 4] : []);
-      g.lineWidth = v.open ? 1.75 : 1.25; g.lineJoin = 'round';
-      g.strokeStyle = none ? `hsl(${hue} 25% 60% / 0.6)` : `hsl(${hue} 70% 66%)`;
-      g.stroke(); g.setLineDash([]);
-      if (!v.open) continue;
-      // The hovered or dragged segment, brighter.
-      const seg = drag && drag.kind !== 'pivot' && drag.piece.section === pc.section ? drag.index
-        : hover && hover.lane === v.layer && hover.target?.piece.section === pc.section && hover.target.hit.kind === 'segment' ? hover.target.hit.index : -1;
-      if (seg >= 0 && pc.pivots[seg + 1]) {
-        const p = pc.pivots[seg], q = pc.pivots[seg + 1];
-        g.beginPath();
-        if (p.shape === 'hold') { g.moveTo(G.x(p.t), G.y(p.v)); g.lineTo(G.x(q.t), G.y(p.v)); g.lineTo(G.x(q.t), G.y(q.v)); }
-        else for (let k = 0; k <= SAMPLES; k++) {
-          const t = k === SAMPLES ? q.t : p.t + ((q.t - p.t) * k) / SAMPLES, X = G.x(t), Y = G.y(k === SAMPLES ? q.v : curve(t));
-          if (k) g.lineTo(X, Y); else g.moveTo(X, Y);
-        }
-        g.lineWidth = 3.5; g.strokeStyle = `hsl(${hue} 80% 78% / 0.55)`; g.stroke();
-      }
-      // The pivots.
-      pc.pivots.forEach((p, i) => {
-        const on = !!selected && selected.section === pc.section && selected.layer === pc.layer && selected.index === i;
-        const hot = (drag?.kind === 'pivot' && drag.piece.section === pc.section && drag.index === i)
-          || (hover?.lane === v.layer && hover.target?.piece.section === pc.section && hover.target.hit.kind === 'pivot' && hover.target.hit.index === i);
-        g.beginPath(); g.arc(G.x(p.t), G.y(p.v), hot ? 5.5 : 4.25, 0, Math.PI * 2);
-        g.fillStyle = on ? '#fff6ee' : hot ? `hsl(${hue} 80% 76%)` : '#120d10';
-        g.fill();
-        g.lineWidth = 1.75; g.strokeStyle = on ? `hsl(${hue} 80% 70%)` : `hsl(${hue} 75% 70%)`; g.stroke();
-      });
     }
-    if (v.open) drawOverlay(g, G, hue);
+    g.setLineDash(none ? [3, 4] : []);
+    g.lineWidth = 1.75; g.lineJoin = 'round';
+    g.strokeStyle = none ? `hsl(${hue} 25% 60% / 0.6)` : `hsl(${hue} 70% 66%)`;
+    g.stroke(); g.setLineDash([]);
+    // The hovered or dragged segment, brighter.
+    const seg = drag && drag.kind !== 'pivot' ? drag.index : hover?.hit.kind === 'segment' ? hover.hit.index : -1;
+    if (seg >= 0 && pc.pivots[seg + 1]) {
+      const p = pc.pivots[seg], q = pc.pivots[seg + 1];
+      g.beginPath();
+      if (p.shape === 'hold') { g.moveTo(G.x(p.t), G.y(p.v)); g.lineTo(G.x(q.t), G.y(p.v)); g.lineTo(G.x(q.t), G.y(q.v)); }
+      else for (let k = 0; k <= SAMPLES; k++) {
+        const t = k === SAMPLES ? q.t : p.t + ((q.t - p.t) * k) / SAMPLES, X = G.x(t), Y = G.y(k === SAMPLES ? q.v : curve(t));
+        if (k) g.lineTo(X, Y); else g.moveTo(X, Y);
+      }
+      g.lineWidth = 3.5; g.strokeStyle = `hsl(${hue} 80% 78% / 0.55)`; g.stroke();
+    }
+    // The pivots.
+    pc.pivots.forEach((p, i) => {
+      const on = selected?.clip === pc.clip && selected.index === i;
+      const hot = (drag?.kind === 'pivot' && drag.index === i) || (hover?.hit.kind === 'pivot' && hover.hit.index === i);
+      g.beginPath(); g.arc(G.x(p.t), G.y(p.v), hot ? 5.5 : 4.25, 0, Math.PI * 2);
+      g.fillStyle = on ? '#fff6ee' : hot ? `hsl(${hue} 80% 76%)` : '#120d10';
+      g.fill();
+      g.lineWidth = 1.75; g.strokeStyle = on ? `hsl(${hue} 80% 70%)` : `hsl(${hue} 75% 70%)`; g.stroke();
+    });
+    drawOverlay(g, G, hue);
   };
 
-  /** A line over the open lane: the shape under the pointer, or the line being drawn. */
+  /** A line over the lane: the shape under the pointer, or the line being drawn. */
   const drawOverlay = (g: CanvasRenderingContext2D, G: Geo, hue: number) => {
     const line = pen?.pts ?? null;
     if (!ghost && !line) return;
     g.beginPath();
     if (line) line.forEach((p, i) => { if (i) g.lineTo(G.x(p.t), G.y(p.v)); else g.moveTo(G.x(p.t), G.y(p.v)); });
     else {
-      const pv = ghost!, t0 = pv.length ? targetPieces()[0]?.span.start ?? G.a : G.a, t1 = pv.length ? targetPieces().at(-1)?.span.end ?? G.b : G.b;
+      const pv = ghost!, span = pieceOf()?.span, t0 = pv.length ? span?.start ?? G.a : G.a, t1 = pv.length ? span?.end ?? G.b : G.b;
       const xa = Math.max(0, Math.floor(G.x(t0))), xb = Math.min(G.W, Math.ceil(G.x(t1)));
       for (let x = xa; x <= xb; x++) { const Y = G.y(L.automationAt(pv, clamp(G.t(x), t0, t1))); if (x > xa) g.lineTo(x, Y); else g.moveTo(x, Y); }
     }
@@ -552,26 +499,22 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     g.stroke(); g.setLineDash([]);
   };
 
-  /** The drawn line becomes the curve where it went, in each section it crossed; the curve around it stays. One undo step. */
+  /** The drawn line becomes the curve where it went; the curve around it stays. One undo step. */
   const endStroke = (v: LaneView) => {
     const st = pen; pen = null;
     if (!st || !st.pts.length) { draw(); return; }
-    const G = geo(v), max = L.MAX_PIVOTS - 2;
+    const G = geo(v), max = L.MAX_PIVOTS - 2, pc = st.piece;
     let eps = 2, line = simplifyStroke(st.pts, G.x, G.y, eps);
     while (line.length > max) { eps *= 1.5; line = simplifyStroke(st.pts, G.x, G.y, eps); }
-    const t0 = line[0].t, t1 = line[line.length - 1].t, group = `intensity:draw:${++gesture}`, at = (t: number) => L.automationAt(line, t);
+    const t0 = line[0].t, t1 = line[line.length - 1].t;
     selected = null;
-    for (const pc of st.pieces) {
-      if (pc.span.end < t0 || pc.span.start > t1) continue;
-      const here = line.length === 1 ? line : sliceCurve(line, { start: Math.max(pc.span.start, t0), end: Math.min(pc.span.end, t1) }, at);
-      const old = fresh(pc), piv = [...old.filter((p) => p.t < t0 - 5e-4), ...here, ...old.filter((p) => p.t > t1 + 5e-4)];
-      commit(pc, piv.slice(0, L.MAX_PIVOTS), group);
-    }
+    const old = fresh(pc), piv = [...old.filter((p) => p.t < t0 - 5e-4), ...line, ...old.filter((p) => p.t > t1 + 5e-4)];
+    commit(pc, piv.slice(0, L.MAX_PIVOTS), `intensity:draw:${++gesture}`);
     update(state());
   };
 
   const placeHead = () => {
-    const v = views[0];
+    const v = view;
     if (!v || !show()) { head.hidden = true; return; }
     const G = geo(v), x = G.x(now);
     head.hidden = !(now >= G.a && now <= G.b);
@@ -580,19 +523,18 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
   // ---- editing ----
 
-  const sel = () => state().selected;
   const commit = (pc: Piece, pivots: Pivot[], group: string) => {
-    const cur = show()?.sections[pc.section]?.layers[pc.layer]?.intensity;
+    const cur = show()?.clips.find((c) => c.id === pc.clip)?.intensity;
     if (samePivots(cur, pivots)) return;
-    d.store.dispatch({ type: 'edit', edit: { kind: 'setLayer', section: pc.section, layer: pc.layer, patch: { intensity: pivots.length ? pivots : null } }, group });
+    d.store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: pc.clip, patch: { intensity: pivots.length ? pivots : null } }, group });
   };
-  const fresh = (pc: Piece): Pivot[] => (show()?.sections[pc.section]?.layers[pc.layer]?.intensity ?? []).map((p) => ({ ...p }));
+  const fresh = (pc: Piece): Pivot[] => (show()?.clips.find((c) => c.id === pc.clip)?.intensity ?? []).map((p) => ({ ...p }));
   const removePivot = (pc: Piece, i: number) => {
     const piv = fresh(pc);
     if (!piv[i]) return;
     piv.splice(i, 1);
     selected = null;
-    commit(pc, piv, `intensity:${pc.section}:${pc.layer}:del:${++gesture}`);
+    commit(pc, piv, `intensity:${pc.clip}:del:${++gesture}`);
     hideTip();
   };
   const setShape = (pc: Piece, i: number, shape: Shape | 'straight') => {
@@ -600,22 +542,14 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     if (!p) return;
     if (shape === 'straight') delete p.bend;
     else { if (shape === 'linear') delete p.shape; else p.shape = shape; if (shape !== 'linear') delete p.bend; }
-    commit(pc, piv, `intensity:${pc.section}:${pc.layer}:shape:${++gesture}`);
+    commit(pc, piv, `intensity:${pc.clip}:shape:${++gesture}`);
   };
 
-  const targetAt = (v: LaneView, px: number, py: number): { G: Geo; pieces: Piece[]; target: Target; inside: Piece | null } => {
-    const G = geo(v), pieces = piecesOf(v.layer);
-    let target: Target = null;
-    for (const pc of pieces) {
-      if (px < G.x(pc.span.start) - PIVOT_R || px > G.x(pc.span.end) + PIVOT_R) continue;
-      const hit = hitTest(pc.pivots, G.x, G.y, px, py, (t) => L.automationAt(pc.pivots, t));
-      if (hit.kind !== 'empty') { target = { piece: pc, hit }; break; }
-    }
-    const t = G.t(px);
-    const inside = pieces.find((pc) => t >= pc.span.start && t <= pc.span.end)
-      ?? (pieces.length && t < pieces[0].span.start && t > pieces[0].span.start - (G.b - G.a) * (PIVOT_R / G.W) ? pieces[0] : null);
-    if (!target && inside) target = { piece: inside, hit: { kind: 'empty' } };
-    return { G, pieces, target, inside };
+  /** What the pointer is over in the lane: a pivot, a segment or empty space in the clip; null outside the clip. */
+  const targetAt = (v: LaneView, px: number, py: number): { G: Geo; target: Target } => {
+    const G = geo(v), pc = pieceOf();
+    if (!pc || px < G.x(pc.span.start) - PIVOT_R || px > G.x(pc.span.end) + PIVOT_R) return { G, target: null };
+    return { G, target: { piece: pc, hit: hitTest(pc.pivots, G.x, G.y, px, py, (t) => L.automationAt(pc.pivots, t)) } };
   };
 
   const showTip = (v: LaneView, x: number, text: string) => {
@@ -632,39 +566,26 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     const cv = v.cv;
     const local = (e: MouseEvent) => { const r = cv.getBoundingClientRect(); return { px: e.clientX - r.left, py: e.clientY - r.top }; };
 
-    if (!v.open) {
-      cv.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0) return;
-        d.store.dispatch({ type: 'select', section: sel().section, layer: v.layer });
-      });
-      cv.addEventListener('pointermove', (e) => {
-        const { px } = local(e), G = geo(v), t = G.t(px), pc = piecesOf(v.layer).find((p) => t >= p.span.start && t <= p.span.end);
-        if (pc) showTip(v, px, `${stamp(t)} · ${pct(L.automationAt(pc.pivots, t))}`); else hideTip();
-      });
-      cv.addEventListener('pointerleave', hideTip);
-      return;
-    }
-
     cv.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || state().ui.recording) return;
       closeMenu();
-      const { px, py } = local(e), { G, target, pieces } = targetAt(v, px, py);
+      const { px, py } = local(e), { G, target } = targetAt(v, px, py);
       if (prefs.draw) {
         if (!target) return;
         e.preventDefault(); cv.focus({ preventScroll: true });
-        pen = { pts: [{ t: ms(G.t(px)), v: clamp(G.v(py), 0, 1) }], pieces };
+        pen = { pts: [{ t: ms(G.t(px)), v: clamp(G.v(py), 0, 1) }], piece: target.piece };
         cv.setPointerCapture(e.pointerId);
         draw();
         return;
       }
       if (!target) return;
       e.preventDefault(); cv.focus({ preventScroll: true });
-      const pc = target.piece, group = `intensity:${pc.section}:${pc.layer}:${++gesture}`;
+      const pc = target.piece, group = `intensity:${pc.clip}:${++gesture}`;
       const base = { piece: pc, group, moved: false, px: e.clientX, py: e.clientY, fine: e.shiftKey, bend0: 0 };
       if (target.hit.kind === 'pivot') {
         const p = pc.pivots[target.hit.index];
         drag = { ...base, kind: 'pivot', index: target.hit.index, t0: p.t, v0: p.v, t: p.t, v: p.v };
-        selected = { section: pc.section, layer: pc.layer, index: target.hit.index };
+        selected = { clip: pc.clip, index: target.hit.index };
       } else if (target.hit.kind === 'segment') {
         const i = target.hit.index, p = pc.pivots[i], q = pc.pivots[i + 1];
         if (p.shape === 'hold' || Math.abs(p.v - q.v) < 1e-3) drag = { ...base, kind: 'level', index: i, t0: p.t, v0: p.v, t: p.t, v: p.v };
@@ -673,12 +594,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
         // A new pivot where the pointer is, on the curve's line of pivots; the button still down drags it.
         const t = snapTime(G.t(px), snapOpts(pc, e)), val = Math.round(clamp(G.v(py), 0, 1) * 1000) / 1000;
         const added = addPivot(fresh(pc), t, val, L.MAX_PIVOTS);
-        if (!added) { showTip(v, px, `${L.MAX_PIVOTS} pivots: the most a layer takes in a section`); return; }
+        if (!added) { showTip(v, px, `${L.MAX_PIVOTS} pivots: the most a clip takes`); return; }
         const piv = added.pivots, at = added.index;
         commit(pc, piv, group);
         pc.pivots = piv;
         drag = { ...base, kind: 'pivot', index: at, t0: t, v0: val, t, v: val, moved: true };
-        selected = { section: pc.section, layer: pc.layer, index: at };
+        selected = { clip: pc.clip, index: at };
         showTip(v, px, `${stamp(t)} · ${pct(val)}`);
       }
       cv.setPointerCapture(e.pointerId);
@@ -689,7 +610,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     cv.addEventListener('pointermove', (e) => {
       const { px, py } = local(e);
       if (pen) {
-        const G = geo(v), first = pen.pieces[0].span.start, last = pen.pieces[pen.pieces.length - 1].span.end;
+        const G = geo(v), first = pen.piece.span.start, last = pen.piece.span.end;
         const t = clamp(G.t(px), first, last), pts = pen.pts;
         while (pts.length && pts[pts.length - 1].t >= t) pts.pop();   // going back rubs out
         pts.push({ t, v: clamp(G.v(py), 0, 1) });
@@ -700,7 +621,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       if (!drag && prefs.draw) { cv.style.cursor = 'crosshair'; return; }
       if (!drag) {
         const { target, G } = targetAt(v, px, py);
-        hover = { lane: v.layer, target };
+        hover = target;
         cv.style.cursor = !target ? 'not-allowed' : target.hit.kind === 'pivot' ? 'grab' : target.hit.kind === 'segment' ? 'ns-resize' : 'crosshair';
         if (!target) { hideTip(); draw(); return; }
         const pc = target.piece, h = target.hit;
@@ -783,18 +704,18 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     });
 
     cv.addEventListener('keydown', (e) => {
-      // Delete in a focused lane is about pivots: it never falls through to the studio's "remove the layer".
+      // Delete in a focused lane is about pivots: it never falls through to the studio's "remove the clip".
       if (e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
       const s = selected;
       if (!s) return;
-      const pc = piecesOf(v.layer).find((p) => p.section === s.section && p.layer === s.layer);
-      if (!pc || !pc.pivots[s.index]) return;
+      const pc = pieceOf();
+      if (!pc || pc.clip !== s.clip || !pc.pivots[s.index]) return;
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removePivot(pc, s.index); return; }
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const piv = fresh(pc), p = piv[s.index], step = (e.shiftKey ? 0.1 : 0.01) * (e.key === 'ArrowUp' ? 1 : -1);
         p.v = Math.round(clamp(p.v + step, 0, 1) * 1000) / 1000;
-        const at = `${pc.section}:${pc.layer}:${s.index}`;
+        const at = `${pc.clip}:${s.index}`;
         if (!nudge || nudge.at !== at) nudge = { at, group: `intensity:${at}:key:${++gesture}` };
         commit(pc, piv, nudge.group);
         showTip(v, geo(v).x(p.t), `${stamp(p.t)} · ${pct(p.v)}`);
@@ -853,17 +774,14 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   function update(s: StudioState): void {
     syncBar();
     if (!s.show) return;
-    const sec = s.show.sections[s.selected.section];
-    const key = JSON.stringify([prefs.mode, s.selected.section, s.selected.layer, sec?.layers.map((l) => instanceKey(l)), s.show.sections.length]);
+    const c = selectedClip();
+    const key = JSON.stringify([c?.id ?? null, c?.widget ?? null, c?.listen ?? null]);
     if (key !== builtKey && !drag) {
       builtKey = key; hover = null; hideTip();
-      if (selected && (selected.section !== s.selected.section && prefs.mode === 'section')) selected = null;
-      build(s);
+      if (selected && selected.clip !== c?.id) selected = null;
+      build(c);
     }
-    if (selected) {
-      const p = s.show.sections[selected.section]?.layers[selected.layer]?.intensity;
-      if (!p || !p[selected.index]) selected = null;
-    }
+    if (selected && !c?.intensity?.[selected.index]) selected = null;
     draw();
   }
 
@@ -872,7 +790,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     setTime(t: number) { now = t; placeHead(); },
     redraw: draw,
     timeAt(clientX: number) {
-      const v = views[0];
+      const v = view;
       if (!v) return null;
       const r = v.cv.getBoundingClientRect();
       return geo(v).t(clientX - r.left);

@@ -1,6 +1,6 @@
 /**
  * The studio's state (plan §7): the song, its show, what is selected and saved, the notices. Show edits go through
- * applyEdit and are recorded for undo; the selection is clamped after every change.
+ * applyEdit and are recorded for undo; a selected clip that is gone (a delete, an undo) is no longer selected.
  */
 import type { SongPack } from '../pack/pack';
 import { applyEdit, editGroup, type EditEnv, type ShowEdit } from '../show/edit';
@@ -12,14 +12,16 @@ export interface StudioState {
   library: LibraryEntry[]; song: SongPack | null; show: Show | null;
   /** canonicalShow of the last saved/loaded show; dirty = canonicalShow(show) !== saved */
   saved: string | null;
-  origin: 'file' | 'auto' | 'repaired' | null; selected: { section: number; layer: number | null };
+  origin: 'file' | 'auto' | 'repaired' | null;
+  /** The selected clip's id, or null. */
+  selected: { clip: string | null };
   playing: boolean; time: number; ui: { hidden: boolean; recording: boolean };
   notices: { id: string; level: 'info' | 'warn' | 'error'; text: string }[];
 }
 export type Notice = StudioState['notices'][number];
 
 export type Action = { type: 'edit'; edit: ShowEdit; group?: string } | { type: 'undo' } | { type: 'redo' }
-  | { type: 'select'; section: number; layer?: number | null } | { type: 'saved' }
+  | { type: 'select'; clip: string | null } | { type: 'saved' }
   /** keepUndo: the show before the load stays one undo away (a show reloaded from disk over unsaved edits). */
   | { type: 'loaded'; song: SongPack; show: Show; origin: StudioState['origin']; keepUndo?: boolean }
   | { type: 'notice'; notice: Notice } | { type: 'dismiss'; id: string }
@@ -29,7 +31,7 @@ export const isDirty = (s: StudioState): boolean => !!s.show && canonicalShow(s.
 
 export class Store {
   readonly state: StudioState = {
-    library: [], song: null, show: null, saved: null, origin: null, selected: { section: 0, layer: null },
+    library: [], song: null, show: null, saved: null, origin: null, selected: { clip: null },
     playing: false, time: 0, ui: { hidden: false, recording: false }, notices: [],
   };
   readonly history = new History();
@@ -58,7 +60,7 @@ export class Store {
         s.show = next;
         break;
       }
-      case 'select': s.selected = { section: a.section, layer: a.layer === undefined ? (a.section === s.selected.section ? s.selected.layer : null) : a.layer }; break;
+      case 'select': s.selected = { clip: a.clip }; break;
       case 'saved': if (s.show) s.saved = canonicalShow(s.show); if (s.origin !== 'file') s.origin = 'file'; break;
       case 'loaded':
         if (a.keepUndo && s.show && s.show !== a.show) this.history.record(s.show);
@@ -80,11 +82,7 @@ export class Store {
   subscribe(fn: (s: StudioState) => void): () => void { this.subs.add(fn); return () => this.subs.delete(fn); }
 
   private clamp(): void {
-    const s = this.state, n = s.show?.sections.length ?? 0;
-    const section = Math.max(0, Math.min(n - 1, s.selected.section));
-    const layers = s.show?.sections[section]?.layers.length ?? 0;
-    let layer = s.selected.layer;
-    if (layer !== null) layer = layers ? Math.max(0, Math.min(layers - 1, layer)) : null;
-    if (section !== s.selected.section || layer !== s.selected.layer) s.selected = { section, layer };
+    const s = this.state;
+    if (s.selected.clip !== null && !s.show?.clips.some((c) => c.id === s.selected.clip)) s.selected = { clip: null };
   }
 }

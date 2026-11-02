@@ -6,7 +6,7 @@
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { canonicalMelody, LEAVING_MAX, matchMarks, type Mark, type Melody } from '../show/melody';
-import { instanceKey, picksId, picksListen, validateShow, type KnobSetting, type Layer, type Show } from '../show/show';
+import { instanceKey, picksId, picksListen, validateShow, type Clip, type KnobSetting, type Layer, type Show } from '../show/show';
 import { groupChords } from '../../widgets/chords';
 import type { WaLayers } from '../../widgets/layers';
 import type { Note } from '../../widgets/types';
@@ -250,7 +250,7 @@ export function undoWords(changed: number): string {
 }
 
 /** The preview's instance, on either side of the compare. */
-export const draftKey = (widget: string, mode: 'pick' | 'all'): string => instanceKey({ widget, ...(mode === 'pick' ? { listen: picksListen('draft') } : {}) });
+export const draftKey = (widget: string, mode: 'pick' | 'all'): string => instanceKey({ id: 'draft', widget, ...(mode === 'pick' ? { listen: picksListen('draft') } : {}) });
 
 /** The recording under ♪: turned down so its tones are heard. The popup's preview plays no tones, so it hears it whole. */
 export const recordingVolume = (hearing: number, popupOpen: boolean): number => (hearing && !popupOpen ? 0.3 : 1);
@@ -313,39 +313,30 @@ export class MarksSaver {
 
 export interface SetRow { id: string; widget: string | null; notes: readonly Note[]; neverHeard: number }
 
-/** A row per set of the show: the widget of its first layer (null when no layer uses it) and how many of its picks lie
-    outside every section using it, which validateShow warns of: a moved boundary can do that. */
+/** A row per set of the show: the widget of its first clip (null when no clip uses it) and how many of its picks lie
+    outside every clip using it, which validateShow warns of: a moved clip can do that. */
 export function setRows(show: Show): SetRow[] {
   const sets = show.picks ?? {}, ids = Object.keys(sets);
   if (!ids.length) return [];
-  const { warnings } = validateShow(show), layers = show.sections.flatMap((s) => s.layers);
+  const { warnings } = validateShow(show);
   return ids.map((id) => ({
     id, notes: sets[id].notes,
-    widget: layers.find((l) => picksId(l.listen) === id)?.widget ?? null,
+    widget: firstClipOf(show, id)?.widget ?? null,
     neverHeard: warnings.filter((w) => w.path.startsWith(`picks.${id}.notes[`)).length,
   }));
 }
 
-/** Where a set's first layer is, in section order. */
-export function firstLayerOf(show: Show, id: string): { section: number; layer: number } | null {
-  for (let section = 0; section < show.sections.length; section++) {
-    const layer = show.sections[section].layers.findIndex((l) => picksId(l.listen) === id);
-    if (layer >= 0) return { section, layer };
-  }
-  return null;
+/** The set's first clip in time: its knobs go to the preview, when the widget stays, and it is what the picker selects. */
+export function firstClipOf(show: Show, id: string): Clip | null {
+  return show.clips.filter((c) => picksId(c.listen) === id).sort((a, b) => a.start - b.start)[0] ?? null;
 }
 
-/** The set's first layer: its knobs go to the preview, when the widget stays. */
-export function firstLayer(show: Show, id: string): Layer | null {
-  const at = firstLayerOf(show, id);
-  return at && show.sections[at.section].layers[at.layer];
-}
-
-/** The preview's show: one section, one layer, of this widget only, the draft set when `notes` is given, else the plain
-    widget on every note. Never validated, never in the store. */
+/** The preview's show: one clip, of this widget only, over the whole song, the draft set when `notes` is given, else the
+    plain widget on every note. It has no fade: the preview is that one widget, at full strength. Never validated, never in
+    the store. */
 export function draftShow(song: string, duration: number, widget: string, notes: readonly Note[] | null, knobs?: Record<string, KnobSetting>): Show {
   const layer: Layer = { widget, ...(notes ? { listen: picksListen('draft') } : {}), ...(knobs ? { knobs } : {}) };
-  return { version: 2, id: 'draft', song, sections: [{ start: 0, end: duration, layers: [layer] }], ...(notes ? { picks: { draft: { notes: [...notes] } } } : {}) };
+  return { version: 3, id: 'draft', song, clips: [{ id: 'draft', start: 0, end: duration, track: 0, fade: 0, ...layer }], ...(notes ? { picks: { draft: { notes: [...notes] } } } : {}) };
 }
 
 /** From a second before the first note to 1.5 s after the last has ended. */

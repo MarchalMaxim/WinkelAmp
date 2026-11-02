@@ -48,9 +48,9 @@ function call(method: string, url: string, body?: string | Buffer, o: { remote?:
 }
 const json = (r: Res) => JSON.parse(r.body.toString('utf8'));
 
-const GOOD: Show = { version: 1, id: 'demo', song: 'demo', sections: [
-  { start: 0, end: 12, label: 'Dread', layers: [{ widget: 'squares' }] },
-  { start: 12, end: 30, fade: 3, layers: [{ widget: 'kandinsky' }, { widget: 'casket', knobs: { cut: 0.4 } }] },
+const GOOD: Show = { version: 3, id: 'demo', song: 'demo', clips: [
+  { id: 'c1', start: 0, end: 12, track: 0, widget: 'squares' },
+  { id: 'c2', start: 12, end: 30, track: 0, fade: 3, widget: 'kandinsky' }, { id: 'c3', start: 12, end: 30, track: 1, widget: 'casket', knobs: { cut: 0.4 } },
 ] };
 
 describe('studio dev API', () => {
@@ -88,11 +88,11 @@ describe('studio dev API', () => {
   });
 
   it('refuses an overlapping show with its errors, an unknown widget, and a show under another id', async () => {
-    const bad = { ...GOOD, sections: [{ ...GOOD.sections[0], end: 15 }, GOOD.sections[1]] };
+    const bad = { ...GOOD, clips: [{ ...GOOD.clips[0], end: 15 }, GOOD.clips[1]] };
     const r = await call('PUT', '/api/shows/demo', JSON.stringify(bad));
     expect(r.status).toBe(400);
     expect(json(r).errors[0].message).toContain('overlap');
-    const w = await call('PUT', '/api/shows/demo', JSON.stringify({ ...GOOD, sections: [{ ...GOOD.sections[0], layers: [{ widget: 'nope' }] }, GOOD.sections[1]] }));
+    const w = await call('PUT', '/api/shows/demo', JSON.stringify({ ...GOOD, clips: [{ ...GOOD.clips[0], widget: 'nope' }, GOOD.clips[1]] }));
     expect(w.status).toBe(400);
     expect((await call('PUT', '/api/shows/demo', JSON.stringify({ ...GOOD, id: 'other' }))).status).toBe(400);
     expect((await call('PUT', '/api/shows/demo', '{oops')).status).toBe(400);

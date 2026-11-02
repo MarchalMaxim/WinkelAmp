@@ -1,25 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canonicalShow, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairShow, usesV2, validateShow,
+  canonicalShow, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairShow, validateShow,
   type Issue, type Show, type ShowContext,
 } from '../src/studio/show/show';
 import type { Note } from '../src/widgets/types';
 
 const base = (): Show => ({
-  version: 1, id: 'demo', song: 'demo',
-  sections: [
-    { start: 0, end: 10, layers: [{ widget: 'strings' }] },
-    { start: 10, end: 20, fade: 2, layers: [{ widget: 'squares' }] },
+  version: 3, id: 'demo', song: 'demo',
+  clips: [
+    { id: 'c1', start: 0, end: 10, track: 0, widget: 'strings' },
+    { id: 'c2', start: 10, end: 20, track: 0, fade: 2, widget: 'squares' },
   ],
 });
 const NOTES: Note[] = [[1, 2, 60, 80], [12, 13, 64, 90]];
-/** base() with a set p1, heard by a pointillism layer in both sections. */
+/** base() with a set p1, heard by a pointillism clip over each of the two. */
 const picked = (notes: unknown = NOTES): Show => {
-  const s = base(); s.version = 2;
-  for (const x of s.sections) x.layers.push({ widget: 'pointillism', listen: 'picks:p1' });
+  const s = base();
+  s.clips.push({ id: 'pa', start: 0, end: 10, track: 1, widget: 'pointillism', listen: 'picks:p1' }, { id: 'pb', start: 10, end: 20, track: 1, widget: 'pointillism', listen: 'picks:p1' });
   (s as { picks?: unknown }).picks = { p1: { notes } };
   return s;
 };
+/** The show without its later clip on the set. */
+const onlyFirst = (s: Show): Show => ({ ...s, clips: s.clips.filter((c) => c.id !== 'pb') });
+const widgets = (s: Show) => s.clips.map((c) => c.widget);
 const at = (list: Issue[], path: string) => list.filter((i) => i.path === path);
 const C: ShowContext = { duration: 20, tracks: [] };
 const errs = (x: unknown) => validateShow(x, C).errors;
@@ -38,27 +41,19 @@ describe('picks: the listen', () => {
   });
 
   it('is its own instance', () => {
-    expect(instanceKey({ widget: 'pointillism', listen: 'picks:p1' })).toBe('pointillism@picks:p1');
+    expect(instanceKey({ id: 'c1', widget: 'pointillism', listen: 'picks:p1' })).toBe('pointillism@picks:p1#c1');
   });
 });
 
 describe('picks: the file', () => {
-  it('shows without picks keep their bytes', () => {
+  it('an empty set of sets is left out', () => {
     const s = base();
     expect(canonicalShow({ ...s, picks: {} })).toBe(canonicalShow(s));
-    expect(usesV2({ ...s, picks: {} })).toBe(false);
-    expect(JSON.parse(canonicalShow({ ...s, picks: {} })).version).toBe(1);
   });
 
-  it('a set makes it version 2 even with no layer on it', () => {
-    const s = { ...base(), picks: { p1: { notes: NOTES } } };
-    expect(usesV2(s)).toBe(true);
-    expect(JSON.parse(canonicalShow(s)).version).toBe(2);
-  });
-
-  it('picks come after sections, a note a line, numbers to 4 decimals, and it reads back the same', () => {
+  it('picks come after the clips, a note a line, numbers to 4 decimals, and it reads back the same', () => {
     const out = canonicalShow(picked([[1.23456, 2.00004, 60, 80], [12, 13, 64, 90]]));
-    expect(out.indexOf('"picks"')).toBeGreaterThan(out.indexOf('"sections"'));
+    expect(out.indexOf('"picks"')).toBeGreaterThan(out.indexOf('"clips"'));
     expect(out).toMatch(/\n {8}\[1\.2346, 2, 60, 80\],\n/);
     expect(out).toMatch(/\n {8}\[12, 13, 64, 90\]\n/);
     expect(canonicalShow(JSON.parse(out) as Show)).toBe(out);
@@ -67,7 +62,7 @@ describe('picks: the file', () => {
 
   it('pivots and picks in one show each go back on their own line', () => {
     const s = picked();
-    s.sections[0].layers[0].intensity = [{ t: 0, v: 0.5 }];
+    s.clips[0].intensity = [{ t: 0, v: 0.5 }];
     const out = canonicalShow(s);
     expect(out).toMatch(/\{ "t": 0, "v": 0\.5 \}/);
     expect(out).toMatch(/\[1, 2, 60, 80\]/);
@@ -107,48 +102,45 @@ describe('picks: validation', () => {
     expect(bad([1, 2, 60, 128])).toMatch(/velocity/);
   });
 
-  it('a layer on a set that is not there: an error at its listen', () => {
-    const s = base(); s.sections[0].layers[0].listen = 'picks:x';
-    expect(at(errs(s), 'sections[0].layers[0].listen')[0].message).toMatch(/no set/);
-    expect(at(errs(s), 'sections[0].layers[0].listen')[0].message).toMatch(/picks:x/);
+  it('a clip on a set that is not there: an error at its listen', () => {
+    const s = base(); s.clips[0].listen = 'picks:x';
+    expect(at(errs(s), 'clips[0].listen')[0].message).toMatch(/no set/);
+    expect(at(errs(s), 'clips[0].listen')[0].message).toMatch(/picks:x/);
   });
 
   it('the message of something that is not a part names picks:<id>', () => {
-    const s = base(); s.sections[0].layers[0].listen = 'drums';
-    expect(at(errs(s), 'sections[0].layers[0].listen')[0].message).toMatch(/picks:<id>/);
+    const s = base(); s.clips[0].listen = 'drums';
+    expect(at(errs(s), 'clips[0].listen')[0].message).toMatch(/picks:<id>/);
   });
 
-  it('warns on a set no layer uses', () => {
+  it('warns on a set no clip uses', () => {
     const w = at(warns({ ...base(), picks: { p1: { notes: NOTES } } }), 'picks.p1');
     expect(w).toHaveLength(1);
-    expect(w[0].message).toMatch(/no layer/);
+    expect(w[0].message).toMatch(/no clip/);
   });
 
-  it('warns on picks outside every section using the set: never heard', () => {
-    const s = picked(); s.sections[1].layers.pop();
+  it('warns on picks outside every clip using the set: never heard', () => {
+    const s = onlyFirst(picked());
     const w = at(warns(s), 'picks.p1.notes[1]');
     expect(w).toHaveLength(1);
     expect(w[0].message).toMatch(/never heard/);
     expect(at(warns(s), 'picks.p1.notes[0]')).toEqual([]);
   });
 
-  it('a pick within a live step of the last section using it warns too: the step can carry it over the boundary', () => {
-    const near = picked([[9.97, 10, 60, 80]] as Note[]); near.sections[1].layers.pop();
-    const w = at(warns(near), 'picks.p1.notes[0]');
+  it('a pick within a live step of the end of the clip using it warns too: the step can carry it past', () => {
+    const w = at(warns(onlyFirst(picked([[9.97, 10, 60, 80]] as Note[]))), 'picks.p1.notes[0]');
     expect(w).toHaveLength(1);
     expect(w[0].message).toMatch(/never heard/);
-    const clear = picked([[9.94, 10, 60, 80]] as Note[]); clear.sections[1].layers.pop();
-    expect(at(warns(clear), 'picks.p1.notes[0]')).toEqual([]);
+    expect(at(warns(onlyFirst(picked([[9.94, 10, 60, 80]] as Note[]))), 'picks.p1.notes[0]')).toEqual([]);
   });
 
-  it('near a boundary with the set on both sides, or near the end of the show, no warning', () => {
+  it('near the join of two clips on the set, no warning', () => {
     expect(at(warns(picked([[9.97, 10, 60, 80]] as Note[])), 'picks.p1.notes[0]')).toEqual([]);
-    expect(at(warns(picked([[19.99, 20, 60, 80]] as Note[])), 'picks.p1.notes[0]')).toEqual([]);
   });
 
-  it('a pick on a boundary belongs to the section it starts', () => {
-    const s = picked([[10, 11, 60, 80]]); s.sections[1].layers.pop();
-    expect(at(warns(s), 'picks.p1.notes[0]')).toHaveLength(1);
+  it('a pick where a clip ends belongs to the clip that starts there', () => {
+    expect(at(warns(onlyFirst(picked([[10, 11, 60, 80]]))), 'picks.p1.notes[0]')).toHaveLength(1);
+    expect(at(warns(picked([[10, 11, 60, 80]])), 'picks.p1.notes[0]')).toEqual([]);
   });
 
   it('an unknown property of a set is a typo warning', () => {
@@ -164,17 +156,17 @@ describe('picks: repair', () => {
     return r;
   };
 
-  it('a dangling listen: the layer goes, it never becomes the plain widget', () => {
-    const s = base(); s.sections[0].layers.push({ widget: 'pointillism', listen: 'picks:x' });
+  it('a dangling listen: the clip goes, it never becomes the plain widget', () => {
+    const s = base(); s.clips.push({ id: 'x', start: 0, end: 10, track: 1, widget: 'pointillism', listen: 'picks:x' });
     const r = clean(s);
-    expect(r.show.sections[0].layers.map((l) => l.widget)).toEqual(['strings']);
-    expect(r.fixed.find((f) => f.path === 'sections[0].layers[1]')?.message).toMatch(/dropped/);
+    expect(widgets(r.show)).toEqual(['strings', 'squares']);
+    expect(r.fixed.find((f) => f.path === 'clips[2]')?.message).toMatch(/dropped/);
   });
 
   it('a malformed picks listen goes the same way', () => {
     for (const listen of ['picks:', 'picks:P 1']) {
-      const s = base(); s.sections[0].layers.push({ widget: 'pointillism', listen });
-      expect(clean(s).show.sections[0].layers.map((l) => l.widget)).toEqual(['strings']);
+      const s = base(); s.clips.push({ id: 'x', start: 0, end: 10, track: 1, widget: 'pointillism', listen });
+      expect(widgets(clean(s).show)).toEqual(['strings', 'squares']);
     }
   });
 
@@ -190,13 +182,13 @@ describe('picks: repair', () => {
     expect(r.fixed.filter((f) => /dropped/.test(f.message)).map((f) => f.path)).toEqual(['picks.p1.notes[0]', 'picks.p1.notes[2]', 'picks.p1.notes[3]']);
   });
 
-  it('a set left empty goes with its layers', () => {
+  it('a set left empty goes with its clips', () => {
     const r = clean(picked(['x']));
     expect(r.show.picks).toBeUndefined();
-    expect(r.show.sections.map((x) => x.layers.map((l) => l.widget))).toEqual([['strings'], ['squares']]);
+    expect(widgets(r.show)).toEqual(['strings', 'squares']);
   });
 
-  it('a set under a bad id goes with its layers', () => {
+  it('a set under a bad id goes with its clips', () => {
     const s = picked(); (s as { picks?: unknown }).picks = { 'P 1': { notes: NOTES } };
     expect(clean(s).show.picks).toBeUndefined();
   });
@@ -205,7 +197,7 @@ describe('picks: repair', () => {
     const s = picked(); (s as { picks?: unknown }).picks = 3;
     const r = clean(s);
     expect(r.show.picks).toBeUndefined();
-    expect(r.show.sections[0].layers.map((l) => l.widget)).toEqual(['strings']);
+    expect(widgets(r.show)).toEqual(['strings', 'squares']);
   });
 
   it('an unused set stays, for its warning', () => {

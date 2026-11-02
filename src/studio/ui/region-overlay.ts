@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 /**
  * The region overlay on the studio's stage (plan T17): lab/region-ui.js, the same file the lab runs, evaluated here
- * and bound to the store. It shows while the open layer (the panel's selected one) has a region, and hides with the
- * controls or while recording. Each gesture (a drag, a double-click, a held arrow) is one undo step: its edits share
- * the group `region:<section>:<layer>:<n>`, n counting gestures, since History merges a run of one group.
+ * and bound to the store. It shows while the selected clip has a region, and hides with the controls or while
+ * recording. Each gesture (a drag, a double-click, a held arrow) is one undo step: its edits share the group
+ * `region:<clip>:<n>`, n counting gestures, since History merges a run of one group.
  * It never draws into the canvas.
  */
 import type { Region } from '../../widgets/types';
@@ -55,17 +55,16 @@ export interface RegionOverlay {
 export function mountRegionOverlay(stage: HTMLElement, canvas: HTMLCanvasElement, store: Store): RegionOverlay {
   let gesture = 0, lastKey = '', hadRegion = false;
   const open = (s: StudioState) => {
-    if (!s.show || s.ui.hidden || s.ui.recording || s.selected.layer === null) return null;
-    const layer = s.show.sections[s.selected.section]?.layers[s.selected.layer];
-    return layer?.region ? { section: s.selected.section, layer: s.selected.layer, widget: layer.widget, region: layer.region } : null;
+    if (!s.show || s.ui.hidden || s.ui.recording) return null;
+    const c = s.show.clips.find((x) => x.id === s.selected.clip);
+    return c?.region ? { clip: c.id, widget: c.widget, region: c.region } : null;
   };
   const handle = regionUi().mount(stage, canvas, {
     get: () => open(store.state)?.region ?? null,
     set: (r, phase) => {
       const o = open(store.state);
       if (!o) return;
-      store.dispatch({ type: 'edit', edit: { kind: 'setLayer', section: o.section, layer: o.layer, patch: { region: r } },
-        group: `region:${o.section}:${o.layer}:${gesture}` });
+      store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: o.clip, patch: { region: r } }, group: `region:${o.clip}:${gesture}` });
       if (phase === 'end') gesture++;
     },
     hint: () => {
@@ -75,8 +74,8 @@ export function mountRegionOverlay(stage: HTMLElement, canvas: HTMLCanvasElement
   });
   return {
     update(s) {
-      // Another layer opened, or this one got a region: the handles come back after an Esc.
-      const o = open(s), key = o ? `${o.section}:${o.layer}` : '';
+      // Another clip selected, or this one got a region: the handles come back after an Esc.
+      const o = open(s), key = o?.clip ?? '';
       if (key !== lastKey || (!!o && !hadRegion)) handle.open();
       lastKey = key; hadRegion = !!o;
       handle.refresh();

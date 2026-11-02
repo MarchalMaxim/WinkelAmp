@@ -15,7 +15,7 @@ import type { CatalogueEntry } from './panel';
 import { PickerPopup } from './picker-popup';
 import { PickerRoll } from './picker-roll';
 import {
-  clock, firstLayer, firstLayerOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
+  clock, firstClipOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
   type Instrument, type RollNote, type SetRow,
 } from './picker-logic';
 import type { Player } from './player';
@@ -269,7 +269,7 @@ export class Picker {
     if (!this.l) return;
     const { notes, popup } = this.l, show = this.d.store.state.show!, set = editSet !== undefined ? show.picks?.[editSet] : undefined;
     const { chips, on } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
-    const layer = set ? firstLayer(show, editSet!) : null;
+    const layer = set ? firstClipOf(show, editSet!) : null;
     popup.open({ chips, on, marked: this.marked, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
     this.duck();
   }
@@ -280,15 +280,15 @@ export class Picker {
     const { store } = this.d, set = id ?? nextPicksId(store.state.show!);
     this.sceneEdited = true;
     store.dispatch({ type: 'edit', edit: id ? { kind: 'updatePicks', id, widget, notes } : { kind: 'placePicks', widget, notes } });
-    const at = firstLayerOf(store.state.show!, set);
-    if (at) store.dispatch({ type: 'select', section: at.section, layer: at.layer });
+    const at = firstClipOf(store.state.show!, set);
+    if (at) store.dispatch({ type: 'select', clip: at.id });
     this.popup?.close(Math.max(0, notes[0][0] - 1));
   }
 
   /** The show or the notices changed. */
   private drawStore(): void {
     const { show, notices } = this.d.store.state;
-    // The whole show, not its picks: a moved boundary or a removed layer changes a row with the same set of picks.
+    // The whole show, not its picks: a moved or removed clip changes a row with the same set of picks.
     if (show && show !== this.drawnShow) {
       this.drawnShow = show;
       this.rows = setRows(show);
@@ -323,7 +323,7 @@ export class Picker {
     this.$('.np-scene-head').hidden = !this.rows.length;
     if (!this.rows.length) box.append(Object.assign(document.createElement('div'), { className: 'np-empty', textContent: 'The scene is empty. Widgets you connect land here, lined up with the notes above.' }));
     for (const r of this.rows) {
-      const name = r.widget ? this.d.meta(r.widget)?.name ?? r.widget : 'In no section';
+      const name = r.widget ? this.d.meta(r.widget)?.name ?? r.widget : 'On no clip';
       const row = Object.assign(document.createElement('div'), { className: 'np-set' });
       row.dataset.set = r.id;
       const label = Object.assign(document.createElement('div'), { className: 'np-set-name', textContent: name, title: name });
@@ -334,7 +334,7 @@ export class Picker {
       if (r.neverHeard) {
         row.append(Object.assign(document.createElement('span'), {
           className: 'np-set-warn', textContent: `${r.neverHeard} never heard`,
-          title: `${r.neverHeard} of these picks lie outside the sections using this set, or right at their end, so the widget misses them. A section boundary may have moved: edit the picks to span them again.`,
+          title: `${r.neverHeard} of these picks lie outside the clips using this set, or right at their end, so the widget misses them. A clip may have moved: edit the picks to span them again.`,
         }));
       }
       const x = Object.assign(document.createElement('button'), { type: 'button', textContent: '✕', title: 'Remove' });

@@ -1,17 +1,17 @@
 /**
- * A show on the widget runtime (plan §5): at every step it asks the pure scheduler which widgets play, which take
- * attacks and which decay, resets the ones entering at a boundary it crossed, switches knobs and the moment at section
- * changes, and hands the runtime its slots. Live (startLive), in render pages (exposeRenderApi) and paused previews
- * all go through reset() and step().
+ * A show on the widget runtime: at every step it asks the pure scheduler which clips play and how strongly, resets the
+ * ones starting in that step, sets the moment from the song's structure, and hands the runtime its slots. Every clip is an
+ * instance of its own, loaded at once, in the order a show is saved, so the studio and the render page load alike. Live
+ * (startLive), in render pages (exposeRenderApi) and paused previews all go through reset() and step().
  */
 import type { Stepper } from '../../widgets/driver';
 import { resolveKnobs } from '../../widgets/features';
 import type { RuntimeLike, Slot } from '../../widgets/runtime';
 import type { InstanceSpec, SlotLayer, WidgetMeta } from '../../widgets/types';
-import { entriesBetween, scheduleAt, sectionAt, type ScheduledWidget } from './schedule';
-import { instanceKey, listenOf, picksId, type KnobSetting, type Show } from './show';
+import { clipsAt, entriesBetween, scheduleAt, type ScheduledWidget } from './schedule';
+import { instanceKey, listenOf, picksId, sortedClips, widgetOfKey, type KnobSetting, type Show } from './show';
 
-/** A slot with its layer (plan 2026-10-31 §6: Slot gains `layer` in runtime.ts with T12). */
+/** A slot with its layer. */
 export type ShowSlot = Slot & { layer?: SlotLayer };
 /** What the Conductor needs of a runtime: RuntimeLike, with load taking instance specs and slots their layers (§6). */
 export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
@@ -19,44 +19,37 @@ export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
   step(t: number, dt: number, slots: readonly ShowSlot[]): void;
 }
 
-/** The instances of a show in first-appearance order. own: it listens to a part, or some layer of it has a curve.
+/** The instances of a show, one per clip, in the order a show is saved. own: it listens to a part or has a curve.
     notes: a set of picks' notes, so a pick is the note itself and needs no song to look it up in; none for a missing set. */
 export function showInstances(show: Show): InstanceSpec[] {
-  const out = new Map<string, InstanceSpec>();
-  for (const s of show.sections) for (const l of s.layers) {
-    const key = instanceKey(l), listen = listenOf(l);
-    let spec = out.get(key);
-    if (!spec) {
-      const id = picksId(listen);
-      spec = { key, widget: l.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined,
-        ...(id !== null ? { notes: show.picks?.[id]?.notes ?? [] } : {}) };
-      out.set(key, spec);
-    }
-    if (l.intensity?.length) spec.own = true;
-  }
-  return [...out.values()];
+  return sortedClips(show.clips).map((c) => {
+    const listen = listenOf(c), id = picksId(listen);
+    return { key: instanceKey(c), widget: c.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined || !!c.intensity?.length,
+      ...(id !== null ? { notes: show.picks?.[id]?.notes ?? [] } : {}) };
+  });
 }
 
-/** What runtime.load is given for an instance: its key when it is a plain widget (today's call), else its spec. */
-const loadSpec = (s: InstanceSpec): string | InstanceSpec => (s.own || s.listen !== undefined ? s : s.key);
-
-/** The instance keys of a show in first-appearance order (a widget's id when it listens to all notes). */
+/** The instance keys of a show, in that order. */
 export function showWidgets(show: Show): string[] {
   return showInstances(show).map((s) => s.key);
 }
 
-/** The layer a slot carries, or undefined when the instance has no curve, region or glide (today's path). */
+/** The layer a slot carries, or undefined when the clip has no curve and no region (today's path). */
 function slotLayer(w: ScheduledWidget): SlotLayer | undefined {
-  if (!w.pivots && !w.region && !w.glide) return undefined;
+  if (!w.pivots && !w.region) return undefined;
   const layer: SlotLayer = {};
-  if (w.pivots) { layer.pivots = w.pivots; if (w.until !== undefined) layer.until = w.until; }
+  if (w.pivots) layer.pivots = w.pivots;
   if (w.region) layer.region = w.region;
-  if (w.glide) layer.glide = w.glide;
   return layer;
 }
 
-/** ctx.moment for section i: lewitt opens a new wall when it changes, so every section has its own, labels or not. */
-export const momentOf = (show: Show, i: number): string => `${i}:${show.sections[i]?.label ?? ''}`;
+/** ctx.moment at t: which of the song's structure marks it is past (their times, sorted). lewitt opens a new wall when it
+    changes. A function of the time alone, like everything a clip is handed. */
+export function momentAt(marks: readonly number[], t: number): string {
+  let i = 0;
+  while (i < marks.length && marks[i] <= t) i++;
+  return String(i);
+}
 
 const EMPTY: Record<string, KnobSetting> = {};
 
@@ -76,17 +69,14 @@ function previewSteps(t: number, w: Warmup): { t0: number; times: number[] } {
   return { t0, times: Array.from({ length: n }, (_, i) => t0 + ((t - t0) * (i + 1)) / n) };
 }
 
-/** What the widgets are given at x: who plays, attacking or not, how strongly, with which knobs, what they hear,
-    where and how intensely, and whether they keep their own pulse (own is show-wide: a curve added anywhere changes
-    how the instance feels the music everywhere). */
+/** What the widgets are given at x: who plays, how strongly, with which knobs, what they hear, where and how intensely. */
 const scheduleKey = (show: Show, x: number, own: ReadonlySet<string>) => JSON.stringify(scheduleAt(show, x).map((w) =>
-  [w.id, w.receiving, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w)]));
+  [w.id, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w)]));
 const ownKeys = (show: Show): Set<string> => new Set(showInstances(show).filter((s) => s.own).map((s) => s.key));
 
-/** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would hand the
-    runtime at the reset and at every preview step (and who it resets on the way), so an edit to a section the preview
-    does not reach, a split at t or a new name leaves a paused picture as it is. Moments are left out: a new name or a
-    split only renumbers them. Picks are not in the schedule, so any change of them counts. */
+/** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would
+    hand the runtime at the reset and at every preview step (and who it resets on the way), so an edit to a clip the preview
+    does not reach leaves a paused picture as it is. Picks are not in the schedule, so any change of them counts. */
 export function samePreview(a: Show, b: Show, t: number): boolean {
   if (a === b) return true;
   if (a.picks !== b.picks && JSON.stringify(a.picks) !== JSON.stringify(b.picks)) return false;
@@ -102,9 +92,7 @@ export function samePreview(a: Show, b: Show, t: number): boolean {
 export class Conductor implements Stepper {
   private show: Show;
   private lastT = 0;
-  private section = -1;
-  /** Widgets drawn in the last step: a decaying widget only goes on if it was drawn (nothing decays after a seek). */
-  private drawn = new Set<string>();
+  private moment = '';
   /** The knob settings each instance has in the runtime now. */
   private applied = new Map<string, string>();
   /** What the runtime was loaded with, per instance key (JSON of loadSpec). */
@@ -112,55 +100,48 @@ export class Conductor implements Stepper {
   /** instance key → widget id, for the widget's knobs. */
   private widgetOf = new Map<string, string>();
 
-  /** meta: by widget id. */
-  constructor(private readonly rt: ShowRuntime, show: Show, private readonly meta: (widget: string) => WidgetMeta | undefined) {
+  /** meta: by widget id. marks: the times of the song's structure marks, sorted: what ctx.moment follows. */
+  constructor(private readonly rt: ShowRuntime, show: Show, private readonly meta: (widget: string) => WidgetMeta | undefined,
+    private readonly marks: readonly number[] = []) {
     this.show = show;
     const specs = showInstances(show);
     this.load(specs);
-    for (const s of specs) {
-      const l = show.sections.flatMap((x) => x.layers).find((x) => instanceKey(x) === s.key);
-      this.applyKnobs(s.key, l?.knobs ?? EMPTY);
-    }
+    for (const c of show.clips) this.applyKnobs(instanceKey(c), c.knobs ?? EMPTY);
   }
 
   get current(): Show { return this.show; }
 
-  /** Live edit: loads new widgets, updates knobs in place, never resets the picture. */
+  /** Live edit: loads new clips, updates knobs in place, never resets the picture, but for a clip that was not playing at
+      this time and now is (added, or moved here): it starts as a clip starts, with its reset. */
   setShow(show: Show): void {
+    const was = new Set(clipsAt(this.show, this.lastT).map(instanceKey));
     this.show = show;
     this.load(showInstances(show));
-    const sec = sectionAt(show, this.lastT);
-    if (sec !== this.section) { this.section = sec; this.rt.setMoment(momentOf(show, sec)); }
+    for (const c of clipsAt(show, this.lastT)) if (!was.has(instanceKey(c))) this.rt.resetWidget(instanceKey(c));
     for (const w of scheduleAt(show, this.lastT)) this.applyKnobs(w.id, w.knobs);
   }
 
-  /** Seek: the picture starts again at t; only the section at t plays. */
+  /** Seek: the picture starts again at t. */
   reset(t: number): void {
     const show = this.show;
-    this.section = sectionAt(show, t);
-    this.rt.setMoment(momentOf(show, this.section));   // before reset(): lewitt's reset() remembers the moment
+    this.setMomentAt(t);   // before reset(): lewitt's reset() remembers the moment
     this.rt.reset(t);
     this.lastT = t;
-    const sched = scheduleAt(show, t).filter((w) => w.receiving);
-    this.drawn = new Set(sched.map((w) => w.id));
-    for (const w of sched) this.applyKnobs(w.id, w.knobs);
+    for (const w of scheduleAt(show, t)) this.applyKnobs(w.id, w.knobs);
   }
 
   step(t: number, dt: number): void {
     const show = this.show;
     for (const e of entriesBetween(show, this.lastT, t)) this.rt.resetWidget(e.id);
-    const sec = sectionAt(show, t);
-    if (sec !== this.section) { this.section = sec; this.rt.setMoment(momentOf(show, sec)); }
-    const sched: ScheduledWidget[] = scheduleAt(show, t).filter((w) => w.receiving || this.drawn.has(w.id));
+    this.setMomentAt(t);
     const slots: ShowSlot[] = [];
-    for (const w of sched) {
+    for (const w of scheduleAt(show, t)) {
       this.applyKnobs(w.id, w.knobs);
       const slot: ShowSlot = { id: w.id, receiving: w.receiving, weight: w.weight }, layer = slotLayer(w);
       if (layer) slot.layer = layer;
       slots.push(slot);
     }
     this.rt.step(t, dt, slots);
-    this.drawn = new Set(slots.map((s) => s.id));
     this.lastT = t;
   }
 
@@ -173,16 +154,21 @@ export class Conductor implements Stepper {
     for (const x of times) { this.step(x, x - last); last = x; }
   }
 
-  /** Loads the instances new to the runtime, and those whose spec changed (a curve added makes one own): the specs
-      in first-appearance order, a plain widget as its id. */
+  private setMomentAt(t: number): void {
+    const m = momentAt(this.marks, t);
+    if (m !== this.moment) { this.moment = m; this.rt.setMoment(m); }
+  }
+
+  /** Loads the instances new to the runtime, and those whose spec changed (a curve added makes one own). Always as specs:
+      an instance key is not a widget id. */
   private load(specs: readonly InstanceSpec[]): void {
-    const todo: (string | InstanceSpec)[] = [];
+    const todo: InstanceSpec[] = [];
     for (const s of specs) {
       this.widgetOf.set(s.key, s.widget);
-      const x = loadSpec(s), json = JSON.stringify(x);
+      const json = JSON.stringify(s);
       if (this.loaded.get(s.key) === json) continue;
       this.loaded.set(s.key, json);
-      todo.push(x);
+      todo.push(s);
     }
     if (todo.length) this.rt.load(todo);
   }
@@ -190,7 +176,7 @@ export class Conductor implements Stepper {
   private applyKnobs(key: string, knobs: Record<string, KnobSetting>): void {
     const k = JSON.stringify(knobs);
     if (this.applied.get(key) === k) return;
-    const m = this.meta(this.widgetOf.get(key) ?? key);
+    const m = this.meta(this.widgetOf.get(key) ?? widgetOfKey(key));
     if (!m) return;
     this.applied.set(key, k);
     this.rt.setKnobs(key, resolveKnobs(m.params, knobs));

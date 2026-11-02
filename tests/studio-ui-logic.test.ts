@@ -3,7 +3,7 @@ import { keyAction } from '../src/studio/ui/keys';
 import { knobState, settingOf } from '../src/studio/ui/knobs';
 import { songHref, splitTitle } from '../src/studio/ui/library';
 import { isDirty, Store } from '../src/studio/ui/store';
-import { activity, snapToAttack, widgetHue } from '../src/studio/ui/timeline';
+import { activity, widgetHue } from '../src/studio/ui/timeline';
 import type { SongPack } from '../src/studio/pack/pack';
 import type { Show } from '../src/studio/show/show';
 import type { Chord, Param } from '../src/widgets/types';
@@ -15,12 +15,14 @@ describe('keys', () => {
   it('maps the studio keys', () => {
     expect(keyAction(key(' '), free)).toEqual({ action: 'toggle' });
     expect(keyAction(key('ArrowLeft'), free)).toEqual({ action: 'nudge', arg: -5 });
-    expect(keyAction(key('ArrowRight', { shiftKey: true }), free)).toEqual({ action: 'section', arg: 1 });
+    expect(keyAction(key('ArrowRight', { shiftKey: true }), free)).toEqual({ action: 'jump', arg: 1 });
     expect(keyAction(key('F', { shiftKey: false }), free)).toEqual({ action: 'fullscreen' });
     expect(keyAction(key('h'), free)).toEqual({ action: 'hideUi' });
     expect(keyAction(key('s'), free)).toEqual({ action: 'split' });
-    expect(keyAction(key('Delete'), free)).toEqual({ action: 'removeLayer' });
-    expect(keyAction(key('Backspace'), free)).toEqual({ action: 'removeLayer' });   // a Mac's delete key
+    expect(keyAction(key('Delete'), free)).toEqual({ action: 'remove' });
+    expect(keyAction(key('Backspace'), free)).toEqual({ action: 'remove' });   // a Mac's delete key
+    expect(keyAction(key('d', { ctrlKey: true }), free)).toEqual({ action: 'duplicate' });
+    expect(keyAction(key('Escape'), free)).toEqual({ action: 'deselect' });
     expect(keyAction(key('z', { ctrlKey: true }), free)).toEqual({ action: 'undo' });
     expect(keyAction(key('Z', { ctrlKey: true, shiftKey: true }), free)).toEqual({ action: 'redo' });
     expect(keyAction(key('y', { ctrlKey: true }), free)).toEqual({ action: 'redo' });
@@ -54,13 +56,6 @@ describe('knob settings', () => {
 
 describe('timeline', () => {
   const ch = (t: number, vel = 80, n = 1): Chord => ({ t, vel, lo: 60, hi: 60, notes: Array.from({ length: n }, () => ({ m: 60, v: vel, d: 1 })) });
-  it('a dragged boundary snaps just before the nearest attack within 0.25 s; Alt does not snap', () => {
-    const chords = [ch(10), ch(10.2), ch(12)];
-    expect(snapToAttack(10.15, chords, false)).toBeCloseTo(10.15, 9);   // 10.2 is nearest: 10.2 − 0.05
-    expect(snapToAttack(9.9, chords, false)).toBeCloseTo(9.95, 9);
-    expect(snapToAttack(11, chords, false)).toBe(11);
-    expect(snapToAttack(9.9, chords, true)).toBe(9.9);
-  });
   it('widget hues are stable and the loved ones keep their own', () => {
     expect(widgetHue('squares')).toBe(widgetHue('squares'));
     expect(widgetHue('squares')).not.toBe(widgetHue('kandinsky'));
@@ -89,20 +84,21 @@ describe('library', () => {
 });
 
 describe('Store', () => {
-  const show: Show = { version: 1, id: 'demo', song: 'demo', sections: [
-    { start: 0, end: 10, layers: [{ widget: 'squares' }, { widget: 'casket' }] }, { start: 10, end: 20, layers: [{ widget: 'kandinsky' }] }] };
+  const show: Show = { version: 3, id: 'demo', song: 'demo', clips: [
+    { id: 'c1', start: 0, end: 10, track: 0, widget: 'squares' }, { id: 'c2', start: 0, end: 10, track: 1, widget: 'casket' }, { id: 'c3', start: 10, end: 20, track: 0, widget: 'kandinsky' }] };
+  const MOVE = { kind: 'moveClip', clip: 'c3', start: 12, track: 0 } as const;
   const pack = { id: 'demo', duration: 20 } as SongPack;
 
   it('an edit makes the show dirty; undo makes it clean again; redo dirty', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
     expect(isDirty(st.state)).toBe(false);
-    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    st.dispatch({ type: 'edit', edit: MOVE });
     expect(isDirty(st.state)).toBe(true);
     st.dispatch({ type: 'undo' });
     expect(isDirty(st.state)).toBe(false);
     st.dispatch({ type: 'redo' });
-    expect(st.state.show!.sections[1].start).toBe(12);
+    expect(st.state.show!.clips[2].start).toBe(12);
   });
 
   it('a repaired show starts dirty; saved makes it clean', () => {
@@ -114,23 +110,24 @@ describe('Store', () => {
     expect(st.state.origin).toBe('file');
   });
 
-  it('clamps the selection after a change', () => {
+  it('lets go of a selected clip that is gone, and an undo does not bring the selection back', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
-    st.dispatch({ type: 'select', section: 0, layer: 1 });
-    st.dispatch({ type: 'edit', edit: { kind: 'removeLayer', section: 0, layer: 1 } });
-    expect(st.state.selected).toEqual({ section: 0, layer: 0 });
-    st.dispatch({ type: 'select', section: 1 });
-    st.dispatch({ type: 'edit', edit: { kind: 'merge', section: 0 } });
-    expect(st.state.selected.section).toBe(0);
+    st.dispatch({ type: 'select', clip: 'c2' });
+    st.dispatch({ type: 'edit', edit: { kind: 'removeClip', clip: 'c1' } });
+    expect(st.state.selected).toEqual({ clip: 'c2' });
+    st.dispatch({ type: 'edit', edit: { kind: 'removeClip', clip: 'c2' } });
+    expect(st.state.selected).toEqual({ clip: null });
+    st.dispatch({ type: 'undo' });
+    expect(st.state.selected).toEqual({ clip: null });
   });
 
   it('a show reloaded from disk over edits keeps them one undo away', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
-    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    st.dispatch({ type: 'edit', edit: MOVE });
     const edited = st.state.show!;
-    const disk: Show = { ...show, sections: [{ ...show.sections[0], label: 'From disk' }, show.sections[1]] };
+    const disk: Show = { ...show, title: 'From disk' };
     st.dispatch({ type: 'loaded', song: pack, show: disk, origin: 'file', keepUndo: true });
     expect(st.state.show).toBe(disk);
     expect(isDirty(st.state)).toBe(false);
@@ -144,7 +141,7 @@ describe('Store', () => {
   it('a plain load starts a fresh history', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
-    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    st.dispatch({ type: 'edit', edit: MOVE });
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
     expect(st.history.canUndo).toBe(false);
   });
@@ -154,14 +151,14 @@ describe('Store', () => {
       const composed: Show = { ...show, composer: { by, at: '2026-10-31T01:00:00Z' } };
       const st = new Store();
       st.dispatch({ type: 'loaded', song: pack, show: composed, origin: by === 'auto' ? 'auto' : 'file' });
-      st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+      st.dispatch({ type: 'edit', edit: MOVE });
       expect(st.state.show!.composer).toEqual({ by: 'user', at: '2026-10-31T01:00:00Z' });
       st.dispatch({ type: 'undo' });
       expect(st.state.show!.composer!.by).toBe(by);
     }
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
-    st.dispatch({ type: 'edit', edit: { kind: 'moveBoundary', index: 1, t: 12 } });
+    st.dispatch({ type: 'edit', edit: MOVE });
     expect(st.state.show!.composer).toBeUndefined();
   });
 
@@ -169,7 +166,7 @@ describe('Store', () => {
     const st = new Store();
     st.dispatch({ type: 'loaded', song: pack, show, origin: 'file' });
     st.dispatch({ type: 'ui', patch: { recording: true } });
-    st.dispatch({ type: 'edit', edit: { kind: 'merge', section: 0 } });
+    st.dispatch({ type: 'edit', edit: { kind: 'removeClip', clip: 'c1' } });
     expect(st.state.show).toBe(show);
   });
 });

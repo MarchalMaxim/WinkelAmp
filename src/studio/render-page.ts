@@ -14,6 +14,7 @@
 // The page imitates the lab's render mode before anything runs: seeded Math.random (state 1), no workers, and
 // queueMicrotask collected and run at the end of each step (pixelsort draws after the others that way).
 import { Conductor } from './show/conductor';
+import { structureTimes } from './show/marks';
 import type { Show } from './show/show';
 import type { SongPack } from './pack/pack';
 import { toMeta } from '../widgets/catalogue';
@@ -97,8 +98,8 @@ async function showMode(id: string): Promise<void> {
   const pack = await json<SongPack>(`${base}/songs/${encodeURIComponent(show.song)}/pack.json`);
   (window as { NOTES?: Note[] }).NOTES = pack.notes;   // before any widget file runs: several read it when they load
   const rt = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks }, { sources: labWidgetSources(), harness: labHarness(), layers: studioLayers() }, opts);
-  const conductor = new Conductor(rt, show, (w) => { const t = rt.tool(w); return t ? toMeta(t, null) : undefined; });
-  const ids = [...new Set(show.sections.flatMap((s) => s.layers.map((l) => l.widget)))];
+  const conductor = new Conductor(rt, show, (w) => { const t = rt.tool(w); return t ? toMeta(t, null) : undefined; }, structureTimes(pack.sections));
+  const ids = [...new Set(show.clips.map((c) => c.widget))];
   run(rt, conductor, { duration: pack.duration, title: show.title ?? pack.title }, ids);
 }
 

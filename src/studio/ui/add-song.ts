@@ -1,7 +1,7 @@
 /**
  * Adding a recording from the studio: to the ears server when it runs (GPU notes, written to songs/ by the ingest
  * CLI), else analysed in this browser (approximate notes, kept by the store). The library drawer shows the progress;
- * the new song then opens with a show composed for it (unless the show here has unsaved edits: then it waits in the
+ * the new song then opens with an empty timeline (unless the show here has unsaved edits: then it waits in the
  * library). Also re-ingests an approximate song with the transcriber, and redoes any song's transcription with the
  * transcriber chosen in the redo dialog.
  */

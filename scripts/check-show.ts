@@ -1,5 +1,5 @@
 /**
- * Checks shows: their sections join up and cover the song, their widgets exist, their knobs make sense.
+ * Checks shows: their clips lie in the song and no track holds an overlap, their widgets exist, their knobs make sense.
  *
  *   npm run check-show                     every shows/*.json
  *   npm run check-show -- <file…>          these files
@@ -37,7 +37,7 @@ for (const f of failed) console.warn(`warning: lab/tools/${f.id}.js did not load
 
 const name = (f: string) => { const r = relative(process.cwd(), f); return r && !r.startsWith('..') && !isAbsolute(r) ? r : f; };
 const print = (f: string, kind: string, list: Issue[]) => { for (const i of list) console.log(`${name(f)}: ${kind} ${i.path || '(show)'}: ${i.message}`); };
-/** The value at an issue path like 'sections[0].layers[1].knob'. */
+/** The value at an issue path like 'clips[1].knobs.size'. */
 const valueAt = (o: unknown, path: string): unknown => path.split(/\.|(?=\[)/).filter(Boolean).reduce<unknown>((v, k) =>
   v && typeof v === 'object' ? (v as Record<string, unknown>)[k.startsWith('[') ? k.slice(1, -1) : k] : undefined, o);
 let bad = 0;
@@ -59,7 +59,7 @@ for (const file of files) {
     } catch { /* a broken pack: no end or track checks */ }
   }
   let { errors, warnings } = validateShow(x, c);
-  if (fix && (errors.length || warnings.length) && x && typeof x === 'object' && Array.isArray((x as Show).sections)) {
+  if (fix && (errors.length || warnings.length) && x && typeof x === 'object' && Array.isArray((x as Show).clips)) {
     const r = repairShow(x as Show, c);
     let after = validateShow(r.show, c);
     print(file, 'fixed', r.fixed);

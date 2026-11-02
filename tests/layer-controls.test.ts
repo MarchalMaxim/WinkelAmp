@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { defaultRegion, describePlace, gateDefault, listenLabel, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
-import { allNotesTaken, attackTimes, listenLabel as labelOf, nearShare, neededAttacks, partNote, placedListen, usualLine } from '../src/studio/ui/layer-controls';
+import { attackTimes, listenLabel as labelOf, nearShare, neededAttacks, partNote, placedListen, usualLine } from '../src/studio/ui/layer-controls';
 import type { SongPack } from '../src/studio/pack/pack';
 import { NOTE_TYPES, type TagWords } from '../src/widgets/tags';
 import type { Note, WidgetMeta, WidgetTags } from '../src/widgets/types';
@@ -98,34 +98,29 @@ describe('a widget placed with its usual note type', () => {
     expect(usualLine('runs', 'runs', along, s)).toEqual({ text: 'Hears fast runs, as this widget usually does.', action: 'all' });
     expect(usualLine('runs', undefined, along, s)).toEqual({ text: 'This widget usually hears fast runs.', action: 'use' });
     expect(usualLine('runs', 'violin', along, s)).toEqual({ text: 'This widget usually hears fast runs.', action: 'use' });
-    expect(usualLine('runs', undefined, [2, 4], s)).toEqual({ text: 'This widget usually hears fast runs, but this section has only 2: it plays on all notes.', action: 'use' });
-    expect(usualLine('runs', undefined, [], s)).toEqual({ text: 'This widget usually hears fast runs, but this section has none: it plays on all notes.', action: null });
+    expect(usualLine('runs', undefined, [2, 4], s)).toEqual({ text: 'This widget usually hears fast runs, but this clip has only 2: it plays on all notes.', action: 'use' });
+    expect(usualLine('runs', undefined, [], s)).toEqual({ text: 'This widget usually hears fast runs, but this clip has none: it plays on all notes.', action: null });
   });
 
   it('offers no button when the section has none, whatever the layer is on', () => {
-    expect(usualLine('runs', 'violin', [], { start: 0, end: 20 })).toEqual({ text: 'This widget usually hears fast runs, but this section has none.', action: null });
+    expect(usualLine('runs', 'violin', [], { start: 0, end: 20 })).toEqual({ text: 'This widget usually hears fast runs, but this clip has none.', action: null });
   });
 
   it('says so when the attacks leave most of the section far from any', () => {
     const s = { start: 0, end: 60 }, burst = [1, 1.2, 1.4, 1.6, 1.8, 2, 2.2];
-    expect(usualLine('runs', undefined, burst, s)).toEqual({ text: 'This widget usually hears fast runs, but most of this section is far from any: it plays on all notes.', action: 'use' });
-    expect(usualLine('runs', 'runs', burst, s)).toEqual({ text: 'Hears fast runs, as this widget usually does, but most of this section is far from any: it stays still there.', action: 'all' });
+    expect(usualLine('runs', undefined, burst, s)).toEqual({ text: 'This widget usually hears fast runs, but most of this clip is far from any: it plays on all notes.', action: 'use' });
+    expect(usualLine('runs', 'runs', burst, s)).toEqual({ text: 'Hears fast runs, as this widget usually does, but most of this clip is far from any: it stays still there.', action: 'all' });
   });
 
   it('agrees with validateShow on a section where a long note only rings in from earlier', () => {
-    expect(partNote('long', false, 5, 1, 0)).toEqual({ text: 'This section has no long ringing notes of its own, only 1 ringing on from before: the layer barely moves here.', warn: true });
-    expect(partNote('long', false, 5, 2, 1)).toEqual({ text: '2 notes in this section; it moves with these only.', warn: false });
-    expect(partNote('melody', false, 5, 1, 0)).toEqual({ text: '1 note in this section; it moves with these only.', warn: false });
-    expect(partNote('long', false, 5, 0, 0)).toEqual({ text: 'Silent in this section: the layer stays still here.', warn: true });
+    expect(partNote('long', false, 5, 1, 0)).toEqual({ text: 'This clip has no long ringing notes of its own, only 1 ringing on from before: it barely moves.', warn: true });
+    expect(partNote('long', false, 5, 2, 1)).toEqual({ text: '2 notes in this clip; it moves with these only.', warn: false });
+    expect(partNote('melody', false, 5, 1, 0)).toEqual({ text: '1 note in this clip; it moves with these only.', warn: false });
+    expect(partNote('long', false, 5, 0, 0)).toEqual({ text: 'Silent in this clip: it stays still.', warn: true });
     expect(partNote('long', false, 0, 0, 0)).toEqual({ text: 'This song has no long ringing notes: the layer stays still.', warn: true });
     expect(partNote('violin', true, 0, 3, 3).warn).toBe(true);
   });
 
-  it('knows when another layer already plays the widget on all notes', () => {
-    expect(allNotesTaken([{ widget: 'stella' }, { widget: 'stella', listen: 'repeats' }], 1)).toBe(true);
-    expect(allNotesTaken([{ widget: 'flee' }, { widget: 'stella', listen: 'repeats' }], 1)).toBe(false);
-    expect(allNotesTaken([{ widget: 'stella', listen: 'melody' }, { widget: 'stella', listen: 'repeats' }], 1)).toBe(false);
-  });
 });
 
 describe('defaultRegion', () => {
