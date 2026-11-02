@@ -176,7 +176,7 @@ describe('noteTypeAttacks', () => {
 
 describe('in a show', () => {
   const show = (listen?: string): Show => ({
-    version: 2, id: 'x', song: 'x', sections: [{ start: 0, end: 10, layers: [{ widget: 'flee', ...(listen ? { listen } : {}) }] }],
+    version: 3, id: 'x', song: 'x', clips: [{ id: 'c1', start: 0, end: 10, track: 0, widget: 'flee', ...(listen ? { listen } : {}) }],
   });
 
   it('a type is a listen; grace notes, tremolo and ornaments are not', () => {
@@ -186,22 +186,22 @@ describe('in a show', () => {
 
   it('validates, is its own instance, and survives repair and the canonical form', () => {
     expect(validateShow(show('runs')).errors).toEqual([]);
-    expect(instanceKey({ widget: 'flee', listen: 'runs' })).toBe('flee@runs');
+    expect(instanceKey({ id: 'c1', widget: 'flee', listen: 'runs' })).toBe('flee@runs#c1');
     expect(repairShow(show('runs'), {}).fixed).toEqual([]);
     const text = canonicalShow(show('runs'));
-    expect(JSON.parse(text).version).toBe(2);
-    expect(JSON.parse(text).sections[0].layers[0]).toEqual({ widget: 'flee', listen: 'runs' });
+    expect(JSON.parse(text).version).toBe(3);
+    expect(JSON.parse(text).clips[0]).toEqual({ id: 'c1', start: 0, end: 10, track: 0, widget: 'flee', listen: 'runs' });
   });
 
-  it('warns, once, when the song or the section has none of the type, saying what happens, only when the times are known', () => {
+  it('warns, once, when the song or the clip has none of the type, saying what happens, only when the times are known', () => {
     const c = { noteTypes: { chords: [3], runs: [], trills: [20], long: [10], repeats: [9.9] } };
     expect(validateShow(show('runs'), c).warnings).toEqual([
-      { path: 'sections[0].layers[0].listen', message: 'this song has no fast runs: this layer stays still' },
+      { path: 'clips[0].listen', message: 'this song has no fast runs: this clip stays still' },
     ]);
     expect(validateShow(show('trills'), c).warnings).toEqual([
-      { path: 'sections[0].layers[0].listen', message: 'this section has no trills: this layer stays still here' },
+      { path: 'clips[0].listen', message: 'this clip has no trills: it stays still' },
     ]);
-    expect(validateShow(show('long'), c).warnings).toHaveLength(1);            // the section ends at 10: that attack is the next one's
+    expect(validateShow(show('long'), c).warnings).toHaveLength(1);            // the clip ends at 10: that attack is past it
     expect(validateShow(show('chords'), c).warnings).toEqual([]);
     expect(validateShow(show('repeats'), c).warnings).toEqual([]);
     expect(validateShow(show('runs'), {}).warnings).toEqual([]);
@@ -210,10 +210,10 @@ describe('in a show', () => {
     expect(validateShow(show('melody'), c).warnings).toEqual([]);
   });
 
-  it('addLayer and setLayer take a type', () => {
-    const added = applyEdit(show(), { kind: 'addLayer', section: 0, widget: 'stella', listen: 'repeats' });
-    expect(added.sections[0].layers[1]).toEqual({ widget: 'stella', listen: 'repeats' });
-    const cleared = applyEdit(added, { kind: 'setLayer', section: 0, layer: 1, patch: { listen: null } });
-    expect(cleared.sections[0].layers[1]).toEqual({ widget: 'stella' });
+  it('addClip and setClip take a type', () => {
+    const added = applyEdit(show(), { kind: 'addClip', widget: 'stella', start: 0, end: 10, listen: 'repeats' });
+    expect(added.clips[1]).toEqual({ id: 'c2', start: 0, end: 10, track: 1, widget: 'stella', listen: 'repeats' });
+    const cleared = applyEdit(added, { kind: 'setClip', clip: 'c2', patch: { listen: null } });
+    expect(cleared.clips[1]).toEqual({ id: 'c2', start: 0, end: 10, track: 1, widget: 'stella' });
   });
 });

@@ -17,7 +17,7 @@ const SHOTS = argv.includes('--shots') ? path.resolve(argv[argv.indexOf('--shots
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const { check, finish } = checker();
 
-const WIND = 'chopin-winter-wind', WINTER = 'vivaldi-winter', KEY = 'pointillism@picks:p1';
+const WIND = 'chopin-winter-wind', WINTER = 'vivaldi-winter', KEY = 'pointillism@picks:p1#on';
 const FROM = 18, EVERY = 1.2, N = 12;
 /** The same picks for two songs, with a rest from 19.5 to 20.5 s. */
 const SHARED = [[18.1, 18.3, 60, 40], [19.3, 19.5, 64, 90], [20.5, 20.7, 67, 60], [21.7, 21.9, 72, 110], [22.9, 23.1, 60, 30], [24.1, 24.3, 64, 80], [25.3, 25.5, 67, 50], [26.5, 26.7, 72, 100]];
@@ -52,21 +52,19 @@ const st = await openStudio({ songs: [WIND, WINTER], port: 5401, headed: HEADED,
   const D = Math.round(packs[WIND].duration * 1000) / 1000, W = Math.round(packs[WINTER].duration * 1000) / 1000;
   wind = handChosen(packs[WIND].notes);
   winter = notInPack(packs[WINTER]);
-  const on = { widget: 'pointillism', listen: 'picks:p1' }, squares = { widget: 'squares' };
-  const windShow = (id, layers) => ({ version: 2, id, song: WIND, sections: [{ start: 0, end: D, layers }], picks: { p1: { notes: wind } } });
+  const on = { id: 'on', track: 1, fade: 0, widget: 'pointillism', listen: 'picks:p1' }, squares = { id: 'sq', track: 0, fade: 0, widget: 'squares' };
+  const windShow = (id, clips) => ({ version: 3, id, song: WIND, clips: clips.map((c) => ({ start: 0, end: D, ...c })), picks: { p1: { notes: wind } } });
   /** A layer on SHARED, on both songs: `<name>-wind` and `<name>-winter`. */
   const onBoth = (name, layer) => Object.fromEntries([[WIND, D, 'wind'], [WINTER, W, 'winter']].map(([song, end, tag]) => [`${name}-${tag}`,
-    { version: 2, id: `${name}-${tag}`, song, sections: [{ start: 0, end: 100, layers: [{ ...layer, listen: 'picks:p1' }] }, { start: 100, end, layers: [] }], picks: { p1: { notes: SHARED } } }]));
+    { version: 3, id: `${name}-${tag}`, song, clips: [{ id: 'c', start: 0, end: 100, track: 0, fade: 0, ...layer, listen: 'picks:p1' }], picks: { p1: { notes: SHARED } } }]));
   return {
     ...Object.assign({}, ...QUEUERS.map((widget) => onBoth(widget, { widget }))),
     ...Object.assign({}, ...Object.entries(REGIONS).map(([mode, region]) => onBoth(`timeslice-${mode}`, { widget: 'timeslice', region }))),
-    // The same set across a boundary, under a plain widget.
-    [WIND]: { version: 2, id: WIND, song: WIND, sections: [
-      { start: 0, end: 22, layers: [squares, on] }, { start: 22, end: D, layers: [squares, on] },
-    ], picks: { p1: { notes: wind } } },
+    // The set over a plain widget.
+    [WIND]: windShow(WIND, [squares, on]),
     'wind-picks': windShow('wind-picks', [on]),
-    'wind-every': { version: 1, id: 'wind-every', song: WIND, sections: [{ start: 0, end: D, layers: [{ widget: 'pointillism' }] }] },
-    [WINTER]: { version: 2, id: WINTER, song: WINTER, sections: [{ start: 0, end: W, layers: [on] }], picks: { p1: { notes: winter.notes } } },
+    'wind-every': { version: 3, id: 'wind-every', song: WIND, clips: [{ id: 'on', start: 0, end: D, track: 0, fade: 0, widget: 'pointillism' }] },
+    [WINTER]: { version: 3, id: WINTER, song: WINTER, clips: [{ ...on, start: 0, end: W, track: 0 }], picks: { p1: { notes: winter.notes } } },
   };
 } });
 const { page, browser, base, errors, vite, missing } = st;
@@ -107,7 +105,7 @@ try {
   for (const scale of [1, 2]) {
     const p = await open(WIND, scale);
     const played = await delivered(p, first - 3, last + 2);
-    check(`× ${scale}: played through, the delivered times equal groupChords(picks), over a boundary`, same(played, times), `${played.length} of ${times.length}`);
+    check(`× ${scale}: played through, the delivered times equal groupChords(picks)`, same(played, times), `${played.length} of ${times.length}`);
     const mid = times[Math.floor(times.length / 2)];
     const after = await delivered(p, mid, last + 1);
     check(`× ${scale}: after a seek onto a pick, only the attacks after it`, same(after, times.filter((t) => t > mid)), `${after.length} from ${mid} s`);

@@ -1,11 +1,13 @@
 /**
- * A show: a song's sections, each with a stack of lab widgets (bottom → top) and their knob settings. Plan §4.
- * shows/<id>.json holds canonicalShow(show). validateShow says what is wrong (errors) or odd (warnings), each with a
- * path like 'sections[2].layers[0].knobs.size'; repairShow fixes what can be fixed without asking.
- * Version 2 (plan 2026-10-31-instruments-regions-automation-hd §5): a layer may listen to a part, sit in a region and
- * follow an intensity curve. canonicalShow writes version 2 only when some layer does, so v1 files keep their bytes.
- * Picks (spec 2026-11-01-note-picker): show.picks holds sets of hand-picked notes, the notes themselves, and a layer
- * with listen 'picks:<id>' answers those notes only. A picks listen never turns into one that hears every note.
+ * A show: widgets placed on a song's timeline, as in DJ software. Each clip has a start, an end and a track, and its own
+ * knobs, part to listen to, region, intensity curve and fade. A clip belongs to nothing but the timeline: clips overlap
+ * freely across tracks, the same widget can overlap itself (two independent instances), and a stretch with nothing placed
+ * is just empty. Track order is draw order, 0 at the bottom. One track holds no overlaps: a clip that lands on an occupied
+ * spot goes to the nearest free track at or above it (freeTrack).
+ * shows/<id>.json holds canonicalShow(show). validateShow says what is wrong (errors) or odd (warnings), each with a path
+ * like 'clips[2].knobs.size'; repairShow fixes what can be fixed without asking.
+ * Picks (spec 2026-11-01-note-picker): show.picks holds sets of hand-picked notes, the notes themselves, and a clip with
+ * listen 'picks:<id>' answers those notes only. A picks listen never turns into one that hears every note.
  */
 import { isSlug } from '../pack/pack';
 import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
@@ -13,24 +15,25 @@ import type { NoteType } from '../../widgets/types';
 import { TRACKS, isTrackId } from '../pack/instruments';
 import type { Drive, Family, KnobState, Line, Listen, Note, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
 
-export const SHOW_VERSION = 2, DEFAULT_FADE = 3, MAX_LAYERS = 6, MIN_SECTION = 1;
-/** Pivots per layer per section (WaLayers.MAX_PIVOTS). */
+export const SHOW_VERSION = 3, DEFAULT_FADE = 1, MAX_LAYERS = 6, MIN_CLIP = 0.25, MAX_FADE = 10;
+/** Pivots per clip (WaLayers.MAX_PIVOTS). */
 export const MAX_PIVOTS = 256;
-/** Seconds two sections may miss each other by, and the show's end the song's. */
-export const JOIN_SLACK = 0.05, END_SLACK = 0.5, MAX_FADE = 10;
+/** Seconds a clip may run past the song's end without a word. */
+export const END_SLACK = 0.5;
 
 /** number = base; the object is the lab's PST entry ("Copy settings" pastes in). */
 export type KnobSetting = number | Partial<KnobState>;
-/** listen absent or 'all': all notes. intensity: pivots in song seconds inside the section, sorted by t. */
-export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; restart?: boolean;
-  region?: Region; intensity?: Pivot[] }
-export interface ShowSection { start: number; end: number; label?: string; fade?: number; layers: Layer[] }
+/** What a clip plays. listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t. */
+export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[] }
+/** A widget placed on the timeline. id: stable, unique in the show. track: 0 is drawn first (the bottom). fade: seconds it
+    fades in at its start and out at its end, default DEFAULT_FADE, 0 a hard cut, at most half its length. */
+export interface Clip extends Layer { id: string; start: number; end: number; track: number; fade?: number }
 /** Notes in full, sorted by start: a new transcription doesn't move them. */
 export interface PickSet { notes: Note[] }
 export interface Show {
-  version: 1 | 2; id: string; song: string; title?: string;
+  version: typeof SHOW_VERSION; id: string; song: string; title?: string;
   composer?: { by: 'auto' | 'claude' | 'user'; at: string };
-  sections: ShowSection[];
+  clips: Clip[];
   picks?: Record<string, PickSet>;
 }
 export interface Issue { path: string; message: string }
@@ -42,10 +45,9 @@ export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, 
 export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density'];
 const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
-  show: ['version', 'id', 'song', 'title', 'composer', 'sections', 'picks'],
+  show: ['version', 'id', 'song', 'title', 'composer', 'clips', 'picks'],
   composer: ['by', 'at'],
-  section: ['start', 'end', 'label', 'fade', 'layers'],
-  layer: ['widget', 'listen', 'knobs', 'restart', 'region', 'intensity'],
+  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity'],
   knob: ['base', 'drive', 'depth'],
   region: ['mode', 'shape', 'x', 'y', 'w', 'h', 'rot', 'feather', 'blend', 'fit'],
   pivot: ['t', 'v', 'shape', 'bend'],
@@ -75,21 +77,38 @@ export function isListen(x: unknown): x is Listen {
 }
 /** The part a layer listens to, or undefined for all notes ('all' is the same as absent). */
 export const listenOf = (l: Pick<Layer, 'listen'>): Listen | undefined => (l.listen === undefined || l.listen === 'all' ? undefined : l.listen);
-/** widget when it listens to all notes, else widget@listen (spec Decisions 7). */
-export function instanceKey(l: Pick<Layer, 'widget' | 'listen'>): string {
-  const p = listenOf(l);
-  return p === undefined ? l.widget : `${l.widget}@${p}`;
+/** A clip's instance in the runtime: its own state, however many other clips play the same widget. widget#id, or
+    widget@listen#id when it listens to a part, so a change of part is a new instance (a loaded one is never re-routed). */
+export function instanceKey(c: Pick<Clip, 'id' | 'widget' | 'listen'>): string {
+  const p = listenOf(c);
+  return `${p === undefined ? c.widget : `${c.widget}@${p}`}#${c.id}`;
 }
-const hasCurve = (l: { intensity?: unknown }): boolean => Array.isArray(l.intensity) && l.intensity.length > 0;
-/** Some layer listens to a part, sits in a region or follows a curve, or the show has a set of picks: it is saved as
-    version 2. Defensive, so validateShow can ask it of raw JSON. */
-export function usesV2(show: Show): boolean {
-  const picks: unknown = (show as { picks?: unknown }).picks;
-  if (isObj(picks) && Object.keys(picks).length) return true;
-  const secs: unknown = (show as { sections?: unknown }).sections;
-  if (!Array.isArray(secs)) return false;
-  return secs.some((s) => isObj(s) && Array.isArray(s.layers) && s.layers.some((l: unknown) =>
-    isObj(l) && ((l.listen !== undefined && l.listen !== 'all') || l.region !== undefined || hasCurve(l))));
+/** The widget an instance key plays. */
+export const widgetOfKey = (key: string): string => key.split(/[@#]/)[0];
+
+/** A stretch of song, in seconds. */
+export interface Span { start: number; end: number }
+const EDGE = 5e-4;   // half a millisecond: times are stored to the ms, so clips that touch never count as overlapping
+/** Whether two spans share more than a touch. */
+export const overlaps = (a: Span, b: Span): boolean => a.start < b.end - EDGE && b.start < a.end - EDGE;
+/** The nearest track at or above `wanted` free over this span: a track that does not exist yet is free. */
+export function freeTrack(clips: readonly Clip[], span: Span, wanted: number, except?: string): number {
+  let t = Math.max(0, Math.round(wanted));
+  while (clips.some((c) => c.id !== except && c.track === t && overlaps(c, span))) t++;
+  return t;
+}
+/** The lowest track above every clip overlapping this span: a new clip there draws on top of what plays with it. */
+export const topTrack = (clips: readonly Clip[], span: Span): number =>
+  clips.reduce((top, c) => (overlaps(c, span) ? Math.max(top, c.track + 1) : top), 0);
+/** The next clip id: one past the highest, so a delete never hands its id to another clip. */
+export function nextClipId(clips: readonly Pick<Clip, 'id'>[]): string {
+  let n = 0;
+  for (const c of clips) { const m = /^c(\d+)$/.exec(String(c.id)); if (m) n = Math.max(n, Number(m[1])); }
+  return `c${n + 1}`;
+}
+/** Clips in the order a show is saved and loaded: by start, then track, then id. */
+export function sortedClips(clips: readonly Clip[]): Clip[] {
+  return [...clips].sort((a, b) => a.start - b.start || a.track - b.track || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -108,10 +127,9 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
     for (const k of Object.keys(o)) if (!known.includes(k)) warn(at ? `${at}.${k}` : k, `unknown property '${k}' (ignored; known: ${known.join(', ')})`);
   };
 
-  if (!isObj(x)) { err('', 'a show is a JSON object { version, id, song, sections }'); return { errors, warnings }; }
+  if (!isObj(x)) { err('', 'a show is a JSON object { version, id, song, clips }'); return { errors, warnings }; }
   typos(x, KEYS.show, '');
-  if (x.version !== 1 && x.version !== 2) err('version', `version ${JSON.stringify(x.version)}: this studio reads versions 1 and ${SHOW_VERSION}`);
-  else if (x.version === 1 && usesV2(x as unknown as Show)) warn('version', 'uses version-2 fields (listen, region, intensity or picks): saved as version 2');
+  if (x.version !== SHOW_VERSION) err('version', `version ${JSON.stringify(x.version)}: this studio reads version ${SHOW_VERSION}, a list of clips (older shows are not read)`);
   if (!isSlug(x.id)) err('id', `${JSON.stringify(x.id)} is not a slug (lowercase letters, digits, single dashes)`);
   if (!isSlug(x.song)) err('song', `${JSON.stringify(x.song)} is not a song id (a slug: the folder songs/<id>/)`);
   if (x.title !== undefined && typeof x.title !== 'string') err('title', 'not a string');
@@ -122,56 +140,61 @@ export function validateShow(x: unknown, c: ShowContext = {}): { errors: Issue[]
   }
 
   const sets: ReadonlySet<string> = new Set(isObj(x.picks) ? Object.keys(x.picks) : []);
-  const sections = x.sections;
-  if (!Array.isArray(sections) || !sections.length) { err('sections', 'a show needs at least one section'); return { errors, warnings }; }
-  let prev: { start: number; end: number; i: number } | null = null;
-  sections.forEach((s: unknown, i) => {
-    const at = `sections[${i}]`;
-    if (!isObj(s)) { err(at, 'not a section { start, end, layers }'); prev = null; return; }
-    typos(s, KEYS.section, at);
-    const timesOk = isNum(s.start) && isNum(s.end);
-    if (!isNum(s.start)) err(`${at}.start`, 'not a number of seconds');
-    if (!isNum(s.end)) err(`${at}.end`, 'not a number of seconds');
+  const clips = x.clips;
+  if (!Array.isArray(clips)) { err('clips', 'a show holds a list of clips [{ id, start, end, track, widget }]'); return { errors, warnings }; }
+  const ids = new Set<string>(), placed: { start: number; end: number; track: number; i: number }[] = [];
+  clips.forEach((o: unknown, i) => {
+    const at = `clips[${i}]`;
+    if (!isObj(o)) { err(at, 'not a clip { id, start, end, track, widget }'); return; }
+    typos(o, KEYS.clip, at);
+    if (!isSlug(o.id)) err(`${at}.id`, `${JSON.stringify(o.id)} is not a slug`);
+    else if (ids.has(o.id)) err(`${at}.id`, `'${o.id}' is the id of an earlier clip: a clip's id is its own`);
+    else ids.add(o.id);
+    const timesOk = isNum(o.start) && isNum(o.end);
+    if (!isNum(o.start)) err(`${at}.start`, 'not a number of seconds');
+    if (!isNum(o.end)) err(`${at}.end`, 'not a number of seconds');
+    const start = o.start as number, end = o.end as number;
     if (timesOk) {
-      const start = s.start as number, end = s.end as number;
-      if (start >= end) err(`${at}.end`, `${at} ends at ${fmt(end)} s, not after its start ${fmt(start)} s`);
-      else if (end - start < MIN_SECTION) warn(at, `${at} lasts ${fmt(end - start)} s: under ${MIN_SECTION} s is hard to see`);
-      if (i === 0 && Math.abs(start) > JOIN_SLACK) err(`${at}.start`, `the first section starts at ${fmt(start)} s: it must start at 0`);
-      if (prev) {
-        const p: { start: number; end: number; i: number } = prev;
-        if (start < p.start) err(`${at}.start`, `sections must be sorted by start: ${at} starts at ${fmt(start)} s, before sections[${p.i}] (${fmt(p.start)} s)`);
-        else if (start < p.end - JOIN_SLACK) err(`${at}.start`, `${at} starts at ${fmt(start)} s, before sections[${p.i}] ends at ${fmt(p.end)} s: they overlap`);
-        else if (start > p.end + JOIN_SLACK) err(`${at}.start`, `${at} starts at ${fmt(start)} s but sections[${p.i}] ends at ${fmt(p.end)} s: a gap of ${fmt(start - p.end)} s`);
-      }
-      if (i === sections.length - 1 && isNum(c.duration) && Math.abs(end - c.duration) > END_SLACK) {
-        err(`${at}.end`, `the last section ends at ${fmt(end)} s but the song lasts ${fmt(c.duration)} s`);
-      }
-      prev = { start, end, i };
-    } else prev = null;
-    if (s.label !== undefined && typeof s.label !== 'string') err(`${at}.label`, 'not a string');
-    if (s.fade !== undefined) {
-      if (!isNum(s.fade)) err(`${at}.fade`, 'not a number of seconds');
-      else if (s.fade < 0 || s.fade > MAX_FADE) warn(`${at}.fade`, `fade ${fmt(s.fade)} s: expected 0 (cut) to ${MAX_FADE} s`);
+      if (start < 0) err(`${at}.start`, `starts at ${fmt(start)} s, before the song`);
+      if (start >= end) err(`${at}.end`, `ends at ${fmt(end)} s, not after its start ${fmt(start)} s`);
+      else if (end - start < MIN_CLIP) warn(at, `lasts ${fmt(end - start)} s: under ${MIN_CLIP} s is hard to see`);
+      if (isNum(c.duration) && end > c.duration + END_SLACK) warn(`${at}.end`, `ends at ${fmt(end)} s but the song lasts ${fmt(c.duration)} s`);
     }
-    if (!Array.isArray(s.layers)) { err(`${at}.layers`, 'not a list of layers [{ widget }]'); return; }
-    if (!s.layers.length) warn(`${at}.layers`, 'no layers: the picture fades to black here');
-    if (s.layers.length > MAX_LAYERS) warn(`${at}.layers`, `${s.layers.length} layers: more than ${MAX_LAYERS} gets muddy and slow`);
-    const seen = new Set<string>(), span = timesOk ? { start: s.start as number, end: s.end as number } : null;
-    s.layers.forEach((l: unknown, j) => validateLayer(l, `${at}.layers[${j}]`, seen, span, c, sets, err, warn, typos));
+    const trackOk = Number.isInteger(o.track) && (o.track as number) >= 0;
+    if (!trackOk) err(`${at}.track`, `${JSON.stringify(o.track)} is not a track (a whole number, 0 at the bottom)`);
+    if (timesOk && start < end && trackOk) {
+      const other = placed.find((p) => p.track === o.track && overlaps(p, { start, end }));
+      if (other) err(`${at}.track`, `overlaps clips[${other.i}] on track ${String(o.track)} (${fmt(other.start)}..${fmt(other.end)} s): one track holds no overlaps`);
+      placed.push({ start, end, track: o.track as number, i });
+    }
+    if (o.fade !== undefined) {
+      if (!isNum(o.fade)) err(`${at}.fade`, 'not a number of seconds');
+      else if (o.fade < 0 || o.fade > MAX_FADE) warn(`${at}.fade`, `fade ${fmt(o.fade)} s: expected 0 (a cut) to ${MAX_FADE} s`);
+    }
+    validateLayer(o, at, timesOk ? { start, end } : null, c, sets, err, warn, typos);
   });
-  if (x.picks !== undefined) validatePicks(x.picks, sections, err, warn, typos);
+  const most = mostAtOnce(placed);
+  if (most > MAX_LAYERS) warn('clips', `${most} clips play at once: more than ${MAX_LAYERS} gets muddy and slow`);
+  if (x.picks !== undefined) validatePicks(x.picks, clips, err, warn, typos);
   return { errors, warnings };
+}
+
+/** The most spans that are open at one time. */
+function mostAtOnce(spans: readonly Span[]): number {
+  const ev = spans.flatMap((s) => [[s.start, 1], [s.end, -1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let n = 0, most = 0;
+  for (const [, d] of ev) { n += d; most = Math.max(most, n); }
+  return most;
 }
 
 type Report = (p: string, m: string) => void;
 type Typos = (o: Record<string, unknown>, known: readonly string[], at: string) => void;
-interface Span { start: number; end: number }
 
 /** Why a listen is not heard as written, or null: a track or family this song does not have (c.tracks given). */
 function missingPart(listen: string, c: ShowContext): string | null {
   if ((NOTE_TYPES as readonly string[]).includes(listen)) {
     const t = listen as NoteType;
-    return c.noteTypes?.[t]?.length === 0 ? `this song has no ${NOTE_TYPE_LABELS[t].toLowerCase()}: this layer stays still` : null;
+    return c.noteTypes?.[t]?.length === 0 ? `this song has no ${NOTE_TYPE_LABELS[t].toLowerCase()}: this clip stays still` : null;
   }
   if (!c.tracks) return null;
   if (isTrackId(listen) && !c.tracks.includes(listen)) return `this song has no ${listen}: it plays on all notes`;
@@ -182,10 +205,9 @@ function missingPart(listen: string, c: ShowContext): string | null {
   return null;
 }
 
-function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | null, c: ShowContext, sets: ReadonlySet<string>,
+function validateLayer(l: Record<string, unknown>, at: string, span: Span | null, c: ShowContext, sets: ReadonlySet<string>,
   err: Report, warn: Report, typos: Typos): void {
-  if (!isObj(l) || typeof l.widget !== 'string') { err(at, 'not a layer { widget: "<id>" }'); return; }
-  typos(l, KEYS.layer, at);
+  if (typeof l.widget !== 'string') { err(`${at}.widget`, 'not a widget id'); return; }
   const meta = c.widgets?.get(l.widget);
   if (c.widgets && !meta) err(`${at}.widget`, `unknown widget '${l.widget}' (no lab/tools/${l.widget}.js)`);
   const listenOk = l.listen === undefined || isListen(l.listen);
@@ -197,15 +219,9 @@ function validateLayer(l: unknown, at: string, seen: Set<string>, span: Span | n
     const why = missingPart(l.listen, c);
     if (why) warn(`${at}.listen`, why);
   }
-  const key = listenOk ? instanceKey(l as unknown as Layer) : l.widget;
-  if (seen.has(key)) {
-    err(key === l.widget ? `${at}.widget` : `${at}.listen`, `'${key}' is already in this section: an instance plays once per section (two would overlap)`);
-  }
-  seen.add(key);
-  if (l.restart !== undefined && typeof l.restart !== 'boolean') err(`${at}.restart`, 'not true or false');
   const type = (NOTE_TYPES as readonly unknown[]).includes(l.listen) ? (l.listen as NoteType) : null, times = type && c.noteTypes?.[type];
   if (type && span && times?.length && !times.some((t) => t >= span.start && t < span.end)) {
-    warn(`${at}.listen`, `this section has no ${NOTE_TYPE_LABELS[type].toLowerCase()}: this layer stays still here`);
+    warn(`${at}.listen`, `this clip has no ${NOTE_TYPE_LABELS[type].toLowerCase()}: it stays still`);
   }
   if (l.region !== undefined) validateRegion(l.region, `${at}.region`, err, warn, typos);
   if (l.intensity !== undefined) validateIntensity(l.intensity, `${at}.intensity`, span, err, warn, typos);
@@ -237,7 +253,7 @@ function badNote(n: unknown): string | null {
 /** The longest step live playing takes: a pick goes to whoever plays at the end of the step it falls in. */
 export const LONGEST_STEP = 1 / 20;
 
-function validatePicks(picks: unknown, sections: unknown[], err: Report, warn: Report, typos: Typos): void {
+function validatePicks(picks: unknown, clips: unknown[], err: Report, warn: Report, typos: Typos): void {
   if (!isObj(picks)) { err('picks', 'not an object { <id>: { notes } }'); return; }
   for (const [id, set] of Object.entries(picks)) {
     const at = `picks.${id}`;
@@ -255,17 +271,15 @@ function validatePicks(picks: unknown, sections: unknown[], err: Report, warn: R
       prev = (n as Note)[0];
     });
     if (!sorted) err(`${at}.notes`, 'the notes are not sorted by start');
-    // A pick starts in the section holding its time: a section's end is the next one's.
-    const using = sections.filter((s): s is ShowSection => isObj(s) && isNum(s.start) && isNum(s.end) && Array.isArray(s.layers)
-      && s.layers.some((l: unknown) => isObj(l) && picksId(l.listen) === id));
-    if (!using.length) { warn(at, 'no layer uses it'); continue; }
-    const holds = (t: number) => using.some((s) => t >= s.start && t < s.end);
-    const showEnd = Math.max(...sections.map((s) => (isObj(s) && isNum(s.end) ? s.end : 0)));
+    // A pick is heard by a clip playing at its time, unless a live step can carry it past that clip's end.
+    const using = clips.filter((o): o is Clip => isObj(o) && isNum(o.start) && isNum(o.end) && picksId(o.listen) === id);
+    if (!using.length) { warn(at, 'no clip uses it'); continue; }
+    const holds = (t: number) => using.some((o) => t >= o.start && t < o.end);
     notes.forEach((n: unknown, i) => {
       if (badNote(n)) return;
       const t = (n as Note)[0], after = t + LONGEST_STEP;
-      if (!holds(t)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, outside every section using it: never heard`);
-      else if (after < showEnd && !holds(after)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, within ${LONGEST_STEP * 1000} ms of the end of the sections using it: a live step can carry it past them, never heard`);
+      if (!holds(t)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, outside every clip using it: never heard`);
+      else if (!holds(after)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, within ${LONGEST_STEP * 1000} ms of the end of the clip using it: a live step can carry it past, never heard`);
     });
   }
 }
@@ -309,12 +323,12 @@ function validateIntensity(p: unknown, at: string, span: Span | null, err: Repor
     if (q.t < prev) sorted = false;
     prev = q.t;
     if (q.v < 0 || q.v > 1) err(`${pa}.v`, `v ${fmt4(q.v)} is outside 0..1`);
-    if (span && (q.t < span.start || q.t > span.end)) warn(`${pa}.t`, `t ${fmt(q.t)} s is outside the section (${fmt(span.start)}..${fmt(span.end)} s)`);
+    if (span && (q.t < span.start || q.t > span.end)) warn(`${pa}.t`, `t ${fmt(q.t)} s is outside the clip (${fmt(span.start)}..${fmt(span.end)} s)`);
     if (q.shape !== undefined && !SHAPES.includes(q.shape as Shape)) err(`${pa}.shape`, `${JSON.stringify(q.shape)} is not a shape (${quoted(SHAPES)})`);
     if (q.bend !== undefined && !(isNum(q.bend) && q.bend >= -1 && q.bend <= 1)) err(`${pa}.bend`, `${JSON.stringify(q.bend)} is not a bend from -1 to 1`);
   });
   if (!sorted) err(at, 'the pivots are not sorted by t');
-  if (p.length > MAX_PIVOTS) warn(at, `${p.length} pivots: more than ${MAX_PIVOTS} per layer per section`);
+  if (p.length > MAX_PIVOTS) warn(at, `${p.length} pivots: more than ${MAX_PIVOTS} per clip`);
 }
 
 /** Degrees into −180..180 (180 stays 180). */
@@ -359,7 +373,7 @@ export function repairPivots(p: unknown, at = 'intensity', span: Span | null = n
     if (!isObj(q) || !isNum(q.t) || !isNum(q.v)) { fix(pa, 'not a pivot { t, v }: dropped'); return; }
     const x: Pivot = { t: q.t, v: clamp(q.v, 0, 1) };
     if (x.v !== q.v) fix(`${pa}.v`, `${fmt4(q.v)} → ${x.v}`);
-    if (span) { x.t = clamp(q.t, span.start, span.end); if (x.t !== q.t) fix(`${pa}.t`, `${fmt(q.t)} s → ${fmt(x.t)} s (inside the section)`); }
+    if (span) { x.t = clamp(q.t, span.start, span.end); if (x.t !== q.t) fix(`${pa}.t`, `${fmt(q.t)} s → ${fmt(x.t)} s (inside the clip)`); }
     if (q.shape !== undefined) { if (SHAPES.includes(q.shape as Shape)) x.shape = q.shape as Shape; else fix(`${pa}.shape`, `${JSON.stringify(q.shape)} is not a shape: removed`); }
     if (q.bend !== undefined) {
       if (!isNum(q.bend)) fix(`${pa}.bend`, 'was not a number: removed');
@@ -391,8 +405,8 @@ export function repairPickNotes(n: unknown, at = 'notes', fix: Report = () => {}
   return out.map((x, i) => [x, i] as const).sort((a, b) => a[0][0] - b[0][0] || a[1] - b[1]).map(([x]) => x);
 }
 
-/** The sets as validateShow wants them: their notes repaired; a set left with no notes goes (and with it its layers, in
-    repairSection), an unused one stays for its warning, since it's hand work. Says which ids are left. */
+/** The sets as validateShow wants them: their notes repaired; a set left with no notes goes (and with it its clips, in
+    repairClip), an unused one stays for its warning, since it's hand work. Says which ids are left. */
 function repairPicks(s: Show, fix: Report): ReadonlySet<string> {
   const picks: unknown = s.picks;
   if (picks === undefined) return new Set();
@@ -410,102 +424,91 @@ function repairPicks(s: Show, fix: Report): ReadonlySet<string> {
   return new Set(Object.keys(out));
 }
 
-/** Fixes what validateShow complains about, where the fix is obvious; never mutates `show`. */
+/** Fixes what validateShow complains about, where the fix is obvious; never mutates `show`. A clip on an occupied spot goes
+    to a free track, so nothing is lost; a clip past the song's end is cut there, or goes when none of it is left. */
 export function repairShow(show: Show, c: ShowContext): { show: Show; fixed: Issue[] } {
   const s = clone(show), fixed: Issue[] = [];
   const fix = (path: string, message: string) => fixed.push({ path, message });
-  let secs = Array.isArray(s.sections) ? s.sections.filter((x) => isObj(x) && isNum(x.start) && isNum(x.end)) : [];
-  if (secs.length !== (Array.isArray(s.sections) ? s.sections.length : -1)) fix('sections', 'dropped sections without a start and an end');
-  if (!secs.length) {
-    secs = [{ start: 0, end: isNum(c.duration) ? c.duration : MIN_SECTION, layers: [] }];
-    fix('sections', 'no sections: one empty section over the whole song');
+  if (!Array.isArray(s.clips)) fix('clips', 'no list of clips: an empty timeline');
+  const sets = repairPicks(s, fix), D = isNum(c.duration) ? c.duration : Infinity;
+  const kept: Clip[] = [];
+  (Array.isArray(s.clips) ? s.clips : []).forEach((x, i) => {
+    const at = `clips[${i}]`;
+    if (!isObj(x) || !isNum(x.start) || !isNum(x.end)) { fix(at, 'not a clip with a start and an end: dropped'); return; }
+    if (x.end < x.start) { fix(at, `ended before it started: ${fmt(x.start)}..${fmt(x.end)} s swapped`); [x.start, x.end] = [x.end, x.start]; }
+    if (x.start < 0) { fix(`${at}.start`, `started at ${fmt(x.start)} s: now at 0`); x.start = 0; }
+    if (x.start >= D) { fix(at, `starts at ${fmt(x.start)} s, after the song's end: dropped`); return; }
+    if (x.end > D + END_SLACK) { fix(`${at}.end`, `ended at ${fmt(x.end)} s: now at the song's end, ${fmt(D)} s`); x.end = D; }
+    if (x.end - x.start < MIN_CLIP) {
+      const end = Math.min(D, x.start + MIN_CLIP);
+      fix(at, `lasted ${fmt(x.end - x.start)} s: now ${fmt(end - x.start)} s`);
+      x.end = end;
+    }
+    if (repairClip(x, at, c, sets, fix)) kept.push(x);
+  });
+  // Ids once all clips are known, tracks earliest first: an overlap sends the later clip up.
+  const ids = new Set<string>();
+  kept.forEach((x, i) => {
+    if (typeof x.id === 'string' && isSlug(x.id) && !ids.has(x.id)) { ids.add(x.id); return; }
+    const id = nextClipId([...kept, ...[...ids].map((v) => ({ id: v }))]);
+    fix(`clips[${i}].id`, `${JSON.stringify(x.id)} is not an id of its own: now '${id}'`);
+    x.id = id; ids.add(id);
+  });
+  const placed: Clip[] = [];
+  for (const x of [...kept].sort((a, b) => a.start - b.start || (a.track ?? 0) - (b.track ?? 0))) {
+    let want = x.track;
+    if (!Number.isInteger(want) || want < 0) { want = 0; fix(`clips.${x.id}.track`, `${JSON.stringify(x.track)} is not a track: now 0`); }
+    x.track = freeTrack(placed, x, want);
+    if (x.track !== want) fix(`clips.${x.id}.track`, `track ${want} is taken at ${fmt(x.start)} s: now on track ${x.track}`);
+    placed.push(x);
   }
-  if (secs.some((x, i) => i > 0 && x.start < secs[i - 1].start)) {
-    secs = secs.map((x, i) => [x, i] as const).sort((a, b) => a[0].start - b[0].start || a[1] - b[1]).map(([x]) => x);
-    fix('sections', 'sorted the sections by start');
-  }
-  secs.forEach((x, i) => { if (x.end < x.start) { fix(`sections[${i}].end`, `ended before it started (${fmt(x.end)} s): now ends at its start`); x.end = x.start; } });
-  for (let i = 1; i < secs.length; i++) {
-    const p = secs[i - 1], x = secs[i];
-    if (x.start < p.end - JOIN_SLACK) fix(`sections[${i - 1}].end`, `overlapped sections[${i}]: now ends at ${fmt(x.start)} s instead of ${fmt(p.end)} s`);
-    else if (x.start > p.end + JOIN_SLACK) fix(`sections[${i - 1}].end`, `left a gap before sections[${i}]: now ends at ${fmt(x.start)} s instead of ${fmt(p.end)} s`);
-    else continue;
-    p.end = x.start;
-  }
-  if (Math.abs(secs[0].start) > JOIN_SLACK) { fix('sections[0].start', `started at ${fmt(secs[0].start)} s: now at 0`); secs[0].start = 0; }
-  const last = secs[secs.length - 1];
-  if (isNum(c.duration) && Math.abs(last.end - c.duration) > END_SLACK) {
-    fix(`sections[${secs.length - 1}].end`, `ended at ${fmt(last.end)} s: now at the song's end, ${fmt(c.duration)} s`);
-    last.end = c.duration;
-  }
-  // A section that ends up at or past the song's end (a shorter recording under the same id) merges like a short one;
-  // the widened section before it is checked again, so a run of them all fold into the last one that fits.
-  for (let i = 0; secs.length > 1 && i < secs.length;) {
-    const x = secs[i];
-    if (x.end - x.start >= MIN_SECTION) { i++; continue; }
-    const why = x.end > x.start ? `lasted ${fmt(x.end - x.start)} s` : `started at ${fmt(x.start)} s, at or after its end ${fmt(x.end)} s`;
-    if (i > 0) { secs[i - 1].end = x.end; fix(`sections[${i}]`, `${why}: merged into the section before`); }
-    else { secs[1].start = x.start; fix('sections[0]', `${why}: merged into the section after`); }
-    secs.splice(i, 1);
-    if (i > 0) i--;
-  }
-  const sets = repairPicks(s, fix);
-  secs.forEach((x, i) => repairSection(x, `sections[${i}]`, c, sets, fix));
-  s.sections = secs;
+  s.clips = kept;
   return { show: s, fixed };
 }
 
-function repairSection(x: ShowSection, at: string, c: ShowContext, sets: ReadonlySet<string>, fix: (p: string, m: string) => void): void {
+/** A clip's own fields as validateShow wants them; false when it has to go (an unknown widget, a set that is gone). */
+function repairClip(x: Clip, at: string, c: ShowContext, sets: ReadonlySet<string>, fix: Report): boolean {
+  const l = x;
+  if (typeof l.widget !== 'string') { fix(at, 'no widget: dropped'); return false; }
+  const meta = c.widgets?.get(l.widget);
+  if (c.widgets && !meta) { fix(at, `unknown widget '${l.widget}': dropped`); return false; }
+  // Never by deleting the listen: that would make it the plain widget on every note.
+  if (typeof l.listen === 'string' && l.listen.startsWith(PICKS) && !sets.has(picksId(l.listen) ?? '')) { fix(at, `listens to ${JSON.stringify(l.listen)}, which has no set: dropped`); return false; }
+  if (l.listen !== undefined && !isListen(l.listen)) { fix(`${at}.listen`, `${JSON.stringify(l.listen)} is not a part: removed (all notes)`); delete l.listen; }
   if (x.fade !== undefined) {
-    if (!isNum(x.fade)) { fix(`${at}.fade`, 'was not a number: removed (the default, 3 s)'); delete x.fade; }
+    if (!isNum(x.fade)) { fix(`${at}.fade`, `was not a number: removed (the default, ${DEFAULT_FADE} s)`); delete x.fade; }
     else if (x.fade < 0 || x.fade > MAX_FADE) { const f = clamp(x.fade, 0, MAX_FADE); fix(`${at}.fade`, `${fmt(x.fade)} s → ${f} s`); x.fade = f; }
   }
-  if (x.label !== undefined && typeof x.label !== 'string') { fix(`${at}.label`, 'was not text: removed'); delete x.label; }
-  const seen = new Set<string>(), keep: Layer[] = [];
-  (Array.isArray(x.layers) ? x.layers : []).forEach((l, j) => {
-    const lp = `${at}.layers[${j}]`;
-    if (!isObj(l) || typeof l.widget !== 'string') { fix(lp, 'not a layer: dropped'); return; }
-    const meta = c.widgets?.get(l.widget);
-    if (c.widgets && !meta) { fix(lp, `unknown widget '${l.widget}': dropped`); return; }
-    // Never by deleting the listen: that would make it the plain widget on every note.
-    if (typeof l.listen === 'string' && l.listen.startsWith(PICKS) && !sets.has(picksId(l.listen) ?? '')) { fix(lp, `listens to ${JSON.stringify(l.listen)}, which has no set: dropped`); return; }
-    if (l.listen !== undefined && !isListen(l.listen)) { fix(`${lp}.listen`, `${JSON.stringify(l.listen)} is not a part: removed (all notes)`); delete l.listen; }
-    const key = instanceKey(l);
-    if (seen.has(key)) { fix(lp, `'${key}' twice in one section: the second dropped`); return; }
-    seen.add(key);
-    if (l.restart !== undefined && typeof l.restart !== 'boolean') { fix(`${lp}.restart`, 'was not true or false: removed'); delete l.restart; }
-    if (l.region !== undefined) { const r = repairRegion(l.region, `${lp}.region`, fix); if (r) l.region = r; else delete l.region; }
-    if (l.intensity !== undefined) {
-      const p = repairPivots(l.intensity, `${lp}.intensity`, { start: x.start, end: x.end }, fix);
-      if (p) l.intensity = p; else delete l.intensity;
+  if (l.region !== undefined) { const r = repairRegion(l.region, `${at}.region`, fix); if (r) l.region = r; else delete l.region; }
+  if (l.intensity !== undefined) {
+    const p = repairPivots(l.intensity, `${at}.intensity`, { start: x.start, end: x.end }, fix);
+    if (p) l.intensity = p; else delete l.intensity;
+  }
+  if (l.knobs !== undefined && !isObj(l.knobs)) { fix(`${at}.knobs`, 'was not an object: removed'); delete l.knobs; }
+  for (const [key, v] of Object.entries(l.knobs ?? {})) {
+    const kp = `${at}.knobs.${key}`, q = meta?.params.find((p) => p.key === key);
+    const inRange = (b: number, p: string): number => {
+      if (!q || (b >= q.min && b <= q.max)) return b;
+      const b2 = clamp(b, q.min, q.max);
+      fix(p, `${b} → ${b2} (${key} goes ${q.min}..${q.max})`);
+      return b2;
+    };
+    if (isNum(v)) { l.knobs![key] = inRange(v, kp); continue; }
+    if (!isObj(v)) { fix(kp, 'was neither a number nor { base, drive, depth }: removed'); delete l.knobs![key]; continue; }
+    if (v.base !== undefined) { if (isNum(v.base)) v.base = inRange(v.base, `${kp}.base`); else { fix(`${kp}.base`, 'not a number: removed'); delete v.base; } }
+    if (v.drive !== undefined && !DRIVES.includes(v.drive)) { fix(`${kp}.drive`, `${JSON.stringify(v.drive)} is not a drive: removed`); delete v.drive; }
+    if (v.depth !== undefined && !(isNum(v.depth) && v.depth >= 0 && v.depth <= 1)) {
+      if (isNum(v.depth)) { const d = clamp(v.depth, 0, 1); fix(`${kp}.depth`, `${v.depth} → ${d}`); v.depth = d; }
+      else { fix(`${kp}.depth`, 'not a number: removed'); delete v.depth; }
     }
-    if (l.knobs !== undefined && !isObj(l.knobs)) { fix(`${lp}.knobs`, 'was not an object: removed'); delete l.knobs; }
-    for (const [key, v] of Object.entries(l.knobs ?? {})) {
-      const kp = `${lp}.knobs.${key}`, q = meta?.params.find((p) => p.key === key);
-      const inRange = (b: number, p: string): number => {
-        if (!q || (b >= q.min && b <= q.max)) return b;
-        const b2 = clamp(b, q.min, q.max);
-        fix(p, `${b} → ${b2} (${key} goes ${q.min}..${q.max})`);
-        return b2;
-      };
-      if (isNum(v)) { l.knobs![key] = inRange(v, kp); continue; }
-      if (!isObj(v)) { fix(kp, 'was neither a number nor { base, drive, depth }: removed'); delete l.knobs![key]; continue; }
-      if (v.base !== undefined) { if (isNum(v.base)) v.base = inRange(v.base, `${kp}.base`); else { fix(`${kp}.base`, 'not a number: removed'); delete v.base; } }
-      if (v.drive !== undefined && !DRIVES.includes(v.drive)) { fix(`${kp}.drive`, `${JSON.stringify(v.drive)} is not a drive: removed`); delete v.drive; }
-      if (v.depth !== undefined && !(isNum(v.depth) && v.depth >= 0 && v.depth <= 1)) {
-        if (isNum(v.depth)) { const d = clamp(v.depth, 0, 1); fix(`${kp}.depth`, `${v.depth} → ${d}`); v.depth = d; }
-        else { fix(`${kp}.depth`, 'not a number: removed'); delete v.depth; }
-      }
-    }
-    keep.push(l);
-  });
-  x.layers = keep;
+  }
+  return true;
 }
 
-/** What shows/<id>.json holds: keys in schema order (unknown properties dropped), times to ms, 2-space indent, a final
-    newline. version is 2 when usesV2, else 1. listen 'all' and an empty intensity are left out (they mean nothing);
-    region numbers and pivot v and bend are rounded to 4 decimals, pivot t to ms, and each pivot sits on one line. picks
-    come after sections ({} left out), a note a line, its numbers to 4 decimals: a pick is exactly the note. */
+/** What shows/<id>.json holds: clips by start, then track, then id; keys in schema order (unknown properties dropped), times
+    to ms, 2-space indent, a final newline. listen 'all' and an empty intensity are left out (they mean nothing); region
+    numbers and pivot v and bend are rounded to 4 decimals, pivot t to ms, and each pivot sits on one line. picks come after
+    the clips ({} left out), a note a line, its numbers to 4 decimals: a pick is exactly the note. */
 export function canonicalShow(show: Show): string {
   const pick = (o: Record<string, unknown>, keys: readonly string[], map: (k: string, v: unknown) => unknown = (_k, v) => v) => {
     const out: Record<string, unknown> = {};
@@ -529,17 +532,16 @@ export function canonicalShow(show: Show): string {
   };
   const pickSet = (p: unknown) => (isObj(p) ? pick(p, KEYS.pickSet, (_k, v) => (Array.isArray(v) ? v.map(note) : v)) : p);
   const knob = (v: unknown) => (isObj(v) ? pick(v, KEYS.knob) : v);
-  const layer = (l: Layer) => pick(l as unknown as Record<string, unknown>, KEYS.layer, (k, v) =>
-    k === 'knobs' && isObj(v) ? Object.fromEntries(Object.entries(v).map(([key, x]) => [key, knob(x)]))
+  const clip = (c: Clip) => pick(c as unknown as Record<string, unknown>, KEYS.clip, (k, v) =>
+    k === 'start' || k === 'end' || k === 'fade' ? (isNum(v) ? ms(v) : v)
+    : k === 'knobs' && isObj(v) ? Object.fromEntries(Object.entries(v).map(([key, x]) => [key, knob(x)]))
     : k === 'listen' ? (v === 'all' ? undefined : v)
     : k === 'region' && isObj(v) ? pick(v, KEYS.region, (_k, x) => r4(x))
     : k === 'intensity' && Array.isArray(v) ? (v.length ? v.map(pivot) : undefined)
     : v);
-  const section = (s: ShowSection) => pick(s as unknown as Record<string, unknown>, KEYS.section, (k, v) =>
-    k === 'start' || k === 'end' || k === 'fade' ? (isNum(v) ? ms(v) : v) : k === 'layers' && Array.isArray(v) ? v.map(layer) : v);
-  const version = usesV2(show) ? 2 : 1;
   const o = pick(show as unknown as Record<string, unknown>, KEYS.show, (k, v) =>
-    k === 'version' ? version : k === 'composer' && isObj(v) ? pick(v, KEYS.composer) : k === 'sections' && Array.isArray(v) ? v.map(section)
+    k === 'version' ? SHOW_VERSION : k === 'composer' && isObj(v) ? pick(v, KEYS.composer)
+    : k === 'clips' && Array.isArray(v) ? sortedClips(v as Clip[]).map(clip)
     : k === 'picks' && isObj(v) ? (Object.keys(v).length ? Object.fromEntries(Object.entries(v).map(([id, p]) => [id, pickSet(p)])) : undefined) : v);
   const text = JSON.stringify(o, null, 2);
   const swap = (t: string, re: RegExp, lines: string[]) => (lines.length ? t.replace(re, (_m, i: string) => lines[Number(i)]) : t);

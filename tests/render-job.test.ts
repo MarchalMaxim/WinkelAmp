@@ -11,7 +11,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'wa-render-job-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 const songs = join(tmp, 'songs'), shows = join(tmp, 'shows');
 mkdirSync(join(songs, 'demo'), { recursive: true }); mkdirSync(shows);
-writeFileSync(join(shows, 'demo.json'), '{"version":1,"id":"demo","song":"demo","sections":[]}\n');
+writeFileSync(join(shows, 'demo.json'), '{"version":3,"id":"demo","song":"demo","clips":[]}\n');
 
 /** A render-show child the test drives: lines on stdout/stderr, then close. */
 class FakeChild extends EventEmitter implements RenderChild {
@@ -64,7 +64,7 @@ describe('render-show lines (the shapes render-show keeps for this job)', () => 
     expect(renderLine('share → /r/demo-share.mp4 (3.1 MB; send it in WhatsApp as a document)')).toEqual({ file: { kind: 'share', path: '/r/demo-share.mp4' } });
     expect(renderLine('sheet → /r/demo-sheet.png')).toEqual({ file: { kind: 'sheet', path: '/r/demo-sheet.png' } });
     expect(renderLine('share copy: 1920×1080, 30 fps, 1872 kbit/s + AAC 128k (15 MB a minute), two passes')).toEqual({ phase: 'share' });
-    expect(renderLine('warning  sections[0]: something')).toEqual({});
+    expect(renderLine('warning  clips[0]: something')).toEqual({});
     expect(renderLine('work folder → C:\\Temp\\wa-render-show-ab12')).toEqual({ work: 'C:\\Temp\\wa-render-show-ab12' });
   });
 });
@@ -107,7 +107,7 @@ describe('the HD render job (plan §10)', () => {
 
   it('GET shows progress parsed from render-show\'s lines, a line split across chunks included', async () => {
     const c = spawned[0].child;
-    c.out('Prelude (7 sections): 2:06–2:16, 600 frames of 2560×1440 at 60 fps (60 Hz steps, scale 2) → x\n');
+    c.out('Prelude (7 clips): 2:06–2:16, 600 frames of 2560×1440 at 60 fps (60 Hz steps, scale 2) → x\n');
     const line = Buffer.from('  2:08 of 2:16: 150/600 frames (25 %), 2.00 s per video second, about 0:15 left\r\n');
     c.out(line.subarray(0, 37)); c.out(line.subarray(37));   // the line arrives in two chunks, with a CRLF
     await tick();
@@ -148,7 +148,7 @@ describe('the HD render job (plan §10)', () => {
   });
 
   it('the show on screen (a body) is rendered from a temp copy, whole song to the default name; a failed child → failed with its last line', async () => {
-    const show = { version: 1, id: 'demo', song: 'demo', sections: [{ start: 0, end: 30, layers: [{ widget: 'squares' }] }] };
+    const show = { version: 3, id: 'demo', song: 'demo', clips: [{ id: 'c1', start: 0, end: 30, track: 0, widget: 'squares' }] };
     const r = await call('POST', '/api/render/demo', JSON.stringify(show));
     expect(r.status).toBe(202);
     const id = (json(r).job as RenderJobView).id;

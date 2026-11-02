@@ -22,6 +22,7 @@
     "describe-song": "tsx scripts/describe-song.ts",
     "widget-docs": "tsx scripts/widget-docs.ts",
     "widget-thumbs": "node lab/thumbs.mjs",
+    "widget-demos": "node lab/demos.mjs",
     "studio-check": "node scripts/studio-check.mjs",
     "record-check": "node scripts/record-check.mjs",
     "render-show": "node scripts/render-show.mjs",
@@ -37,7 +38,8 @@
     "lanes-check": "node scripts/checks/lanes-check.mjs",
     "picks-check": "node scripts/checks/picks-check.mjs",
     "picker-check": "node scripts/checks/picker-check.mjs",
-    "redo-check": "node scripts/checks/redo-check.mjs"
+    "redo-check": "node scripts/checks/redo-check.mjs",
+    "timeline-check": "node scripts/checks/timeline-check.mjs"
   },
   "devDependencies": {
     "onnxruntime-node": "^1.31.1",

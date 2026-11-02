@@ -55,7 +55,7 @@ export interface PickerDeps {
   words: TagWords;
   /** The song's track ids (pack v2), [] without. */
   tracks: readonly string[];
-  /** Widgets already in the section (shown, not pickable). */
+  /** Widgets already playing here (said so; a second copy is welcome). */
   here: ReadonlySet<string>;
   state: PickerState;
   /** Groups in order (titles), and which group a widget is in. */
@@ -96,9 +96,9 @@ export function mountWidgetPicker(box: HTMLElement, d: PickerDeps): void {
       </div>
       ${groups.length ? groups.map((g) => `<section><h4>${esc(g.title)}</h4><ul>${g.items.map((m) => {
         const t = m.tags, on = new Set([...st.feel, ...st.instruments]);
-        return `<li><button type="button" class="pick" data-id="${esc(m.id)}" ${d.here.has(m.id) ? 'disabled' : ''} style="--hue:${d.hue(m.id)}">
+        return `<li><button type="button" class="pick" data-id="${esc(m.id)}" style="--hue:${d.hue(m.id)}">
           ${thumbHtml(m.id, d.hue(m.id))}
-          <span class="pick-text"><span class="pick-name"><span class="swatch"></span><b>${esc(m.name)}</b>${d.verdict(m)}${d.here.has(m.id) ? '<span class="dim small">in this section</span>' : ''}</span>
+          <span class="pick-text"><span class="pick-name"><span class="swatch"></span><b>${esc(m.name)}</b>${d.verdict(m)}${d.here.has(m.id) ? '<span class="dim small">playing here</span>' : ''}</span>
           <span class="blurb">${m.blurb}</span>
           ${t ? `<span class="wp-tags">${t.feel.map((w) => `<span class="wp-tag${on.has(w) ? ' on' : ''}">${esc(w)}</span>`).join('')}${t.instruments.length
             ? `<span class="wp-insts">suits ${t.instruments.map((w) => `<span class="${on.has(w) ? 'on' : ''}">${esc(w)}</span>`).join(', ')}</span>` : ''}${t.noteType ? `<span class="wp-insts">usually hears ${esc(NOTE_TYPE_LABELS[t.noteType].toLowerCase())}</span>` : ''}</span>` : ''}</span>

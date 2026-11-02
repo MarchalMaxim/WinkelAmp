@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { History } from '../src/studio/show/history';
 import type { Show } from '../src/studio/show/show';
 
-const show = (n: number): Show => ({ version: 1, id: 'demo', song: 'demo', sections: [{ start: 0, end: 10 + n, layers: [] }] });
+const show = (n: number): Show => ({ version: 3, id: 'demo', song: 'demo', clips: [{ id: 'c1', start: 0, end: 10 + n, track: 0, widget: 'squares' }] });
 
 describe('History', () => {
   it('undo and redo restore the exact shows', () => {

@@ -1,4 +1,4 @@
-// The intensity lanes in a real browser (plan T18 step 3): the studio on the fixture song, the open layer's lane under
+// The intensity lane in a real browser (plan T18 step 3): the studio on the fixture song, the selected clip's lane under
 // the timeline, used with the mouse as a user would. A click adds a pivot and Ctrl+S saves it; a drag moves it and one
 // Ctrl+Z undoes the whole drag; a double-click deletes it; right-click on a segment then Hold gives shape 'hold'; a
 // segment drag bends it in one undo step; Pulse every bar from the presets menu writes pivots; the paused picture
@@ -20,20 +20,20 @@ const { check, finish } = checker();
 
 const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, port: 5214, viewport: { width: 1440, height: 900 }, shows: (packs) => {
   const D = Math.round(packs.demo.duration * 1000) / 1000;
-  return { demo: { version: 1, id: 'demo', song: 'demo', title: 'Lanes check', sections: [
-    { start: 0, end: 10, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
-    { start: 10, end: 20, label: 'Two', layers: [{ widget: 'kandinsky' }] },
-    { start: 20, end: D, label: 'Three', layers: [{ widget: 'kandinsky' }, { widget: 'casket' }] },
+  return { demo: { version: 3, id: 'demo', song: 'demo', title: 'Lanes check', clips: [
+    { id: 'c1', start: 0, end: 20, track: 0, fade: 0, widget: 'kandinsky' },
+    { id: 'c2', start: 0, end: 10, track: 1, fade: 0, widget: 'squares' },
+    { id: 'c3', start: 20, end: D, track: 0, widget: 'casket' },
   ] } };
 } });
 const { page, errors, dirs } = st;
 
-const pivots = (s = 0, l = 1) => page.evaluate(([s, l]) => window.__studio.store.state.show.sections[s].layers[l].intensity ?? null, [s, l]);
+const pivots = (id = 'c2') => page.evaluate((id) => window.__studio.store.state.show.clips.find((c) => c.id === id).intensity ?? null, id);
 const hash = () => page.evaluate(() => {
   const c = window.__studio.runtime.ctx.canvas, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
   let h = 0x811c9dc5; for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16);
 });
-// The open lane's geometry: section 0 is 0..10 s across the canvas; v 1 at 8 px from the top, 0 at 8 px from the bottom.
+// The lane's geometry: clip c2 is 0..10 s across the canvas; v 1 at 8 px from the top, 0 at 8 px from the bottom.
 const lane = async () => {
   const b = await page.locator('.lane.open canvas').boundingBox();
   return { ...b, X: (t) => b.x + (t / 10) * b.width, Y: (v) => b.y + 8 + (1 - v) * (b.height - 16) };
@@ -45,11 +45,12 @@ const shot = async (name) => {
 };
 
 try {
-  // Open the top layer (squares) of section 1: its lane is the tall one.
-  await page.evaluate(() => window.__studio.store.dispatch({ type: 'select', section: 0, layer: 1 }));
+  // Select the squares' clip: the lane is its.
+  check('with nothing selected the lane says so', (await page.locator('.lanes-empty').count()) === 1);
+  await page.evaluate(() => window.__studio.store.dispatch({ type: 'select', clip: 'c2' }));
   await page.waitForSelector('.lane.open canvas');
-  const n = await page.locator('.lane').count(), open = await page.locator('.lane.open').count();
-  check('one lane per layer of the section, the open one tall', n === 2 && open === 1, `${n} lanes, ${open} open`);
+  const n = await page.locator('.lane').count();
+  check('the selected clip has one lane', n === 1, `${n} lanes`);
   // Snap off for exact positions (the fixture's beats are not the point here).
   if ((await page.getAttribute('[data-snap]', 'aria-pressed')) === 'true') await page.click('[data-snap]');
 
@@ -61,8 +62,8 @@ try {
   await page.keyboard.press('Control+s');
   await page.waitForTimeout(600);
   const saved = JSON.parse(readFileSync(path.join(dirs.shows, 'demo.json'), 'utf8'));
-  const sp = saved.sections[0].layers[1].intensity;
-  check('Ctrl+S saves it in a version 2 show', saved.version === 2 && sp?.length === 1 && Math.abs(sp[0].t - p[0].t) < 1e-3, JSON.stringify({ version: saved.version, sp }));
+  const sp = saved.clips.find((c) => c.id === 'c2').intensity;
+  check('Ctrl+S saves it', saved.version === 3 && sp?.length === 1 && Math.abs(sp[0].t - p[0].t) < 1e-3, JSON.stringify({ version: saved.version, sp }));
 
   // A drag moves it; one Ctrl+Z undoes the whole drag (and only it).
   const before = p[0];
@@ -153,7 +154,7 @@ try {
   await page.evaluate(() => window.__studio.player.seek(0));
   await page.keyboard.press('ArrowRight');   // the studio's own seek (+5 s): the poster steps aside for the preview
   await page.waitForTimeout(900);
-  await page.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setLayer', section: 0, layer: 1, patch: { intensity: null } } }));
+  await page.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: 'c2', patch: { intensity: null } } }));
   await page.waitForTimeout(500);
   const h0 = await hash();
   L = await lane();
@@ -163,13 +164,11 @@ try {
   p = await pivots();
   check('the paused picture changes after an edit there', h0 !== h1 && p?.length === 1, `${h0} → ${h1}, ${JSON.stringify(p)}`);
 
-  // Whole show: the lane spans the song, as the sections strip does.
-  await page.click('[data-mode="show"]');
-  await page.waitForTimeout(200);
-  const wide = await page.evaluate(() => document.querySelectorAll('.lane').length);
-  check('Whole show keeps a lane per layer', wide === 2, `${wide}`);
-  await shot('lanes-whole-show');
-  await page.click('[data-mode="section"]');
+  // The curve moves with its clip.
+  const before2 = await pivots();
+  await page.evaluate(() => { const c = window.__studio.store.state.show.clips.find((x) => x.id === 'c2'); window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: 'c2', start: c.start + 2, track: c.track } }); });
+  const after2 = await pivots();
+  check('moving the clip moves its curve', after2?.[0].t === before2[0].t + 2, JSON.stringify({ before2, after2 }));
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {

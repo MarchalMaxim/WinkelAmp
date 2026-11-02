@@ -14,6 +14,7 @@ import { composeShow } from '../src/studio/compose/compose';
 import { TRACK_IDS } from '../src/studio/pack/instruments';
 import { MS_MODEL } from '../src/studio/pack/muscriptor';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
+import { sortedClips } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
 import type { Note } from '../src/widgets/types';
 import { loadCatalogue } from './node/catalogue';
@@ -86,9 +87,9 @@ if (present.length) {
 
 const { widgets } = loadCatalogue();
 const auto = composeShow({ pack, widgets });
-out.push('', "## The auto-composer's default", '', 'What the studio plays when there is no show: a starting point, not a verdict.', '');
-out.push('| start | end | label | layers (bottom → top) |', '|---|---|---|---|');
-for (const s of auto.sections) out.push(`| ${clock(s.start)} | ${clock(s.end)} | ${s.label ?? ''} | ${s.layers.map((l) => l.widget).join(', ') || '—'} |`);
+out.push('', "## The auto-composer's default", '', 'What "Compose a show for me" places on an empty timeline: a starting point, not a verdict.', '');
+out.push('| start | end | track | widget | hears |', '|---|---|---|---|---|');
+for (const c of sortedClips(auto.clips)) out.push(`| ${clock(c.start)} | ${clock(c.end)} | ${c.track} | ${c.widget} | ${c.listen ?? 'all notes'} |`);
 console.log(out.join('\n'));
 
 /**

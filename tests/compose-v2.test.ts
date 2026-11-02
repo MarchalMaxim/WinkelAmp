@@ -1,16 +1,15 @@
 /// <reference types="node" />
 // The auto-composer with tags and instruments (plan 2026-10-31 §9, T19).
-import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { loadCatalogue, readLabTagWords } from '../scripts/node/catalogue';
 import { loadLayers } from '../scripts/node/layers';
 import { sectionCharacters } from '../src/studio/compose/character';
-import { composeShow, type ComposeInput } from '../src/studio/compose/compose';
+import { composeShow, pickSections, type ComposeInput } from '../src/studio/compose/compose';
 import { enteringTrack, presence } from '../src/studio/compose/instruments';
 import { TASTE } from '../src/studio/compose/taste';
 import type { Track } from '../src/studio/pack/pack';
 import { TRACKS } from '../src/studio/pack/instruments';
-import { canonicalShow, validateShow, type Show } from '../src/studio/show/show';
+import { canonicalShow, sortedClips, validateShow, type Show } from '../src/studio/show/show';
 import type { Note, TrackId, WidgetMeta } from '../src/widgets/types';
 
 const widgets = loadCatalogue().widgets;
@@ -19,7 +18,6 @@ type Register = 'low' | 'mid' | 'high';
 interface Part { from: number; to: number; rate: number; vel: number; register: Register; poly?: number; track?: TrackId; len?: number }
 const PITCH: Record<Register, number> = { low: 36, mid: 60, high: 84 };
 const ms = (t: number) => Math.round(t * 1000) / 1000;
-const sha = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
 /** compose.test's makePack, with tracks: a part with `track` also goes into that track's notes (an ensemble's
     hybrid all-notes holds every track's notes). `sections` gives the analysis sections' starts (novelty 1 each). */
@@ -123,14 +121,6 @@ describe('enteringTrack', () => {
 });
 
 describe('composeShow without layers and words', () => {
-  // canonicalShow of last night's composer (HEAD fa22600) for these packs.
-  const GOLDEN: Record<string, string> = { quietLoud: '70e349ae1e8560b1', threeParts: 'beb75e5b9289f88b', silent: 'f4f2a5d0d4279555' };
-  const fixtures: Record<string, () => ComposeInput['pack']> = { quietLoud, threeParts, silent: () => makePack({ duration: 90, parts: [] }) };
-
-  it('is byte-identical to version 1', () => {
-    for (const [name, f] of Object.entries(fixtures)) expect(sha(canonicalShow(composeShow(v1(f())))), name).toBe(GOLDEN[name]);
-  });
-
   it('ignores a description and the tracks', () => {
     const plain = quietLoud();
     const withTracks = makePack({ duration: 120, novelty: (s) => (s === 60 ? 1 : 0.2), parts: [
@@ -144,17 +134,23 @@ describe('composeShow without layers and words', () => {
 });
 
 describe('composeShow with layers and words', () => {
-  const baseOf = (show: Show, k: number) => show.sections[k].layers[0].widget;
+  /** The clips playing through the middle of span k of the pack's spans. */
+  const inSpan = (show: Show, pack: Parameters<typeof v2>[0], k: number) => {
+    const s = pickSections(v2(pack))[k], mid = (s.start + s.end) / 2;
+    return sortedClips(show.clips).filter((c) => c.start <= mid && mid < c.end).sort((a, b) => a.track - b.track);
+  };
+  const baseOf = (show: Show, pack: Parameters<typeof v2>[0], k: number) => inSpan(show, pack, k)[0].widget;
 
-  it('"dark and dripping" moves the base of a quiet low section to rorschach', () => {
+  it('"dark and dripping" moves the base of a quiet low stretch to rorschach', () => {
     const pack = quietLow();
     const before = composeShow(v2(pack)), after = composeShow(v2(pack, 'Something dark and dripping, please.'));
-    expect(before.sections.length).toBe(3);
-    const ch = sectionCharacters(pack.notes, before.sections)[1];
+    const spans = pickSections(v2(pack));
+    expect(spans.length).toBe(3);
+    const ch = sectionCharacters(pack.notes, spans)[1];
     expect(ch.quiet).toBeGreaterThan(0.5);
     expect(ch.low).toBeGreaterThan(0.9);
-    expect(baseOf(before, 1)).not.toBe('rorschach');
-    expect(baseOf(after, 1)).toBe('rorschach');
+    expect(baseOf(before, pack, 1)).not.toBe('rorschach');
+    expect(baseOf(after, pack, 1)).toBe('rorschach');
     valid(after, pack);
   });
 
@@ -163,16 +159,15 @@ describe('composeShow with layers and words', () => {
     { from: 0, to: 30, rate: 1, vel: 50, register: 'mid', poly: 2 }, { from: 30, to: 60, rate: 6, vel: 100, register: 'mid', poly: 1 },
     { from: 30, to: 48, rate: 1.25, vel: 100, register: 'high', poly: 1, track: 'violin' }, ...more] });
 
-  it('routes an accent tagged violin to a violin track that plays 60 % of its section', () => {
-    const pack = violins(), show = composeShow(v2(pack)), s = show.sections[1];
+  it('routes an accent tagged violin to a violin track that plays 60 % of its stretch', () => {
+    const pack = violins(), show = composeShow(v2(pack)), s = pickSections(v2(pack))[1], here = inSpan(show, pack, 1);
     expect(presence(pack.tracks!.violin!.notes, s)).toBeCloseTo(0.6, 1);
-    const accent = s.layers[1];
+    const accent = here[1];
     expect(TASTE.find((t) => t.id === accent.widget)?.role).toBe('accent');
     expect(widgets.get(accent.widget)?.tags?.instruments).toContain('violin');
     expect(accent.listen).toBe('violin');
-    expect(s.layers[0].listen).toBeUndefined();   // bases hear all notes
-    expect(show.sections[0].layers.every((l) => l.listen === undefined)).toBe(true);   // no violins there
-    expect(show.version).toBe(2);
+    expect(here[0].listen).toBeUndefined();   // bases hear all notes
+    expect(inSpan(show, pack, 0).every((c) => c.listen === undefined)).toBe(true);   // no violins there
     valid(show, pack);
   });
 
@@ -184,33 +179,31 @@ describe('composeShow with layers and words', () => {
       { from: 0, to: 30, rate: 6, vel: 50, register: 'mid', poly: 1 }, { from: 30, to: 60, rate: 1, vel: 110, register: 'mid', poly: 3 },
       { from: 30, to: 50, rate: 1.25, vel: 110, register: 'high', poly: 1, track: 'violin' },
       ...(cello ? [{ from: 30, to: 45, rate: 1.25, vel: 110, register: 'low', poly: 1, track: 'cello' } as Part] : [])] });
-    const hear = (cello: boolean) => composeShow({ ...v2(pack(cello)), widgets: stringy }).sections[1].layers;
-    const one = hear(false), two = hear(true);
-    expect(one[1]).toEqual({ widget: 'murmuration', listen: 'violin' });
-    expect(two[1]).toEqual({ widget: 'murmuration', listen: 'family:strings' });
+    const hear = (cello: boolean) => inSpan(composeShow({ ...v2(pack(cello)), widgets: stringy }), pack(cello), 1);
+    expect(hear(false)[1]).toMatchObject({ widget: 'murmuration', listen: 'violin' });
+    expect(hear(true)[1]).toMatchObject({ widget: 'murmuration', listen: 'family:strings' });
   });
 
-  it('gives a horn that enters inside a section one window that plays while it does', () => {
+  it('gives a horn that enters inside a stretch one window that plays while it does', () => {
     const pack = makePack({ duration: 80, sections: [20, 60], parts: [
       { from: 0, to: 80, rate: 5, vel: 90, register: 'mid', poly: 3 },
       { from: 30, to: 40, rate: 2, vel: 90, register: 'low', poly: 1, track: 'horn' }] });
-    const show = composeShow(v2(pack)), span = show.sections[1];
-    expect(show.sections.length).toBe(3);
+    const show = composeShow(v2(pack)), spans = pickSections(v2(pack)), span = spans[1];
+    expect(spans.length).toBe(3);
     expect(span.start).toBeCloseTo(20, 0);
     expect(span.end).toBeCloseTo(60, 0);
-    const windows = show.sections.flatMap((s, k) => s.layers.filter((l) => l.region).map((l) => ({ k, l })));
+    const windows = show.clips.filter((c) => c.region);
     expect(windows.length).toBe(1);
-    const { k, l } = windows[0];
-    expect(k).toBe(1);
+    const [l] = windows;
+    expect(l.start).toBeCloseTo(span.start, 3);
     expect(l.listen).toBe('horn');
     expect(widgets.get(l.widget)?.tags?.instruments).toContain('horn');
     expect(TASTE.find((t) => t.id === l.widget)?.role).not.toBe('top');
     expect(l.region).toEqual({ mode: 'window', shape: 'ellipse', x: 0.75, y: 0.5, w: 0.4, h: 0.5, feather: 0.3, blend: 'lighten', fit: 'cover' });
-    expect([0.25, 0.75]).toContain(l.region!.x);
     expect(l.intensity).toEqual(layers.presets.plays(span, pack.tracks!.horn!.notes));
     expect(l.intensity!.length).toBeGreaterThan(0);
-    const last = show.sections[1].layers[show.sections[1].layers.length - 1];
-    if (show.sections[1].layers.some((x) => x.widget === 'casket')) expect(last.widget).toBe('casket');
+    const here = inSpan(show, pack, 1);
+    if (here.some((x) => x.widget === 'casket')) expect(here[here.length - 1].widget).toBe('casket');
     valid(show, pack);
   });
 
@@ -219,7 +212,7 @@ describe('composeShow with layers and words', () => {
       { from: 0, to: 30, rate: 2, vel: 60, register: 'mid' }, { from: 30, to: 60, rate: 2, vel: 110, register: 'low', poly: 1 }] });
     expect(pack.tracks).toBeUndefined();
     const show = composeShow(v2(pack));
-    const sq = show.sections.flatMap((s) => s.layers).filter((l) => l.widget === 'squares');
+    const sq = show.clips.filter((l) => l.widget === 'squares');
     expect(sq.length).toBeGreaterThan(0);
     for (const l of sq) expect(l.listen).toBe('bassline');
     valid(show, pack);

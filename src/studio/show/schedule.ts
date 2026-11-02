@@ -1,94 +1,50 @@
 /**
- * Transitions on the shared canvas (plan §5), pure. A widget is one running instance: in consecutive sections it
- * continues (its knobs switch at the boundary) unless restart; entering, it is reset at the boundary; leaving, it keeps
- * drawing beneath the new stack for the next section's fade seconds, without attacks, at weight (1 − u)². Because the
- * canvas is shared and fades on its own, an incoming casket slices what the outgoing widgets left.
- * Each fade belongs to its boundary: a fade-0 boundary cuts only the widgets leaving there, not earlier decays.
- * Show v2 (plan 2026-10-31 §5): an instance is keyed by instanceKey (widget, or widget@listen). It carries its
- * section's region and intensity pivots; a decaying one keeps its section's pivots, read up to `until` (the boundary it
- * left at); a continuing one whose region moved glides from the old region over the new section's fade.
+ * Who plays when, pure, and a function of the time alone: a clip plays while start ≤ t < end, whatever played before, so a
+ * seek hands the runtime what playing there does. Bottom track first (track order is draw order). A clip takes attacks for
+ * its whole span and is reset as it starts; its edges fade (edgeWeight), inside its span, so two clips that touch on a
+ * track never overlap, not even while fading. What it leaves on the shared canvas fades on its own.
  */
 import type { Listen, Pivot, Region } from '../../widgets/types';
-import { DEFAULT_FADE, instanceKey, listenOf, type KnobSetting, type Layer, type Show } from './show';
+import { DEFAULT_FADE, instanceKey, listenOf, sortedClips, type Clip, type KnobSetting, type Show } from './show';
 
 export interface ScheduledWidget {
   /** the instance key */
-  id: string; widget: string; listen?: Listen; receiving: boolean; weight: number;
-  knobs: Record<string, KnobSetting>; section: number;
-  region?: Region; glide?: { from: Region; u: number }; pivots?: Pivot[]; until?: number;
+  id: string; clip: string; widget: string; listen?: Listen; receiving: boolean; weight: number;
+  knobs: Record<string, KnobSetting>; region?: Region; pivots?: Pivot[];
 }
 
-/** The last section with start ≤ t (0 before it). */
-export function sectionAt(show: Show, t: number): number {
-  const s = show.sections;
-  let lo = 0, hi = s.length - 1;
-  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (s[mid].start <= t) lo = mid; else hi = mid - 1; }
-  return lo;
+/** How long a clip takes to come in and to go: its fade, at most half its length. */
+export const edgeSeconds = (c: Pick<Clip, 'start' | 'end' | 'fade'>): number =>
+  Math.max(0, Math.min(c.fade ?? DEFAULT_FADE, (c.end - c.start) / 2));
+
+/** How strongly a clip draws at t: 0 at its edges, 1 once its fade is over, squared as the old decay was: the weight is a
+    paste-back on a canvas that keeps what is drawn on it, so a linear one is seen at once. */
+export function edgeWeight(c: Pick<Clip, 'start' | 'end' | 'fade'>, t: number): number {
+  const f = edgeSeconds(c);
+  if (f <= 0) return 1;
+  const u = Math.max(0, Math.min(1, Math.min(t - c.start, c.end - t) / f));
+  return u * u;
 }
 
-const layerOf = (show: Show, i: number, key: string): Layer | undefined => show.sections[i].layers.find((l) => instanceKey(l) === key);
-const has = (show: Show, i: number, key: string) => layerOf(show, i, key) !== undefined;
-const fadeOf = (show: Show, i: number) => Math.max(0, show.sections[i].fade ?? DEFAULT_FADE);
+/** The clips playing at t, by track. */
+export const clipsAt = (show: Show, t: number): Clip[] =>
+  show.clips.filter((c) => c.start <= t && t < c.end).sort((a, b) => a.track - b.track);
 
-const sameRegion = (a: Region, b: Region): boolean =>
-  a.mode === b.mode && a.shape === b.shape && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
-  && (a.rot ?? 0) === (b.rot ?? 0) && a.feather === b.feather && a.blend === b.blend && a.fit === b.fit;
-
-/** A layer's instance as scheduled: only the fields it has. */
-function entry(l: Layer, section: number, receiving: boolean, weight: number): ScheduledWidget {
-  const w: ScheduledWidget = { id: instanceKey(l), widget: l.widget, receiving, weight, knobs: l.knobs ?? {}, section };
-  const listen = listenOf(l);
+/** A clip's instance as scheduled at t: only the fields it has. */
+function entry(c: Clip, t: number): ScheduledWidget {
+  const w: ScheduledWidget = { id: instanceKey(c), clip: c.id, widget: c.widget, receiving: true, weight: edgeWeight(c, t), knobs: c.knobs ?? {} };
+  const listen = listenOf(c);
   if (listen !== undefined) w.listen = listen;
-  if (l.region) w.region = l.region;
-  if (l.intensity?.length) w.pivots = l.intensity;
+  if (c.region) w.region = c.region;
+  if (c.intensity?.length) w.pivots = c.intensity;
   return w;
 }
 
-/** Decaying widgets (left at boundary b, b ≤ t < b + fade), oldest first, receiving false; then the section's layers,
-    receiving true, weight 1. */
-export function scheduleAt(show: Show, t: number): ScheduledWidget[] {
-  const cur = sectionAt(show, t), sec = show.sections[cur];
-  const decaying = new Map<string, ScheduledWidget>();   // id → its latest leave; Map order = first insertion, re-set below
-  for (let j = 1; j <= cur; j++) {
-    for (const l of show.sections[j].layers) decaying.delete(instanceKey(l));   // playing again: an earlier leave is over
-    const b = show.sections[j].start, fade = fadeOf(show, j);
-    if (!(t < b + fade)) continue;
-    const u = (t - b) / fade;
-    for (const l of show.sections[j - 1].layers) {
-      const key = instanceKey(l);
-      if (has(show, j, key)) continue;
-      decaying.delete(key);                               // a later leave replaces an earlier one, and moves it later
-      const w = entry(l, j - 1, false, (1 - u) ** 2);
-      w.until = b;
-      decaying.set(key, w);
-    }
-  }
-  const out: ScheduledWidget[] = [];
-  for (const w of decaying.values()) if (!has(show, cur, w.id)) out.push(w);
-  const b = sec.start, fade = fadeOf(show, cur);
-  for (const l of sec.layers) {
-    const w = entry(l, cur, true, 1);
-    // Continuing with a moved region of the same mode: glide over this section's fade (a change of mode is a cut).
-    if (cur > 0 && l.region && fade > 0 && t < b + fade) {
-      const from = layerOf(show, cur - 1, w.id)?.region;
-      if (from && from.mode === l.region.mode && !sameRegion(from, l.region)) w.glide = { from, u: Math.max(0, (t - b) / fade) };
-    }
-    out.push(w);
-  }
-  return out;
-}
+/** The clips playing at t, bottom first, as the runtime is to draw them. */
+export const scheduleAt = (show: Show, t: number): ScheduledWidget[] => clipsAt(show, t).map((c) => entry(c, t));
 
-/** Widgets entering (absent from the previous section) or restarting at a boundary b with t0 < b ≤ t1, by boundary
-    then layer order: the Conductor resets them as it crosses b. id: the instance key. */
+/** Clips starting at a time b with t0 < b ≤ t1, in the order they load: the Conductor resets them as it crosses b. id: the
+    instance key. */
 export function entriesBetween(show: Show, t0: number, t1: number): { id: string; at: number }[] {
-  const out: { id: string; at: number }[] = [];
-  for (let j = 1; j < show.sections.length; j++) {
-    const b = show.sections[j].start;
-    if (!(t0 < b && b <= t1)) continue;
-    for (const l of show.sections[j].layers) {
-      const key = instanceKey(l);
-      if (l.restart || !has(show, j - 1, key)) out.push({ id: key, at: b });
-    }
-  }
-  return out;
+  return sortedClips(show.clips).filter((c) => t0 < c.start && c.start <= t1).map((c) => ({ id: instanceKey(c), at: c.start }));
 }

@@ -1,7 +1,7 @@
 # Composing a show
 
-A show is what the studio plays over a recording: the song cut into sections, each with a stack of lab widgets
-(`lab/tools/*.js`) and, rarely, knob settings. This page is for a Claude Code session (or a person) turning a song pack
+A show is what the studio plays over a recording: lab widgets (`lab/tools/*.js`) placed as clips on tracks, like in DJ
+software, with their own times and, rarely, knob settings. Clips overlap freely and belong to no part of the song. This page is for a Claude Code session (or a person) turning a song pack
 and the user's words into `shows/<id>.json`. The widget list at the end is generated from the widget files.
 
 ## The workflow
@@ -12,12 +12,11 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 2. **Read the user.** `shows/<id>.description.md` holds what the user wrote in the studio's "Describe the show" box.
    Their words win over the analysis. If there is already a `shows/<id>.json`, start from it and change only what
    the words ask for.
-3. **Write `shows/<id>.json`** (the format is below). Put boundaries where the music turns, a little before the
-   attack (the analysis sections and the 10 s table show where); give each section a short label in the music's
-   terms ("Dread", "Agitato", "The casket").
+3. **Write `shows/<id>.json`** (the format is below). Start and end clips where the music turns, a little before the
+   attack (the analysis sections and the 10 s table show where).
 4. **Check it.** `npm run check-show -- shows/<id>.json` must exit 0, ideally with no warnings. It names every problem
-   with its path (`sections[2].layers[0].knobs.size`). `--fix` repairs what is obvious (overlaps, gaps, the ends, tiny
-   sections, unknown widgets, knobs out of range) and writes the result in the canonical form.
+   with its path (`clips[2].knobs.size`). `--fix` repairs what is obvious (overlaps on one track, clips past the end,
+   unknown widgets, knobs out of range) and writes the result in the canonical form.
 5. **Look.** `npm run render-show -- <id> --from <b − 3> --to <b + 12>` renders a stretch around a boundary `b` to
    `renders/<id>.mp4`; read a contact sheet of one frame per 0.5 s (`ffmpeg -i renders/<id>.mp4 -vf fps=2,scale=320:-1,tile=6x5 sheet.png`).
    Change a cast where a frame shows a clash or an empty stretch.
@@ -27,56 +26,47 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 
 ```json
 {
-  "version": 1,
+  "version": 3,
   "id": "prelude",
   "song": "prelude",
   "title": "Rachmaninoff: Prelude in C♯ minor",
   "composer": { "by": "claude", "at": "2026-10-31T09:00:00.000Z" },
-  "sections": [
-    { "start": 0, "end": 83, "label": "Dread", "layers": [{ "widget": "squares" }, { "widget": "current" }] },
-    { "start": 83, "end": 124, "label": "Agitato", "fade": 3, "layers": [{ "widget": "kandinsky" }, { "widget": "flee" }] },
-    { "start": 124, "end": 232.1, "label": "The casket", "fade": 2,
-      "layers": [{ "widget": "kandinsky", "knobs": { "edges": 0.6 } }, { "widget": "squares" },
-                 { "widget": "casket", "knobs": { "cutAt": { "base": 96, "drive": "-level", "depth": 0.4 } } }] }
+  "clips": [
+    { "id": "c1", "start": 0, "end": 83, "track": 0, "widget": "current" },
+    { "id": "c2", "start": 5, "end": 83, "track": 1, "widget": "squares", "fade": 2 },
+    { "id": "c3", "start": 124, "end": 232.1, "track": 2, "widget": "casket",
+      "knobs": { "cutAt": { "base": 96, "drive": "-level", "depth": 0.4 } } }
   ]
 }
 ```
 
-- `version` is 1, or 2 when a layer uses `listen`, `region` or `intensity`, or the show has `picks` (below). `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`,
-  single dashes). One show per song: `id` = `song`. `title` and `composer` (`auto` | `claude` | `user`, with a time)
-  are optional; write `"by": "claude"`.
-- `sections` are sorted, start at 0, end at the song's length (±0.5 s) and join without gaps or overlaps (±0.05 s).
-  A section under 1 s draws a warning. Times are seconds; they are stored to the millisecond.
-- `layers` run **bottom → top**: each widget draws over the ones before it. At most 6 (a warning past that; 2–3 is
-  usual). A widget appears once per section (once per part it listens to: see `listen`).
+- `id` is the show's name and `song` the pack's folder in `songs/`; both are slugs (`a-z`, `0-9`, single dashes). One show
+  per song: `id` = `song`. `title` and `composer` (`auto` | `claude` | `user`, with a time) are optional; write
+  `"by": "claude"`. Older versions are not read.
+- A clip's `id` is unique in the show. `start` and `end` are song seconds, stored to the millisecond. Gaps are allowed and
+  dark. A clip past the song's end is a warning, cut by `--fix`.
+- `track` is a whole number from 0: a higher track draws over a lower one. One track holds no overlaps (an error); overlap
+  on different tracks freely, even with the same widget. More than 6 clips at one moment is a warning; 2–3 is usual.
 - `knobs` (optional) maps a knob key to its base value (a number), or to the lab's full setting
   `{ "base": 96, "drive": "-level", "depth": 0.4 }` (what the lab's "Copy settings" gives). A drive moves the knob with
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
   `bass` (more bass) and `density` (fuller chords); `""` holds it fixed. `depth` 0..1 is how far. Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
-- `fade` (optional, seconds, default 3, 0 = a hard cut): how long the previous section's widgets take to fade out
-  when this section starts. `restart: true` on a layer resets a widget that continues from the previous section.
-- `npm run check-show -- --fix` writes the canonical form: keys in the order above, two-space indent.
+- `fade` (optional, seconds, default 1, at most half the clip, 0 = a hard cut): how long the clip takes to come in and go
+  out, at both edges, inside the clip.
+- `npm run check-show -- --fix` writes the canonical form.
 
-## How sections play
+## How clips play
 
-All widgets share one canvas, which fades a little every frame (as in the lab). At a boundary:
+All widgets share one canvas, which fades a little every frame (as in the lab). A clip resets its widget at its start, always,
+and takes attacks until its end; two clips of one widget that butt do not continue each other's state, so make one long clip
+to keep a picture going. Because the canvas fades instead of clearing, a clip that starts inherits what the others left, and
+an incoming casket slices whatever is there. Where nothing is placed, the picture fades to black. Seeking starts the clips
+under the playhead after a short warm-up.
 
-- a widget in **both** sections keeps running: no reset, its knobs switch to the new section's (unless `restart`);
-- a widget **entering** is reset at the boundary and starts taking attacks;
-- a widget **leaving** stops getting attacks but keeps drawing, beneath the new stack, for the new section's `fade`
-  seconds, its contribution fading as (1 − u)², u = time since the boundary / fade.
+## Listening, places and intensity
 
-So the picture never cuts to black: an incoming casket slices what the outgoing widgets left on the canvas, and a quiet
-section after a loud one inherits its last strokes, fading. Use `fade: 0` for a deliberate hard change, a long fade
-(5–8 s) where the music dissolves. `fade: 0` cuts only the widgets leaving at that boundary: a widget still fading out
-from an earlier boundary finishes its own fade under the new stack, so for a clean hard change keep the section
-before it longer than its own fade (or give it a short one). Seeking in the studio starts clean at the section under the playhead.
-
-## Listening, places and intensity (version 2)
-
-A layer can do three more things. Any one of them makes the file `"version": 2` (`check-show --fix` and the studio's
-save write the version for you; a show that uses none stays version 1, byte for byte).
+A clip can do three more things.
 
 ### `listen`: what the layer hears
 
@@ -84,7 +74,7 @@ save write the version for you; a show that uses none stays version 1, byte for 
 { "widget": "strings", "listen": "violin" }
 ```
 
-The layer gets attacks, a pulse and sounding notes from one part only, so its driven knobs follow that part. The
+The clip gets attacks, a pulse and sounding notes from one part only, so its driven knobs follow that part. The
 values:
 
 - `"all"` (the same as leaving it out): every note, as before.
@@ -106,20 +96,19 @@ values:
 
 **A widget's usual note type.** Some widgets have one in `lab/tags.json` (`noteType`; the widget list below prints it as
 **Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`, honey `long`. When the studio places such a widget,
-it sets `listen` to that type, but only if the section holds enough of it: at least 3 attacks, one per 10 s on average,
-and half the section within reach of one. Otherwise the layer plays on all notes. The layer panel says in words what the
+it sets `listen` to that type, but only if the clip holds enough of it: at least 3 attacks, one per 10 s on average,
+and half the clip within reach of one. Otherwise the clip plays on all notes. The panel says in words what the
 layer hears and has one click to switch between the usual type and all notes. A usual type is a default, not a rule: a
 show file you write by hand sets `listen` itself, and shows already saved are untouched. Grace notes go through the
 note picker (`picks:<id>`), not a rule.
 
-A layer listening to a part is its own *instance*: `strings` and `strings@melody` can sit in one section (say woven
-threads on the melody over the same widget on the bass line) and draw independently; each instance appears once per
-section. Removing `listen` gives the plain widget back with its state.
+Every clip is its own *instance*, so two clips of `strings` can overlap (say woven threads on the melody over the same
+widget on the bass line) and draw independently.
 
 **Honest instrument labels.** Name a track only when `describe-song` lists it. A track the song lacks is a warning
 (`this song has no horn: it plays on all notes`) and the layer plays on all notes. The labels are what the transcriber
 heard: "Violins" is YourMT3+'s violin track (it does not separate firsts from seconds), "String section" is string
-sound it could not split, and short tracks (a few dozen notes) are guesses. In a section label or a commit, say "the
+sound it could not split, and short tracks (a few dozen notes) are guesses. In a commit, say "the
 violins' line" rather than "the first violins".
 
 A song's tracks may come from MuScriptor large instead (`describe-song` says, with its list). Its notes are cleaned, but
@@ -147,7 +136,7 @@ these stay wrong, so trust the ear over the label there:
   contrabass is mostly the cello an octave down. Only string doubles outside a lane's core are dropped.
 
 **Picks.** The user picks notes in the studio ("Pick notes") and connects them to a widget, which then answers those
-notes only, each as strongly as it was played. The notes themselves are in the show, after `sections`, one a line:
+notes only, each as strongly as it was played. The notes themselves are in the show, after `clips`, one a line:
 
 ```json
 "picks": { "p1": { "notes": [
@@ -156,11 +145,11 @@ notes only, each as strongly as it was played. The notes themselves are in the s
 ] } }
 ```
 
-`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. Each layer on the set says
-`"listen": "picks:p1"`, and is the instance `pointillism@picks:p1`; one set can have layers in many sections. Notes within
+`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. Each clip on the set says
+`"listen": "picks:p1"`; one set can have many clips. Notes within
 40 ms are one attack, as everywhere. These are the user's hand work: leave them alone unless asked, and make them in the
-studio, not here. A layer on a set that isn't there is an error, and `check-show --fix` drops the layer rather than let it
-play on every note. A set no layer uses, and a pick outside every section using its set (never heard), are warnings.
+studio, not here. A clip on a set that isn't there is an error, and `check-show --fix` drops the clip rather than let it
+play on every note. A set no clip uses, and a pick outside every clip using its set (never heard), are warnings.
 
 ### `region`: where the layer is seen
 
@@ -184,7 +173,6 @@ softens the edge (default 0.25; 0 is a hard edge); `shape` is `rect` or `ellipse
 The studio's and the lab's default for a new place is a small copy for every widget, the readers included: a window,
 a centred rectangle 40 % of the stage (`w` and `h` 0.4), `feather` 0.2, `fit` `contain`. Switch a reader to the mask
 to let it cut the stack below.
-When a continuing layer's region moves between sections, it glides over the new section's fade.
 
 ### `intensity`: how much of the layer there is, over time
 
@@ -192,10 +180,10 @@ When a continuing layer's region moves between sections, it glides over the new 
 { "widget": "squares", "intensity": [{ "t": 120, "v": 0 }, { "t": 124, "v": 1, "shape": "hold" }, { "t": 131.5, "v": 1 }, { "t": 133, "v": 0.2 }] }
 ```
 
-Pivots in **song seconds** inside the section (they do not move when a boundary does), sorted, `v` from 0 to 1. Each
+Pivots in **song seconds** inside the clip (they move with it when it is moved), sorted, `v` from 0 to 1. Each
 segment takes the `shape` of the pivot that starts it: straight (default; `bend` −1..1 curves it), `ease` (slow, fast,
 slow) or `hold` (a step at the next pivot). Before the first pivot and after the last the value holds. At most 256
-pivots per layer per section.
+pivots per clip.
 
 What a value below 1 does, all at once and always the same way (no randomness, so playing, seeking and the render
 agree):
@@ -207,20 +195,19 @@ agree):
 - **a calmer pulse**: its own level and rate follow only the attacks that reached it, so knobs driven by `+level` or
   `+rate` settle down too.
 
-The widget keeps running at 0, so it comes back in its own state. A layer leaving at a boundary fades from the value
-its curve had there.
+The widget keeps running at 0, so it comes back in its own state.
 
-The presets (in the studio's layer panel and the lab's cards; they write ordinary pivots you can then edit):
+The presets (in the studio's panel and the lab's cards; they write ordinary pivots you can then edit):
 
-- **Fade in** over N seconds from the section's start; **Fade out** over the last N seconds.
-- **Swell**: up to full in the middle of the section, then back (eased).
+- **Fade in** over N seconds from the clip's start; **Fade out** over the last N seconds.
+- **Swell**: up to full in the middle of the clip, then back (eased).
 - **Pulse** every N beats or 4-beat bars: full on the beat, falling away over half the period (made coarser if it
   would need more than 256 pivots).
 - **Gate on loudness**: open where the recording is louder than a threshold (default: its 60th percentile there),
   shut between, with short ramps.
 - **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
 
-In the studio the curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),
+In the studio the selected clip's curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),
 drag a segment to bend it, right-click for its shape, double-click to delete.
 
 ## Picking widgets by their tags
@@ -257,9 +244,8 @@ song"), and the auto-composer reads the description's feel words and routes an a
 
 ## What the auto-composer does
 
-For a song without a show the studio composes one (`src/studio/compose/`): it keeps the most novel analysis
-boundaries (sections ≥ 15 s, at most one per 30 s), moves each just before the strongest attack within a second, and
-gives each section, by its character, a base (a widget that fills the picture: for example the current, woven threads
+A song without a show opens with an empty timeline. Its "Compose a show for me" button (`src/studio/compose/`, one undo)
+places clips by the music's character: a base (a widget that fills the picture: for example the current, woven threads
 or horizon when quiet, rorschach or riley when low, kandinsky, cells or klee when dense, boogie, ikeda or miró when fast,
 kusama or kline when loud), an accent over it when one fits well (squares for loud bass, flee or calligraphy for fast,
 murmuration for loud chords, pixel sort or glitch blocks to smear and tear the base), and the casket on top where it is
@@ -269,7 +255,9 @@ that paints its own ground is only ever a base. It is a starting point: a compos
 
 ## Composing as a composer: how the two first shows were made
 
-`shows/rach-prelude-recording.json` and `shows/beethoven5.json` were written by hand this way. Repeat it for a new song.
+The Prelude and Beethoven shows were written by hand this way, in the older format where a song was cut into sections.
+Those files are gone (git history has them), and the method still holds: read "section" below as a stretch of music,
+and write clips. A strike that needs an accent is now one short clip on a higher track, over whatever keeps playing.
 
 ### 1. Find the form, closer than describe-song
 
@@ -373,8 +361,8 @@ The Prelude (232 s) keeps 720p at 819 kb/s. Both come out at 28 MB.
 
 Some widgets do more together than side by side: one acts on what another drew. Each pair or trio below was shot
 together and alone on the same passages, and the stills were looked at (round 7). The lab lists them in
-`lab/combos.js`, under a "combines with" pill on each member's card, with a "try together" button. Stack them as one
-section's layers, **in the order given** (bottom → top): that is the order they were judged in. Pixel sort, time slice,
+`lab/combos.js`, under a "combines with" pill on each member's card, with a "try together" button. Place them as overlapping clips
+on rising tracks, **in the order given** (bottom → top): that is the order they were judged in. Pixel sort, time slice,
 fold and stella work on the finished picture after every other layer, so they go last. Knobs: the values listed are
 needed or were shot; "worth trying" ones were not shot.
 
@@ -411,7 +399,7 @@ The last four use this round's new widgets (time slice, fold, stella), which the
 
 _Generated by `npm run widget-docs` from `lab/tools/*.js`, the verdicts in `lab/index.html` and the tags in `lab/tags.json`; do not edit by hand._
 
-_Feel: synesthetic feel words (`lab/tag-words.json` says what each looks and sounds like). Suits: instruments that go well with it. Role: where it sits in a stack: **under** paints first and never darkens what is on top; **ground** paints its own canvas, so it goes first; **base** fills the picture but lets others show; **texture** is a fine ornament over the others, never the main picture (like the hairs on an arm); **lead** is the main character the eye follows, a melody (murmuration), the low chords (rorschach) or every note (ikeda); **accent** moves over a base; **top** works on whatever is below it; **standalone** is not a layer at all but a whole show by itself, enough to carry a song alone (marbling). Note type: what the studio gives it as `listen` when it is placed in a section with enough of those notes._
+_Feel: synesthetic feel words (`lab/tag-words.json` says what each looks and sounds like). Suits: instruments that go well with it. Role: where it sits in a stack: **under** paints first and never darkens what is on top; **ground** paints its own canvas, so it goes first; **base** fills the picture but lets others show; **texture** is a fine ornament over the others, never the main picture (like the hairs on an arm); **lead** is the main character the eye follows, a melody (murmuration), the low chords (rorschach) or every note (ikeda); **accent** moves over a base; **top** works on whatever is below it; **standalone** is not a layer at all but a whole show by itself, enough to carry a song alone (marbling). Note type: what the studio gives it as `listen` when it is placed where there are enough of those notes._
 
 ### Loved
 

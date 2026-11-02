@@ -28,9 +28,10 @@ const START = { mode: 'window', shape: 'rect', x: 0.8, y: 0.24, w: 0.34, h: 0.34
 const st = await openStudio({ songs: 'fixture', headed: HEADED, keep: KEEP, port: 5236, viewport: { width: 1800, height: 1300 },
   shows: (packs) => {
     const D = Math.round(packs.demo.duration * 1000) / 1000;
-    return { demo: { version: 2, id: 'demo', song: 'demo', title: 'Overlay check', sections: [
-      { start: 0, end: 15, label: 'One', layers: [{ widget: 'kandinsky' }, { widget: 'casket', region: START }] },
-      { start: 15, end: D, label: 'Two', layers: [{ widget: 'kandinsky' }, { widget: 'squares' }] },
+    return { demo: { version: 3, id: 'demo', song: 'demo', title: 'Overlay check', clips: [
+      { id: 'c1', start: 0, end: D, track: 0, widget: 'kandinsky' },
+      { id: 'c2', start: 0, end: 15, track: 1, widget: 'casket', region: START },
+      { id: 'c3', start: 15, end: D, track: 1, widget: 'squares' },
     ] } };
   } });
 const { page } = st;
@@ -40,13 +41,13 @@ const pic = () => page.evaluate(() => {
   const c = document.getElementById('c'), r = c.getBoundingClientRect(), k = Math.min(r.width / c.width, r.height / c.height);
   return { x: r.left + (r.width - c.width * k) / 2, y: r.top + (r.height - c.height * k) / 2, w: c.width * k, h: c.height * k };
 });
-const regionOf = (k) => page.evaluate((i) => window.__studio.store.state.show.sections[0].layers[i].region ?? null, k);
+const regionOf = (k) => page.evaluate((i) => window.__studio.store.state.show.clips.find((c) => c.id === `c${i + 1}`).region ?? null, k);
 const region = () => regionOf(1);
 const shown = () => page.evaluate(() => {
   const svg = document.querySelector('.wa-rg'), bar = document.querySelector('.wa-rg-bar');
   return !!svg && svg.style.display !== 'none' && !!bar && !bar.hidden;
 });
-const select = (layer) => page.evaluate((k) => window.__studio.store.dispatch({ type: 'select', section: 0, layer: k }), layer);
+const select = (layer) => page.evaluate((k) => window.__studio.store.dispatch({ type: 'select', clip: k === null ? null : `c${k + 1}` }), layer);
 const hash = () => page.evaluate(() => {
   const c = window.__studio.runtime.ctx.canvas, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
   let h = 0x811c9dc5; for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16);
@@ -168,7 +169,7 @@ try {
 
   // A rotated, soft spot on kandinsky (layer 0): the right edge's handle pulled 40 px along the turned axis grows w
   // only, and the left edge stays; then a body drag, and the look (the outline over the picture's soft edge).
-  await page.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setLayer', section: 0, layer: 0,
+  await page.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: 'c1',
     patch: { region: { mode: 'spot', shape: 'ellipse', x: 0.42, y: 0.56, w: 0.42, h: 0.5, rot: 30, feather: 0.4 } } } }));
   await select(0);
   const o0 = await regionOf(0), c30 = Math.cos(Math.PI / 6), s30 = Math.sin(Math.PI / 6);
