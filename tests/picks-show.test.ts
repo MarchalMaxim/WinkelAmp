@@ -132,6 +132,20 @@ describe('picks: validation', () => {
     expect(at(warns(s), 'picks.p1.notes[0]')).toEqual([]);
   });
 
+  it('a pick within a live step of the last section using it warns too: the step can carry it over the boundary', () => {
+    const near = picked([[9.97, 10, 60, 80]] as Note[]); near.sections[1].layers.pop();
+    const w = at(warns(near), 'picks.p1.notes[0]');
+    expect(w).toHaveLength(1);
+    expect(w[0].message).toMatch(/never heard/);
+    const clear = picked([[9.94, 10, 60, 80]] as Note[]); clear.sections[1].layers.pop();
+    expect(at(warns(clear), 'picks.p1.notes[0]')).toEqual([]);
+  });
+
+  it('near a boundary with the set on both sides, or near the end of the show, no warning', () => {
+    expect(at(warns(picked([[9.97, 10, 60, 80]] as Note[])), 'picks.p1.notes[0]')).toEqual([]);
+    expect(at(warns(picked([[19.99, 20, 60, 80]] as Note[])), 'picks.p1.notes[0]')).toEqual([]);
+  });
+
   it('a pick on a boundary belongs to the section it starts', () => {
     const s = picked([[10, 11, 60, 80]]); s.sections[1].layers.pop();
     expect(at(warns(s), 'picks.p1.notes[0]')).toHaveLength(1);

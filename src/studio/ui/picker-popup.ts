@@ -15,7 +15,7 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, Note, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
-import { chipLayout, clock, countWords, draftShow, loudest, nameOf, pitchClass, previewSpan, toPicks, type Instrument, type RollNote } from './picker-logic';
+import { chipLayout, clock, countWords, draftKey, draftShow, loudest, nameOf, pitchClass, previewSpan, toPicks, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import { mountWidgetPicker, newPickerState } from './widget-picker';
@@ -29,6 +29,8 @@ export interface PopupDeps {
   tone(m: number, gain: number, len: number): void;
   /** Place in scene, or Update the scene on the set with this id. */
   commit(widget: string, notes: Note[], id: string | null): void;
+  /** However it closed. */
+  closed(): void;
 }
 
 /** What the popup opens on: its chips, those on, and when editing the set's id, widget and first layer's knobs. */
@@ -56,6 +58,7 @@ export class PickerPopup {
   private sweep: boolean | null = null;
   private heard = 0;
   private lastPlaying = false;
+  private stopped: string | null = null;
   private readonly chooserState = newPickerState();
   private readonly $ = <T extends HTMLElement>(q: string) => this.el.querySelector<T>(q)!;
 
@@ -182,6 +185,7 @@ export class PickerPopup {
     this.el.hidden = true;
     player.audio.currentTime = to ?? this.before;
     player.rest(false);
+    this.d.closed();
   }
 
   /** Esc: the chooser if it is open, else the popup. */
@@ -232,8 +236,11 @@ export class PickerPopup {
       for (const n of this.picked()) if (n.t > this.heard && n.t <= t && t - this.heard < 1) this.flash(n.id);
     }
     this.heard = t;
-    const errors = Object.entries(this.runtime?.errors ?? {});
-    if (errors.length) this.$('[data-what]').textContent = `This widget stopped: ${errors[0][1].replace(/^Error: /, '')}`;
+    // The instance on show only: one that failed earlier in this popup is no word about this one.
+    const why = this.runtime?.errors[draftKey(this.widget, this.mode)] ?? null;
+    if (why !== this.stopped) {
+      if (why) { this.stopped = why; this.$('[data-what]').textContent = `This widget stopped: ${why.replace(/^Error: /, '')}`; } else this.drawWidget();
+    }
   }
 
   private flash(id: number): void {
@@ -285,6 +292,7 @@ export class PickerPopup {
   }
 
   private drawWidget(): void {
+    this.stopped = null;
     const m = this.d.catalogue.get(this.widget)?.meta;
     this.$('[data-choose]').textContent = m?.name ?? this.widget;
     this.$('[data-what]').innerHTML = m?.blurb ?? '';

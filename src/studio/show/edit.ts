@@ -12,7 +12,7 @@
 import type { Listen, Note, Pivot, Region } from '../../widgets/types';
 import { sectionAt } from './schedule';
 import {
-  DEFAULT_FADE, MAX_FADE, MAX_PIVOTS, MIN_SECTION, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairPivots, repairRegion,
+  DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_SECTION, instanceKey, isListen, picksId, picksListen, repairPickNotes, repairPivots, repairRegion,
   type KnobSetting, type Layer, type PickSet, type Show, type ShowSection,
 } from './show';
 
@@ -116,8 +116,6 @@ export function nextPicksId(show: Show): string {
   return `p${n}`;
 }
 
-/** The longest step live playing takes (a pick goes to whoever plays at the end of the step it falls in). */
-const LONGEST_STEP = 1 / 20;
 /** The sections a set's layers must play in: from the one holding the first pick to the one holding the last, or the
     next one when a step can carry the last pick over the boundary, or the widget would miss it. Notes sorted. */
 function picksSpan(show: Show, notes: readonly Note[]): [first: number, last: number] {

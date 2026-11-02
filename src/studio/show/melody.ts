@@ -10,6 +10,9 @@ import type { Issue } from './show';
 export type Mark = [start: number, end: number, midi: number, vel: number, track?: string];
 export interface Melody { version: 1; song: string; notes: Mark[] }
 
+/** The most a save can carry as the page goes (a keepalive request is cut off at 64 KiB). */
+export const LEAVING_MAX = 60_000;
+
 export const emptyMelody = (song: string): Melody => ({ version: 1, song, notes: [] });
 
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);

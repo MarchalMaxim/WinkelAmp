@@ -69,6 +69,26 @@ try {
   const file = path.join(dirs.tmp, 'melodies', `${SONG}.json`);
   const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).notes.length : -1;
   check('the marks are in the temp melody file a second later', saved === suggested, `${saved} in the file`);
+  const warnsOnLeaving = () => page.evaluate(() => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
+  check('everything saved: leaving does not warn', !(await warnsOnLeaving()));
+  const refused = await page.evaluate(async () => {
+    const p = window.__studio.picker, api = p.d.api, save = api.saveMelody;
+    api.saveMelody = () => Promise.reject(new Error('disk full'));
+    p.changed();
+    const pending = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(pending);
+    p.saveMarks();
+    await p.saving;
+    const failed = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(failed);
+    api.saveMelody = save;
+    p.saveMarks();
+    await p.saving;
+    return { pending: pending.defaultPrevented, failed: failed.defaultPrevented };
+  });
+  check('marks waiting for their second: no warning, the page takes them along', !refused.pending);
+  check('a failed save: leaving warns', refused.failed);
+  check('saved again: leaving does not warn', !(await warnsOnLeaving()));
 
   // ---- instruments ----
   const hidden = await noteOnRoll(0);
@@ -81,6 +101,14 @@ try {
   check('♪ turns the recording down to 30 %', await page.evaluate(() => window.__studio.player.audio.volume === 0.3));
   await page.locator('.np-hear').first().click();
   check('and back with the last ♪ off', await page.evaluate(() => window.__studio.player.audio.volume === 1));
+  await page.locator('.np-hear').first().click();
+  await page.click('[data-connect]');
+  await settle();
+  check('with a ♪ on, the popup hears the recording whole: it plays no tones', await page.evaluate(() => window.__studio.player.audio.volume === 1));
+  await page.click('.np-modal [data-cancel]');
+  await settle();
+  check('and it is down again after the popup', await page.evaluate(() => window.__studio.player.audio.volume === 0.3));
+  await page.locator('.np-hear').first().click();
 
   // ---- keys ----
   const before = await page.evaluate(() => {
@@ -132,6 +160,20 @@ try {
   check("meanwhile the studio's conductor takes no steps, and no edit and no save", await page.evaluate(() => window.__steps === 0 && window.__studio.store.history.canUndo === window.__undo && window.__puts === 0));
   check("the draft's key is only in the preview's runtime", await page.evaluate(() =>
     !window.__studio.runtime.loaded().some((k) => k.includes('draft')) && window.__studio.picker.popup.runtime.loaded().some((k) => k.includes('draft'))));
+  const whatSays = () => page.textContent('.np-modal [data-what]');
+  const stoppedKey = await page.evaluate(() => {
+    const { runtime, widget } = window.__studio.picker.popup, key = `${widget}@picks:draft`;
+    runtime.errors[key] = 'Error: test';
+    return key;
+  });
+  await settle();
+  check("a widget's failure is said", /stopped: test/.test(await whatSays()));
+  await page.click('[data-cmp="all"]');
+  await settle();
+  check("and isn't said about the other instance", !/stopped/.test(await whatSays()));
+  await page.evaluate((k) => { delete window.__studio.picker.popup.runtime.errors[k]; }, stoppedKey);
+  await page.click('[data-cmp="pick"]');
+  await settle();
   await page.click('[data-cancel]');
   await settle(300);
   check('Cancel: the playhead as before, the popup gone, no error', await page.evaluate(() => Math.abs(window.__studio.player.time - window.__t0) < 0.01 && document.querySelector('.np-modal').hidden && window.__studio.player.audio.paused));
@@ -277,6 +319,26 @@ try {
     return { failed, tries, after: said() };
   });
   check('a failed save says so, closing tries again, and the notice goes', retried.failed && retried.tries === 2 && !retried.after, JSON.stringify(retried));
+
+  // ---- Ctrl+Z after a placement, then leaving at once ----
+  await page.click('[data-pick]');
+  await settle(300);
+  const count = await markedCount();
+  await clickNote(await noteOnRoll(0));
+  await page.click('.np-set[data-set="p1"] button');
+  await settle();
+  await page.keyboard.press('Control+z');
+  await settle();
+  const told = await page.textContent('.np-notices');
+  check('Ctrl+Z after removing a set: the marks go back, and it says so and where that is undone', (await markedCount()) === count && /took back 1 change.*Back to the studio/.test(told), told);
+  await page.waitForTimeout(1300);
+  await clickNote(await noteOnRoll(0));
+  const want = await page.evaluate(() => { const p = window.__studio.picker; return p.marked.size + p.unmatched.length; });
+  page.on('dialog', (d) => void d.accept());
+  await page.reload();
+  let inFile = -1;
+  for (let k = 0; k < 20 && inFile !== want; k++) { await page.waitForTimeout(100); inFile = JSON.parse(readFileSync(file, 'utf8')).notes.length; }
+  check('a mark made just before a reload reaches the file', inFile === want, `${inFile} in the file, ${want} marked`);
 
   check('no page errors', !errors.length, errors[0] ?? '');
 } finally {

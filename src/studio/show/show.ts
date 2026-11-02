@@ -221,6 +221,9 @@ function badNote(n: unknown): string | null {
   return null;
 }
 
+/** The longest step live playing takes: a pick goes to whoever plays at the end of the step it falls in. */
+export const LONGEST_STEP = 1 / 20;
+
 function validatePicks(picks: unknown, sections: unknown[], err: Report, warn: Report, typos: Typos): void {
   if (!isObj(picks)) { err('picks', 'not an object { <id>: { notes } }'); return; }
   for (const [id, set] of Object.entries(picks)) {
@@ -243,10 +246,13 @@ function validatePicks(picks: unknown, sections: unknown[], err: Report, warn: R
     const using = sections.filter((s): s is ShowSection => isObj(s) && isNum(s.start) && isNum(s.end) && Array.isArray(s.layers)
       && s.layers.some((l: unknown) => isObj(l) && picksId(l.listen) === id));
     if (!using.length) { warn(at, 'no layer uses it'); continue; }
+    const holds = (t: number) => using.some((s) => t >= s.start && t < s.end);
+    const showEnd = Math.max(...sections.map((s) => (isObj(s) && isNum(s.end) ? s.end : 0)));
     notes.forEach((n: unknown, i) => {
-      if (!badNote(n) && !using.some((s) => (n as Note)[0] >= s.start && (n as Note)[0] < s.end)) {
-        warn(`${at}.notes[${i}]`, `starts at ${fmt((n as Note)[0])} s, outside every section using it: never heard`);
-      }
+      if (badNote(n)) return;
+      const t = (n as Note)[0], after = t + LONGEST_STEP;
+      if (!holds(t)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, outside every section using it: never heard`);
+      else if (after < showEnd && !holds(after)) warn(`${at}.notes[${i}]`, `starts at ${fmt(t)} s, within ${LONGEST_STEP * 1000} ms of the end of the sections using it: a live step can carry it past them, never heard`);
     });
   }
 }

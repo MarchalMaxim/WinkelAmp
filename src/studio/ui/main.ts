@@ -371,7 +371,7 @@ async function boot(): Promise<void> {
   ui.save.addEventListener('click', () => void save());
   ui.undo.addEventListener('click', () => store.dispatch({ type: 'undo' }));
   ui.redo.addEventListener('click', () => store.dispatch({ type: 'redo' }));
-  window.addEventListener('beforeunload', (e) => { if (isDirty(store.state)) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (isDirty(store.state) || picker.marksAtRisk) { e.preventDefault(); e.returnValue = ''; } });
 
   // Full screen, hiding the controls, the cursor resting.
   const stage = ui.stage;

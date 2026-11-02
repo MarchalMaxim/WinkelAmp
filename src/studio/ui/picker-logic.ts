@@ -5,8 +5,8 @@
  */
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
-import { matchMarks, type Mark } from '../show/melody';
-import { picksId, picksListen, validateShow, type KnobSetting, type Layer, type Show } from '../show/show';
+import { canonicalMelody, LEAVING_MAX, matchMarks, type Mark, type Melody } from '../show/melody';
+import { instanceKey, picksId, picksListen, validateShow, type KnobSetting, type Layer, type Show } from '../show/show';
 import { groupChords } from '../../widgets/chords';
 import type { WaLayers } from '../../widgets/layers';
 import type { Note } from '../../widgets/types';
@@ -105,10 +105,20 @@ export function noteAt(candidates: readonly RollNote[], x: number, y: number, g:
   return best;
 }
 
+type Box = { x0: number; y0: number; x1: number; y1: number };
+function inBox(t: number, m: number, box: Box, g: RollGeo): boolean {
+  const x = g.xOf(t), y = g.yOf(m);
+  return x >= Math.min(box.x0, box.x1) && x <= Math.max(box.x0, box.x1) && y + g.rowH >= Math.min(box.y0, box.y1) && y <= Math.max(box.y0, box.y1);
+}
+
 /** The notes that start inside a box: by time, and by the row of their pitch. */
-export function boxHits(candidates: readonly RollNote[], box: { x0: number; y0: number; x1: number; y1: number }, g: RollGeo): RollNote[] {
-  const xa = Math.min(box.x0, box.x1), xb = Math.max(box.x0, box.x1), ya = Math.min(box.y0, box.y1), yb = Math.max(box.y0, box.y1);
-  return candidates.filter((n) => { const x = g.xOf(n.t), y = g.yOf(n.m); return x >= xa && x <= xb && y + g.rowH >= ya && y <= yb; });
+export function boxHits(candidates: readonly RollNote[], box: Box, g: RollGeo): RollNote[] {
+  return candidates.filter((n) => inBox(n.t, n.m, box, g));
+}
+
+/** The outlines of marks with no note here that a box crosses: an Alt-drag drops them on purpose. */
+export function unmatchedInBox(marks: readonly Mark[], box: Box, g: RollGeo): Mark[] {
+  return marks.filter((k) => inBox(k[0], k[2], box, g));
 }
 
 /** lineNotes(…, 'melody') on these, as the same objects. */
@@ -177,6 +187,79 @@ export function popupChips(melody: readonly RollNote[], picks: readonly Note[] |
   const gone = lost.map(([t, e, m, v], k): RollNote => ({ id: -1 - k, t, e, m, v, i: -1 }));
   const chips = [...melody, ...found.filter((n) => !ids.has(n.id)), ...gone].sort((a, b) => a.t - b.t || a.id - b.id);
   return { chips, on: new Set([...found, ...gone].map((n) => n.id)) };
+}
+
+/** The notice for marks with no note here. */
+export function unmatchedWords(k: number): string {
+  return `${k} marked note${k === 1 ? ' has' : 's have'} no note here any more: drawn as an outline and kept in the file. Alt-drag across one to drop it.`;
+}
+
+/** What an undo in the picker did, told once after a widget was placed or removed, which it does not undo. */
+export function undoWords(changed: number): string {
+  const what = changed ? `Undo here took back ${changed} change${changed === 1 ? '' : 's'} to your marks.` : 'Undo here is for your marks.';
+  return `${what} To undo placing or removing a widget: Back to the studio, then Ctrl+Z.`;
+}
+
+/** The preview's instance, on either side of the compare. */
+export const draftKey = (widget: string, mode: 'pick' | 'all'): string => instanceKey({ widget, ...(mode === 'pick' ? { listen: picksListen('draft') } : {}) });
+
+/** The recording under ♪: turned down so its tones are heard. The popup's preview plays no tones, so it hears it whole. */
+export const recordingVolume = (hearing: number, popupOpen: boolean): number => (hearing && !popupOpen ? 0.3 : 1);
+
+/**
+ * The marks' saving, one write at a time and in order, so a slow save never lands over a later one, and what is still
+ * unsaved when the page goes. A change waits for save(); leaving() writes at once, since nothing queued runs after that;
+ * atRisk() is what leaving() can't cover, which is worth a warning.
+ */
+export class MarksSaver {
+  saving: Promise<unknown> = Promise.resolve();
+  private version = 0;
+  private queued = 0;
+  private savedAt = 0;
+  private lastFailed = false;
+  private blocked = false;
+
+  constructor(private readonly d: {
+    snapshot(): Melody; write(m: Melody, leaving: boolean): Promise<void>; saved(): void; failed(e: Error): void;
+  }) {}
+
+  private get unsaved(): boolean { return this.savedAt !== this.version; }
+
+  changed(): void { this.version++; }
+  /** Never written, and so a warning: a melody file that could not be read is not written over. */
+  block(): void { this.blocked = true; }
+
+  save(): void {
+    if (this.blocked || this.queued === this.version) return;
+    const v = (this.queued = this.version), m = this.d.snapshot();
+    this.saving = this.saving.then(() => this.d.write(m, false)).then(() => this.wrote(v), (e: Error) => this.refused(v, e));
+  }
+
+  /** The page is going: pagehide can't wait for the queue, so this goes now, whatever a slower save is doing. */
+  leaving(): void {
+    if (this.blocked || !this.unsaved) return;
+    const v = (this.queued = this.version);
+    this.d.write(this.d.snapshot(), true).then(() => this.wrote(v), (e: Error) => this.refused(v, e));
+  }
+
+  atRisk(): boolean {
+    if (!this.unsaved) return false;
+    return this.blocked || this.lastFailed || canonicalMelody(this.d.snapshot()).length > LEAVING_MAX;
+  }
+
+  private wrote(v: number): void {
+    this.savedAt = Math.max(this.savedAt, v);
+    this.lastFailed = false;
+    this.d.saved();
+  }
+
+  /** The next change, or closing, tries again. Overtaken by a later write that landed, it no longer matters. */
+  private refused(v: number, e: Error): void {
+    if (v <= this.savedAt) return;
+    this.lastFailed = true;
+    this.queued = this.savedAt;
+    this.d.failed(e);
+  }
 }
 
 export interface SetRow { id: string; widget: string | null; notes: readonly Note[]; neverHeard: number }

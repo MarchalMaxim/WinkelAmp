@@ -15,7 +15,7 @@ import type { CatalogueEntry } from './panel';
 import { PickerPopup } from './picker-popup';
 import { PickerRoll } from './picker-roll';
 import {
-  clock, firstLayer, firstLayerOf, marksOnRoll, marksToSave, NoteIndex, pickerNotes, picksOnRoll, popupChips, setRows, suggestLine,
+  clock, firstLayer, firstLayerOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
   type Instrument, type RollNote, type SetRow,
 } from './picker-logic';
 import type { Player } from './player';
@@ -29,7 +29,7 @@ export interface PickerDeps {
   meta(widget: string): WidgetMeta | undefined; notify(n: Notice): void;
 }
 
-const SAVE_AFTER = 1000, UNDO_DEPTH = 100, MAX_TONES = 8, DUCKED = 0.3;
+const SAVE_AFTER = 1000, UNDO_DEPTH = 100, MAX_TONES = 8;
 const hueColor = (widget: string): string => `hsl(${widgetHue(widget)} 62% 62%)`;
 
 /** What the song's roll is made of, read once on the first open. */
@@ -42,12 +42,16 @@ export class Picker {
   private isOpen = false;
   private readonly marked = new Set<number>();
   private unmatched: Mark[] = [];
-  private undoStack: number[][] = [];
-  /** A melody file that could not be read is never written over. */
-  private canSave = true;
+  private undoStack: { marked: number[]; unmatched: Mark[] }[] = [];
+  /** A widget was placed or removed since the marks last changed: Ctrl+Z may be meant for that, and doesn't do it. */
+  private sceneEdited = false;
   private saveTimer = 0;
-  private dirty = false;
-  private saving: Promise<unknown> = Promise.resolve();
+  private readonly saver = new MarksSaver({
+    snapshot: () => ({ ...emptyMelody(this.d.pack.id), notes: marksToSave(this.marked, this.l?.notes ?? [], this.unmatched) }),
+    write: (m, leaving) => this.d.api.saveMelody(m, leaving),
+    saved: () => { if (this.d.store.state.notices.some((n) => n.id === 'picker-save')) this.d.store.dispatch({ type: 'dismiss', id: 'picker-save' }); },
+    failed: (e) => this.d.notify({ id: 'picker-save', level: 'error', text: `The marked melody was not saved: ${e.message}` }),
+  });
   private readonly hidden = new Set<number>();
   private readonly hearing = new Set<number>();
   private tones = true;
@@ -111,7 +115,11 @@ export class Picker {
     this.$('[data-suggest]').addEventListener('click', () => this.suggest());
     this.$('[data-undo]').addEventListener('click', () => this.undo());
     this.$('[data-connect]').addEventListener('click', () => this.openPopup());
+    window.addEventListener('pagehide', () => { clearTimeout(this.saveTimer); this.saver.leaving(); });
   }
+
+  /** Marks that would be lost by leaving now: a failed save, or marks that can't go with the page. */
+  get marksAtRisk(): boolean { return this.saver.atRisk(); }
 
   /** The roll and the popup, once opened: the checks drive them. */
   get roll(): PickerRoll | null { return this.l?.roll ?? null; }
@@ -149,7 +157,7 @@ export class Picker {
     this.saveMarks();
     this.hearing.clear();
     this.el.querySelectorAll('.np-hear').forEach((b) => b.setAttribute('aria-pressed', 'false'));
-    this.d.player.audio.volume = 1;
+    this.duck();
   }
 
   private async load(): Promise<Loaded> {
@@ -165,27 +173,30 @@ export class Picker {
       if (issues.length) throw new Error(`${issues[0].path}: ${issues[0].message}`);
       marks = m.notes;
     } catch (e) {
-      this.canSave = false;
+      this.saver.block();
       notify({ id: 'picker-marks', level: 'error', text: `Could not read the marked melody (${(e as Error).message}): marks made now will not be saved, so the file stays as it is.` });
     }
     const r = marksOnRoll(marks, notes);
     r.marked.forEach((id) => this.marked.add(id));
     this.unmatched = r.unmatched;
-    if (r.unmatched.length) {
-      const k = r.unmatched.length;
-      notify({ id: 'picker-unmatched', level: 'warn', text: `${k} marked note${k === 1 ? ' has' : 's have'} no note here any more: drawn as an outline and kept in the file.` });
-    }
+    this.tellUnmatched();
     const roll = new PickerRoll({
       notes, index, instruments, duration: pack.duration, marked: this.marked, hidden: this.hidden,
       unmatched: () => this.unmatched, dotOf: (id) => this.dots.get(id), time: () => this.d.player.time,
       click: (n) => { this.remember(); if (this.marked.has(n.id)) this.marked.delete(n.id); else this.marked.add(n.id); this.tone(n.m, 0.12, 0.5); this.changed(); },
-      box: (hits, unmark) => { this.remember(); for (const n of hits) if (unmark) this.marked.delete(n.id); else this.marked.add(n.id); this.changed(); },
+      box: (hits, unmark, lost) => {
+        this.remember();
+        for (const n of hits) if (unmark) this.marked.delete(n.id); else this.marked.add(n.id);
+        if (lost.length) { this.unmatched = this.unmatched.filter((k) => !lost.includes(k)); this.tellUnmatched(); }
+        this.changed();
+      },
       seek: (t) => this.d.player.seek(t),
     });
     const popup = new PickerPopup({
       player: this.d.player, pack, catalogue: this.d.catalogue, order: this.d.order, lib: this.d.lib, meta: this.d.meta, instruments,
       tone: (m, gain, len) => this.tone(m, gain, len),
       commit: (widget, picks, id) => this.commit(widget, picks, id),
+      closed: () => this.duck(),
     });
     this.$('.np-roll-host').append(roll.el, roll.stripEl);
     this.el.append(popup.el);
@@ -198,38 +209,48 @@ export class Picker {
   // ---- the marks ----
 
   private remember(): void {
-    this.undoStack.push([...this.marked]);
+    this.undoStack.push({ marked: [...this.marked], unmatched: this.unmatched });
     if (this.undoStack.length > UNDO_DEPTH) this.undoStack.shift();
   }
 
   private undo(): void {
-    const was = this.undoStack.pop();
-    if (!was) return;
-    this.marked.clear();
-    was.forEach((id) => this.marked.add(id));
-    this.changed();
+    const was = this.undoStack.pop(), told = this.sceneEdited;
+    this.sceneEdited = false;
+    let notes = 0;
+    if (was) {
+      const back = new Set(was.marked);
+      for (const id of this.marked) if (!back.has(id)) notes++;
+      for (const id of back) if (!this.marked.has(id)) notes++;
+      notes += Math.abs(was.unmatched.length - this.unmatched.length);
+      this.marked.clear();
+      was.marked.forEach((id) => this.marked.add(id));
+      if (was.unmatched !== this.unmatched) { this.unmatched = was.unmatched; this.tellUnmatched(); }
+      this.changed();
+    }
+    if (told) {
+      this.d.notify({ id: 'picker-undo', level: 'info', text: undoWords(notes) });
+      setTimeout(() => this.d.store.dispatch({ type: 'dismiss', id: 'picker-undo' }), 10000);
+    }
+  }
+
+  private tellUnmatched(): void {
+    const k = this.unmatched.length;
+    if (k) this.d.notify({ id: 'picker-unmatched', level: 'warn', text: unmatchedWords(k) });
+    else this.d.store.dispatch({ type: 'dismiss', id: 'picker-unmatched' });
   }
 
   private changed(): void {
     this.l?.roll.invalidate();
     this.drawSteps();
-    this.dirty = true;
+    this.sceneEdited = false;
+    this.saver.changed();
     clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.saveMarks(), SAVE_AFTER);
   }
 
-  /** One at a time, in order: a slow save never lands over a later one. */
-  private saveMarks(): void {
-    if (!this.dirty || !this.canSave || !this.l) return;
-    this.dirty = false;
-    const m = { ...emptyMelody(this.d.pack.id), notes: marksToSave(this.marked, this.l.notes, this.unmatched) };
-    this.saving = this.saving.then(() => this.d.api.saveMelody(m)).then(() => {
-      if (this.d.store.state.notices.some((n) => n.id === 'picker-save')) this.d.store.dispatch({ type: 'dismiss', id: 'picker-save' });
-    }).catch((e: Error) => {
-      this.dirty = true;   // the next change, or closing, tries again
-      this.d.notify({ id: 'picker-save', level: 'error', text: `The marked melody was not saved: ${e.message}` });
-    });
-  }
+  private saveMarks(): void { this.saver.save(); }
+  /** The checks wait on it. */
+  get saving(): Promise<unknown> { return this.saver.saving; }
 
   private suggest(): void {
     if (!this.l) return;
@@ -249,12 +270,14 @@ export class Picker {
     const { chips, on } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
     const layer = set ? firstLayer(show, editSet!) : null;
     popup.open({ chips, on, marked: this.marked, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
+    this.duck();
   }
 
   /** One edit, one undo in the studio. The new layer is selected, so its lane is open; the playhead goes a second before
       the first pick. */
   private commit(widget: string, notes: Note[], id: string | null): void {
     const { store } = this.d, set = id ?? nextPicksId(store.state.show!);
+    this.sceneEdited = true;
     store.dispatch({ type: 'edit', edit: id ? { kind: 'updatePicks', id, widget, notes } : { kind: 'placePicks', widget, notes } });
     const at = firstLayerOf(store.state.show!, set);
     if (at) store.dispatch({ type: 'select', section: at.section, layer: at.layer });
@@ -310,12 +333,12 @@ export class Picker {
       if (r.neverHeard) {
         row.append(Object.assign(document.createElement('span'), {
           className: 'np-set-warn', textContent: `${r.neverHeard} never heard`,
-          title: `${r.neverHeard} of these picks lie outside every section using this set, so the widget misses them. A section boundary may have moved: edit the picks to span them again.`,
+          title: `${r.neverHeard} of these picks lie outside the sections using this set, or right at their end, so the widget misses them. A section boundary may have moved: edit the picks to span them again.`,
         }));
       }
       const x = Object.assign(document.createElement('button'), { type: 'button', textContent: '✕', title: 'Remove' });
       x.setAttribute('aria-label', `Remove ${name}`);
-      x.addEventListener('click', () => this.d.store.dispatch({ type: 'edit', edit: { kind: 'removePicks', id: r.id } }));
+      x.addEventListener('click', () => { this.sceneEdited = true; this.d.store.dispatch({ type: 'edit', edit: { kind: 'removePicks', id: r.id } }); });
       row.append(x);
       box.append(row);
     }
@@ -378,7 +401,7 @@ export class Picker {
         const on = !this.hearing.has(k);
         if (on) { this.hearing.add(k); this.audio(); } else this.hearing.delete(k);
         hear.setAttribute('aria-pressed', String(on));
-        this.d.player.audio.volume = this.hearing.size ? DUCKED : 1;
+        this.duck();
       });
       el.append(show, hear);
       box.append(el);
@@ -386,6 +409,8 @@ export class Picker {
   }
 
   // ---- sound ----
+
+  private duck(): void { this.d.player.audio.volume = recordingVolume(this.hearing.size, !!this.popup?.isOpen); }
 
   private audio(): AudioContext {
     this.ac ??= new AudioContext();

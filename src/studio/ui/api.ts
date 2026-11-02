@@ -4,7 +4,7 @@
  * and Save downloads the show and keeps a draft in this browser.
  */
 import type { NotesSource, SongPack } from '../pack/pack';
-import { canonicalMelody, emptyMelody, type Melody } from '../show/melody';
+import { canonicalMelody, emptyMelody, LEAVING_MAX, type Melody } from '../show/melody';
 import { canonicalShow, type Show } from '../show/show';
 
 /** A row of a song's notes.ymt3.json: label is the transcriber's guess at the instrument. */
@@ -25,7 +25,8 @@ export interface ShowStore {
   saveDescription(id: string, text: string): Promise<void>;
   /** The song's marked melody; an empty one when it has none. Static: localStorage 'wa-studio.melody.<id>'. */
   melody(song: string): Promise<Melody>;
-  saveMelody(m: Melody): Promise<void>;
+  /** leaving: the page is going, so the write must outlast it. */
+  saveMelody(m: Melody, leaving?: boolean): Promise<void>;
   /** The transcriber's instrument labels, for a song without tracks. Static: none. */
   labels(song: string): Promise<LabelNote[]>;
   /** The in-browser fallback's result (static: this browser's IndexedDB, else memory for this page). */
@@ -73,8 +74,9 @@ function devStore(): ShowStore {
       await check(await fetch(`${b}/api/shows/${id}/description`, { method: 'PUT', headers: { 'content-type': 'text/markdown' }, body: text }), 'save description');
     },
     async melody(song) { return (await (await check(await fetch(`${b}/api/melodies/${song}`, { cache: 'no-store' }), `melody ${song}`)).json()) as Melody; },
-    async saveMelody(m) {
-      await check(await fetch(`${b}/api/melodies/${m.song}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: canonicalMelody(m) }), 'save melody');
+    async saveMelody(m, leaving = false) {
+      const body = canonicalMelody(m);
+      await check(await fetch(`${b}/api/melodies/${m.song}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body, keepalive: leaving && body.length <= LEAVING_MAX }), 'save melody');
     },
     async labels(song) { return ((await (await check(await fetch(`${b}/api/songs/${song}/labels`, { cache: 'no-store' }), `labels ${song}`)).json()) as { notes: LabelNote[] }).notes; },
     async addSong(p, audio) {
@@ -122,7 +124,7 @@ function idb<T>(db: IDBDatabase, mode: IDBTransactionMode, op: (s: IDBObjectStor
  * Without the dev API: songs added in the studio (the in-browser fallback) live in this browser's IndexedDB, so opening
  * one (a fresh page, see §2) finds it; where IndexedDB is refused they live in memory for this page only.
  */
-function staticStore(): ShowStore {
+export function staticStore(): ShowStore {
   const songs = new Map<string, { pack: SongPack; url: string }>();
   const db = songDb();
   const remember = (pack: SongPack, audio: Blob) => {
@@ -159,7 +161,9 @@ function staticStore(): ShowStore {
     async description(id) { return lsGet(descKey(id)) ?? ''; },
     async saveDescription(id, text) { lsSet(descKey(id), text); },
     async melody(song) { const m = lsGet(melodyKey(song)); return m ? (JSON.parse(m) as Melody) : emptyMelody(song); },
-    async saveMelody(m) { lsSet(melodyKey(m.song), canonicalMelody(m)); },
+    async saveMelody(m) {
+      try { localStorage.setItem(melodyKey(m.song), canonicalMelody(m)); } catch (e) { throw new Error(`the browser would not keep it (${(e as Error).message})`); }
+    },
     async labels() { return []; },
     async addSong(p, audio) {
       remember(p, audio);

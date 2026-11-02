@@ -9,8 +9,8 @@ import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
 import {
-  boxHits, chipLayout, clock, countWords, draftShow, firstLayerOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
-  NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, setRows, suggestLine, tipWords, toPicks, zoomView,
+  boxHits, chipLayout, clock, countWords, draftKey, draftShow, firstLayerOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
+  NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
 } from '../src/studio/ui/picker-logic';
 import type { Note } from '../src/widgets/types';
@@ -349,5 +349,40 @@ describe('words', () => {
     expect(tipWords(roll(5, 60, 30), null)).toBe('C4 · 0:05 · soft');
     expect(impulseWords([[1, 2, 60, 80], [1.01, 2, 64, 80], [3, 4, 60, 80]])).toBe('2 impulses (3 notes picked)');
     expect(impulseWords([[1, 2, 60, 80]])).toBe('1 impulse (1 note picked)');
+  });
+});
+
+describe('the marks by hand', () => {
+  it('unmatchedInBox: the outlines an Alt-drag crosses, by the same geometry as the notes', () => {
+    const a: Mark = [1, 1.2, 60, 80], b: Mark = [5, 5.2, 60, 80], c: Mark = [1, 1.2, 90, 80];
+    expect(unmatchedInBox([a, b, c], { x0: px(0.5), y0: py(61), x1: px(2), y1: py(59) }, geo)).toEqual([a]);
+    expect(unmatchedInBox([a, b, c], { x0: px(8), y0: py(61), x1: px(9), y1: py(59) }, geo)).toEqual([]);
+  });
+
+  it('unmatchedWords: counts, and says how to drop one on purpose', () => {
+    expect(unmatchedWords(1)).toMatch(/^1 marked note has no note/);
+    expect(unmatchedWords(3)).toMatch(/^3 marked notes have no note/);
+    expect(unmatchedWords(1)).toMatch(/Alt-drag/);
+  });
+
+  it('undoWords: says what the undo did, and where a placement is undone', () => {
+    expect(undoWords(1)).toMatch(/^Undo here took back 1 change to your marks/);
+    expect(undoWords(3)).toMatch(/3 changes/);
+    expect(undoWords(0)).toMatch(/^Undo here is for your marks/);
+    for (const k of [0, 1]) expect(undoWords(k)).toMatch(/Back to the studio/);
+  });
+});
+
+describe('the popup', () => {
+  it('draftKey: the key the runtime knows each side of the compare by', () => {
+    const key = (s: Show) => showInstances(s)[0].key;
+    expect(draftKey('halftone', 'pick')).toBe(key(draftShow('demo', 10, 'halftone', [[1, 2, 60, 80]])));
+    expect(draftKey('halftone', 'all')).toBe(key(draftShow('demo', 10, 'halftone', null)));
+  });
+
+  it('recordingVolume: down with a ♪ on, up again while the popup previews, when no tone plays', () => {
+    expect(recordingVolume(0, false)).toBe(1);
+    expect(recordingVolume(2, false)).toBe(0.3);
+    expect(recordingVolume(2, true)).toBe(1);
   });
 });

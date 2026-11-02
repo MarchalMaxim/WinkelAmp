@@ -4,7 +4,7 @@
  * it, so playing costs next to nothing even on the Four Seasons. The strip is cached too.
  */
 import type { Mark } from '../show/melody';
-import { boxHits, clock, moveView, nameOf, noteAt, tipWords, zoomView, type Instrument, type NoteIndex, type RollGeo, type RollNote, type View } from './picker-logic';
+import { boxHits, clock, moveView, nameOf, noteAt, tipWords, unmatchedInBox, zoomView, type Instrument, type NoteIndex, type RollGeo, type RollNote, type View } from './picker-logic';
 
 export interface RollDeps {
   /** Sorted by start, and their index. */
@@ -17,7 +17,8 @@ export interface RollDeps {
   dotOf(id: number): string | undefined;
   time(): number;
   click(n: RollNote): void;
-  box(hits: RollNote[], unmark: boolean): void;
+  /** lost: the outlines of marks with no note here that an Alt-drag crossed. */
+  box(hits: RollNote[], unmark: boolean, lost: Mark[]): void;
   seek(t: number): void;
 }
 
@@ -265,7 +266,11 @@ export class PickerRoll {
     roll.addEventListener('pointerup', (e) => {
       const [x, y] = pos(e, roll), { band, down } = this;
       this.band = null; this.down = null; this.topStale = true;
-      if (band) { const hits = boxHits(this.hittable, band, this.geo); if (hits.length) this.d.box(hits, band.alt); return; }
+      if (band) {
+        const hits = boxHits(this.hittable, band, this.geo), lost = band.alt ? unmatchedInBox(this.d.unmatched(), band, this.geo) : [];
+        if (hits.length || lost.length) this.d.box(hits, band.alt, lost);
+        return;
+      }
       if (!down) return;
       const n = this.noteAt(x, y);
       if (n) this.d.click(n); else if (x >= GUTTER) this.d.seek(Math.max(0, this.tOf(x)));
