@@ -18,6 +18,9 @@ lab/pack-*.js
 lab/showcase/*.mp4
 lab/showcase/*.png
 
+# Widget demo clips (npm run widget-demos): rendered, local only.
+lab/demos/*.mp4
+
 # Song packs (npm run ingest): the recordings and everything computed from them, local only.
 songs/
 
