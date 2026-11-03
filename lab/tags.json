@@ -50,6 +50,7 @@
   "strings": {"feel":["skittish","anxious","twitchy","fibrous"],"instruments":["violin","plucked"],"role":"texture"},
   "suprematism": {"feel":["heavy","vivid","triumphant","stabbing"],"instruments":["trumpet","timpani","trombone"],"role":"ground"},
   "timeslice": {"feel":["flowing","liquid","stabbing","panic"],"instruments":["violin","flute","strings"],"role":"top"},
+  "ivory": {"feel":["elegant","royal","pale","precise","serene"],"instruments":["piano"],"role":"lead"},
   "tree": {"feel":["withering","glowing","vivid","swelling","precise","warm"],"instruments":["piano","strings","tutti"],"role":"standalone"},
   "tunnel": {"feel":["whirling","flowing","glowing","burning","panic"],"instruments":["tutti","strings"],"role":"base"},
   "vine": {"feel":["viney","withering","fibrous","alien"],"instruments":["strings","cello","viola"],"role":"base"}

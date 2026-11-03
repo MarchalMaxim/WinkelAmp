@@ -952,6 +952,20 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `ivory`: Ivory
+
+One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the highest note the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.
+
+Feel: elegant, royal, pale, precise, serene · Suits: piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `floor` | where the crater is | 0..1 | 0 | fixed | Left: round, behind the keys, as if you look down at the ground. Right: a flat oval on the floor under them. |
+| `crater` | how deep the crater is | 0..1 | 0.35 | fixed | Left: nothing to see. Right: a clear dent. Very subtle by default. |
+| `ripple` | how far the ripple shifts them | 0..8 | 2.6 | fixed | How far the slices of a key move as the ripple goes through. Left: not at all. Right: they shake. |
+| `cracks` | how many cracks | 0..8 | 1.5 | fixed | Hairline cracks on each key. Left: spotless. Right: well worn. |
+| `presence` | how present | 0..1 | 1 | fixed | How strongly it all shows. Left: not at all. Right: fully. |
+
 #### `tree`: Tree
 
 One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
