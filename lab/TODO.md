@@ -20,6 +20,10 @@ Each is Codex's work from 2026-11-03, with its notes in `lab/codex-report.md` on
 - **`codex/widgets-speed`**: `npm run widgets-speed`, the table in `lab/speed.md`, and a small speed-up in Current that helps on one busy song and costs a little on the other.
 - **`codex/timeline-docs`**: corrects the docs that still described sections. Its change to `docs/COMPOSING.md` no longer applies: that file went with the old app.
 
+## Not started
+
+- **Modifiers on picked notes** (not started). The user: "add modifiers to the picked notes. As in: currently, we are connecting notes to attacks, but I'd like to have it so that we can label the note-link with a parameter. For example: a intensity value." So each link from a picked note to its attack carries a value of its own, set by hand, that the widget can use. Today a set of picks (`picks` in a show) is only the notes themselves.
+
 ## Decisions for the user
 
 - **Background colours for small copies** (Codex's task 5, waiting). Black now goes see-through, but about a dozen widgets paint their own background and stay solid rectangles (Miro, Matisse, Kusama, Boogie, Lewitt, Martin, Score and others), and Gust and Royal leave a dark veil. Which ones should get a colour?

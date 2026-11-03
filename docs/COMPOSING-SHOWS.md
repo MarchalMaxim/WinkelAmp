@@ -966,6 +966,20 @@ Feel: elegant, royal, pale, precise, serene · Suits: piano · Role: lead
 | `cracks` | how many cracks | 0..8 | 1.5 | fixed | Hairline cracks on each key. Left: spotless. Right: well worn. |
 | `presence` | how present | 0..1 | 1 | fixed | How strongly it all shows. Left: not at all. Right: fully. |
 
+#### `johansson`: Johansson
+
+A field of still white dots, like stars. When the music moves, thirteen of them turn out to be a person, walking, stepping exactly on the notes.
+
+Feel: precise, playful, grainy, still · Suits: piano, strings · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 0.5 | fixed | Left: just the person on black. Right: a thick field of stars it is hidden in. |
+| `stride` | how big its steps | 0.5..1.4 | 1 | fixed | Left: small careful steps. Right: long strides, a big bounce. |
+| `height` | how near | 0.6..1.3 | 1 | fixed | Left: a small person far off. Right: it nearly fills the screen. |
+| `arms` | how the melody lifts it | 0..1.2 | 0.8 | fixed | Left: arms only swing. Right: its arm reaches up with every climbing melody. |
+| `maxStep` | how soon it stops | 0.7..1.6 | 1.15 | fixed | Left: it stops at any gap in the notes. Right: it walks on through most of them. |
+
 #### `tree`: Tree
 
 One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
