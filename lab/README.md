@@ -28,6 +28,24 @@ that win stay: the studio runs these same files.
 The recordings (`prelude.mp3`, `beethoven5.mp3`) and the notes transcribed from them (`notes.js`, `notes-b5.js`, written by
 the GPU piano transcriber as `window.NOTES = [[start, end, midi, velocity], …]`) are local only and not in git.
 
+## Widget health check
+
+With the worktree's server running on port 5200, `npm run widgets-check` renders every registered widget on representative
+16-second passages of three songs, after five seconds of warm-up, at low and high “how present”, in one browser at a time. It writes `lab/widgets-check.md` and prints the
+same table. It reports thrown errors, an entire run staying near black, and cases where low makes no less by aggregate
+colour occupancy, lit area and contrast. These broad measurements do not judge the look; the report states their limits.
+
+Simulation defaults to the normal 60 Hz, preserving the live physics and fades. `--sample-hz 12` sets the uniform
+aggregate observation rate; every attack's first simulation frame, frame zero and the final frame are also observed.
+Means use elapsed-time weights between observations, with the same schedule at low and high. `--hz 12` is an explicit
+diagnostic with different physics, not normal-playback coverage. Warm-up errors count; image statistics and blank judgments
+cover only the measured passage. Default starts: Lil Wayne 80 s, Prelude 118 s, Winter Wind 116 s. Other songs use a bounded
+middle passage. Use `--seconds`, `--warm` or `--start` to choose the scope, or `--full` to test complete songs explicitly.
+Long accumulation and behavior outside the measured passages remain unjudged. For a smaller debugging run use
+`-- --ids squares,fireworks --songs prelude`; use `--base http://localhost:5201`, `--out <file>` or
+`--json <file>` to choose the server and result files. The check plays no audio and stubs the ratings server before opening
+any page. Findings return a non-zero exit code. Keep the report with all widgets and three songs when reporting the check.
+
 ## Knobs (from the 2026-10-31 round on)
 
 The user found knob names hard to grasp, so a widget has **at most 5 knobs**, each with a plain sentence and a small picture.
