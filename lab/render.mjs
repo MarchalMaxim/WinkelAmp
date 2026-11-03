@@ -49,7 +49,7 @@ function run(cmd, args, { stdin = false } = {}) {
 const write = (stream, buf) => (stream.write(buf) ? Promise.resolve() : new Promise((r) => stream.once('drain', r)));
 
 const t0 = Date.now();
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
 let name = ID, renderSecs = 0;
 const segFiles = [];
 try {

@@ -91,7 +91,7 @@ if (!SONG) {
 const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: 5198, strictPort: false, hmr: false } });
 await vite.listen();
 const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
-const browser = await chromium.launch({ channel: 'chrome', headless: !HEADED, args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !HEADED, args: ['--autoplay-policy=no-user-gesture-required'] });
 const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
 const errors = [];
 

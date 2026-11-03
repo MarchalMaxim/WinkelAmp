@@ -209,7 +209,7 @@ try {
 
   await vite.listen();
   const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
-  browser = await chromium.launch({ channel: 'chrome', headless: !opts.headed, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+  browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !opts.headed, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
   const pageErrors = [];
   const openPage = async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });

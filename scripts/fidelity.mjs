@@ -109,7 +109,7 @@ for (const [song, ids, start, checks = CHECKS, lc = null] of cases) {
 }
 for (const g of groups.values()) { g.starts.sort((a, b) => a - b); if (QUICK) g.starts = g.starts.slice(0, 1); }
 
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
 async function newPage() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   await page.addInitScript(() => { try { localStorage.clear(); } catch {} });

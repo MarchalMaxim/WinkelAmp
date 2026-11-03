@@ -19,7 +19,7 @@ const oi = argv.indexOf('--out');
 const OUT = path.resolve(ROOT, oi < 0 ? 'renders/look/T5/masks.png' : argv[oi + 1]);
 const TOL = 3;
 
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true });
 try {
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   await page.setContent('<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000"></body>');

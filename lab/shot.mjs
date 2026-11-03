@@ -6,7 +6,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 const [tools, times, out, secs = '4'] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   // Other agents write tool files in parallel: block Vite's live reload so a shot run isn't reloaded mid-way.
