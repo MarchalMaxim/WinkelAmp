@@ -170,6 +170,18 @@ export function chipLayout(notes: readonly RollNote[]): { chips: Chip[]; gaps: {
   return { chips, gaps, width: x + CHIP_STEP + 12 };
 }
 
+/** Where the strip prints the time: under the first note of an attack, whenever the last label is at least `every` px back. */
+export function chipRuler(chips: readonly Chip[], every = 56): { x: number; t: number }[] {
+  const out: { x: number; t: number }[] = [];
+  let attack = -Infinity;
+  for (const c of chips) {
+    if (c.note.t - attack <= SAME_ATTACK) continue;
+    attack = c.note.t;
+    if (!out.length || c.x - out[out.length - 1].x >= every) out.push({ x: c.x, t: c.note.t });
+  }
+  return out;
+}
+
 /** The chips a drag across the strip from a to b has passed (by their middles; content px). */
 export function sweptChips(chips: readonly Chip[], a: number, b: number): RollNote[] {
   const lo = Math.min(a, b), hi = Math.max(a, b);
@@ -365,6 +377,17 @@ const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A�
 export const pitchClass = (m: number): string => NAMES[m % 12];
 export const nameOf = (m: number): string => `${NAMES[m % 12]}${Math.floor(m / 12) - 1}`;
 export const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+/** To the tenth of a second: a fast sweep has many notes in one second. */
+export const fineClock = (s: number): string => {
+  const tenths = Math.round(s * 10);
+  return `${Math.floor(tenths / 600)}:${((tenths % 600) / 10).toFixed(1).padStart(4, '0')}`;
+};
+/** When the picked notes start and end, in the song. */
+export function pickedSpan(notes: readonly RollNote[]): string {
+  if (!notes.length) return '';
+  const ts = notes.map((n) => n.t), lo = Math.min(...ts), hi = Math.max(...ts);
+  return hi - lo < 0.05 ? `at ${fineClock(lo)}` : `${fineClock(lo)} to ${fineClock(hi)}`;
+}
 const loudWord = (v: number): string => (v > 95 ? 'loud' : v > 60 ? 'medium' : 'soft');
 
 /** Hovering a note: its instrument (an ensemble's), note, time and loudness. */
