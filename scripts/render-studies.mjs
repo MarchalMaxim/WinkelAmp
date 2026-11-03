@@ -52,7 +52,7 @@ const server = await createServer({
   server: { port: PORT, strictPort: true },
 });
 await server.listen();
-const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 
 try {
   const page = await browser.newPage();

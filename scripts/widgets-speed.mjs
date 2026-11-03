@@ -140,7 +140,7 @@ async function round(context, id, passage, number) {
 }
 
 try {
-  browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] }); browserVersion = browser.version();
+  browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] }); browserVersion = browser.version();
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   await context.route(/^http:\/\/(localhost|127\.0\.0\.1):5174\//, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await context.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));

@@ -221,7 +221,7 @@ if (o.curve) {
 const pic = svg(o, src, gs, under, curve);
 const outPath = resolve(o.out);
 mkdirSync(dirname(outPath), { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true });
 try {
   const page = await browser.newPage({ viewport: { width: pic.W, height: pic.H } });
   await page.setContent(`<!doctype html><html><body style="margin:0;background:#101418">${pic.svg}</body></html>`);

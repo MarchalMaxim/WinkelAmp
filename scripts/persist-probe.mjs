@@ -37,7 +37,7 @@ const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts
 const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), 'utf8'));
 const ids = harness.toolIds.filter((id) => !ONLY || ONLY.includes(id));
 
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
 async function newPage() {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
   await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));

@@ -209,7 +209,7 @@ async function variant(context, id, song, level) {
 }
 
 try {
-  browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+  browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   // Queued draws are caught by the lab and warned, not added to renderErrors. Keep those too.
   await context.addInitScript(() => {

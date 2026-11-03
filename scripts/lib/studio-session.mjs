@@ -87,7 +87,7 @@ export async function openStudio(o = {}) {
     vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || o.port || 5196, strictPort: false, hmr: false } });
     await vite.listen();
     const base = vite.resolvedUrls.local[0].replace(/\/$/, '');
-    browser = await chromium.launch({ channel: 'chrome', headless: !o.headed, args: ['--autoplay-policy=no-user-gesture-required'] });
+    browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !o.headed, args: ['--autoplay-policy=no-user-gesture-required'] });
 
     const page = await browser.newPage({ viewport: o.viewport ?? { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const errors = [];

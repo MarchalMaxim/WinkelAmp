@@ -122,7 +122,7 @@ async function makeClip(page, id) {
   }
 }
 
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
 const failed = [];
 for (const id of ids) {
   const t0 = Date.now();

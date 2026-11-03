@@ -50,7 +50,7 @@ const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), '
 const { loadLayers } = await vite.ssrLoadModule('/scripts/node/layers.ts');
 const WA = loadLayers(ROOT);
 
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
 let page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
 await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
 await page.route(/localhost:517\d/, (r) => r.abort());
@@ -185,7 +185,7 @@ if (!LOOK_ONLY) {
   let softBrowser = null, soft = null;
   const freshSoft = async () => {
     if (softBrowser) await softBrowser.close();
-    softBrowser = await chromium.launch({ channel: 'chrome', args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
+    softBrowser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, args: ['--disable-accelerated-2d-canvas', '--disable-gpu'] });
     soft = await softBrowser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
     await soft.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
     await soft.route(/localhost:517\d/, (r) => r.abort());

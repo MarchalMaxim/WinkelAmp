@@ -244,7 +244,8 @@ npm test               # unit tests
 npm run build          # type-check + production build into dist/
 ```
 
-The browser scripts drive the system Chrome through Playwright.
+The browser scripts drive the system Chrome through Playwright, with `chromiumSandbox: true`: Playwright turns Chrome's
+sandbox off unless a launch asks for it.
 
 `.github/workflows/pages.yml` publishes `dist/` to GitHub Pages on every push to
 `main`, once Pages is enabled for the repository (Settings → Pages → Source:

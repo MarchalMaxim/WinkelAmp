@@ -45,7 +45,7 @@ async function still(page, only) {
   }, { START, SECS, FPS, LOOK_EVERY });
 }
 
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true });
 const over = [], failed = [];
 const queue = [...ids];
 await Promise.all(Array.from({ length: JOBS }, async () => {
