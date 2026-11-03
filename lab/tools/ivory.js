@@ -41,12 +41,13 @@
     }
     const keys = [...byPitch.values()].sort((a, b) => a.t - b.t || a.m - b.m);
     const lo = Math.min(...keys.map((k) => k.m)), span = Math.max(1, hi - lo);
-    const wide = clamp(W * 0.84 / Math.max(1, keys.length - 1) * 2.1, 46, 170);
+    const wide = clamp(W * 0.84 / Math.max(1, keys.length - 1) * 2.1, 34, 84);
+    const across = clamp(keys.length * wide * 0.72, W * 0.4, W * 0.84), left = (W - across) / 2;   // a short line stays together
     for (const k of keys) {
       const R = rng(k.m * 7919 + 13), u = (k.m - lo) / span;
       k.w = wide * (0.88 + R() * 0.26);
       k.h = TOP * (0.2 + 0.78 * u) * (0.97 + R() * 0.06);
-      k.foot = wide * 0.65 + u * (W - wide * 1.3) + (R() - 0.5) * wide * 0.25;
+      k.foot = left + u * across + (R() - 0.5) * wide * 0.25;
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
@@ -81,7 +82,7 @@
     for (let n = Math.floor(cracks + R()); n > 0; n--) hairline(g, R, w, h);
     fill(0, 0, w * 0.07, 0, [[0, 'rgba(255,255,250,0.75)'], [1, 'rgba(255,255,250,0)']], 0, 0, w * 0.07, h);
     fill(w * 0.93, 0, w, 0, [[0, 'rgba(70,50,25,0)'], [1, 'rgba(70,50,25,0.3)']], w * 0.93, 0, w * 0.07, h);
-    fill(0, h * 0.45, 0, h, [[0, 'rgba(125,104,74,0)'], [1, 'rgba(125,104,74,0.34)']], 0, 0, w, h);
+    fill(0, h * 0.2, 0, h, [[0, 'rgba(125,104,74,0)'], [0.6, 'rgba(125,104,74,0.09)'], [1, 'rgba(125,104,74,0.34)']], 0, 0, w, h);
     fill(0, 0, 0, 7, [[0, 'rgba(255,255,255,0.9)'], [1, 'rgba(255,255,255,0)']], 0, 0, w, 7);
     fill(w * 0.18, 0, w * 0.5, 0, [[0, 'rgba(255,255,255,0)'], [0.6, 'rgba(255,255,255,0.28)'], [1, 'rgba(255,255,255,0)']], w * 0.18, 0, w * 0.32, h);
     return c;
@@ -108,12 +109,15 @@
     return { lit: sheet(lit), dark: sheet(dark) };
   }
 
-  // Ageing: cream to honey to umber, laid over the key, then the key itself goes.
+  // Ageing, multiplied over the key so its grain and cracks stay: white to cream to honey to umber to nearly black.
+  const AGED = [[255, 255, 255], [250, 232, 192], [214, 170, 105], [92, 60, 32], [14, 10, 6]];
   function aged(u) {
-    if (u < 0.35) return `rgba(214,176,112,${0.8 * smooth(u / 0.35)})`;
-    const v = smooth((u - 0.35) / 0.35);
-    return `rgba(${Math.round(214 - 122 * v)},${Math.round(176 - 114 * v)},${Math.round(112 - 78 * v)},${0.8 + 0.15 * v})`;
+    const f = clamp(u, 0, 1) * (AGED.length - 1), i = Math.min(AGED.length - 2, Math.floor(f)), t = smooth(f - i);
+    return `rgb(${AGED[i].map((v, c) => Math.round(v + (AGED[i + 1][c] - v) * t)).join(',')})`;
   }
+  // The shared canvas keeps what was drawn and fades it a little each frame (12 %), so anything drawn every frame at some
+  // alpha builds up. This is the alpha that settles at `want` over black.
+  const settles = (want) => { const f = 0.12; want = clamp(want, 0, 1); return want >= 1 ? 1 : want * f / (1 - want * (1 - f)); };
 
   let plan = null, sheets = null, sheetsFor = -1;
   const planNow = () => plan || (plan = planOf(typeof CHORDS !== 'undefined' ? CHORDS : []));
@@ -167,17 +171,17 @@
       const after = (x.t - stomp - HOLD) / AGE;
       if (after >= 1) return;
       const g = x.g, rs = x.canvas.width / W, cracks = Math.round(x.p('cracks') * 2) / 2, sh = x.t - stomp - 0.06, floor = x.p('floor') >= 0.5 ? 1 : 0;
-      const gone = 1 - smooth((after - 0.7) / 0.3), where = craterAt(plan.keys, floor);
+      const gone = 1 - smooth((after - 0.8) / 0.2), where = craterAt(plan.keys, floor);
       if (sheetsFor !== floor) { sheets = relief(where); sheetsFor = floor; }
       if (sh > 0) {
         const pressed = smooth(sh / 0.09), deep = x.p('crater');
-        g.globalAlpha = pres * pressed * deep * 0.4 * (1 - smooth(after));
+        g.globalAlpha = settles(pres * pressed * deep * 0.8 * (1 - smooth(after)));
         g.drawImage(sheets.dark, 0, 0, W, H); g.drawImage(sheets.lit, 0, 0, W, H);
         g.globalAlpha = pres * Math.exp(-sh / 0.3) * 0.35 * deep; g.strokeStyle = 'rgb(246,236,216)'; g.lineWidth = 1;
         g.beginPath(); g.ellipse(where.cx, where.cy, where.R * (1 + sh * 1.1), where.R * (1 + sh * 1.1) * where.sq, 0, 0, 6.3); g.stroke();
       }
       const jolt = sh > 0 ? 2.4 * Math.exp(-sh / 0.08) * Math.cos(sh * 55) : 0, amp = x.p('ripple');
-      g.globalAlpha = pres * gone;
+      g.globalAlpha = settles(pres * gone);
       g.save(); g.beginPath(); g.rect(0, 0, W, BASE + jolt); g.clip();   // they stand in the ground
       for (const k of keys) {
         if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; }
@@ -187,7 +191,7 @@
         const keyTop = -k.h + (1 - risen) * k.full + dip;
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);
         drawKey(g, where, k, keyTop, sh, amp, rs);
-        if (after > 0) { g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); }
+        if (after > 0) { g.globalCompositeOperation = 'multiply'; g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); g.globalCompositeOperation = 'source-over'; }
         g.restore();
       }
       g.restore();

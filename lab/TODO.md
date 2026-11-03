@@ -6,6 +6,7 @@ What is still open, as of 2026-11-03. Finished work leaves this list. Nothing st
 
 Built, and nobody has watched these play with music.
 
+- **Ivory** (`ivory`), made with the user in a session on 2026-11-03. Only seen in stills, on a made-up line of notes: not on the Rachmaninoff theme it is for, not in motion. It needs picked notes: on a whole song it thins to a few keys. The bending of the picture underneath, tried in a sketch, is not in it.
 - **Tree** (`tree`), from the user's autumn maple photo, the backlit version out of three tried. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
 - **Round 9**: clumsy, gust, duet, vine, royal, comfort, honey, lazy, and the one-time casket. `lab/round9/README.md` says what a critic still found short in each.
 - **A curve that sets how much a widget makes** (`intensityMoves`, issue 6). Only Vine was tried, on the test song. Martin may flicker, because its grid rebuilds whenever its line count changes. Widgets that keep their marks may show a falling curve more weakly than a rising one.
