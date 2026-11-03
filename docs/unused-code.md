@@ -1,5 +1,7 @@
 # Old-code dependency audit
 
+**Historical snapshot:** main subsequently removed the old app in `a687e99`. The dependencies and file citations below describe `515b110`, before that removal; they are not current removal instructions. Main now keeps the analysis contracts in `src/audio/types.ts`. This integration preserves those deletions.
+
 2026-11-03. Audited tracked source at `515b110175b947250d2f0e6dcbc23c1ede188d59`.
 This report changes no application code and deletes nothing.
 

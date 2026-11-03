@@ -1,5 +1,19 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-03: the studio timeline
+
+Studio shows now use version 3: a list of clips with their own `id`, `start`, `end` and `track`, rather than sections
+owning layers. Track 0 draws first; clips may overlap on different tracks, and gaps are allowed. Each clip has an
+independent widget instance, resets at its start, and fades inside its edges (default 1 second).
+
+The song analysis still has sections, shown as marks to see and snap to; those marks own no clips. Opening a recording
+without a saved version 3 show starts with an empty timeline. Older show formats are not read. The studio runs the same
+`lab/tools/*.js` sources as the lab through `WidgetRuntime`.
+
+See [COMPOSING.md](COMPOSING.md#studio-shows-clips-on-tracks) for the current format and
+[COMPOSING-SHOWS.md](COMPOSING-SHOWS.md) for composing it. The dated entries below record the earlier designs; the older
+stage-script handbook in COMPOSING still applies to the legacy app.
+
 ## 2026-11-02: `claude/tonight-all`, a test branch, not main
 
 This branch merges the night's work for the user to try: the note picker, note types, round 9 and the casket's `keep`, and

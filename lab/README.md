@@ -1,7 +1,9 @@
 # The widget lab
 
-Throwaway canvas sketches of visual "widgets", each driven by the notes of a real recording, for rating rounds. The ones
-that win stay: the studio runs these same files.
+Canvas widgets driven by the notes of a real recording, for trying, tuning and rating. The studio runs these same
+`lab/tools/*.js` sources through `WidgetRuntime`; a widget does not need a separate stage implementation. Studio shows
+place independent widget clips on tracks, with their own start and end times. The song's analysis sections are only marks
+to see and snap to, and own no clips. See [the studio show format](../docs/COMPOSING-SHOWS.md).
 
 - `index.html`: the lab. Toggle and mix widgets, tune their knobs (each can be fixed or driven by a feature of the music),
   rate them. Serve the repo with `npm run dev` and open http://localhost:5173/lab/index.html (`?song=b5` for Beethoven).
