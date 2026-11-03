@@ -1,7 +1,7 @@
 # The widget lab
 
 Throwaway canvas sketches of visual "widgets", each driven by the notes of a real recording, for rating rounds. The ones
-that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing here is app code.
+that win stay: the studio runs these same files.
 
 - `index.html`: the lab. Toggle and mix widgets, tune their knobs (each can be fixed or driven by a feature of the music),
   rate them. Serve the repo with `npm run dev` and open http://localhost:5173/lab/index.html (`?song=b5` for Beethoven).

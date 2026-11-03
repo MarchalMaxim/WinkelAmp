@@ -11,7 +11,7 @@
  * `segment` / `findDrops` see the whole piece (study packs); `ChangeDetector`
  * runs the same pieces live, looking back only.
  */
-import type { Drop, Section, StructureRow } from '../stage/types';
+import type { Drop, Section, StructureRow } from './types';
 
 export type { Drop, Section, StructureRow };
 

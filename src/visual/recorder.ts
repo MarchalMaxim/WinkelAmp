@@ -15,7 +15,7 @@ const TYPES = [
 /** How a recording is made: the bit rates the encoder aims at and the canvas frame rate. */
 export interface RecorderOptions { videoBitsPerSecond: number; audioBitsPerSecond?: number; fps: number }
 
-/** The old app's recordings: 12 Mb/s, 60 fps, the browser's audio rate. */
+/** Recordings unless asked otherwise: 12 Mb/s, 60 fps, the browser's audio rate. */
 export const DEFAULT_RECORDER_OPTIONS: RecorderOptions = { videoBitsPerSecond: 12_000_000, fps: 60 };
 
 /** The first container the browser can record (`isSupported` is MediaRecorder.isTypeSupported), or undefined. */

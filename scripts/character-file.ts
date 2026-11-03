@@ -23,7 +23,7 @@ import { basename, extname } from 'node:path';
 import { CharacterEngine } from '../src/character/character';
 import { neutralDescriptors, type Character, type Descriptors } from '../src/character/types';
 import { emptyFeatures, type Features } from '../src/audio/features';
-import type { MelodyFrame } from '../src/stage/types';
+import type { MelodyFrame } from '../src/audio/types';
 
 /** One engine step: descriptors, features, dt, and the melody when audio was analysed. */
 type Frame = { d: Descriptors; f: Features; dt: number; mel?: MelodyFrame };

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FeatureExtractor, estimateBpm, pitchClass } from '../src/audio/features';
 import { fifthsPosition, noteHue, paletteColor, PALETTES } from '../src/visual/color';
-import { applyMapping, DEFAULT_MAPPING } from '../src/mapping';
-import { sanitizeLook, surpriseLook, DEFAULT_LOOK, type Look } from '../src/settings';
 
 const SR = 48000;
 const FFT = 4096;
@@ -133,33 +131,5 @@ describe('color', () => {
     const c = paletteColor(sunset, 0.37);
     expect(c.h).toBeGreaterThanOrEqual(0);
     expect(c.h).toBeLessThan(360);
-  });
-});
-
-describe('mapping & looks', () => {
-  it('drives motion from the chosen source', () => {
-    const ex = new FeatureExtractor();
-    const f = run(ex, () => spectrum([60], 0.3), 30);
-    const loud = applyMapping(f, DEFAULT_MAPPING, 1);
-    const off = applyMapping(f, { ...DEFAULT_MAPPING, size: { source: 'none', amount: 1 } }, 1);
-    expect(loud.size).toBeGreaterThan(off.size);
-    expect(off.size).toBeCloseTo(0.15);
-  });
-
-  it('surprise always yields a valid, different scene', () => {
-    for (let i = 0; i < 50; i++) {
-      const s = surpriseLook(DEFAULT_LOOK);
-      expect(s.scene).not.toBe(DEFAULT_LOOK.scene);
-      expect(sanitizeLook(s)).toEqual(s);
-    }
-  });
-
-  it('repairs corrupt saved looks', () => {
-    const bad = { scene: 'nope', palette: 42, wild: 'x', mirror: 5, mapping: { size: { source: 'bogus' } } } as unknown as Look;
-    const fixed = sanitizeLook(bad);
-    expect(fixed.scene).toBe('bloom');
-    expect(fixed.palette).toBe('notes');
-    expect(fixed.mirror).toBe(1);
-    expect(fixed.mapping.size).toEqual(DEFAULT_MAPPING.size);
   });
 });

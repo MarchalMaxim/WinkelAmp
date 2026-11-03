@@ -7,7 +7,7 @@ import { EchoStateNetwork, GestureReservoir, mulberry32 } from '../src/character
 import { luma, moodPalette } from '../src/character/palette';
 import { ARCHETYPE_IDS, neutralDescriptors, type Character, type Descriptors, type NeuralTags } from '../src/character/types';
 import { emptyFeatures, type Features } from '../src/audio/features';
-import type { MelodyFrame } from '../src/stage/types';
+import type { MelodyFrame } from '../src/audio/types';
 
 const desc = (over: Partial<Descriptors>): Descriptors => ({ ...neutralDescriptors(), silence: 0, ...over });
 

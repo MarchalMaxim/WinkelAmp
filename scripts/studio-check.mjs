@@ -2,7 +2,7 @@
 // system Chrome with autoplay allowed. Checks the library, playing, letterboxing on resize, hiding the controls, a
 // clip drag and its undo, adding the casket and its knob rows, knob pictures equal to the lab card's, Ctrl+S, a
 // broken show opening repaired, a fading slot drawing between "without" and "with", a paused picture holding still,
-// a jump resetting the picture, and legacy.html loading without page errors.
+// a jump resetting the picture.
 //
 // Then, on a second server with HMR on: Space after a clicked Play, and a show changed on disk (clean: followed; dirty:
 // offered). Last, adding a recording from the file input: with the ears server down (analysed in the browser,
@@ -339,15 +339,6 @@ try {
 
   check('no page errors in the studio', errors.length === 0, errors.join(' | '));
 
-  // The old app still starts.
-  const legacy = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  const lerr = [];
-  legacy.on('pageerror', (e) => lerr.push(String(e)));
-  await legacy.goto(`${BASE}/legacy.html`);
-  await legacy.waitForTimeout(2500);
-  const welcome = await legacy.locator('#welcome').count();
-  check('legacy.html loads without page errors', lerr.length === 0 && welcome === 1, lerr.join(' | '));
-  await legacy.close();
 } finally {
   await st.close();
 }

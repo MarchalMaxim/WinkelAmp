@@ -16,15 +16,11 @@ Built, and nobody has watched these play with music.
 Each is Codex's work from 2026-11-03, with its notes in `lab/codex-report.md` on that branch. Merging is the user's call.
 
 - **`codex/new-widgets`**: the 12 recipe widgets (stress, crackle, seep, lamps, tacet, varini, statues, afteryou, marey, planish, fauxpas, johansson). Still being finished: the health and speed runs on these 12 are not done. Two Johansson tests fail, several recipes fell short as written (see the report), and it now conflicts with main in the widget lists, since Tree landed.
-- **`codex/widgets-check`**: `npm run widgets-check`. It found no errors or blank pictures; what it reports is below.
+- **`codex/widgets-check`**: `npm run widgets-check`. It found no errors or blank pictures. It flags Fold, Kline and Time Slice for their slider, but the user decided none of them has one, so it should stop flagging them when it is merged.
 - **`codex/widgets-speed`**: `npm run widgets-speed`, the table in `lab/speed.md`, and a small speed-up in Current that helps on one busy song and costs a little on the other.
-- **`codex/unused-code`**: `docs/unused-code.md`, a report only. Nothing is deleted.
-- **`codex/timeline-docs`**: corrects the docs that still described sections.
+- **`codex/timeline-docs`**: corrects the docs that still described sections. Its change to `docs/COMPOSING.md` no longer applies: that file went with the old app.
 
 ## Decisions for the user
 
-- **Fold and Kline have no how present slider.** Do they get one? Until then, a curve can only fade them.
-- **Time Slice makes no less at low how present**, on all three songs checked. It changes the layer below it, so the check may just not see the effect.
 - **Background colours for small copies** (Codex's task 5, waiting). Black now goes see-through, but about a dozen widgets paint their own background and stay solid rectangles (Miro, Matisse, Kusama, Boogie, Lewitt, Martin, Score and others), and Gust and Royal leave a dark veil. Which ones should get a colour?
 - **Contours and Rorschach are costly**, and speeding them up would change how they look, so Codex left them alone.
-- **The old app and test pages**: `docs/unused-code.md` says what removing each would break. Keep or remove?
