@@ -14,7 +14,7 @@ is only marks to see and snap to: it owns nothing.
   "clips": [
     { "id": "c1", "start": 0, "end": 92.5, "track": 0, "widget": "current" },
     { "id": "c2", "start": 41, "end": 60, "track": 1, "widget": "strings", "listen": "melody", "fade": 2,
-      "knobs": { "size": 0.7 } },
+      "knobs": { "bend": 0.7 } },
     { "id": "c3", "start": 55, "end": 70, "track": 2, "widget": "strings", "region": { "mode": "window", "x": 0.5, "y": 0.5, "w": 0.4, "h": 0.4 } }
   ],
   "picks": {}
@@ -36,6 +36,11 @@ is only marks to see and snap to: it owns nothing.
 
 Seeking gives the same slots, weights and resets as playing there, since all of those are a function of the time. The
 picture itself is the widget's state after a short warm-up, as before.
+
+## Older stage scripts
+
+The rest of this handbook describes the cue-based stage scripts played by the legacy app (`legacy.html`). Its
+sections refer to musical analysis and the composing workflow. Studio shows use the clip format above.
 
 WinkelAmp performs a **script** for a song it recognises: the script decides *what* is on stage and *when*; the
 sound still drives every motion. Scripts are composed ahead of time, in a Claude Code session, from a **study
