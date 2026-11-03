@@ -84,4 +84,4 @@ Kept Current's two exact-work caches: one column cosine per simulation step and 
 
 Tried and reverted a Contours Float64 scaled-field cache: Wind8.806→8.754ms and Rite7.678→7.613ms (0.60%/0.84% less), too small to distinguish from noise. An earlier Contours baseline overlapped a CPU-heavy equivalence probe, so only the later isolated before/after run above was used for decisions. Contours remains unchanged. Its dynamic field/warp and segment drawing, and Rorschach's ordered blurs/layer composites, have no clear large shortcut that preserves the picture; left for Maxim. Tree was measured read-only and never edited.
 
-Paired PNGs and raw round data remain local under lab/showcase/codex-speed-clean-before and codex-speed-clean-after; no rendered media is committed.
+Paired PNGs and raw round data remain local under renders/codex-session/lab/showcase/codex-speed-clean-before and codex-speed-clean-after; no rendered media is committed.

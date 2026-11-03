@@ -1,29 +1,29 @@
 # Codex report — 3 November 2026
 
-All work was performed in `.claude/worktrees/codex-widgets`. The inspection preview contains **all twelve widgets and Tasks 1–4 on the existing `codex/new-widgets` branch**, with Johansson included for review only. **No changes have been pushed to main; publishing merges there awaits Maxim's review.** The original twelve-widget and Task 1–4 branches were each pushed as requested.
+Maxim inspected all twelve widgets and accepted **Johansson only**. The other eleven are rejected and are not included in this integration. Tasks 1–4 are included; Task 5 remains skipped. All work stays in the isolated Codex worktree.
 
-The ready candidate at `c270c39262da98c65f30435342434d24f3f86b7e` contains the first eleven widgets and Tasks 1–4 and passes the combined checks. **Johansson is not ready for the proposed main merge because two strict foot tests fail.** Its preview inclusion does not change that finding. Task 5 remains skipped.
+This integration starts at main's `a687e99` and preserves the old-app removal, Tree, clip curves, and TimeSlice's removed presence slider. Johansson's two strict foot-placement test failures remain recorded and unchanged. The measurements below include the earlier rejected experiments as a historical record, not a claim that their look is adequate.
 
-This work did not change ratings, audio, transcriptions, shows, melodies, or shared widget/layer implementation code. The only retained existing-widget performance change is the Current cache described under Task 2.
+No ratings, audio, transcriptions, shows, melodies, or shared widget/layer implementation code are changed by this integration. Current's exact caches are the only existing-widget implementation change.
 
 ## Commit and branch inventory
 
-All twelve widget commits were pushed to `codex/new-widgets` in recipe order. The ready candidate includes commits through Fauxpas, `c9ee168`. The all-twelve inspection preview also includes Johansson, `10fefeb`, without treating it as ready for main.
+All twelve original commits were pushed in recipe order to `codex/new-widgets`, which retains the rejected preview for reference. Only Johansson is selected for main.
 
 | Order | Widget | Commit | Integration status |
 |---|---|---|---|
-| 1 | Stress | `d411b1e` | Merged locally |
-| 2 | Crackle | `d9db5da` | Merged locally |
-| 3 | Seep | `e4b6b8f` | Merged locally |
-| 4 | Lamps | `94e88d6` | Merged locally |
-| 5 | Tacet | `49f16bd` | Merged locally |
-| 6 | Varini | `4d0c2e3` | Merged locally |
-| 7 | Statues | `744aaed` | Merged locally |
-| 8 | After You | `2db763d` | Merged locally |
-| 9 | Marey | `384b3f9` | Merged locally |
-| 10 | Planish | `7b81afc` | Merged locally |
-| 11 | Fauxpas | `c9ee168` | Merged locally |
-| 12 | Johansson | `10fefeb` | Preview only; held out of the proposed main merge |
+| 1 | Stress | `d411b1e` | Rejected; not merged |
+| 2 | Crackle | `d9db5da` | Rejected; not merged |
+| 3 | Seep | `e4b6b8f` | Rejected; not merged |
+| 4 | Lamps | `94e88d6` | Rejected; not merged |
+| 5 | Tacet | `49f16bd` | Rejected; not merged |
+| 6 | Varini | `4d0c2e3` | Rejected; not merged |
+| 7 | Statues | `744aaed` | Rejected; not merged |
+| 8 | After You | `2db763d` | Rejected; not merged |
+| 9 | Marey | `384b3f9` | Rejected; not merged |
+| 10 | Planish | `7b81afc` | Rejected; not merged |
+| 11 | Fauxpas | `c9ee168` | Rejected; not merged |
+| 12 | Johansson | `10fefeb` | Selected for main; known foot-test failures retained |
 
 Tasks 1–4 were each completed and pushed on an independent branch before the user authorized integration.
 
@@ -41,9 +41,11 @@ The five required checks are TypeScript for the app, TypeScript for scripts, Vit
 
 Initial sandboxed checks failed because localhost connections were denied (`connect EACCES` in 26 ears tests). Rerunning with local networking allowed passed all 89 files and 1,329 tests at that stage. Initial rendering attempts also failed on blocked localhost; the isolated server and renderers subsequently ran successfully with local networking allowed. Browser verification stubs the ratings server on port 5174 and uses the isolated server on port 5200.
 
-Demo videos for all twelve widgets remain local in `lab/demos/`, including Johansson's demo. Primary inspection PNGs and gate recordings remain in `lab/showcase/`. Raw paired images, helper scripts and supplementary measurements are preserved under `renders/codex-session/`, including `renders/codex-session/lab/showcase/codex-speed-clean-before/` and `codex-speed-clean-after/`. Videos and inspection images are not committed. Thumbnails were committed with their respective widget changes. Keeping Johansson out of the proposed main merge does not delete its local assets or remove it from the inspection preview. The port 5200 server will remain available for the user, as explicitly requested later; that request supersedes the handoff's shutdown instruction.
+Demo videos for all twelve widgets remain local in `lab/demos/`, including Johansson's demo. Primary inspection PNGs and gate recordings remain in `lab/showcase/`. Raw paired images, helper scripts and supplementary measurements are preserved under `renders/codex-session/`, including `renders/codex-session/lab/showcase/codex-speed-clean-before/` and `codex-speed-clean-after/`. Videos and inspection images are not committed. Thumbnails were committed with their respective widget changes. The rejected widgets and their local demos remain available on the earlier preview branch; their sources are excluded from this integration. The port 5200 server will remain available for the user, as explicitly requested later; that request supersedes the handoff's shutdown instruction.
 
-## Task 6 — widgets in recipe order
+## Task 6 — implementation checks, in recipe order
+
+The first eleven widgets below were rejected after visual inspection. Their implementation notes are historical. Johansson is the only selected widget.
 
 ### 1. Stress
 
@@ -141,7 +143,7 @@ Inspected Spring at 7.65/7.8 s, Wind at 110 s and Rite at 20 s: the line, approa
 
 Whole one-second bins use `floor(win)`; the first bin takes the maximum before hysteresis. Stateful reset returns pitch classes to slots and skips past barges as written; only `keyAt` seek equality is claimed. The complete motion sequence and every unison break were not judged by eye.
 
-### 12. Johansson — preview only, not ready for main
+### 12. Johansson — accepted for main
 
 Built the thirteen-dot gait first, recorded three seconds at 60 fps (180 frames) in local `johansson-gate.mp4`, and judged the pose sequence recognizably human before adding anything else. Original Catmull tables were retained. Then built planned steps/phrases, style, stars, springs, foot bursts, lift and ghost-clearing discs.
 
@@ -158,7 +160,7 @@ Bounds with all thirteen dots on screen at height 1.3, and standing-position tes
 
 Recorded assumptions are time-aware periodic Catmull interpolation; 0.85 s pre-roll at the first strike and a half-cycle prior phase; mean loudness across a phrase's selected strikes; a phrase change when actual standing lasts at least 1.6 s; phase solved using target amplitude, current sadness and current filtered run at step start; default phases/styles on a cold seek; and star rest from the mean of twenty unit poses at `psi = 32`, without facing. Standing holds pose, lift and springs while flash/alpha decay. `maxStep` below 0.85 retains overlapping preparation as written. Nearest-sixteen foot-star selection uses positions before the current frame's shift, an unresolved small ordering ambiguity.
 
-The widget was committed under Maxim's explicit recipe-failure fallback. Its source, tests and committed assets are available on `codex/new-widgets` at `10fefeb`; its demo and inspection assets remain local. It is included in the all-twelve inspection preview but excluded from the proposed main merge because of the strict test failures. Passing the aggregate health and speed checks below does not override those failures.
+The widget was committed under Maxim's explicit recipe-failure fallback. Its source, tests and committed assets are available on `codex/new-widgets` at `10fefeb`; its demo and inspection assets remain local. Maxim accepted its appearance and explicitly selected it as the only widget to merge. Its two strict mechanical failures remain unchanged; passing the aggregate health and speed checks below does not override them.
 
 ## Task 1 — widget health check
 
@@ -186,26 +188,28 @@ Only Current's exact column-cosine and per-point paint-bin caches were retained.
 
 The Contours cache was tried and produced numerically identical fields and drawing commands, but measured less than 1% gain and was reverted. Its ordered drawing/warp costs and Rorschach's blur/composite costs remain for Maxim; no aesthetic rewrite was made. A CPU-heavy probe overlapped the first focused Contours baseline, so both candidates' original-source timings were repeated in isolation before decisions. Whole-song accumulation and GPU/screen timing remain unjudged. All five final checks on the task branch passed: 88 files and 1,324 tests. Benchmark syntax and whitespace checks also passed, allowing the existing CRLF style.
 
-The follow-up [twelve-widget speed table](speed-new.md) is complete: 72 rounds, no errors, elapsed time 51.117 s. It uses the same two busy passages, three fresh-page rounds per song, two measured seconds per round, and 60 Hz CPU/submission timing. Its source is also `10fefeb`, including preview-only Johansson and excluding Tree. Tree is covered by the 54-widget baseline. These remain machine-local measurements of CPU work and submission, not completed GPU work or an FPS guarantee.
+The follow-up [twelve-widget speed table](speed-new.md) is complete: 72 rounds, no errors, elapsed time 51.117 s. It uses the same two busy passages, three fresh-page rounds per song, two measured seconds per round, and 60 Hz CPU/submission timing. Its source is also `10fefeb`, including Johansson and excluding Tree. Tree is covered by the 54-widget baseline. These remain machine-local measurements of CPU work and submission, not completed GPU work or an FPS guarantee.
 
 ## Task 3 — old code report
 
 Completed on `codex/unused-code`, independently from `origin/claude/wizardly-franklin-ttaqyo`, and merged locally. Added [the dependency and removal report](../docs/unused-code.md). Nothing was deleted.
 
-Legacy is still linked by the current studio and explicitly built; both test pages have manual harness and screenshot consumers. All 28 stage files have consumers: 26 from the legacy runtime, one harness and one cast CLI/test generator. Current studio/render source graphs use no old-stage runtime, but current audio/ingest still needs stage type contracts, which themselves reference old modules. Those contracts must move before the whole folder can be retired.
+At the audited snapshot `515b110`, Legacy was still linked by the studio and explicitly built; both test pages had manual harness and screenshot consumers. Main subsequently removed them in `a687e99`. The report is now explicitly labelled historical, and no removed code is restored. All 28 stage files have consumers: 26 from the legacy runtime, one harness and one cast CLI/test generator. At that snapshot, studio/render used no old-stage runtime, but audio/ingest still needed stage type contracts referencing old modules. Main has since moved the contracts into `src/audio/types.ts` and removed the old folder.
 
 Checked tracked entrypoints, static value/type import closures, dynamic imports, build/package/CI inputs, script URLs, tests and documentation. All 65 line citations resolve. No application/browser runtime or visual test was run for this static report. Actual human usage, external bookmarks, individual dead exports and deployed workflow status remain unknown. All five required repository checks passed on the branch: 88 files and 1,324 tests; `check-show` found no local shows. No code, data or history was changed by this task.
 
 ## Task 4 — docs after the timeline
 
-Completed on `codex/timeline-docs`, independently from `origin/claude/wizardly-franklin-ttaqyo`, and merged locally. Briefly corrected the three requested documents. HANDOFF gains a current 2026-11-03 entry for v3 clips and tracks; every byte of the pre-existing dated history is unchanged. COMPOSING already had the correct v3 introduction; it now has a clear boundary for its valid older cue-based stage handbook, and its invalid Strings `size` example uses the existing `bend` knob. The lab README now says that the studio runs the actual lab widget sources through `WidgetRuntime` and places independent clips; analysis sections are marks, not owners.
+Completed on `codex/timeline-docs`. The original branch corrected three documents. Current main has since deleted `docs/COMPOSING.md` with the old app, so that deletion is preserved. The new timeline entry in HANDOFF and the lab README are retained, with links pointing to the surviving show-format guide. Pre-existing dated history is preserved.
 
 Searched the checkout, including hidden/ignored filenames, timeline merge `e779246` and its commits for a report or named unfinished converter. None was identified here. Commits `5539578` and `eb87b44` already converted the relevant CLI and browser checks; current fixtures use v3 clips. No speculative script conversion or new browser run was made. Report availability outside this repository and actual historical usage remain unknown. Source/schema/UI cross-checks and diff/history byte checks were completed. All five required checks passed: 88 files and 1,324 tests; whitespace checks passed. No application code changed.
 
-## Preview verification
+## Final integration checks
 
-The five combined repository checks have passed at candidate `c270c39262da98c65f30435342434d24f3f86b7e`: both TypeScript configurations, Vitest with 91 files and 1,360 tests, `check-show` with no local shows, and generated widget docs.
+Both TypeScript checks, `check-show` (no local shows) and generated widget docs pass. Vitest reports 70 files passed, one failed: **1,079 tests passed and two failed** out of 1,081. Only the two Johansson landing/planting assertions quoted above fail. No tests were weakened or skipped.
 
-The all-twelve preview registers 66 widgets, including Tree. Both TypeScript checks, `check-show` and generated widget docs pass. Vitest reports **91 files passed, one failed; 1,362 tests passed, two failed** out of 1,364. The only failures are the same strict Johansson landing and planted-foot checks quoted above. No assertions were weakened.
+The integration contains 55 registered widgets: the existing 54 plus Johansson. The other eleven new widget sources, registrations, tags, demo entries and thumbnails are excluded. Tasks 1–4 are integrated with current main; the old-app removal is preserved. Task 5 remains skipped. The isolated lab server on port 5200 stays running on this integrated version.
 
-The focused ready-candidate health run also passed, as recorded under Task 1. The combined preview is kept on the existing `codex/new-widgets` branch for inspection. Main has not been pushed and awaits Maxim's review. The isolated Vite server remains running at [the lab on port 5200](http://localhost:5200/lab/index.html), serving this all-twelve preview. Task 5 remains skipped.
+The final [selected-widget health check](widgets-check-selected.md) ran Johansson, Current and Tree on three songs at low/high presence: all nine pairs and eighteen variants passed, with no findings, errors or blank flags. It simulated 22,698 frames and made 5,010 observations in 51.908 seconds on runtime revision `dcd0f42`. These checks do not judge aesthetic adequacy or override Johansson's strict foot tests.
+
+Selected integration: Johansson only, plus Tasks 1–4, for publication to `origin/claude/wizardly-franklin-ttaqyo` under Maxim's explicit approval. The rejected all-twelve preview remains on `origin/codex/new-widgets`; no rejected widget source is merged.

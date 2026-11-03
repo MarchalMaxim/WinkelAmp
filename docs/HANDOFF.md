@@ -10,9 +10,8 @@ The song analysis still has sections, shown as marks to see and snap to; those m
 without a saved version 3 show starts with an empty timeline. Older show formats are not read. The studio runs the same
 `lab/tools/*.js` sources as the lab through `WidgetRuntime`.
 
-See [COMPOSING.md](COMPOSING.md#studio-shows-clips-on-tracks) for the current format and
-[COMPOSING-SHOWS.md](COMPOSING-SHOWS.md) for composing it. The dated entries below record the earlier designs; the older
-stage-script handbook in COMPOSING still applies to the legacy app.
+See [COMPOSING-SHOWS.md](COMPOSING-SHOWS.md) for the current show format and composing guidance.
+The old app and its COMPOSING handbook were subsequently removed in `a687e99`. The dated entries below record earlier designs.
 
 ## 2026-11-02: `claude/tonight-all`, a test branch, not main
 
