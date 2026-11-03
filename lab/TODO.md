@@ -18,6 +18,7 @@ The user's words.
 ## Backlog
 
 - **Tree** built 2026-11-03 as `lab/tools/tree.js`, from the user's autumn maple photo, the backlit version out of three tried. Awaiting the user's eye. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
+- **Modifiers on picked notes** (not started). The user: "add modifiers to the picked notes. As in: currently, we are connecting notes to attacks, but I'd like to have it so that we can label the note-link with a parameter. For example: a intensity value." So each link from a picked note to its attack carries a value of its own, set by hand, that the widget can use. Today a set of picks (`picks` in a show) is only the notes themselves.
 
 ## Changes
 
