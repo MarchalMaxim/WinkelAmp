@@ -5,11 +5,12 @@
 // everything is mirrored in time: it ends on the lowest note. The note at the end is a stomp: a very faint crater pressed into the ground, a jolt, and
 // a ripple running out of the crater through the keys, shifting only the slice of each key it is passing through. Two seconds
 // later the keys and the crater age away quickly and together (the user: a dissolve "implies some sort of attack", so nothing
-// travels or takes turns here), and the widget stays empty. Picked notes after the stomp are ignored.
+// travels or takes turns here), and the widget stays empty. Picked notes after the stomp bring the row back down: each presses
+// one key into the ground, starting from the stomp's end of the row, and the two seconds count from the last of them.
 // All of it is worked out from the notes in advance, so every frame is a function of song time: a seek needs no replay.
 (() => {
   const W = 1280, H = 720, BASE = H * 0.88, TOP = BASE * 0.9;
-  const RISE = 0.2, HOLD = 2, AGE = 1.5, RIPPLE_FOR = 3.2, FRONT = 430;   // seconds; FRONT: units a second the ripple runs at
+  const RISE = 0.2, SINK = 0.16, HOLD = 2, AGE = 1.5, RIPPLE_FOR = 3.2, FRONT = 430;   // seconds; FRONT: units a second the ripple runs at
   const MAX_ATTACKS = 60, THIN_TO = 36;                                   // more than this was not picked by hand: the prominent ones only
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (v) => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
@@ -29,7 +30,8 @@
   function planOf(chords) {
     let hits = [];
     for (const c of chords) for (const n of c.notes) hits.push({ t: c.t, m: n.m });
-    if (hits.length > MAX_ATTACKS) hits = thin(chords);
+    const picked = hits.length <= MAX_ATTACKS;
+    if (!picked) hits = thin(chords);
     if (!hits.length) return { keys: [], stomp: null };
     const ms = hits.map((h) => h.m), hi = Math.max(...ms), low = Math.min(...ms);
     const opening = hits.filter((h) => h.t === hits[0].t), start = opening.reduce((a, h) => a + h.m, 0) / opening.length;
@@ -54,7 +56,10 @@
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
-    return { keys, stomp, end };
+    // The way back: one key per note, away from the stomp. A whole song thinned to a few keys has no way back to show.
+    const away = [...keys].sort((a, b) => (end === hi ? b.m - a.m : a.m - b.m)), back = picked ? hits.filter((h) => h.t > stomp).slice(0, keys.length) : [];
+    back.forEach((h, i) => { away[i].press = h.t; });
+    return { keys, stomp, end, last: back.length ? back[back.length - 1].t : stomp };
   }
 
   // One hairline: dark, with a pale line beside it, so it reads as cut into the surface.
@@ -147,7 +152,7 @@
 
   TOOLS.push({
     id: 'ivory', name: 'Ivory', tag: 'new',
-    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.',
+    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.',
     plan: planOf,
     params: [
       { key: 'floor', label: 'where the crater is', min: 0, max: 1, step: 1, value: 0,
@@ -171,11 +176,18 @@
     frame(x) {
       const { keys, stomp } = seen(x.t), pres = x.p('presence');
       if (!keys.length || pres <= 0) return;
-      const after = (x.t - stomp - HOLD) / AGE;
+      const after = (x.t - plan.last - HOLD) / AGE;
       if (after >= 1) return;
       const g = x.g, rs = x.canvas.width / W, cracks = Math.round(x.p('cracks') * 2) / 2, sh = x.t - stomp - 0.06, floor = x.p('floor') >= 0.5 ? 1 : 0;
       const gone = 1 - smooth((after - 0.8) / 0.2), where = craterAt(plan.keys, plan.end, floor);
       if (sheetsFor !== floor) { sheets = relief(where); sheetsFor = floor; }
+      // The shared canvas fades instead of clearing, so a key going down would leave ghosts of itself: wipe where it stood.
+      g.globalAlpha = 1; g.fillStyle = '#000';
+      for (const k of keys) {
+        const since = k.press !== undefined ? x.t - k.press : -1;
+        if (since < 0 || since > SINK + 0.05) continue;
+        g.save(); g.translate(k.foot, BASE + 4); g.rotate(k.angle); g.fillRect(-k.w / 2 - 12, -k.h - 10, k.w + 24, k.h + 14); g.restore();
+      }
       if (sh > 0) {
         const pressed = smooth(sh / 0.09), deep = x.p('crater');
         g.globalAlpha = settles(pres * pressed * deep * 0.8 * (1 - smooth(after)));
@@ -191,7 +203,9 @@
         const a = (x.t - k.t) / RISE, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
         let last = k.t; for (const t of k.hits) if (t <= x.t) last = t;
         const dip = last > k.t ? Math.min(10, k.h * 0.04) * Math.exp(-(x.t - last) / 0.18) : 0;   // the same pitch again
-        const keyTop = -k.h + (1 - risen) * k.full + dip;
+        const sunk = k.press !== undefined ? smooth((x.t - k.press) / SINK) : 0;
+        if (sunk >= 1) continue;
+        const keyTop = -k.h + (1 - risen) * k.full + dip + sunk * (k.h + 8);
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);
         drawKey(g, where, k, keyTop, sh, amp, rs);
         if (after > 0) { g.globalCompositeOperation = 'multiply'; g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); g.globalCompositeOperation = 'source-over'; }

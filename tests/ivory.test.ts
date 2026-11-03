@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 interface Chord { t: number; notes: { m: number; v: number; d: number }[]; vel: number; lo: number; hi: number }
-interface Plan { keys: { m: number; t: number; hits: number[]; w: number; h: number; foot: number; angle: number }[]; stomp: number | null }
+interface Plan { keys: { m: number; t: number; hits: number[]; w: number; h: number; foot: number; angle: number; press?: number }[]; stomp: number | null; last?: number }
 
 const tools: { id: string; plan: (c: Chord[]) => Plan }[] = [];
 new Function('TOOLS', 'ICON', 'CHORDS', readFileSync('lab/tools/ivory.js', 'utf8'))(tools, {}, []);
@@ -69,5 +69,31 @@ describe('ivory plan', () => {
   it('gives the same picture every time', () => {
     const notes = [chord(1, 60), chord(2, 64)];
     expect(plan(notes).keys.map((k) => k.angle)).toEqual(plan(notes).keys.map((k) => k.angle));
+  });
+  it('presses one key down for each note after the top, tallest first', () => {
+    const p = plan([chord(1, 60), chord(2, 64), chord(3, 67), chord(4, 72), chord(5, 65), chord(6, 62)]);
+    expect(p.stomp).toBe(4);
+    expect(p.keys.map((k) => [k.m, k.press])).toEqual([[60, undefined], [64, undefined], [67, 6], [72, 5]]);
+    expect(p.last).toBe(6);
+  });
+  it('on a falling line, presses from the low end', () => {
+    const p = plan([chord(1, 72), chord(2, 67), chord(3, 60), chord(4, 70)]);
+    expect(p.stomp).toBe(3);
+    expect(p.keys.find((k) => k.m === 60)?.press).toBe(4);
+    expect(p.keys.find((k) => k.m === 72)?.press).toBeUndefined();
+  });
+  it('has nothing to press when the line ends on its stomp', () => {
+    const p = plan([chord(1, 60), chord(2, 64), chord(3, 67)]);
+    expect(p.keys.every((k) => k.press === undefined)).toBe(true);
+    expect(p.last).toBe(3);
+  });
+  it('stops pressing when no key is left', () => {
+    const p = plan([chord(1, 60), chord(2, 72), chord(3, 65), chord(4, 62), chord(5, 61), chord(6, 59)]);
+    expect(p.keys.map((k) => k.press)).toEqual([4, 3]);
+    expect(p.last).toBe(4);
+  });
+  it('has no way back on a whole song', () => {
+    const song = Array.from({ length: 4000 }, (_, i) => chord(i * 0.2, 40 + (i * 7) % 48));
+    expect(plan(song).keys.every((k) => k.press === undefined)).toBe(true);
   });
 });
