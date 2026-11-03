@@ -23,6 +23,7 @@
     "widget-docs": "tsx scripts/widget-docs.ts",
     "widget-thumbs": "node lab/thumbs.mjs",
     "widget-demos": "node lab/demos.mjs",
+    "widgets-speed": "node scripts/widgets-speed.mjs",
     "studio-check": "node scripts/studio-check.mjs",
     "record-check": "node scripts/record-check.mjs",
     "render-show": "node scripts/render-show.mjs",

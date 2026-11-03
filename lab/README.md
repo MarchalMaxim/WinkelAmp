@@ -28,6 +28,15 @@ that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing h
 The recordings (`prelude.mp3`, `beethoven5.mp3`) and the notes transcribed from them (`notes.js`, `notes-b5.js`, written by
 the GPU piano transcriber as `window.NOTES = [[start, end, midi, velocity], …]`) are local only and not in git.
 
+## Widget speed table
+
+For a frame-cost table, start the worktree's server on port 5200 and run `npm run widgets-speed`. It measures each widget
+alone at 60 Hz on Winter Wind 206 s and Rite 174 s, with three two-second rounds and at least five seconds of warm-up
+(or its longer demo warm-up, including Vine's 60 s). `lab/speed.md` lists the slower widgets first. The numbers cover CPU
+work and drawing-command submission, without a GPU completion wait or forced pixel readback during timing. They do not
+measure screen presentation. Use `-- --ids squares,fireworks --json renders/speed.json` for selected widgets and frame data;
+`--images lab/showcase/speed-before` captures final frames only after timing. The command plays no audio and stubs ratings.
+
 ## Knobs (from the 2026-10-31 round on)
 
 The user found knob names hard to grasp, so a widget has **at most 5 knobs**, each with a plain sentence and a small picture.
