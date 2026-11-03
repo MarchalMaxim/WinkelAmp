@@ -61,8 +61,9 @@
 .np-widget > button::after { content: " ▾"; color: var(--dim); }
 .np-what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
 .np-chooser { position: absolute; left: 0; top: calc(100% + 6px); z-index: 3; width: min(460px, 100%); max-height: 56vh; overflow: auto; margin: 0; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 30px #000a; }
-.np-chips { position: relative; flex: none; height: 150px; overflow-x: auto; overflow-y: hidden; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; user-select: none; touch-action: pan-x; }
-.np-chips-in { position: relative; height: 130px; isolation: isolate; }
+.np-chips { position: relative; flex: none; height: 168px; overflow-x: auto; overflow-y: hidden; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; user-select: none; touch-action: pan-x; }
+.np-chips-in { position: relative; height: 148px; isolation: isolate; }
+.np-chip-time { position: absolute; top: 131px; height: 15px; border-left: 1px solid #5a4b4f; color: var(--dim); font-size: 10px; line-height: 15px; padding-left: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
 .np-chips { cursor: crosshair; }
 .np .np-chip::after { content: ""; position: absolute; left: 10px; top: 8px; height: 4px; width: var(--tail, 0); border-radius: 0 2px 2px 0; background: #5b523680; z-index: -1; pointer-events: none; }
 .np .np-chip.sel::after { background: #f4b74070; }

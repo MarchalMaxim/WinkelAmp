@@ -15,7 +15,7 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, Note, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
-import { chipLayout, clock, countWords, draftKey, draftShow, everyOther, loudest, nameOf, phraseOf, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type Instrument, type RollNote } from './picker-logic';
+import { chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import type { WidgetPalette } from './widget-palette';
@@ -90,7 +90,7 @@ export class PickerPopup {
         <div class="np-pop-bottom">
           <div class="np-pop-stage"><canvas width="1280" height="720" aria-label="The preview"></canvas></div>
           <div class="np-pop-side">
-            <div><div class="np-count"><b data-count>0</b> <span data-of></span></div><div class="dim small" data-attacks></div></div>
+            <div><div class="np-count"><b data-count>0</b> <span data-of></span></div><div class="dim small" data-attacks></div><div class="dim small" data-span></div></div>
             <div class="np-row">
               <button type="button" data-loud>Pick the loudest</button><input type="number" data-n value="6" min="1" aria-label="How many of the loudest notes">
               <button type="button" data-all title="Every note of the melody">All</button>
@@ -326,10 +326,15 @@ export class PickerPopup {
       el.style.left = `${g.x}px`;
       box.append(el);
     }
+    for (const r of chipRuler(chips)) {
+      const el = Object.assign(document.createElement('div'), { className: 'np-chip-time', textContent: fineClock(r.t) });
+      el.style.left = `${r.x + 10}px`;
+      box.append(el);
+    }
     for (const { note: n, x, y, tail } of chips) {
       const c = Object.assign(document.createElement('button'), { type: 'button', className: 'np-chip', textContent: pitchClass(n.m) });
       const who = many && n.i >= 0 ? `${this.d.instruments[n.i].label}, ` : '';
-      c.title = `${who}${nameOf(n.m)} at ${clock(n.t)}${o.marked.has(n.id) ? '' : ': no longer marked'}`;
+      c.title = `${who}${nameOf(n.m)} at ${fineClock(n.t)}${o.marked.has(n.id) ? '' : ': no longer marked'}`;
       c.setAttribute('aria-label', c.title);
       c.dataset.id = String(n.id);
       if (many && o.marked.has(n.id)) c.style.setProperty('--ic', this.d.instruments[n.i].color);
@@ -349,6 +354,7 @@ export class PickerPopup {
     this.$('[data-count]').textContent = w.count;
     this.$('[data-of]').textContent = w.of;
     this.$('[data-attacks]').textContent = w.attacks;
+    this.$('[data-span]').textContent = pickedSpan(this.picked());
     this.$<HTMLButtonElement>('[data-ok]').disabled = !picked.length;
   }
 

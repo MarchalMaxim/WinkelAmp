@@ -952,6 +952,21 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `gliss`: Gliss
+
+A fast glissando as warm energy in a real fluid. No line: an unseen point climbs and falls along a bell from left to right, and every note sends out many tiny pulses that curl away from it, so the bell only shows in where they appear. After the last note they just fade. Made for a sweep of notes picked by hand.
+
+Feel: warm, liquid, glowing, flowing · Suits: piano · Role: accent · Note type: runs
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `hue` | colour | 0..360 | 33 | fixed | The colour of the energy. Dense places burn towards white whatever you choose. Left and right are both red; in between it runs orange, yellow, green, blue, violet. |
+| `number` | how many pulses | 2..40 | 18 | fixed | How many pulses each note sends out. Left: a few, with gaps in the bell. Right: a dense smoke. Follows how present: 4 at its left end. |
+| `push` | how fast they leave the bell | 0..3 | 1 | fixed | How hard each pulse shoots away from the bell. Left: it stays where it was born. Right: it flies off and curls. |
+| `size` | how big each pulse is | 0.2..3 | 1 | fixed | Left: fine as dust. Right: big soft puffs. |
+| `linger` | how long it stays | 0.2..3 | 0.6 | fixed | Seconds until the light has half faded. Left: gone almost at once. Right: it hangs in the air. Follows how present: 0.25 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it makes: how many pulses and how long they stay. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
 #### `ivory`: Ivory
 
 One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.

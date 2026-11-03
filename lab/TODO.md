@@ -6,6 +6,7 @@ What is still open, as of 2026-11-03. Finished work leaves this list. Nothing st
 
 Built, and nobody has watched these play with music.
 
+- **Gliss** (`gliss`), made with the user in a session on 2026-11-03 from the sweep in Liebesleid at 2:53.6. The user liked the fluid in a mockup with that passage; the widget itself has only been seen in stills, not played. The first widget with a fluid on the graphics card: it needs WebGL2 and draws nothing without it. It needs picked notes: on a whole song it looks for fast climbs by itself, which was only tried on Liebesleid.
 - **Ivory** (`ivory`), made with the user in a session on 2026-11-03. Only seen in stills, on a made-up line of notes: not on the Rachmaninoff theme it is for, not in motion. It needs picked notes: on a whole song it thins to a few keys. The bending of the picture underneath, tried in a sketch, is not in it.
 - **Tree** (`tree`), from the user's autumn maple photo, the backlit version out of three tried. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
 - **Round 9**: clumsy, gust, duet, vine, royal, comfort, honey, lazy, and the one-time casket. `lab/round9/README.md` says what a critic still found short in each.

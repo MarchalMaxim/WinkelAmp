@@ -1,4 +1,5 @@
 {
+  "gliss": {"feel":["warm","liquid","glowing","flowing"],"instruments":["piano"],"role":"accent","noteType":"runs"},
   "johansson": {"feel":["precise","playful","grainy","still"],"instruments":["piano","strings"],"role":"ground"},
   "blocks": {"feel":["stabbing","brittle","flickering","panic"],"instruments":["piano","harpsichord"],"role":"top"},
   "boogie": {"feel":["playful","marching","vivid","warm"],"instruments":["piano","plucked","clarinet"],"role":"ground"},

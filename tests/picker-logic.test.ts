@@ -9,7 +9,7 @@ import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
 import {
-  boxHits, chipLayout, clock, countWords, everyOther, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
+  boxHits, chipLayout, chipRuler, clock, countWords, everyOther, fineClock, pickedSpan, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
   NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
 } from '../src/studio/ui/picker-logic';
@@ -186,6 +186,35 @@ describe('picking many', () => {
     expect(everyOther(notes).map((n) => n.t)).toEqual([0, 1, 5.5]);
     const two = [roll(0, 60), roll(0.5, 62), roll(0.51, 70), roll(1, 64)];
     expect(everyOther(two.slice(1)).map((n) => n.t)).toEqual([0.5, 0.51]);
+  });
+});
+
+describe('the times on the strip', () => {
+  const run = (t: number, n: number, wait = 0.25) => Array.from({ length: n }, (_, i) => roll(t + i * wait, 60 + i, 80));
+  it('reads to the tenth of a second, and carries over the minute', () => {
+    expect(fineClock(173.556)).toBe('2:53.6');
+    expect(fineClock(5)).toBe('0:05.0');
+    expect(fineClock(59.97)).toBe('1:00.0');
+  });
+  it('labels the first note, then keeps the labels apart', () => {
+    const { chips } = chipLayout(run(10, 40));
+    const r = chipRuler(chips);
+    expect(r[0]).toEqual({ x: chips[0].x, t: 10 });
+    expect(r.length).toBeGreaterThan(5);
+    for (let i = 1; i < r.length; i++) expect(r[i].x - r[i - 1].x).toBeGreaterThanOrEqual(56);
+  });
+  it('labels the note after a long pause', () => {
+    const notes = [...run(10, 3), ...run(100, 3)];
+    expect(chipRuler(chipLayout(notes).chips).map((l) => l.t)).toContain(100);
+  });
+  it('gives one label to the notes of one attack', () => {
+    const { chips } = chipLayout([roll(10, 60), roll(10.01, 72), roll(10.02, 84)]);
+    expect(chipRuler(chips)).toHaveLength(1);
+  });
+  it('says when the picked notes start and end', () => {
+    expect(pickedSpan([])).toBe('');
+    expect(pickedSpan([roll(173.556), roll(175.285)])).toBe('2:53.6 to 2:55.3');
+    expect(pickedSpan([roll(60), roll(60.01)])).toBe('at 1:00.0');
   });
 });
 
