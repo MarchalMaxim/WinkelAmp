@@ -92,8 +92,22 @@ function readPack(songs: string, id: string): { pack?: SongPack; error?: string 
   } catch (e) { return { error: `pack.json: ${(e as Error).message}` }; }
 }
 
-let catalogue: ReturnType<typeof loadCatalogue>['widgets'] | null = null;
-const widgets = () => (catalogue ??= loadCatalogue().widgets);
+/** What load() gave, loaded again only when stamp() has changed. */
+export function whileUnchanged<T>(stamp: () => string, load: () => T): () => T {
+  let had: { stamp: string; value: T } | null = null;
+  return () => {
+    const now = stamp();
+    if (had?.stamp !== now) had = { stamp: now, value: load() };
+    return had.value;
+  };
+}
+/** The server outlives the widgets: one added or edited while it runs has to save without a restart. */
+const toolsStamp = (): string => {
+  const dir = join(REPO, 'lab', 'tools');
+  return readdirSync(dir, { withFileTypes: true }).filter((d) => d.isFile() && d.name.endsWith('.js'))
+    .map((d) => `${d.name}:${statSync(join(dir, d.name)).mtimeMs}`).join('|');
+};
+const widgets = whileUnchanged(toolsStamp, () => loadCatalogue().widgets);
 
 function serveFile(req: IncomingMessage, res: ServerResponse, file: string): void {
   const size = statSync(file).size, type = TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream';

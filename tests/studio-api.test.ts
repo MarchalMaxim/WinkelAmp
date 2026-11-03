@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { apiMiddleware } from '../scripts/studio-api';
+import { apiMiddleware, whileUnchanged } from '../scripts/studio-api';
 import { canonicalMelody, emptyMelody, type Melody } from '../src/studio/show/melody';
 import { canonicalShow, type Show } from '../src/studio/show/show';
 
@@ -179,5 +179,15 @@ describe('studio dev API', () => {
   it('passes everything else on', async () => {
     expect((await call('GET', '/src/studio/ui/main.ts')).next).toBe(true);
     expect((await call('GET', '/api/nothing')).status).toBe(404);
+  });
+});
+
+describe('the widget list while the server runs', () => {
+  it('loads once while nothing changes, and again when a widget is added or edited', () => {
+    let stamp = 'a', loads = 0;
+    const get = whileUnchanged(() => stamp, () => ++loads);
+    expect([get(), get()]).toEqual([1, 1]);
+    stamp = 'a|gliss';
+    expect([get(), get()]).toEqual([2, 2]);
   });
 });
