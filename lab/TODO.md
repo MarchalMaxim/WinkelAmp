@@ -17,7 +17,7 @@ The user's words.
 
 ## Backlog
 
-- **Tree** (not started; when is my call, once the machine is free). The user: "I would like a tree like widget, so that it can become something like picture attached... Dynamics should be that attacks in the music force a new step in the growth of the tree and its leaves. Withering could also be a theme in this. Colors should be a enum of presets." The picture (a photo, not kept in the repo): an autumn maple seen from below, dark forking branches reaching across the frame, dense crimson and scarlet leaf masses lit from behind so single leaves show at the edges, a second tree's scattered yellow leaves overlapping it, dark green firs framing the sides and pale sky glowing through the gaps. Each attack is one growth step for branches and leaves. A colour knob picks from presets, by index (as Duet's `pair` does), not a free hue. Start after the "how present" slider work lands, so the tree follows it from the start. Vine (`vine`) is the near neighbour: look at it first, and make this a tree with a canopy rather than another vine.
+- **Tree** built 2026-11-03 as `lab/tools/tree.js`, from the user's autumn maple photo, the backlit version out of three tried. Awaiting the user's eye. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
 
 ## Changes
 
