@@ -27,9 +27,9 @@ describe('ivory plan', () => {
     expect(p.stomp).toBe(2);
   });
   it('stomps on the last time the top pitch is played', () => {
-    const p = plan([chord(1, 72), chord(2, 60), chord(3, 72), chord(4, 62)]);
-    expect(p.stomp).toBe(3);
-    expect(p.keys.map((k) => k.m)).toEqual([72, 60]);
+    const p = plan([chord(1, 60), chord(2, 72), chord(3, 62), chord(4, 72), chord(5, 64)]);
+    expect(p.stomp).toBe(4);
+    expect(p.keys.map((k) => k.m)).toEqual([60, 72, 62]);
   });
   it('keeps one key for a pitch that comes back, and remembers each time', () => {
     const p = plan([chord(1, 60), chord(2, 62), chord(3, 60), chord(4, 70)]);
@@ -49,6 +49,22 @@ describe('ivory plan', () => {
     expect(p.keys.length).toBeGreaterThan(0);
     expect(p.keys.length).toBeLessThanOrEqual(36);
     expect(p.stomp).not.toBeNull();
+  });
+  it('follows a falling line down and stomps on the lowest note', () => {
+    const p = plan([chord(1, 72), chord(2, 67), chord(3, 64), chord(4, 60)]);
+    expect(p.keys.map((k) => k.m)).toEqual([72, 67, 64, 60]);
+    expect(p.stomp).toBe(4);
+  });
+  it('ignores what comes after the lowest note of a falling line', () => {
+    const p = plan([chord(1, 72), chord(2, 50), chord(3, 60)]);
+    expect(p.keys.map((k) => k.m)).toEqual([72, 50]);
+    expect(p.stomp).toBe(2);
+  });
+  it('stomps on the last time the bottom pitch of a falling line is played', () => {
+    expect(plan([chord(1, 72), chord(2, 50), chord(3, 62), chord(4, 50), chord(5, 55)]).stomp).toBe(4);
+  });
+  it('still calls a rising line with a dip rising', () => {
+    expect(plan([chord(1, 60), chord(2, 58), chord(3, 65), chord(4, 72)]).stomp).toBe(4);
   });
   it('gives the same picture every time', () => {
     const notes = [chord(1, 60), chord(2, 64)];

@@ -1,10 +1,11 @@
 // Ivory (the user: "the feeling of the sound that ivory makes: crisp, elegant, clean, milky", heard in the rising theme of
 // Rachmaninoff's second concerto, first movement). One white key per picked note, standing up like a bar chart: where it stands
 // and how tall both follow pitch. Keys lean a little, overlap and differ a little. Every key stays until the highest note, so
-// the widget has a limited number of attacks. That note is a stomp: a very faint crater pressed into the ground, a jolt, and
+// the widget has a limited number of attacks. A line that starts nearer the top than the bottom falls instead, and then
+// everything is mirrored in time: it ends on the lowest note. The note at the end is a stomp: a very faint crater pressed into the ground, a jolt, and
 // a ripple running out of the crater through the keys, shifting only the slice of each key it is passing through. Two seconds
 // later the keys and the crater age away quickly and together (the user: a dissolve "implies some sort of attack", so nothing
-// travels or takes turns here), and the widget stays empty. Picked notes after the highest are ignored.
+// travels or takes turns here), and the widget stays empty. Picked notes after the stomp are ignored.
 // All of it is worked out from the notes in advance, so every frame is a function of song time: a seek needs no replay.
 (() => {
   const W = 1280, H = 720, BASE = H * 0.88, TOP = BASE * 0.9;
@@ -30,8 +31,10 @@
     for (const c of chords) for (const n of c.notes) hits.push({ t: c.t, m: n.m });
     if (hits.length > MAX_ATTACKS) hits = thin(chords);
     if (!hits.length) return { keys: [], stomp: null };
-    const hi = Math.max(...hits.map((h) => h.m));
-    const stomp = Math.max(...hits.filter((h) => h.m === hi).map((h) => h.t));   // a top note played twice: the last of them
+    const ms = hits.map((h) => h.m), hi = Math.max(...ms), low = Math.min(...ms);
+    const opening = hits.filter((h) => h.t === hits[0].t), start = opening.reduce((a, h) => a + h.m, 0) / opening.length;
+    const end = start > (hi + low) / 2 ? low : hi;                             // where the line is heading: down from up there, else up
+    const stomp = Math.max(...hits.filter((h) => h.m === end).map((h) => h.t));   // that note played twice: the last of them
     const byPitch = new Map();
     for (const h of hits) {
       if (h.t > stomp) continue;
@@ -40,7 +43,7 @@
       else byPitch.set(h.m, { m: h.m, t: h.t, hits: [h.t] });
     }
     const keys = [...byPitch.values()].sort((a, b) => a.t - b.t || a.m - b.m);
-    const lo = Math.min(...keys.map((k) => k.m)), span = Math.max(1, hi - lo);
+    const pitches = keys.map((k) => k.m), lo = Math.min(...pitches), span = Math.max(1, Math.max(...pitches) - lo);
     const wide = clamp(W * 0.84 / Math.max(1, keys.length - 1) * 2.1, 34, 84);
     const across = clamp(keys.length * wide * 0.72, W * 0.4, W * 0.84), left = (W - across) / 2;   // a short line stays together
     for (const k of keys) {
@@ -51,7 +54,7 @@
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
-    return { keys, stomp };
+    return { keys, stomp, end };
   }
 
   // One hairline: dark, with a pale line beside it, so it reads as cut into the surface.
@@ -89,9 +92,9 @@
   }
 
   // Where the crater lies: behind the keys, seen straight on, or a flat oval on the floor.
-  const craterAt = (keys, floor) => {
-    const top = keys.reduce((a, b) => (b.m > a.m ? b : a)).foot;
-    return floor ? { cx: top - W * 0.1, cy: BASE + 10, R: W * 0.33, sq: 0.2 } : { cx: top - W * 0.12, cy: BASE - H * 0.2, R: H * 0.4, sq: 1 };
+  const craterAt = (keys, end, floor) => {
+    const foot = keys.find((k) => k.m === end).foot, off = foot < W / 2 ? 1 : -1;   // towards the middle of the picture
+    return floor ? { cx: foot + off * W * 0.1, cy: BASE + 10, R: W * 0.33, sq: 0.2 } : { cx: foot + off * W * 0.12, cy: BASE - H * 0.2, R: H * 0.4, sq: 1 };
   };
   // The relief, lit from the upper left: one sheet of light and one of shadow, at half size (it is all soft).
   function relief(where) {
@@ -144,7 +147,7 @@
 
   TOOLS.push({
     id: 'ivory', name: 'Ivory', tag: 'new',
-    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the highest note the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.',
+    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.',
     plan: planOf,
     params: [
       { key: 'floor', label: 'where the crater is', min: 0, max: 1, step: 1, value: 0,
@@ -171,7 +174,7 @@
       const after = (x.t - stomp - HOLD) / AGE;
       if (after >= 1) return;
       const g = x.g, rs = x.canvas.width / W, cracks = Math.round(x.p('cracks') * 2) / 2, sh = x.t - stomp - 0.06, floor = x.p('floor') >= 0.5 ? 1 : 0;
-      const gone = 1 - smooth((after - 0.8) / 0.2), where = craterAt(plan.keys, floor);
+      const gone = 1 - smooth((after - 0.8) / 0.2), where = craterAt(plan.keys, plan.end, floor);
       if (sheetsFor !== floor) { sheets = relief(where); sheetsFor = floor; }
       if (sh > 0) {
         const pressed = smooth(sh / 0.09), deep = x.p('crater');

@@ -954,7 +954,7 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 #### `ivory`: Ivory
 
-One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the highest note the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.
+One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys; two seconds later everything ages and is gone, for good. Made for a line of notes picked by hand.
 
 Feel: elegant, royal, pale, precise, serene · Suits: piano · Role: lead
 
