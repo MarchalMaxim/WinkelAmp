@@ -952,6 +952,21 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `tree`: Tree
+
+One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
+
+Feel: withering, glowing, vivid, swelling, precise, warm · Suits: piano, strings, tutti · Role: standalone
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `colours` | which season | 0..6 | 0 | fixed | The colours and the sky, seven steps. Left: crimson and gold, an autumn maple with a second, golden tree. Then cherry blossom on a clear morning; high summer, green with the sun behind it; ginkgo gold on a lavender sky; violet dusk, purple leaves on a dark sky; ember night, glowing leaves on black. Right: first frost, white on a blue dawn. |
+| `leaves` | how many leaves | 0.15..1.6 | 1 | fixed | How thick the canopy gets. Left: a few scattered leaves and a lot of sky. Right: masses of colour with only small gaps. Follows how present: 0.22 at its left end. |
+| `twigs` | how much wood | 0.2..1.5 | 1 | fixed | How finely the branches divide. Left: a few bare limbs, drawn large. Right: a fine lace of twigs. Follows how present: 0.35 at its left end. |
+| `wither` | how much it withers | 0..2 | 1 | fixed | How much of the piece is the dying part. Left: it never goes bare, leaves only come and go. Middle: the leaves turn and fall after the climax. Right: it goes bare early, and in a long piece year after year. Follows how present: 1.5 at its left end. |
+| `size` | how big the leaves are | 0.5..2.2 | 1 | fixed | How big each leaf is. Left: a fine dust of tiny leaves. Right: big leaves you can tell apart. |
+| `presence` | how present | 0..1 | 1 | fixed | How much tree it grows: how many leaves, how much wood, how long the leaves stay. Left: a thin tree with a few leaves that soon drop. Right: the whole canopy. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
 #### `fireworks`: Fireworks
 
 Every attack goes off, and the blast stirs the air: a real fluid, so the smoke curls outward in petals and the next burst tears through what the last one left. Sparks fly and fall through it, dragging their wakes. Left to right by pitch, higher and bigger the harder it is played. You set the colour.
