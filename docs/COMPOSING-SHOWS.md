@@ -1110,12 +1110,11 @@ Feel: flowing, liquid, stabbing, panic · Suits: violin, flute, strings · Role:
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `far` | how far back | 0.25..3 | 1.5 | fixed | How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons. Follows how present: 0.3 at its left end. |
+| `far` | how far back | 0.25..3 | 1.5 | fixed | How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons. |
 | `mode` | which way it slices | 0..2 | 0 | fixed | How the picture is cut into moments. Left: columns (the now line follows the melody left to right), then rows (bottom to top). Right: rings from the centre (low notes near the middle). |
-| `cut` | how wide a note’s fresh cut is | 0..1 | 0.35 | fixed | How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present. Follows how present: 0.05 at its left end. |
-| `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. Follows how present: 0.6 at its left end. |
+| `cut` | how wide a note’s fresh cut is | 0..1 | 0.35 | fixed | How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present. |
+| `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. |
 | `stretch` | how hard loud chords stretch time | 0..1 | 0.6 | fixed | How much loud chords stretch the delay. Left: they don’t, the delay stays put. Right: soft playing keeps it short and a loud chord throws it to the maximum. |
-| `presence` | how present | 0..1 | 1 | fixed | How much smear it makes: how far back the strips reach, how wide each note cuts the present through, how much of the picture is smear rather than live. Left: a short lean with hairline cuts, mostly the live picture. Right: long ribbons and wide cuts. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 #### `fold`: Fold
 
