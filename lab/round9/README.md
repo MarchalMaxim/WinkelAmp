@@ -54,3 +54,16 @@ New: "how present", and "keep melting between", which goes from the new way on t
 To see the difference, put the casket over Rorschach on the Prelude at 2:04 and move "keep melting between".
 
 All the way right really is the old casket: every canvas call of every frame, with its exact numbers, matches the old file, on the Prelude from 2:06 to 2:59 (alone and over Rorschach), Beethoven's 5th at 5:45 and your Winter passage at 8:47 with your knobs (except the music's drive on "how far a cut slides", which the test could not set; only its base value was). After the "melt" fix above I re-ran only the Prelude from 2:06 for 6 s, and every canvas call still matches. The pixels themselves are not always identical from run to run, but that is true of the old file against itself too, so it comes from how the browser draws, not from the casket.
+
+## The user's words
+
+What each of the eight was asked to be, moved here from `lab/TODO.md`.
+
+- **Clumsiness** (`clumsy`). The movement of the individual things expresses the emotion clumsiness. The objects tumble and rush to keep up. Every attack causes disorder again. Concepts are tumbling over each other, like hopping.
+- **Trumpets** (`gust`). Something that represents trumpets very well. Something gusty? FULL of power.
+- **Duality** (`duet`). A dual type of widget that takes on two forms (different colours), which interplay and attract and repel.
+- **Vines** (`vine`). A viney type of widget that spreads and withers based on parameters.
+- **Royal** (`royal`). Royal. Elegant. Dismissive.
+- **Comfort** (`comfort`). Comfortable, relaxing, slow.
+- **Honey** (`honey`). Droopy, viscous, honey, slow.
+- **Lazy** (`lazy`). Lazy, lethargic, green.

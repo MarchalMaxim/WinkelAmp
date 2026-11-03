@@ -14,7 +14,7 @@
  * uses that update's dt. `material()` and `gesture()` return live objects that the
  * next update() overwrites — copy them if you need to keep a snapshot.
  * `midiEvent(note, velocity, material)` turns a played key into a SoundEvent
- * (velocity 0..1, as src/control/midi.ts normalizes it).
+ * (velocity 0..1).
  * `melody` (a MelodyTracker frame, optional) puts the size axis and the event
  * heights on the tune's register when a melody is voiced: the spectrum's register
  * is dragged down by the bass, so a celesta tune over pizzicato basses read as low
@@ -47,7 +47,7 @@ import type {
 } from './types';
 import { ARCHETYPE_IDS } from './types';
 import type { Features } from '../audio/features';
-import type { MelodyFrame } from '../stage/types';
+import type { MelodyFrame } from '../audio/types';
 import { ARCHETYPES, protoDistance, type MaterialShape, type SpacePoint } from './archetypes';
 import { GestureReservoir, mulberry32 } from './reservoir';
 import { moodPalette, noteRgb, samplePalette, tintKeepLuma, type Palette } from './palette';

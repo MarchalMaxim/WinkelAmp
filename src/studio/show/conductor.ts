@@ -2,14 +2,16 @@
  * A show on the widget runtime: at every step it asks the pure scheduler which clips play and how strongly, resets the
  * ones starting in that step, sets the moment from the song's structure, and hands the runtime its slots. Every clip is an
  * instance of its own, loaded at once, in the order a show is saved, so the studio and the render page load alike. Live
- * (startLive), in render pages (exposeRenderApi) and paused previews all go through reset() and step().
+ * (startLive), in render pages (exposeRenderApi) and paused previews all go through reset() and step(). A clip whose curve
+ * moves how present gets its knobs here, at every step, as a function of the time: the runtime knows nothing of it.
  */
 import type { Stepper } from '../../widgets/driver';
 import { resolveKnobs } from '../../widgets/features';
+import { studioLayers } from '../../widgets/layers-source';
 import type { RuntimeLike, Slot } from '../../widgets/runtime';
-import type { InstanceSpec, SlotLayer, WidgetMeta } from '../../widgets/types';
+import type { InstanceSpec, Param, SlotLayer, WidgetMeta } from '../../widgets/types';
 import { clipsAt, entriesBetween, scheduleAt, type ScheduledWidget } from './schedule';
-import { instanceKey, listenOf, picksId, sortedClips, widgetOfKey, type KnobSetting, type Show } from './show';
+import { hasHowPresent, instanceKey, listenOf, picksId, sortedClips, widgetOfKey, type KnobSetting, type Show } from './show';
 
 /** A slot with its layer. */
 export type ShowSlot = Slot & { layer?: SlotLayer };
@@ -34,13 +36,29 @@ export function showWidgets(show: Show): string[] {
   return showInstances(show).map((s) => s.key);
 }
 
-/** The layer a slot carries, or undefined when the clip has no curve and no region (today's path). */
-function slotLayer(w: ScheduledWidget): SlotLayer | undefined {
-  if (!w.pivots && !w.region) return undefined;
+/** The layer a slot carries, or undefined when the clip has no curve and no region (today's path). moved: its curve moves
+    how present, so it neither fades nor thins. */
+function slotLayer(w: ScheduledWidget, moved = false): SlotLayer | undefined {
+  const pivots = moved ? undefined : w.pivots;
+  if (!pivots && !w.region) return undefined;
   const layer: SlotLayer = {};
-  if (w.pivots) layer.pivots = w.pivots;
+  if (pivots) layer.pivots = pivots;
   if (w.region) layer.region = w.region;
   return layer;
+}
+
+/** A clip's knobs with its curve at g (lab/layers/present.js): what moves gets a new base, its drive kept. */
+function knobsOnGraph(params: readonly Omit<Param, 'icon'>[], knobs: Record<string, KnobSetting>, g: number): Record<string, KnobSetting> {
+  const now: Record<string, number> = {}, out = { ...knobs };
+  for (const [key, s] of Object.entries(knobs)) {
+    const base = typeof s === 'number' ? s : s.base;
+    if (base !== undefined) now[key] = base;
+  }
+  for (const [key, base] of Object.entries(studioLayers().presentAt(params, now, g))) {
+    const s = knobs[key];
+    out[key] = s !== undefined && typeof s !== 'number' ? { ...s, base } : base;
+  }
+  return out;
 }
 
 /** ctx.moment at t: which of the song's structure marks it is past (their times, sorted). lewitt opens a new wall when it
@@ -71,7 +89,7 @@ function previewSteps(t: number, w: Warmup): { t0: number; times: number[] } {
 
 /** What the widgets are given at x: who plays, how strongly, with which knobs, what they hear, where and how intensely. */
 const scheduleKey = (show: Show, x: number, own: ReadonlySet<string>) => JSON.stringify(scheduleAt(show, x).map((w) =>
-  [w.id, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w)]));
+  [w.id, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w), w.moves]));
 const ownKeys = (show: Show): Set<string> => new Set(showInstances(show).filter((s) => s.own).map((s) => s.key));
 
 /** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would
@@ -118,7 +136,7 @@ export class Conductor implements Stepper {
     this.show = show;
     this.load(showInstances(show));
     for (const c of clipsAt(show, this.lastT)) if (!was.has(instanceKey(c))) this.rt.resetWidget(instanceKey(c));
-    for (const w of scheduleAt(show, this.lastT)) this.applyKnobs(w.id, w.knobs);
+    for (const w of scheduleAt(show, this.lastT)) this.applyKnobs(w.id, this.knobsAt(w, this.lastT));
   }
 
   /** Seek: the picture starts again at t. */
@@ -127,7 +145,7 @@ export class Conductor implements Stepper {
     this.setMomentAt(t);   // before reset(): lewitt's reset() remembers the moment
     this.rt.reset(t);
     this.lastT = t;
-    for (const w of scheduleAt(show, t)) this.applyKnobs(w.id, w.knobs);
+    for (const w of scheduleAt(show, t)) this.applyKnobs(w.id, this.knobsAt(w, t));
   }
 
   step(t: number, dt: number): void {
@@ -136,8 +154,8 @@ export class Conductor implements Stepper {
     this.setMomentAt(t);
     const slots: ShowSlot[] = [];
     for (const w of scheduleAt(show, t)) {
-      this.applyKnobs(w.id, w.knobs);
-      const slot: ShowSlot = { id: w.id, receiving: w.receiving, weight: w.weight }, layer = slotLayer(w);
+      this.applyKnobs(w.id, this.knobsAt(w, t));
+      const slot: ShowSlot = { id: w.id, receiving: w.receiving, weight: w.weight }, layer = slotLayer(w, this.moved(w));
       if (layer) slot.layer = layer;
       slots.push(slot);
     }
@@ -152,6 +170,18 @@ export class Conductor implements Stepper {
     this.reset(t0);
     let last = t0;
     for (const x of times) { this.step(x, x - last); last = x; }
+  }
+
+  /** Whether a clip's curve moves how present: asked for, and the widget has the slider. */
+  private moved(w: ScheduledWidget): boolean {
+    const m = w.moves ? this.meta(w.widget) : undefined;
+    return !!m && hasHowPresent(m.params);
+  }
+
+  /** The knobs a clip plays with at t. */
+  private knobsAt(w: ScheduledWidget, t: number): Record<string, KnobSetting> {
+    if (!this.moved(w)) return w.knobs;
+    return knobsOnGraph(this.meta(w.widget)!.params, w.knobs, studioLayers().automationAt(w.pivots, t));
   }
 
   private setMomentAt(t: number): void {

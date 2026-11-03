@@ -177,7 +177,7 @@ describe('studio dev API', () => {
   });
 
   it('passes everything else on', async () => {
-    expect((await call('GET', '/src/main.ts')).next).toBe(true);
+    expect((await call('GET', '/src/studio/ui/main.ts')).next).toBe(true);
     expect((await call('GET', '/api/nothing')).status).toBe(404);
   });
 });

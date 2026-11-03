@@ -23,8 +23,11 @@ export const END_SLACK = 0.5;
 
 /** number = base; the object is the lab's PST entry ("Copy settings" pastes in). */
 export type KnobSetting = number | Partial<KnobState>;
-/** What a clip plays. listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t. */
-export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[] }
+/** What a clip plays. listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t.
+    intensityMoves 'present': the curve moves how present instead of fading the clip and thinning its attacks. */
+export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[]; intensityMoves?: 'present' }
+/** Whether a curve can move how present: the widget has the slider. Without it, the curve fades. */
+export const hasHowPresent = (params: readonly { key: string }[]): boolean => params.some((q) => q.key === 'presence');
 /** A widget placed on the timeline. id: stable, unique in the show. track: 0 is drawn first (the bottom). fade: seconds it
     fades in at its start and out at its end, default DEFAULT_FADE, 0 a hard cut, at most half its length. */
 export interface Clip extends Layer { id: string; start: number; end: number; track: number; fade?: number }
@@ -47,7 +50,7 @@ const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
   show: ['version', 'id', 'song', 'title', 'composer', 'clips', 'picks'],
   composer: ['by', 'at'],
-  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity'],
+  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity', 'intensityMoves'],
   knob: ['base', 'drive', 'depth'],
   region: ['mode', 'shape', 'x', 'y', 'w', 'h', 'rot', 'feather', 'blend', 'fit'],
   pivot: ['t', 'v', 'shape', 'bend'],
@@ -225,6 +228,10 @@ function validateLayer(l: Record<string, unknown>, at: string, span: Span | null
   }
   if (l.region !== undefined) validateRegion(l.region, `${at}.region`, err, warn, typos);
   if (l.intensity !== undefined) validateIntensity(l.intensity, `${at}.intensity`, span, err, warn, typos);
+  if (l.intensityMoves !== undefined) {
+    if (l.intensityMoves !== 'present') err(`${at}.intensityMoves`, "not 'present'");
+    else if (meta && !hasHowPresent(meta.params)) warn(`${at}.intensityMoves`, `'${l.widget}' has no how present slider: its curve fades it`);
+  }
   if (l.knobs === undefined) return;
   if (!isObj(l.knobs)) { err(`${at}.knobs`, 'not an object { key: value }'); return; }
   for (const [key, v] of Object.entries(l.knobs)) {
@@ -484,6 +491,7 @@ function repairClip(x: Clip, at: string, c: ShowContext, sets: ReadonlySet<strin
     const p = repairPivots(l.intensity, `${at}.intensity`, { start: x.start, end: x.end }, fix);
     if (p) l.intensity = p; else delete l.intensity;
   }
+  if (l.intensityMoves !== undefined && l.intensityMoves !== 'present') { fix(`${at}.intensityMoves`, "was not 'present': removed"); delete l.intensityMoves; }
   if (l.knobs !== undefined && !isObj(l.knobs)) { fix(`${at}.knobs`, 'was not an object: removed'); delete l.knobs; }
   for (const [key, v] of Object.entries(l.knobs ?? {})) {
     const kp = `${at}.knobs.${key}`, q = meta?.params.find((p) => p.key === key);

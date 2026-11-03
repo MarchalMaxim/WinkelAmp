@@ -1,7 +1,9 @@
 # The widget lab
 
-Throwaway canvas sketches of visual "widgets", each driven by the notes of a real recording, for rating rounds. The ones
-that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing here is app code.
+Canvas widgets driven by the notes of a real recording, for trying, tuning and rating. The studio runs these same
+`lab/tools/*.js` sources through `WidgetRuntime`; a widget does not need a separate stage implementation. Studio shows
+place independent widget clips on tracks, with their own start and end times. The song's analysis sections are only marks
+to see and snap to, and own no clips. See [the studio show format](../docs/COMPOSING-SHOWS.md).
 
 - `index.html`: the lab. Toggle and mix widgets, tune their knobs (each can be fixed or driven by a feature of the music),
   rate them. Serve the repo with `npm run dev` and open http://localhost:5173/lab/index.html (`?song=b5` for Beethoven).
@@ -27,6 +29,32 @@ that win are rebuilt properly in the app's WebGL stage (`src/stage/`); nothing h
 
 The recordings (`prelude.mp3`, `beethoven5.mp3`) and the notes transcribed from them (`notes.js`, `notes-b5.js`, written by
 the GPU piano transcriber as `window.NOTES = [[start, end, midi, velocity], …]`) are local only and not in git.
+
+## Widget health check
+
+With the worktree's server running on port 5200, `npm run widgets-check` renders every registered widget on representative
+16-second passages of three songs, after five seconds of warm-up, at low and high “how present”, in one browser at a time. It writes `lab/widgets-check.md` and prints the
+same table. It reports thrown errors, an entire run staying near black, and cases where low makes no less by aggregate
+colour occupancy, lit area and contrast. These broad measurements do not judge the look; the report states their limits.
+
+Simulation defaults to the normal 60 Hz, preserving the live physics and fades. `--sample-hz 12` sets the uniform
+aggregate observation rate; every attack's first simulation frame, frame zero and the final frame are also observed.
+Means use elapsed-time weights between observations, with the same schedule at low and high. `--hz 12` is an explicit
+diagnostic with different physics, not normal-playback coverage. Warm-up errors count; image statistics and blank judgments
+cover only the measured passage. Default starts: Lil Wayne 80 s, Prelude 118 s, Winter Wind 116 s. Other songs use a bounded
+middle passage. Use `--seconds`, `--warm` or `--start` to choose the scope, or `--full` to test complete songs explicitly.
+Long accumulation and behavior outside the measured passages remain unjudged. For a smaller debugging run use
+`-- --ids squares,fireworks --songs prelude`; use `--base http://localhost:5201`, `--out <file>` or
+`--json <file>` to choose the server and result files. The check plays no audio and stubs the ratings server before opening
+any page. Findings return a non-zero exit code. Keep the report with all widgets and three songs when reporting the check.
+## Widget speed table
+
+For a frame-cost table, start the worktree's server on port 5200 and run `npm run widgets-speed`. It measures each widget
+alone at 60 Hz on Winter Wind 206 s and Rite 174 s, with three two-second rounds and at least five seconds of warm-up
+(or its longer demo warm-up, including Vine's 60 s). `lab/speed.md` lists the slower widgets first. The numbers cover CPU
+work and drawing-command submission, without a GPU completion wait or forced pixel readback during timing. They do not
+measure screen presentation. Use `-- --ids squares,fireworks --json renders/speed.json` for selected widgets and frame data;
+`--images lab/showcase/speed-before` captures final frames only after timing. The command plays no audio and stubs ratings.
 
 ## Knobs (from the 2026-10-31 round on)
 

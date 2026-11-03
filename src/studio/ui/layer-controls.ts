@@ -6,7 +6,8 @@
  * - Where: the whole screen, a spotlight (the widget seen only through a shape) or a window (the whole widget shrunk
  *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
  * - Intensity: always full, or a curve written by a preset (fade in or out, swell, pulse on the beats, gate on
- *   loudness, while its part plays), shaped further in the lane under the timeline.
+ *   loudness, while its part plays), shaped further in the lane under the timeline. On a widget with how present, the
+ *   curve either fades it or sets how much it makes.
  * Every change is one setClip edit, one undo step.
  */
 import './layer-controls.css';
@@ -166,7 +167,20 @@ export function gateDefault(loud: SongPack['loudness'], span: Span): number {
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
-export type LayerPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null };
+export type LayerPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; intensityMoves?: 'present' | null };
+
+/** The line under Intensity: n pivots, and whether they set how much the widget makes. */
+export function curveWords(n: number, moves: boolean): string {
+  if (!n) return 'Always at full strength.';
+  const points = `a curve of ${n} point${n === 1 ? '' : 's'}`;
+  return moves ? `Makes more or less along ${points}: shape it in the lane under the timeline.`
+    : `Follows ${points}: shape it in the lane under the timeline.`;
+}
+
+/** What the curve's low end does, for the switch. */
+export const curveSay = (moves: boolean): string => (moves
+  ? 'High on the curve it is as its knobs are set; low, it makes its least, but it stays on screen and hears every attack.'
+  : 'Low on the curve it is fainter and hears fewer attacks; at the bottom it is gone.');
 
 export interface LayerControlsDeps {
   layers: WaLayers;
@@ -174,6 +188,8 @@ export interface LayerControlsDeps {
   widget: string; hue: number;
   /** The note type this widget usually hears (lab/tags.json). */
   usual?: NoteType;
+  /** The widget has the how present slider, so its curve can set how much it makes. */
+  howPresent: boolean;
   /** The clip's span now (a drag changes it without a redraw). */
   span(): Span;
   /** The layer now (undo changes it without a redraw). */
@@ -226,6 +242,12 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     <section class="lc-part">
       <h4>Intensity</h4>
       <p class="lc-curve small"><span></span> <button type="button" class="link" data-clear>Clear curve</button></p>
+      <div class="lc-moves">
+        <div class="lc-seg" role="group" aria-label="What the curve does">
+          <button type="button" data-moves="">Fades it</button><button type="button" data-moves="present">How much it makes</button>
+        </div>
+        <p class="lc-moves-say small"></p>
+      </div>
       <div class="lc-presets">
         <div class="lc-p"><button type="button" data-p="fadeIn">Fade in</button><span>over <input type="number" data-in min="0.5" max="60" step="0.5" value="4" aria-label="Fade in seconds"> s</span></div>
         <div class="lc-p"><button type="button" data-p="fadeOut">Fade out</button><span>over <input type="number" data-out min="0.5" max="60" step="0.5" value="4" aria-label="Fade out seconds"> s</span></div>
@@ -348,6 +370,9 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     d.edit({ intensity: p.length ? p : null }, group('preset'));
   }));
   $<HTMLButtonElement>('[data-clear]').addEventListener('click', () => d.edit({ intensity: null }, group('preset')));
+  box.querySelectorAll<HTMLButtonElement>('[data-moves]').forEach((b) => b.addEventListener('click', () => {
+    d.edit({ intensityMoves: b.dataset.moves ? 'present' : null }, group('moves'));
+  }));
   $<HTMLButtonElement>('[data-edit-picks]').addEventListener('click', () => { const id = picksId(d.layer()?.listen); if (id) d.editPicks(id); });
 
   const sync = () => {
@@ -375,7 +400,11 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       blend.value = r.blend ?? 'clear';
     }
     const n = l.intensity?.length ?? 0;
-    $<HTMLElement>('.lc-curve span').textContent = n ? `Follows a curve of ${n} point${n === 1 ? '' : 's'}: shape it in the lane under the timeline.` : 'Always at full strength.';
+    const moves = d.howPresent && l.intensityMoves === 'present';
+    $<HTMLElement>('.lc-curve span').textContent = curveWords(n, moves);
+    $<HTMLElement>('.lc-moves').hidden = !n || !d.howPresent;
+    box.querySelectorAll<HTMLButtonElement>('[data-moves]').forEach((b) => b.setAttribute('aria-pressed', String(!!b.dataset.moves === moves)));
+    $<HTMLElement>('.lc-moves-say').textContent = curveSay(moves);
     $<HTMLButtonElement>('[data-clear]').hidden = !n;
     const plays = $<HTMLElement>('.lc-plays');
     plays.hidden = !listen;

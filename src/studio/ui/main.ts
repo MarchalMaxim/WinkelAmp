@@ -124,7 +124,7 @@ function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () 
         ? 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with an empty timeline, ready to place widgets on.'
         : 'Drop a recording anywhere on this page: this browser analyses it (approximate notes, no transcription) and it opens with an empty timeline, ready to place widgets on.'}</p>
       <p><button type="button" class="primary" data-choose>Choose a recording…</button></p>
-      <p class="links">${api.writable ? '<a href="lab/index.html">Open the widget lab</a> ' : ''}<a href="legacy.html">Old app: microphone, MIDI</a></p>
+      ${api.writable ? '<p class="links"><a href="lab/index.html">Open the widget lab</a></p>' : ''}
     </div>`;
   ui.poster.querySelector('[data-choose]')!.addEventListener('click', choose);
   ui.piece.textContent = 'Studio';

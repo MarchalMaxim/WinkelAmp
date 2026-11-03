@@ -8,6 +8,7 @@
   const n = NX * NY, dn = DX * DY;
   let u = new Float32Array(n), v = new Float32Array(n), u2 = new Float32Array(n), v2 = new Float32Array(n);
   const p = new Float32Array(n), div = new Float32Array(n), curl = new Float32Array(n);
+  const flowCos = new Float64Array(NX);        // the same column phase is used by every row
   let R = new Float32Array(dn), G = new Float32Array(dn), B = new Float32Array(dn);
   let R2 = new Float32Array(dn), G2 = new Float32Array(dn), B2 = new Float32Array(dn);
   const off = document.createElement('canvas'); off.width = DX; off.height = DY;
@@ -17,6 +18,7 @@
   for (let i = 0; i < 1024; i++) TONE[i] = 255 * (1 - Math.exp(-i / 160));
 
   const MAXT = 5;
+  let threadBins = new Int32Array(256);        // shared scratch: each thread overwrites its points before drawing
   // Thread colours: the melody is white-gold, the lower voices turn through pale gold to copper.
   const TCOL = [[255, 238, 205], [255, 214, 150], [244, 186, 120], [230, 160, 100], [210, 128, 82]];
   const main = { x: 640, y: 360, a: 0, ta: 0, lastTop: null, side: 1 };
@@ -72,11 +74,12 @@
     // A slow background river (two drifting gyres) whose speed follows the tempo.
     flowPh += dt * 0.11 * flow;
     const F = (0.25 + rate * 0.12) * flow, fk = Math.min(1, dt * 0.6);
+    for (let i = 1; i < NX - 1; i++) flowCos[i] = Math.cos(i / NX * Math.PI * 2 - flowPh * 1.7);
     for (let j = 1; j < NY - 1; j++) {
       const sy = Math.sin(j / NY * Math.PI * 2 + flowPh * 2.1);
       for (let i = 1; i < NX - 1; i++) {
         const k = i + j * NX;
-        u[k] += (F * sy - u[k]) * fk * 0.15; v[k] += (F * 0.6 * Math.cos(i / NX * Math.PI * 2 - flowPh * 1.7) - v[k]) * fk * 0.15;
+        u[k] += (F * sy - u[k]) * fk * 0.15; v[k] += (F * 0.6 * flowCos[i] - v[k]) * fk * 0.15;
       }
     }
     // Vorticity confinement keeps the curls alive on a coarse grid.
@@ -150,14 +153,18 @@
   function paintThread(g, h, wMul, gain) {
     const pts = h.pts; if (pts.length < 2) return;
     const BINS = 9, col = TCOL[h.i];
+    if (threadBins.length < pts.length) threadBins = new Int32Array(Math.max(pts.length, threadBins.length * 2));
+    for (let i = 1; i < pts.length; i++) {
+      const q = pts[i], I = Math.pow(Math.max(0, 1 - q.age / q.life), 1.3) * (0.3 + 0.7 * Math.min(1, q.e));
+      threadBins[i] = I < 0.01 ? -1 : Math.min(BINS - 1, (I * BINS) | 0);
+    }
     g.lineCap = 'round'; g.lineJoin = 'round';
     for (let pass = 0; pass < 2; pass++) {
       for (let b = 0; b < BINS; b++) {
         g.beginPath(); let any = false;
         for (let i = 1; i < pts.length; i++) {
-          const q = pts[i], I = Math.pow(Math.max(0, 1 - q.age / q.life), 1.3) * (0.3 + 0.7 * Math.min(1, q.e));
-          if (I < 0.01) continue;
-          if (Math.min(BINS - 1, (I * BINS) | 0) !== b) continue;
+          if (threadBins[i] !== b) continue;
+          const q = pts[i];
           const o = pts[i - 1], r = pts[i + 1] || q;
           g.moveTo((o.x + q.x) / 2, (o.y + q.y) / 2); g.quadraticCurveTo(q.x, q.y, (q.x + r.x) / 2, (q.y + r.y) / 2); any = true;
         }

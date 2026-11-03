@@ -24,7 +24,7 @@ describe('record presets (plan §10)', () => {
     expect(recordingName('beethoven5', 'video/webm;codecs=vp9,opus', at)).toBe('beethoven5-2026-10-31-02-03-04.webm');
   });
 
-  it('leaves the old app\'s recorder as it was', () => {
+  it('records at 12 Mb/s and 60 fps unless asked otherwise', () => {
     expect(DEFAULT_RECORDER_OPTIONS.videoBitsPerSecond).toBe(12_000_000);
     expect(DEFAULT_RECORDER_OPTIONS.fps).toBe(60);
     expect(DEFAULT_RECORDER_OPTIONS.audioBitsPerSecond).toBeUndefined();

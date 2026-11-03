@@ -213,7 +213,7 @@
     id: 'timeslice', name: 'Time slice', tag: 'new',
     blurb: 'A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line. <b>how present</b> sets how much it smears: turned down, a short lean with hairline cuts.',
     params: [
-      { key: 'far', label: 'how far back', min: 0.25, max: 3, value: 1.5, less: 0.3,
+      { key: 'far', label: 'how far back', min: 0.25, max: 3, value: 1.5,
         hint: 'How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons.',
         icon: (g, v, w, h) => { ICON.alpha(g, 0.35, () => lean(g, 6, 5, 15, 0, ICON.dim)); lean(g, 6, 5, 15, 2 + v * 16, IAMB); } },
       { key: 'mode', label: 'which way it slices', min: 0, max: 2, step: 1, value: 0,
@@ -224,13 +224,13 @@
           else if (m === 1) ICON.lines(g, 5, w, h, { dir: 'h', col: IBONE, lw: 1.2 });
           else for (let i = 1; i <= 4; i++) ICON.ring(g, w / 2, h / 2, i * 2.9, IBONE, 1.1);
         } },
-      { key: 'cut', label: 'how wide a note’s fresh cut is', min: 0, max: 1, value: 0.35, less: 0.05,
+      { key: 'cut', label: 'how wide a note’s fresh cut is', min: 0, max: 1, value: 0.35,
         hint: 'How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present.',
         icon: (g, v, w, h) => {
           ICON.lines(g, 9, w, h, { dir: 'v', col: ICON.dim, lw: 1 });
           const bw = 1.5 + v * 18; ICON.rect(g, w / 2 - bw / 2, 3, bw, h - 6, IBONE);
         } },
-      { key: 'live', label: 'how much of the live picture shows through', min: 0, max: 1, value: 0.2, less: 0.6,
+      { key: 'live', label: 'how much of the live picture shows through', min: 0, max: 1, value: 0.2,
         hint: 'How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past.',
         icon: (g, v, w, h) => { lean(g, 7, 5, 15, 12, IAMB); ICON.alpha(g, v * 0.85, () => ICON.rect(g, 13, 5, 15, 15, IBONE)); } },
       { key: 'stretch', label: 'how hard loud chords stretch time', min: 0, max: 1, value: 0.6,
@@ -239,9 +239,6 @@
           const L = 8 + v * 24;
           for (let i = 0; i < 8; i++) ICON.alpha(g, 1 - i / 9, () => ICON.rect(g, 4 + (L * i) / 8, 9 + i * 0.6, L / 8 + 0.6, 8, i ? IRED : IAMB));
         } },
-      { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
-        hint: 'How much smear it makes: how far back the strips reach, how wide each note cuts the present through, how much of the picture is smear rather than live. Left: a short lean with hairline cuts, mostly the live picture. Right: long ribbons and wide cuts. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
-        icon: (g, v, w, h) => ICON.much(g, v, w, h) },
     ],
     reset() { armed = false; owner = null; for (const s of hist) spare.push(s); hist = []; lastK = null; cuts = []; pending = []; stretch = 0; calm = 1; quiet = 0; range = 0; queued = false; },
     onChord(ch) { pending.push(ch); if (pending.length > 8) pending.shift(); },

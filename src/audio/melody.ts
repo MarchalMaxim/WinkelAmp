@@ -11,7 +11,7 @@
  * Input is the analysis chain's smoothed magnitude spectrum (4096-point FFT, one
  * hop per 1/60 s), so live and offline see the very same numbers.
  */
-import type { MelodyFrame, MelodyNote } from '../stage/types';
+import type { MelodyFrame, MelodyNote } from './types';
 import { aWeightSqrt } from './descriptors';
 
 export type { MelodyFrame, MelodyNote };

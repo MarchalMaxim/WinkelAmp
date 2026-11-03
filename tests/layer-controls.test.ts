@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { defaultRegion, describePlace, gateDefault, listenLabel, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
+import { curveSay, curveWords, defaultRegion, describePlace, gateDefault, listenLabel, listenOptions, partWords, presetPivots, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import { attackTimes, listenLabel as labelOf, nearShare, neededAttacks, partNote, placedListen, usualLine } from '../src/studio/ui/layer-controls';
 import type { SongPack } from '../src/studio/pack/pack';
@@ -273,5 +273,20 @@ describe('a layer on picks', () => {
     expect(onSet).toEqual(L.presets.plays(span, set));
     expect(onSet).not.toEqual(L.presets.plays(span, pack.notes));
     expect(presetPivots(L, { kind: 'plays' }, span, pack, 'picks:p9', {})).toEqual(L.presets.plays(span, []));
+  });
+});
+
+describe('what the curve does, in words', () => {
+  it('says nothing of a curve when there is none, whatever the switch says', () => {
+    expect(curveWords(0, false)).toBe('Always at full strength.');
+    expect(curveWords(0, true)).toBe('Always at full strength.');
+  });
+  it('says which of the two a curve does, and counts its points', () => {
+    expect(curveWords(1, false)).toBe('Follows a curve of 1 point: shape it in the lane under the timeline.');
+    expect(curveWords(3, true)).toBe('Makes more or less along a curve of 3 points: shape it in the lane under the timeline.');
+  });
+  it('a low curve hides a fading clip, not one it sets the amount of', () => {
+    expect(curveSay(false)).toMatch(/gone/);
+    expect(curveSay(true)).toMatch(/stays on screen/);
   });
 });

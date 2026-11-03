@@ -1,31 +1,30 @@
 # Widget TODO
 
-Not started, unless an item says otherwise. The user's words; wait for their go-ahead, as the machine can only handle so many workflows at once.
+What is still open, as of 2026-11-03. Finished work leaves this list. Nothing starts without the user's go-ahead, as the machine can only handle so many workflows at once.
 
-## Built in round 9 (see lab/round9/README.md)
+## For the user's eye
 
-The user's words.
+Built, and nobody has watched these play with music.
 
-- **Clumsiness** (`clumsy`). The movement of the individual things expresses the emotion clumsiness. The objects tumble and rush to keep up. Every attack causes disorder again. Concepts are tumbling over each other, like hopping.
-- **Trumpets** (`gust`). Something that represents trumpets very well. Something gusty? FULL of power.
-- **Duality** (`duet`). A dual type of widget that takes on two forms (different colours), which interplay and attract and repel.
-- **Vines** (`vine`). A viney type of widget that spreads and withers based on parameters.
-- **Royal** (`royal`). Royal. Elegant. Dismissive.
-- **Comfort** (`comfort`). Comfortable, relaxing, slow.
-- **Honey** (`honey`). Droopy, viscous, honey, slow.
-- **Lazy** (`lazy`). Lazy, lethargic, green.
+- **Tree** (`tree`), from the user's autumn maple photo, the backlit version out of three tried. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
+- **Round 9**: clumsy, gust, duet, vine, royal, comfort, honey, lazy, and the one-time casket. `lab/round9/README.md` says what a critic still found short in each.
+- **A curve that sets how much a widget makes** (`intensityMoves`, issue 6). Only Vine was tried, on the test song. Martin may flicker, because its grid rebuilds whenever its line count changes. Widgets that keep their marks may show a falling curve more weakly than a rising one.
+- **Usual note types**: stella repeated notes, pixelsort big chords, martin long ringing notes, flee fast runs, honey long ringing notes. Chosen from reading the code.
 
-## Backlog
+## Codex's branches, none merged
 
-- **Tree** built 2026-11-03 as `lab/tools/tree.js`, from the user's autumn maple photo, the backlit version out of three tried. Awaiting the user's eye. Known weak spots: the opening is sparse until the first attacks have built the trunk; gold leaves read as blobs at the biggest size; first frost and violet dusk are the least convincing presets at peak.
+Each is Codex's work from 2026-11-03, with its notes in `lab/codex-report.md` on that branch. Merging is the user's call.
+
+- **`codex/new-widgets`**: the 12 recipe widgets (stress, crackle, seep, lamps, tacet, varini, statues, afteryou, marey, planish, fauxpas, johansson). Still being finished: the health and speed runs on these 12 are not done. Two Johansson tests fail, several recipes fell short as written (see the report), and it now conflicts with main in the widget lists, since Tree landed.
+- **`codex/widgets-check`**: `npm run widgets-check`. It found no errors or blank pictures. It flags Fold, Kline and Time Slice for their slider, but the user decided none of them has one, so it should stop flagging them when it is merged.
+- **`codex/widgets-speed`**: `npm run widgets-speed`, the table in `lab/speed.md`, and a small speed-up in Current that helps on one busy song and costs a little on the other.
+- **`codex/timeline-docs`**: corrects the docs that still described sections. Its change to `docs/COMPOSING.md` no longer applies: that file went with the old app.
+
+## Not started
+
 - **Modifiers on picked notes** (not started). The user: "add modifiers to the picked notes. As in: currently, we are connecting notes to attacks, but I'd like to have it so that we can label the note-link with a parameter. For example: a intensity value." So each link from a picked note to its attack carries a value of its own, set by hand, that the widget can use. Today a set of picks (`picks` in a show) is only the notes themselves.
 
-## Changes
+## Decisions for the user
 
-- **The casket.** It should be a one-time applied widget, I think... Apply it once on some attacks, instead of continuously.
-
-## Note types as a default
-
-Widgets that answer only certain types of notes, like grace notes. The user: "let's have this as a 'default' option, so that we can easily apply these types of widgets to music and the default will be chosen. Makes it easier for the composer."
-
-**Built** on `claude/note-types` (spec `docs/superpowers/specs/2026-11-01-note-types-design.md`, plan `docs/superpowers/plans/2026-11-01-note-types.md`). The transcription was checked first: big chords, fast runs, trills, long ringing notes and repeated notes hold up, and join what a layer can listen to. Grace notes do not: a rule fires as often on a piece with none, so real ones go through the note picker. A widget that has a natural type gets it when placed in the studio, if the section has enough of it, and one click changes it. Defaults shipped, from reading the code and not yet judged by eye: stella repeated notes, pixelsort big chords, martin long ringing notes, flee fast runs, honey long ringing notes (the spec's proposal for round 9). Trills are nobody's default. Written up in `docs/COMPOSING-SHOWS.md` and `docs/HANDOFF.md`; pushed, not merged: the merge is the user's call.
+- **Background colours for small copies** (Codex's task 5, waiting). Black now goes see-through, but about a dozen widgets paint their own background and stay solid rectangles (Miro, Matisse, Kusama, Boogie, Lewitt, Martin, Score and others), and Gust and Royal leave a dark veil. Which ones should get a colour?
+- **Contours and Rorschach are costly**, and speeding them up would change how they look, so Codex left them alone.

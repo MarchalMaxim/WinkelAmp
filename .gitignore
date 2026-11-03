@@ -3,7 +3,6 @@ dist
 *.log
 .DS_Store
 .superpowers/
-study/
 studies-out/
 
 # The lab plays local recordings; their audio and the notes transcribed from them stay out of git.

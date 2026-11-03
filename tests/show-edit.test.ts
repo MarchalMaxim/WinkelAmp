@@ -169,3 +169,19 @@ describe('editGroup', () => {
     expect(editGroup({ kind: 'removeClip', clip: 'a' })).toBeUndefined();
   });
 });
+
+describe('intensityMoves', () => {
+  const base: Show = { version: 3, id: 'demo', song: 'demo', clips: [{ id: 'a', start: 0, end: 10, track: 0, widget: 'vine', intensity: [{ t: 0, v: 0 }, { t: 10, v: 1 }] }] };
+  const set = (s: Show, v: 'present' | null) => applyEdit(s, { kind: 'setClip', clip: 'a', patch: { intensityMoves: v } });
+
+  it('is set and taken off, the curve untouched', () => {
+    const on = set(base, 'present');
+    expect(on.clips[0].intensityMoves).toBe('present');
+    expect(on.clips[0].intensity).toEqual(base.clips[0].intensity);
+    expect('intensityMoves' in set(on, null).clips[0]).toBe(false);
+  });
+  it('stays through a split, on both halves', () => {
+    const s = applyEdit(set(base, 'present'), { kind: 'splitClip', clip: 'a', t: 5 });
+    expect(s.clips.map((c) => c.intensityMoves)).toEqual(['present', 'present']);
+  });
+});

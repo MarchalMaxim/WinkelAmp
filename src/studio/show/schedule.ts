@@ -11,6 +11,8 @@ export interface ScheduledWidget {
   /** the instance key */
   id: string; clip: string; widget: string; listen?: Listen; receiving: boolean; weight: number;
   knobs: Record<string, KnobSetting>; region?: Region; pivots?: Pivot[];
+  /** Its curve is to move how present (if the widget has the slider: the Conductor knows the widgets). */
+  moves?: boolean;
 }
 
 /** How long a clip takes to come in and to go: its fade, at most half its length. */
@@ -36,7 +38,10 @@ function entry(c: Clip, t: number): ScheduledWidget {
   const listen = listenOf(c);
   if (listen !== undefined) w.listen = listen;
   if (c.region) w.region = c.region;
-  if (c.intensity?.length) w.pivots = c.intensity;
+  if (c.intensity?.length) {
+    w.pivots = c.intensity;
+    if (c.intensityMoves === 'present') w.moves = true;
+  }
   return w;
 }
 

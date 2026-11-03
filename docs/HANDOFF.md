@@ -1,5 +1,18 @@
 # Handoff — where WinkelAmp stands
 
+## 2026-11-03: the studio timeline
+
+Studio shows now use version 3: a list of clips with their own `id`, `start`, `end` and `track`, rather than sections
+owning layers. Track 0 draws first; clips may overlap on different tracks, and gaps are allowed. Each clip has an
+independent widget instance, resets at its start, and fades inside its edges (default 1 second).
+
+The song analysis still has sections, shown as marks to see and snap to; those marks own no clips. Opening a recording
+without a saved version 3 show starts with an empty timeline. Older show formats are not read. The studio runs the same
+`lab/tools/*.js` sources as the lab through `WidgetRuntime`.
+
+See [COMPOSING-SHOWS.md](COMPOSING-SHOWS.md) for the current show format and composing guidance.
+The old app and its COMPOSING handbook were subsequently removed in `a687e99`. The dated entries below record earlier designs.
+
 ## 2026-11-02: `claude/tonight-all`, a test branch, not main
 
 This branch merges the night's work for the user to try: the note picker, note types, round 9 and the casket's `keep`, and
@@ -397,21 +410,3 @@ cd ref-audio && git sparse-checkout set --no-cone '/audio/*.ogg' && git checkout
   and 4, a ring round the centre under 6 and up), so its current note stays on screen at any pitch (see
   COMPOSING.md, *Known behaviours*).
 
-### Open items (from the build ledger, none blocking)
-
-- **Calibration:** Sugar Plum reads *lament* and Basalt *machine* in the character engine; the offline melody's
-  raw chroma accuracy is ~0.5 (target was 0.7). Scripts set their own palettes, so shows are unaffected; Live
-  moods on classical pieces may be off.
-- **Fingerprint offset:** script times are seconds of the reference file; a re-encode with different lead-in
-  silence matches but plays shifted by the difference (`src/stage/corpus.ts` says so).
-- **main.ts** is ~840 lines; the show/study/fingerprint bookkeeping and the director streams could move to a
-  small `src/stage/show.ts`. The fingerprint runs on the main thread (~0.7 s for 12 minutes).
-- **Director:** a section change inside the 15 s gap is dropped, not deferred, so a scene can hold ~30 s.
-- **Live MIDI double events:** with "Keys make sound" on, a key is both a pushed MIDI event and an onset in
-  the synth's audio; not visibly doubled in the run, but not measured.
-- Replaying the current demo entry doesn't reset the clock and director; `playStudy` with a new seed leaks the
-  old player's reverb.
-- One unidentified full-suite failure was seen once in Task 12; five cold and warm reruns since passed. The
-  wall-clock "is cheap" tests (tests/character.test.ts) are the likely candidates.
-- The full ledger with every deferred minor: `.superpowers/sdd/2026-10-30-scripted-visuals/progress.md`
-  (local, git-ignored).

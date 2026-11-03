@@ -198,6 +198,20 @@ agree):
 - **a calmer pulse**: its own level and rate follow only the attacks that reached it, so knobs driven by `+level` or
   `+rate` settle down too.
 
+### `intensityMoves`: the curve sets how much it makes
+
+```json
+{ "widget": "vine", "intensity": [{ "t": 120, "v": 0.1 }, { "t": 150, "v": 1 }], "intensityMoves": "present" }
+```
+
+With `"intensityMoves": "present"`, the curve no longer fades the clip or drops attacks. It moves how present instead:
+the slider is the ceiling and the curve a share of it, so a vine can branch more and more as a passage builds.
+
+- At `v` 1 the clip is exactly as its knobs are set. As `v` falls, each knob that follows the slider goes towards its
+  least. A knob set by hand is the top of its own range, and nothing saved changes.
+- At `v` 0 the widget makes its least but stays on screen. To hide it, end the clip or use its `fade`.
+- A widget whose slider only dims it just dims. A widget with no slider (`fold`, `kline`) keeps fading; the check warns.
+
 The widget keeps running at 0, so it comes back in its own state.
 
 The presets (in the studio's panel and the lab's cards; they write ordinary pivots you can then edit):
@@ -938,6 +952,20 @@ Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
 
 ### Not judged yet
 
+#### `johansson`: Johansson
+
+A field of still white dots, like stars. When the music moves, thirteen of them turn out to be a person, walking, stepping exactly on the notes.
+
+Feel: precise, playful, grainy, still · Suits: piano, strings · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 0.5 | fixed | Left: just the person on black. Right: a thick field of stars it is hidden in. |
+| `stride` | how big its steps | 0.5..1.4 | 1 | fixed | Left: small careful steps. Right: long strides, a big bounce. |
+| `height` | how near | 0.6..1.3 | 1 | fixed | Left: a small person far off. Right: it nearly fills the screen. |
+| `arms` | how the melody lifts it | 0..1.2 | 0.8 | fixed | Left: arms only swing. Right: its arm reaches up with every climbing melody. |
+| `maxStep` | how soon it stops | 0.7..1.6 | 1.15 | fixed | Left: it stops at any gap in the notes. Right: it walks on through most of them. |
+
 #### `tree`: Tree
 
 One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
@@ -1096,12 +1124,11 @@ Feel: flowing, liquid, stabbing, panic · Suits: violin, flute, strings · Role:
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `far` | how far back | 0.25..3 | 1.5 | fixed | How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons. Follows how present: 0.3 at its left end. |
+| `far` | how far back | 0.25..3 | 1.5 | fixed | How far into the past the furthest strips reach. Left: a quarter second, barely a lean. Right: three seconds, long ribbons. |
 | `mode` | which way it slices | 0..2 | 0 | fixed | How the picture is cut into moments. Left: columns (the now line follows the melody left to right), then rows (bottom to top). Right: rings from the centre (low notes near the middle). |
-| `cut` | how wide a note’s fresh cut is | 0..1 | 0.35 | fixed | How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present. Follows how present: 0.05 at its left end. |
-| `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. Follows how present: 0.6 at its left end. |
+| `cut` | how wide a note’s fresh cut is | 0..1 | 0.35 | fixed | How wide the band of the present is that each note cuts through the smear. Left: a hairline. Right: a wide band of the present. |
+| `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. |
 | `stretch` | how hard loud chords stretch time | 0..1 | 0.6 | fixed | How much loud chords stretch the delay. Left: they don’t, the delay stays put. Right: soft playing keeps it short and a loud chord throws it to the maximum. |
-| `presence` | how present | 0..1 | 1 | fixed | How much smear it makes: how far back the strips reach, how wide each note cuts the present through, how much of the picture is smear rather than live. Left: a short lean with hairline cuts, mostly the live picture. Right: long ribbons and wide cuts. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 #### `fold`: Fold
 

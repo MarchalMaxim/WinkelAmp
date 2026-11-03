@@ -32,6 +32,8 @@
 .lc-check input { accent-color: var(--on); margin: 0; }
 .lc-hint { border-left: 2px solid #5a3e12; padding-left: 8px; }
 
+.lc-moves { margin: 0 0 8px; }
+.lc-moves[hidden] { display: none; }
 .lc-curve { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 8px !important; }
 .lc-presets { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 6px 8px; font-size: 12.5px; color: var(--dim); }
 .lc-p { display: contents; }

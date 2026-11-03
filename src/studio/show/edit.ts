@@ -20,7 +20,7 @@ import {
   type Clip, type KnobSetting, type PickSet, type Show, type Span,
 } from './show';
 
-export type ClipPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; fade?: number | null };
+export type ClipPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; intensityMoves?: 'present' | null; fade?: number | null };
 
 export type ShowEdit =
   /** A new clip; without a track, on top of what plays over its span. */
@@ -243,6 +243,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       if (p.region !== undefined) {
         if (p.region === null) delete next.region;
         else { const r = repairRegion(p.region); if (!r) return show; next.region = r; }
+      }
+      if (p.intensityMoves !== undefined) {
+        if (p.intensityMoves === null) delete next.intensityMoves;
+        else if (p.intensityMoves === 'present') next.intensityMoves = p.intensityMoves;
+        else return show;
       }
       if (p.intensity !== undefined) {
         // Capped at MAX_PIVOTS, or at the curve's own length when a file made it longer: an edit never drops pivots of a

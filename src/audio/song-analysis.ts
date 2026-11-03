@@ -4,7 +4,7 @@
  * the studio's in-browser fallback (a Worker): no Node imports here.
  * Times are song seconds of the decoded audio (when the sound is heard).
  */
-import type { MelodyNote, SongData } from '../stage/types';
+import type { Chord, MelodyNote } from './types';
 import { extractMelody } from './melody';
 import { analyzeOffline } from './offline';
 import { segment } from './structure';
@@ -110,7 +110,7 @@ export function chordChanges(chroma: Float32Array, quiet: Uint8Array, fps: numbe
   const pre = new Float64Array((hops + 1) * 12);
   for (let h = 0; h < hops; h++) for (let k = 0; k < 12; k++) pre[(h + 1) * 12 + k] = pre[h * 12 + k] + chroma[h * 12 + k];
   const step = Math.round(fps / 10), half = Math.round(fps / 4);
-  const out: SongData['chords'] = [];
+  const out: Chord[] = [];
   let cur = -1, cand = -1, run = 0, candT = 0;
   const v = new Float64Array(12);
   for (let h = 0; h < hops; h += step) {
@@ -146,9 +146,9 @@ export function chordChanges(chroma: Float32Array, quiet: Uint8Array, fps: numbe
 }
 
 /**
- * What a song pack keeps of the study analysis: one pass of the live chain with the
- * melody tracker (no character engine, no plots), then the same post-processing as
- * `npm run study` for these fields. `onProgress` gets 0..1.
+ * What a song pack keeps of the analysis: one pass of the chain with the melody
+ * tracker (no character engine, no plots), then post-processing for these fields.
+ * `onProgress` gets 0..1.
  */
 export function analyzeSong(pcm: Float32Array, sampleRate: number, onProgress?: (f: number) => void): SongAnalysis {
   const fps = 60;
