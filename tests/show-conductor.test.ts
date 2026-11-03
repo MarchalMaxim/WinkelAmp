@@ -187,3 +187,60 @@ describe('samePreview', () => {
     expect(samePreview(SHOW, { ...SHOW, picks: { p1: { notes: [[1, 2, 60, 80]] } } }, 5)).toBe(false);
   });
 });
+
+describe('a curve that moves how present', () => {
+  const PRESENT: WidgetMeta = { id: 'vine', name: 'vine', blurb: '', tag: '', verdict: null, params: [
+    { key: 'presence', min: 0, max: 1, value: 1, leads: true }, { key: 'fork', min: 0, max: 1, value: 0.5, less: 0.1, drive: '+level' as const }, { key: 'free', min: 0, max: 1, value: 0.5 }] };
+  const look = (id: string) => (id === 'vine' ? PRESENT : META[id]);
+  const curve = [{ t: 0, v: 0 }, { t: 10, v: 1 }];
+  const moved = (more: Partial<Clip> = {}): Show => ({ ...SHOW, clips: [clip('v', 0, 10, 0, 'vine', { fade: 0, intensity: curve, intensityMoves: 'present', ...more })] });
+
+  it('moves the knobs with the time, and neither fades nor thins', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, moved(), look);
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(rt.knobs['vine#v'].fork.base).toBeCloseTo(0.3, 6);
+    expect(slotsOf(rt, 5)).toEqual([{ id: 'vine#v', receiving: true, weight: 1 }]);
+    c.step(10 - 1e-6, 0.05);
+    expect(rt.knobs['vine#v'].fork.base).toBeCloseTo(0.5, 3);
+  });
+  it('keeps a knob set by hand as the top, and its drive', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, moved({ knobs: { fork: { base: 0.9, drive: '-rate', depth: 0.2 }, free: 0.7 } }), look);
+    c.reset(0);
+    c.step(5, 0.05);
+    const k = rt.knobs['vine#v'];
+    expect(k.fork.base).toBeCloseTo(0.5, 6);
+    expect([k.fork.drive, k.fork.depth]).toEqual(['-rate', 0.2]);
+    expect(k.free.base).toBe(0.7);
+  });
+  it('a seek has the right knobs before the first step, and a show edit at once', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, moved(), look);
+    c.reset(0);
+    expect(rt.knobs['vine#v'].fork.base).toBeCloseTo(0.1, 6);
+    c.reset(5);
+    expect(rt.knobs['vine#v'].fork.base).toBeCloseTo(0.3, 6);
+    c.setShow(moved({ intensity: [{ t: 0, v: 1 }] }));
+    expect(rt.knobs['vine#v'].fork.base).toBeCloseTo(0.5, 6);
+  });
+  it('without the switch the curve fades as ever, and the knobs stay', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, moved({ intensityMoves: undefined }), look);
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(rt.knobs['vine#v'].fork.base).toBe(0.5);
+    expect(slotsOf(rt, 5)?.[0].layer?.pivots).toEqual(curve);
+  });
+  it('a widget with no slider keeps fading, switch or not', () => {
+    const s: Show = { ...SHOW, clips: [clip('a', 0, 10, 0, 'squares', { fade: 0, intensity: curve, intensityMoves: 'present' })] };
+    const rt = new FakeRuntime(), c = new Conductor(rt, s, meta);
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(slotsOf(rt, 5)?.[0].layer?.pivots).toEqual(curve);
+  });
+  it('the switch does not reload the instance, and a preview knows it changed', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, moved({ intensityMoves: undefined }), look);
+    rt.calls = [];
+    c.setShow(moved());
+    expect(rt.names()).not.toContain('load');
+    expect(samePreview(moved({ intensityMoves: undefined }), moved(), 5)).toBe(false);
+  });
+});

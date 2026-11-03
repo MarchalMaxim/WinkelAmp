@@ -54,6 +54,7 @@ export interface WaLayers {
   advancePulse(p: { level: number; rate: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
   // present.js
   presentValues(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less'>[] | undefined, s: number): Record<string, number>;
+  presentAt(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less' | 'leads'>[] | undefined, now: Readonly<Record<string, number>> | undefined, g: number): Record<string, number>;
   // region.js (T5)
   regionBox(r: Region, cw: number, ch: number): { cx: number; cy: number; w: number; h: number; rot: number };   // device px, radians
   featherAlpha(d: number, feather: number): number;     // d: 0 centre … 1 edge → 1 … 0

@@ -198,6 +198,20 @@ agree):
 - **a calmer pulse**: its own level and rate follow only the attacks that reached it, so knobs driven by `+level` or
   `+rate` settle down too.
 
+### `intensityMoves`: the curve sets how much it makes
+
+```json
+{ "widget": "vine", "intensity": [{ "t": 120, "v": 0.1 }, { "t": 150, "v": 1 }], "intensityMoves": "present" }
+```
+
+With `"intensityMoves": "present"`, the curve no longer fades the clip or drops attacks. It moves how present instead:
+the slider is the ceiling and the curve a share of it, so a vine can branch more and more as a passage builds.
+
+- At `v` 1 the clip is exactly as its knobs are set. As `v` falls, each knob that follows the slider goes towards its
+  least. A knob set by hand is the top of its own range, and nothing saved changes.
+- At `v` 0 the widget makes its least but stays on screen. To hide it, end the clip or use its `fade`.
+- A widget whose slider only dims it just dims. A widget with no slider (`fold`, `kline`) keeps fading; the check warns.
+
 The widget keeps running at 0, so it comes back in its own state.
 
 The presets (in the studio's panel and the lab's cards; they write ordinary pivots you can then edit):

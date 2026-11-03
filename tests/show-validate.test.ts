@@ -186,3 +186,27 @@ describe('canonicalShow', () => {
     expect(r.x).toBe(0.3333);
   });
 });
+
+describe('intensityMoves', () => {
+  const curve = [{ t: 0, v: 0 }, { t: 30, v: 1 }];
+  const on = (widget: string, more: Partial<Clip> = {}) => show(clip('c1', 0, 30, 0, widget, { intensity: curve, intensityMoves: 'present', ...more }));
+
+  it('passes on a widget with the slider', () => {
+    expect(errs(on('vine'))).toEqual([]);
+    expect(at(warns(on('vine')), 'clips[0].intensityMoves')).toEqual([]);
+  });
+  it('says so on a widget without one: it keeps fading', () => {
+    expect(at(warns(on('fold')), 'clips[0].intensityMoves')).toHaveLength(1);
+  });
+  it('refuses anything else', () => {
+    expect(at(errs(on('vine', { intensityMoves: 'loud' as never })), 'clips[0].intensityMoves')).toHaveLength(1);
+  });
+  it('a repair removes anything else', () => {
+    const fixed = repairShow(on('vine', { intensityMoves: 'loud' as never }), c).show;
+    expect(fixed.clips[0].intensityMoves).toBeUndefined();
+  });
+  it('is saved after the curve', () => {
+    const text = canonicalShow(on('vine'));
+    expect(text.indexOf('"intensityMoves": "present"')).toBeGreaterThan(text.indexOf('"intensity":'));
+  });
+});

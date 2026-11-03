@@ -78,3 +78,37 @@ describe('the widgets', () => {
     for (const m of list) for (const [key, v] of Object.entries(WA.presentValues(m.params, 1))) expect(v, `${m.id}.${key}`).toBe(m.params.find((q) => q.key === key)!.value);
   });
 });
+
+describe('how present on the graph', () => {
+  const params = [knob({ key: 'presence', value: 1, leads: true }), knob({ key: 'a', less: 0.1 }), knob({ key: 'n', min: 4, max: 60, value: 22, step: 1, less: 4 }),
+    knob({ key: 'rarer', value: 0.8, less: 0.97 }), knob({ key: 'free' })];
+
+  it('at the top of the graph every knob is as it is set, hand-set or not', () => {
+    expect(WA.presentAt(params, { a: 0.9, n: 30 }, 1)).toEqual({ a: 0.9, n: 30, rarer: 0.8 });
+  });
+  it('at the bottom it makes the least, and a knob that does not follow stays out of it', () => {
+    expect(WA.presentAt(params, { free: 0.7 }, 0)).toEqual({ a: 0.1, n: 4, rarer: 0.97 });
+  });
+  it('between them a knob goes from its least to where it is set: the slider is the ceiling, the graph a share of it', () => {
+    const set = WA.presentValues(params, 0.8), v = WA.presentAt(params, set, 0.5), same = WA.presentValues(params, 0.4);
+    expect(v.a).toBeCloseTo(same.a, 6);
+    expect(v.rarer).toBeCloseTo(same.rarer, 6);
+    expect(WA.presentAt(params, { a: 0.9 }, 0.5).a).toBeCloseTo(0.5, 6);
+    for (let g = 0; g <= 1; g += 0.01) expect(Number.isInteger(WA.presentAt(params, {}, g).n)).toBe(true);
+  });
+  it('a knob set beyond its least holds: a falling graph never makes more', () => {
+    expect(WA.presentAt(params, { a: 0.05, rarer: 0.99 }, 0)).toMatchObject({ a: 0.05, rarer: 0.99 });
+  });
+  it('a slider the widget reads itself is what moves, from where it is set down to 0', () => {
+    const plain = [knob({ key: 'presence', value: 0.7 }), knob({ key: 'free' })];
+    expect(WA.presentAt(plain, {}, 1)).toEqual({ presence: 0.7 });
+    expect(WA.presentAt(plain, {}, 0.5).presence).toBeCloseTo(0.35, 6);
+    expect(WA.presentAt(plain, { presence: 0.4 }, 0)).toEqual({ presence: 0 });
+  });
+  it('a widget with no slider has nothing to move', () => {
+    expect(WA.presentAt([knob({ key: 'free' })], {}, 0.5)).toEqual({});
+  });
+  it('every widget with a slider moves something on the graph', () => {
+    for (const m of loadCatalogue().widgets.values()) if (m.params.some((q) => q.key === 'presence')) expect(Object.keys(WA.presentAt(m.params, {}, 0.5)).length, m.id).toBeGreaterThan(0);
+  });
+});
