@@ -38,6 +38,8 @@ export interface WidgetCtx {
   feat: Features;
   /** set before every call; ctx.p reads its knobs */
   tool: ToolDef | undefined;
+  /** The widget being called is on a set of picks: the composer chose its notes, so it answers every one. */
+  readonly picked: boolean;
   rnd(a?: number, b?: number): number;
   sounding(): SoundingNote[];
   top(): SoundingNote | null;

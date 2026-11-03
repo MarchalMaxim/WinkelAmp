@@ -81,7 +81,7 @@ export class WidgetRuntime implements RuntimeLike {
     this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js (T15)
     this.chords = groupChords(song.notes);
     this.icon = makeIcon(lib.harness.iconSource);
-    const knobs = this.knobs, cur = (this.cur = { key: '', notes: song.notes });
+    const knobs = this.knobs, onPicks = this.onPicks, cur = (this.cur = { key: '', notes: song.notes });
     const ctx: WidgetCtx = {
       g: hdContext(g, S, () => ctx.tool?.id ?? 'a widget'), W, H, canvas,
       t: 0, dt: 0, now: 0,
@@ -89,6 +89,7 @@ export class WidgetRuntime implements RuntimeLike {
       level: 0, rate: 0,
       feat: newFeatures(),
       tool: undefined,
+      get picked() { return onPicks.has(cur.key); },
       rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
       sounding: () => soundingAt(cur.notes, ctx.t),
       top() { let b: SoundingNote | null = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
