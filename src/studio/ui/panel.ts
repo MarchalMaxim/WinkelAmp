@@ -6,7 +6,7 @@
 import { TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import type { Layer } from '../show/show';
-import { hasHowPresent, instanceKey, listenOf } from '../show/show';
+import { instanceKey, listenOf } from '../show/show';
 import { studioLayers } from '../../widgets/layers-source';
 import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
@@ -182,7 +182,6 @@ export class Panel {
     const clip = () => this.d.store.state.show!.clips.find((c) => c.id === id);
     this.controls = mountLayerControls(box, {
       layers: studioLayers(), pack, widget, hue: widgetHue(widget), usual: usualOf(this.d.catalogue.get(widget)?.meta, widget),
-      howPresent: hasHowPresent(this.d.catalogue.get(widget)?.meta.params ?? []),
       span: () => { const c = clip(); return { start: c?.start ?? 0, end: c?.end ?? 0 }; },
       layer: clip,
       edit: (patch, group) => {

@@ -107,7 +107,7 @@ try {
       check('Window places a window', r1?.mode === 'window', JSON.stringify(r1));
       await page.selectOption('.panel [data-shape]', 'rect');
       await page.locator('.panel [data-feather]').fill('0');
-      await page.click('.panel [data-blend]');
+      await page.selectOption('.panel [data-blend]', 'lighten');
       const r2 = (await show()).clips.find((c) => c.id === 'c2').region;
       check('shape, edge and blend change the window', r2?.shape === 'rect' && r2.feather === 0 && r2.blend === 'lighten', JSON.stringify(r2));
       await page.click('.panel [data-reset]');
@@ -127,29 +127,6 @@ try {
       check('Whole screen, then Window, brings the same place back', r5 === undefined && JSON.stringify(r6) === JSON.stringify(r4), `${JSON.stringify(r5)} then ${JSON.stringify(r6)}`);
     }
     await shot(`panel-where${sfx}`, '.panel .lc-part:nth-of-type(2)');
-
-    // Intensity: Pulse every 1 bar → pivots 4 beats apart, one undo step.
-    await page.locator('.panel [data-every]').fill('1');
-    await page.selectOption('.panel [data-unit]', 'bars');
-    await page.click('.panel [data-p="pulse"]');
-    await page.waitForTimeout(100);
-    if (!phone) {
-      const piv = (await show()).clips.find((c) => c.id === 'c2').intensity ?? [];
-      const ones = piv.filter((q) => q.v === 1).map((q) => q.t);
-      const beats = pack.beats, gaps = beats.slice(1).map((b, i) => b - beats[i]).sort((a, b) => a - b);
-      const med = gaps.length ? gaps[gaps.length >> 1] : 0.5;
-      const ok = ones.length >= 2 && ones.slice(1).every((t, i) => {
-        const a = ones[i], inGrid = beats.filter((b) => b >= a - 1e-6 && b < t - 1e-6).length;
-        return inGrid === 4 || Math.abs(t - a - 4 * med) < 0.02;
-      });
-      check('Pulse every 1 bar writes pivots 4 beats apart', ok, `${ones.length} pulses at ${ones.slice(0, 4).map((t) => t.toFixed(2)).join(', ')}… (median beat ${med.toFixed(3)} s)`);
-      await blur();
-      await page.keyboard.press('Control+z');
-      const undone = (await show()).clips.find((c) => c.id === 'c2');
-      check('one Ctrl+Z takes the whole preset away', undone.intensity === undefined, `${undone.intensity?.length ?? 0} pivots left`);
-      await page.keyboard.press('Control+Shift+z');
-    }
-    await shot(`panel-intensity${sfx}`, '.panel .lc-part:nth-of-type(3)');
 
     // The picker: two of rorschach's feel words (from lab/tags.json, which the user keeps retagging; one of them not
     // kandinsky's) keep rorschach and drop kandinsky; suits this song keeps strings.

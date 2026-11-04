@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { defaultRegion, gateDefault, listenLabel, listenOptions, presetPivots, READERS } from '../src/studio/ui/layer-controls';
+import { defaultRegion, listenLabel, listenOptions, READERS } from '../src/studio/ui/layer-controls';
 import { filterWidgets } from '../src/studio/ui/widget-picker';
 import { TRACKS, TRACK_IDS } from '../src/studio/pack/instruments';
 import { FAMILIES, LINES } from '../src/studio/show/show';
@@ -84,17 +84,15 @@ describe('intensity presets', () => {
   const loudness = { hop: 0.1, values: Array.from({ length: 1200 }, (_, i) => 0.5 + 0.45 * Math.sin(i / 37)) };
   const tracks = { violin: track('violin', 80), cello: track('cello', 40) };
   const song: Song = { id: 'x', notes: notesOf(160), tracks, beats, loudness, moments: [[0, 'dread', 'One'], [40, 'agitato'], [90, 'casket', 'Three']], dur };
-  const pack = { notes: song.notes, tracks, beats, loudness } as unknown as Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>;
   const whole = { start: 0, end: dur };
 
   it('over the whole song, pulse, gate and plays write the studio\'s pivots', () => {
-    expect(U.presetPivots(L, 'pulse', 2, whole, song)).toEqual(presetPivots(L, { kind: 'pulse', every: 2, unit: 'beats' }, whole, pack, undefined));
-    expect(U.presetPivots(L, 'gate', 0.6, whole, song)).toEqual(presetPivots(L, { kind: 'gate', above: 0.6 }, whole, pack, undefined));
+    expect(U.presetPivots(L, 'pulse', 2, whole, song)).toEqual(L.presets.pulse(whole, beats, { every: 2 }));
+    expect(U.presetPivots(L, 'gate', 0.6, whole, song)).toEqual(L.presets.gate(whole, loudness, { above: 0.6 }));
     for (const listen of [undefined, 'violin', 'melody', 'family:strings'])
-      expect(U.presetPivots(L, 'plays', 0, whole, song, listen)).toEqual(presetPivots(L, { kind: 'plays' }, whole, pack, listen));
+      expect(U.presetPivots(L, 'plays', 0, whole, song, listen)).toEqual(L.presets.plays(whole, L.listenNotes({ notes: song.notes, tracks }, listen).notes));
   });
-  it('the gate\'s default threshold is the studio\'s', () => {
-    for (const s of [whole, { start: 40, end: 90 }, { start: 100, end: 101 }]) expect(U.gateDefault(loudness, s)).toBe(gateDefault(pack.loudness, s));
+  it('the gate\'s default threshold is 0.5 without a loudness', () => {
     expect(U.gateDefault(undefined, whole)).toBe(0.5);
   });
   it('over one moment: the preset inside it, full before and after', () => {

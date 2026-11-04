@@ -5,9 +5,6 @@
  *   with a way back to the picker: the select could only orphan its set.
  * - Where: the whole screen, a spotlight (the widget seen only through a shape) or a window (the whole widget shrunk
  *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
- * - Intensity: always full, or a curve written by a preset (fade in or out, swell, pulse on the beats, gate on
- *   loudness, while its part plays), shaped further in the lane under the timeline. On a widget with how present, the
- *   curve either fades it or sets how much it makes.
  * Every change is one setClip edit, one undo step.
  */
 import './layer-controls.css';
@@ -18,7 +15,7 @@ import type { SongPack } from '../pack/pack';
 import { heardSets } from '../show/note-values';
 import { FAMILIES, LINES, listenOf, picksId, type Layer, type Show } from '../show/show';
 import type { Span, WaLayers } from '../../widgets/layers';
-import type { Family, Line, Listen, Pivot, Region, TrackId } from '../../widgets/types';
+import type { Family, Line, Listen, Region, TrackId } from '../../widgets/types';
 import { impulseWords } from './picker-logic';
 
 export interface ListenOption { group: string; value: Listen; label: string }
@@ -138,50 +135,12 @@ export function describePlace(r: Region | undefined): string {
   return !r ? '' : r.mode === 'spot' ? 'as a mask' : 'as a small copy';
 }
 
-/** The pivots of a preset, or null when it does not apply. */
-export type PresetChoice =
-  | { kind: 'fadeIn' | 'fadeOut'; seconds: number } | { kind: 'swell' }
-  | { kind: 'pulse'; every: number; unit: 'beats' | 'bars' } | { kind: 'gate'; above: number } | { kind: 'plays' };
-
-export function presetPivots(L: WaLayers, choice: PresetChoice, span: Span,
-  pack: Pick<SongPack, 'notes' | 'tracks' | 'beats' | 'loudness'>, listen: Listen | undefined, picks?: Show['picks']): Pivot[] {
-  const P = L.presets;
-  switch (choice.kind) {
-    case 'fadeIn': return P.fadeIn(span, choice.seconds);
-    case 'fadeOut': return P.fadeOut(span, choice.seconds);
-    case 'swell': return P.swell(span);
-    case 'pulse': return P.pulse(span, pack.beats, { every: choice.every * (choice.unit === 'bars' ? 4 : 1) });
-    case 'gate': return P.gate(span, pack.loudness, { above: choice.above });
-    case 'plays': return P.plays(span, L.listenNotes({ notes: pack.notes, tracks: pack.tracks, picks: heardSets(picks) }, listen).notes);
-  }
-}
-
-/** A loudness threshold for the gate: the section's 60th percentile, to 0.05, between 0.1 and 0.9. */
-export function gateDefault(loud: SongPack['loudness'], span: Span): number {
-  const a = Math.max(0, Math.floor(span.start / loud.hop)), b = Math.min(loud.values.length, Math.ceil(span.end / loud.hop));
-  const v = loud.values.slice(a, b).filter(Number.isFinite).sort((x, y) => x - y);
-  const q = v.length ? v[Math.floor(0.6 * (v.length - 1))] : 0.5;
-  return Math.min(0.9, Math.max(0.1, Math.round(q * 20) / 20));
-}
-
 // ---- The DOM ----------------------------------------------------------------------------------------------------
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
-export type LayerPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; intensityMoves?: 'present' | null };
+export type LayerPatch = { listen?: Listen | null; region?: Region | null };
 
-/** The line under Intensity: n pivots, and whether they set how much the widget makes. */
-export function curveWords(n: number, moves: boolean): string {
-  if (!n) return 'Always at full strength.';
-  const points = `a curve of ${n} point${n === 1 ? '' : 's'}`;
-  return moves ? `Makes more or less along ${points}: shape it in the lane under the timeline.`
-    : `Follows ${points}: shape it in the lane under the timeline.`;
-}
-
-/** What the curve's low end does, for the switch. */
-export const curveSay = (moves: boolean): string => (moves
-  ? 'High on the curve it is as its knobs are set; low, it makes its least, but it stays on screen and hears every attack.'
-  : 'Low on the curve it is fainter and hears fewer attacks; at the bottom it is gone.');
 
 export interface LayerControlsDeps {
   layers: WaLayers;
@@ -190,7 +149,6 @@ export interface LayerControlsDeps {
   /** The note type this widget usually hears (lab/tags.json). */
   usual?: NoteType;
   /** The widget has the how present slider, so its curve can set how much it makes. */
-  howPresent: boolean;
   /** The clip's span now (a drag changes it without a redraw). */
   span(): Span;
   /** The layer now (undo changes it without a redraw). */
@@ -240,32 +198,12 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       </div>
       ${reader ? '<p class="lc-hint small">This widget cuts into the picture below it: as a small copy it cuts only its own picture.</p>' : ''}
     </section>
-    <section class="lc-part">
-      <h4>Intensity</h4>
-      <p class="lc-curve small"><span></span> <button type="button" class="link" data-clear>Clear curve</button></p>
-      <div class="lc-moves">
-        <div class="lc-seg" role="group" aria-label="What the curve does">
-          <button type="button" data-moves="">Fades it</button><button type="button" data-moves="present">How much it makes</button>
-        </div>
-        <p class="lc-moves-say small"></p>
-      </div>
-      <div class="lc-presets">
-        <div class="lc-p"><button type="button" data-p="fadeIn">Fade in</button><span>over <input type="number" data-in min="0.5" max="60" step="0.5" value="4" aria-label="Fade in seconds"> s</span></div>
-        <div class="lc-p"><button type="button" data-p="fadeOut">Fade out</button><span>over <input type="number" data-out min="0.5" max="60" step="0.5" value="4" aria-label="Fade out seconds"> s</span></div>
-        <div class="lc-p"><button type="button" data-p="swell">Swell</button><span class="dim">up to the middle, then back</span></div>
-        <div class="lc-p"><button type="button" data-p="pulse">Pulse</button><span>every <input type="number" data-every min="1" max="32" step="1" value="1" aria-label="Pulse every">
-          <select data-unit aria-label="Beats or bars"><option value="beats">beats</option><option value="bars" title="The song has no downbeats, so a bar is counted as 4 beats">4-beat bars</option></select></span></div>
-        <div class="lc-p"><button type="button" data-p="gate">Gate on loudness</button><span>above <input type="range" data-above min="0.05" max="0.95" step="0.05" aria-label="How loud"><output data-above-out></output></span></div>
-        <div class="lc-p lc-plays"><button type="button" data-p="plays">While its part plays</button><span class="dim" data-part></span></div>
-      </div>
-    </section>`;
+`;
 
   const $ = <T extends Element>(q: string) => box.querySelector<T>(q)!;
   const sel = $<HTMLSelectElement>('.lc-listen select'), spark = $<HTMLCanvasElement>('.lc-spark'), note = $<HTMLElement>('.lc-note');
   const shape = $<HTMLSelectElement>('[data-shape]'), feather = $<HTMLInputElement>('[data-feather]'), featherOut = $<HTMLOutputElement>('[data-feather-out]');
   const fit = $<HTMLSelectElement>('[data-fit]'), blend = $<HTMLSelectElement>('[data-blend]');
-  const above = $<HTMLInputElement>('[data-above]'), aboveOut = $<HTMLOutputElement>('[data-above-out]');
-  above.value = String(gateDefault(d.pack.loudness, d.span()));
 
   /** The options, plus one for a part this song lacks when the layer names one; rebuilt only when that changes. */
   let extra: Listen | null | undefined;
@@ -357,23 +295,6 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   });
   $<HTMLButtonElement>('[data-reset]').addEventListener('click', () => place(defaultRegion(d.widget), group('place')));
 
-  // Intensity
-  const num = (q: string, lo: number, hi: number, dflt: number) => { const v = Number($<HTMLInputElement>(q).value); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; };
-  above.addEventListener('input', () => { aboveOut.textContent = `${Math.round(Number(above.value) * 100)} %`; });
-  box.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => b.addEventListener('click', () => {
-    const k = b.dataset.p!;
-    const choice: PresetChoice = k === 'fadeIn' ? { kind: 'fadeIn', seconds: num('[data-in]', 0.5, 60, 4) }
-      : k === 'fadeOut' ? { kind: 'fadeOut', seconds: num('[data-out]', 0.5, 60, 4) }
-      : k === 'swell' ? { kind: 'swell' }
-      : k === 'pulse' ? { kind: 'pulse', every: Math.round(num('[data-every]', 1, 32, 1)), unit: $<HTMLSelectElement>('[data-unit]').value as 'beats' | 'bars' }
-      : k === 'gate' ? { kind: 'gate', above: Number(above.value) } : { kind: 'plays' };
-    const p = presetPivots(L, choice, d.span(), d.pack, listenOf(d.layer() ?? { widget: d.widget }), d.picks());
-    d.edit({ intensity: p.length ? p : null }, group('preset'));
-  }));
-  $<HTMLButtonElement>('[data-clear]').addEventListener('click', () => d.edit({ intensity: null }, group('preset')));
-  box.querySelectorAll<HTMLButtonElement>('[data-moves]').forEach((b) => b.addEventListener('click', () => {
-    d.edit({ intensityMoves: b.dataset.moves ? 'present' : null }, group('moves'));
-  }));
   $<HTMLButtonElement>('[data-edit-picks]').addEventListener('click', () => { const id = picksId(d.layer()?.listen); if (id) d.editPicks(id); });
 
   const sync = () => {
@@ -400,17 +321,6 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
       fit.value = r.fit ?? 'cover';
       blend.value = r.blend ?? 'clear';
     }
-    const n = l.intensity?.length ?? 0;
-    const moves = d.howPresent && l.intensityMoves === 'present';
-    $<HTMLElement>('.lc-curve span').textContent = curveWords(n, moves);
-    $<HTMLElement>('.lc-moves').hidden = !n || !d.howPresent;
-    box.querySelectorAll<HTMLButtonElement>('[data-moves]').forEach((b) => b.setAttribute('aria-pressed', String(!!b.dataset.moves === moves)));
-    $<HTMLElement>('.lc-moves-say').textContent = curveSay(moves);
-    $<HTMLButtonElement>('[data-clear]').hidden = !n;
-    const plays = $<HTMLElement>('.lc-plays');
-    plays.hidden = !listen;
-    $<HTMLElement>('[data-part]').textContent = listen ? listenLabel(listen) : '';
-    aboveOut.textContent = `${Math.round(Number(above.value) * 100)} %`;
   };
   sync();
   return { sync };
