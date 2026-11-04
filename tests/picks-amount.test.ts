@@ -4,10 +4,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Conductor, showInstances } from '../src/studio/show/conductor';
 import { applyEdit } from '../src/studio/show/edit';
-import { heardPicks, heldValues, noteKnobs, notPerNote, perNote, valuesOf, withValues, type PickNote } from '../src/studio/show/note-values';
+import { heardPicks, heldValues, noteKnobs, notPerNote, perNote, valuesOf, withValues, type NoteValues, type PickNote } from '../src/studio/show/note-values';
 import { scheduleAt } from '../src/studio/show/schedule';
 import { canonicalShow, repairPickNotes, repairShow, validateShow, type Show } from '../src/studio/show/show';
-import { amountBars, attackMates, barWords, draftShow, INTENSITY_LANE, knobLane, laneShare, laneValue, picksOnRoll, popupChips, toPicks, type Chip, type RollNote } from '../src/studio/ui/picker-logic';
+import { addedChips, amountBars, attackMates, barWords, draftShow, INTENSITY_LANE, knobLane, laneShare, laneValue, picksOnRoll, popupChips, renumberLost, toPicks, type Chip, type RollNote } from '../src/studio/ui/picker-logic';
 import { groupChords } from '../src/widgets/chords';
 import type { Note } from '../src/widgets/types';
 
@@ -306,5 +306,54 @@ describe('the Conductor\'s knobs and a widget\'s reset', () => {
     c.reset(4);
     c.step(5.01, 1.01);
     expect(seen.at(-1)).toBe(8);
+  });
+});
+
+describe('adding notes to a set', () => {
+  it('comes back with the notes picked now on, the values kept, and a pick with no note here', () => {
+    const set: PickNote[] = [[1, 2, 60, 80, { crater: 0.3 }], [3, 4, 64, 100, 1.5], [8, 9, 70, 50, 0.25]];
+    const { chips, on, values } = addedChips([roll[0], roll[1], roll[2]], set, roll);
+    expect(chips.map((n) => n.t)).toEqual([1, 3, 5, 8]);
+    expect(on.size).toBe(4);
+    expect(toPicks(chips, values)).toEqual([[1, 2, 60, 80, { crater: 0.3 }], [3, 4, 64, 100, 1.5], [5, 6, 67, 60], [8, 9, 70, 50, 0.25]]);
+  });
+  it('leaves off a note taken off on the roll', () => {
+    const { chips } = addedChips([roll[1]], [[1, 2, 60, 80], [3, 4, 64, 100]], roll);
+    expect(chips.map((n) => n.t)).toEqual([3]);
+  });
+  it('keeps another widget\'s value on its own lost pick when an earlier one was taken off', () => {
+    const set: PickNote[] = [[50, 51, 60, 80], [52, 53, 62, 80], [54, 55, 64, 80]];
+    const { chips } = addedChips([], set, []);
+    const held = new Map<number, Readonly<NoteValues>>([[-2, { crater: 0.7 }], [-1, { crater: 0.2 }]]);
+    const left = chips.filter((c) => c.id !== -1);
+    renumberLost(left, [held]);
+    const back = addedChips([], toPicks(left), []).chips;
+    expect(back.find((c) => held.get(c.id))?.t).toBe(52);
+    expect(held.get(back.find((c) => c.t === 52)!.id)).toEqual({ crater: 0.7 });
+    expect(held.size).toBe(1);
+  });
+  const placed = () => applyEdit({ version: 3, id: 'demo', song: 'demo', clips: [] } as Show, { kind: 'placePicks', widget: 'ivory', notes: [[10, 11, 60, 80], [12, 13, 64, 80]] });
+  const short = (s: Show): Show => ({ ...s, clips: s.clips.map((c) => ({ ...c, start: 9, end: 30 })) });
+  it('keeps a clip\'s hand-made length when notes are added inside it', () => {
+    const s = short(placed());
+    expect(applyEdit(s, { kind: 'updatePicks', id: 'p1', widget: 'ivory', notes: [[10, 11, 60, 80], [11, 12, 62, 80], [12, 13, 64, 80]] }).clips).toEqual(s.clips);
+  });
+  it('grows a clip to reach a note added outside it', () => {
+    const c = applyEdit(short(placed()), { kind: 'updatePicks', id: 'p1', widget: 'ivory', notes: [[10, 11, 60, 80], [12, 13, 64, 80], [40, 41, 67, 80]] }).clips[0];
+    expect(c.start).toBe(9);
+    expect(c.end).toBeGreaterThanOrEqual(41);
+  });
+  it('grows a clip for a note so near its end that a live step could carry it past', () => {
+    const c = applyEdit(short(placed()), { kind: 'updatePicks', id: 'p1', widget: 'ivory', notes: [[10, 11, 60, 80], [12, 13, 64, 80], [29.97, 30.5, 67, 80]] }).clips[0];
+    expect(c.end).toBeGreaterThan(30);
+  });
+  it('counts a pick that came back as the note it found on the roll as kept', () => {
+    const s = short(placed()), snapped: PickNote[] = [[10.03, 11.03, 60, 82], [12, 13, 64, 80], [20, 21, 67, 80]];
+    expect(applyEdit(s, { kind: 'updatePicks', id: 'p1', widget: 'ivory', notes: snapped }).clips).toEqual(s.clips);
+  });
+  it('still fits a clip around what is left when a note is taken off', () => {
+    const before = short(placed());
+    const c = applyEdit(before, { kind: 'updatePicks', id: 'p1', widget: 'ivory', notes: [[12, 13, 64, 80]] }).clips[0];
+    expect(c.end).toBeLessThan(30);
   });
 });

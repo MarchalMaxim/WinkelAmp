@@ -358,6 +358,66 @@ try {
   check('a bar on a knob goes to the preview and into the set', knob.held && knob.stored, JSON.stringify(knob));
   check('a knob value leaves the clip where it was placed', knob.sameClip);
 
+  // ---- adding notes to a set ----
+  const addTo = await page.evaluate(async () => {
+    const s = window.__studio, p = s.picker, set = () => s.store.state.show.picks.p1.notes, before = set().length;
+    const clipBefore = s.store.state.show.clips.find((c) => c.listen === 'picks:p1');
+    await p.open('p1');
+    await new Promise((r) => setTimeout(r, 300));
+    const offered = !document.querySelector('[data-add]').hidden;
+    document.querySelector('[data-add]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const onRoll = { open: p.popup.isOpen, picked: p.marked.size, step: document.querySelector('[data-s1t]').textContent, button: document.querySelector('[data-connect]').textContent, unchanged: set().length === before };
+    const taken = new Set(p.marked), other = p.l.notes.find((n) => !taken.has(n.id) && n.t > clipBefore.start && n.t < clipBefore.end);
+    p.roll.d.click(other);
+    document.querySelector('[data-connect]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const back = { chips: document.querySelectorAll('.np-chip').length, on: document.querySelectorAll('.np-chip.sel').length, ok: document.querySelector('[data-ok]').textContent };
+    document.querySelector('[data-ok]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const clip = s.store.state.show.clips.find((c) => c.listen === 'picks:p1');
+    return { before, offered, onRoll, back, after: set().length, kept: set().some((n) => n[0] === other.t && n[2] === other.m), sameClip: clip.start === clipBefore.start && clip.end === clipBefore.end, fresh: p.marked.size, button: document.querySelector('[data-connect]').textContent };
+  });
+  check('editing a set offers to add notes', addTo.offered);
+  check('Add more notes goes to the roll with the set picked, the scene as it was', !addTo.onRoll.open && addTo.onRoll.picked === addTo.before && addTo.onRoll.unchanged && /^Adding notes to /.test(addTo.onRoll.step) && /^Back to /.test(addTo.onRoll.button), JSON.stringify(addTo.onRoll));
+  check('back in the popup all of them are on, one more than before', addTo.back.on === addTo.before + 1 && addTo.back.chips === addTo.before + 1 && addTo.back.ok === 'Update the scene', JSON.stringify(addTo.back));
+  check('Update adds the note to the set', addTo.after === addTo.before + 1 && addTo.kept, JSON.stringify(addTo));
+  check('and the clip stays as it was, as the note is inside it', addTo.sameClip);
+  check('and the roll starts fresh again', addTo.fresh === 0 && addTo.button === 'Connect to a widget…', JSON.stringify(addTo));
+
+  const stale = await page.evaluate(async () => {
+    const s = window.__studio, p = s.picker;
+    await p.open('p1');
+    await new Promise((r) => setTimeout(r, 200));
+    document.querySelector('[data-add]').click();
+    await new Promise((r) => setTimeout(r, 200));
+    const inView = p.marked.size && [...p.l.notes].filter((n) => p.marked.has(n.id)).some((n) => n.t >= p.roll.view.a && n.t <= p.roll.view.b);
+    // A forgotten note, then the set's own row: its popup is the adding's, with that note on. Cancelled, it comes back to the adding.
+    const forgotten = p.l.notes.find((n) => !p.marked.has(n.id));
+    p.marked.add(forgotten.id);
+    const picked = p.marked.size;
+    const row = document.querySelector('.np-set[data-set="p1"] canvas');
+    row?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const newOn = p.popup.picks.has(forgotten.id);
+    p.popup.close();
+    const still = document.querySelector('[data-connect]').textContent;
+    // The set changes under it: an update must not overwrite it.
+    const show = s.store.state.show, notes = show.picks.p1.notes;
+    s.store.dispatch({ type: 'edit', edit: { kind: 'updatePicks', id: 'p1', widget: show.clips.find((c) => c.listen === 'picks:p1').widget, notes: notes.slice(1) } });
+    await new Promise((r) => setTimeout(r, 200));
+    const after = { button: document.querySelector('[data-connect]').textContent, picked: p.marked.size, said: document.querySelector('.np-notices').textContent };
+    s.store.dispatch({ type: 'dismiss', id: 'picker-adding' });
+    s.store.dispatch({ type: 'undo' });
+    p.close();
+    return { picked, inView, newOn, still, after };
+  });
+  check('Add more notes brings the set into view', !!stale.inView);
+  check('the set\'s own row, while adding, has the note just picked on', stale.newOn === true);
+  check('a row\'s popup, cancelled, comes back to the adding', /^Back to /.test(stale.still), stale.still);
+  check('the overlay says why the adding ended', /no longer adding/.test(stale.after.said), stale.after.said);
+  check('a set that changes while adding ends the adding, and the picks stay', stale.after.button === 'Connect to a widget…' && stale.after.picked === stale.picked, JSON.stringify(stale.after));
+
   // ---- a pick left behind ----
   const warned = await page.evaluate(async () => {
     // A set over one clip, split, and its first part then gone: that part's pick has nothing to fire.

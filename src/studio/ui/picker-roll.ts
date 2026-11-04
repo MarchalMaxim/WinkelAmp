@@ -4,7 +4,7 @@
  * it, so playing costs next to nothing even on the Four Seasons. The strip is cached too.
  */
 import type { Mark } from '../show/melody';
-import { boxHits, clock, moveView, nameOf, noteAt, tipWords, unmatchedInBox, zoomView, type Instrument, type NoteIndex, type RollGeo, type RollNote, type View } from './picker-logic';
+import { barLook, boxHits, clock, loudnessScale, moveView, nameOf, noteAt, tipWords, unmatchedInBox, zoomView, type Instrument, type NoteIndex, type RollGeo, type RollNote, type View } from './picker-logic';
 
 export interface RollDeps {
   /** Sorted by start, and their index. */
@@ -22,7 +22,7 @@ export interface RollDeps {
   seek(t: number): void;
 }
 
-const GUTTER = 120, TOP = 18, BLACK = [1, 3, 6, 8, 10], MARK = '#f4b740', CLICK_SLOP = 5;
+const GUTTER = 120, TOP = 18, BLACK = [1, 3, 6, 8, 10], MARK = '#f4b740', SOLO = '#a4acbd', CLICK_SLOP = 5;
 /** Above this many bars in view they are plain rectangles: round ones cost more than they show when so small. */
 const ROUND_UP_TO = 1500;
 const SPANS = [1, 2, 5, 10, 20, 30, 60, 120, 300, 600];
@@ -56,6 +56,8 @@ export class PickerRoll {
   private stripStale = true;
   private topStale = true;
   private drawnAt = -1;
+  /** How loud each velocity is for this song. */
+  private readonly loudness: Float32Array;
   /** What a click can hit (hidden instruments' notes can't be), and what is drawn (their marked notes stay). */
   private hittable: RollNote[] = [];
   private shown: RollNote[] = [];
@@ -65,6 +67,7 @@ export class PickerRoll {
   private stripDown = false;
 
   constructor(private readonly d: RollDeps) {
+    this.loudness = loudnessScale(d.notes);
     let lo = Infinity, hi = -Infinity;
     for (const n of d.notes) { if (n.m < lo) lo = n.m; if (n.m > hi) hi = n.m; }
     this.lo = d.notes.length ? lo - 1 : 59; this.hi = d.notes.length ? hi + 1 : 61;
@@ -139,8 +142,9 @@ export class PickerRoll {
 
   // ---- drawing ----
 
-  private bar(g: CanvasRenderingContext2D, n: { t: number; e: number; m: number }, rh: number, round: boolean): void {
-    const x = this.geo.xOf(n.t), w = Math.max(3, this.geo.xOf(n.e) - x), y = this.geo.yOf(n.m), h = Math.max(2.5, rh - 0.5);
+  private bar(g: CanvasRenderingContext2D, n: { t: number; e: number; m: number }, rh: number, round: boolean, share = 1): void {
+    const full = Math.max(2.5, rh - 0.5), h = Math.max(2, full * share);
+    const x = this.geo.xOf(n.t), w = Math.max(3, this.geo.xOf(n.e) - x), y = this.geo.yOf(n.m) + (full - h) / 2;
     const left = Math.max(GUTTER, x), wide = w - (left - x);
     if (!round) { g.fillRect(left, y, wide, h); return; }
     g.beginPath(); g.roundRect(left, y, wide, h, Math.min(2, h / 2)); g.fill();
@@ -167,15 +171,18 @@ export class PickerRoll {
       g.fillStyle = '#8d8379'; g.fillText(clock(s), x, 3);
     }
     const round = this.shown.length <= ROUND_UP_TO;
-    for (const n of this.shown) {
+    const lookOf = (v: number) => barLook(this.loudness[Math.max(0, Math.min(127, Math.round(v)))]);
+    // Softest first: a loud note isn't painted over by what sounds with it.
+    for (const n of [...this.shown].sort((p, q) => p.v - q.v)) {
       if (marked.has(n.id)) continue;
-      if (many) { g.fillStyle = instruments[n.i].color; g.globalAlpha = 0.4 + (0.55 * n.v) / 127; } else g.fillStyle = `rgba(150,158,175,${0.25 + (0.55 * n.v) / 127})`;
-      this.bar(g, n, rh, round);
+      const look = lookOf(n.v);
+      g.fillStyle = many ? instruments[n.i].color : SOLO; g.globalAlpha = look.alpha;
+      this.bar(g, n, rh, round, look.height);
     }
     g.globalAlpha = 1;
     for (const n of this.shown) {
       if (!marked.has(n.id)) continue;
-      g.fillStyle = MARK; this.bar(g, n, rh, true);
+      g.fillStyle = MARK; this.bar(g, n, rh, true, lookOf(n.v).height);
       if (many && geo.xOf(n.t) >= GUTTER) { g.fillStyle = instruments[n.i].color; g.fillRect(geo.xOf(n.t), geo.yOf(n.m), 4, Math.max(2.5, rh - 0.5)); }
     }
     for (const n of this.shown) {

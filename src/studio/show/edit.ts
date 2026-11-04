@@ -15,6 +15,7 @@
  * picks listen without its set. Placing, updating and removing a set are one edit each, so one undo step.
  */
 import type { Listen, Pivot, Region } from '../../widgets/types';
+import { matchMarks, type Mark } from './melody';
 import type { PickNote } from './note-values';
 import {
   DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_CLIP, freeTrack, isListen, nextClipId, overlaps, picksId, picksListen, repairPickNotes, repairPivots, repairRegion, topTrack,
@@ -123,8 +124,8 @@ const noSet = (show: Show, listen: Listen | null | undefined): boolean => {
 const withClip = (show: Show, c: Clip): Show => ({ ...show, clips: show.clips.map((x) => (x.id === c.id ? c : x)) });
 
 /** updatePicks: every clip of the set takes the widget (a new one drops its knobs) and those holding no note go, the last
-    one excepted. With new notes one clip spans them exactly; with the same notes (or several clips) they only grow to reach
-    them: a hand-made length stays. No clip yet: one on top. */
+    one excepted. With notes taken off one clip spans them exactly; with the same notes, more of them, or several clips, they
+    only grow to reach them: a hand-made length stays. No clip yet: one on top. */
 function respanPicks(show: Show, id: string, widget: string, notes: readonly PickNote[], same: boolean, env?: EditEnv): Clip[] {
   const D = env?.duration?.() ?? Infinity, span = picksSpan(notes, D), mine = show.clips.filter((c) => picksId(c.listen) === id);
   if (!mine.length) return [...show.clips, { id: nextClipId(show.clips), ...span, track: topTrack(show.clips, span), widget, listen: picksListen(id) }];
@@ -277,9 +278,14 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       if (!old || !notes.length || !e.widget) return show;
       const bare = (l: readonly PickNote[]) => JSON.stringify(l.map((n) => n.slice(0, 4)));
       const same = JSON.stringify(notes) === JSON.stringify(old.notes), sameBare = bare(notes) === bare(old.notes);
-      // Only an intensity changed: the clips stay exactly as they were placed, however short.
-      const untouched = sameBare && !same && C.every((c) => picksId(c.listen) !== e.id || c.widget === e.widget);
-      const clips = untouched ? C : respanPicks(show, e.id, e.widget, notes, sameBare, env);
+      const mine = C.filter((c) => picksId(c.listen) === e.id);
+      // Nothing taken off, by the roll's own rule, as a pick comes back as the note it found there: a clip only grows.
+      const marks = (l: readonly PickNote[]) => l.map((n): Mark => [n[0], n[1], n[2], n[3]]);
+      const added = !matchMarks(marks(old.notes), marks(notes)).unmatched.length;
+      const heard = notes.every((n) => [n[0], n[0] + LONGEST_STEP].every((t) => mine.some((c) => t >= c.start && t < c.end)));   // as the validator asks
+      // A value changed, or notes added that a clip already hears: the clips stay exactly as they were placed, however short.
+      const untouched = (sameBare || (added && heard)) && !same && mine.every((c) => c.widget === e.widget);
+      const clips = untouched ? C : respanPicks(show, e.id, e.widget, notes, sameBare || added, env);
       if (same && JSON.stringify(clips) === JSON.stringify(C)) return show;
       return withPicks({ ...show, clips }, { ...show.picks, [e.id]: { notes } });
     }

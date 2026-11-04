@@ -17,7 +17,7 @@ import type { CatalogueEntry } from './panel';
 import { PickerPopup } from './picker-popup';
 import { PickerRoll } from './picker-roll';
 import {
-  clock, earlierMarks, firstClipOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
+  addedChips, clock, earlierMarks, firstClipOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
   type Instrument, type RollNote, type SetRow,
 } from './picker-logic';
 import type { Player } from './player';
@@ -45,6 +45,8 @@ export class Picker {
   private isOpen = false;
   /** What is being picked right now: amber, and all the undo, the tones and the popup see. */
   private readonly marked = new Set<number>();
+  /** Adding notes to a set: the roll has it picked, and the popup comes back on it with this widget and what it held. */
+  private adding: { id: string; widget: string; notes: PickNote[]; base: string } | null = null;
   /** The file's marks from before this selection. Unpicking can't touch them, so the file never falls below them. */
   private readonly stored = new Set<number>();
   private unmatched: Mark[] = [];
@@ -91,7 +93,7 @@ export class Picker {
         <button type="button" data-suggest title="Picks a line in the part you're looking at, from the instruments on show. Undo takes it back.">Suggest top line here</button>
         <button type="button" data-undo>Undo</button>
         <span class="np-sp"></span>
-        <span class="np-hint">Click a note to pick it · drag across several · Alt-drag to unpick · Ctrl-scroll to zoom · a dot: already connected to a widget</span>
+        <span class="np-hint">Click a note to pick it · drag across several · Alt-drag to unpick · Ctrl-scroll to zoom · thicker and brighter: louder · a dot: already connected to a widget</span>
       </div>
       <div class="np-tools np-legend" hidden></div>
       <div class="np-notices" aria-live="polite"></div>
@@ -105,7 +107,7 @@ export class Picker {
           <div class="np-card">
             <ol class="np-steps">
               <li data-s1><i>1</i><div>Pick notes<small data-s1t></small><button type="button" class="np-bring" data-bring hidden title="Picks the notes you marked earlier that aren't connected to a widget. Undo takes it back."></button></div></li>
-              <li data-s2><i>2</i><div>Connect notes to a widget<div class="np-connect"><button type="button" class="primary" data-connect disabled>Connect to a widget…</button></div></div></li>
+              <li data-s2><i>2</i><div>Connect notes to a widget<div class="np-connect"><button type="button" class="primary" data-connect disabled>Connect to a widget…</button><button type="button" class="np-bring" data-stop-adding hidden>Leave its notes as they were</button></div></div></li>
               <li data-s3><i>3</i><div>Hear it in the scene<small>Each picked note fires the widget once</small></div></li>
             </ol>
           </div>
@@ -121,6 +123,7 @@ export class Picker {
     this.$('[data-suggest]').addEventListener('click', () => this.suggest());
     this.$('[data-undo]').addEventListener('click', () => this.undo());
     this.$('[data-bring]').addEventListener('click', () => this.bringBack());
+    this.$('[data-stop-adding]').addEventListener('click', () => this.freshStart());
     this.$('[data-connect]').addEventListener('click', () => this.openPopup());
     window.addEventListener('pagehide', () => { clearTimeout(this.saveTimer); this.saver.leaving(); });
   }
@@ -207,6 +210,7 @@ export class Picker {
       player: this.d.player, pack, catalogue: this.d.catalogue, order: this.d.order, lib: this.d.lib, meta: this.d.meta, instruments,
       tone: (m, gain, len) => this.tone(m, gain, len),
       commit: (widget, picks, id) => this.commit(widget, picks, id),
+      addNotes: (id, widget, picks) => this.addNotes(id, widget, picks),
       closed: () => this.duck(),
     });
     this.$('.np-roll-host').append(roll.el, roll.stripEl);
@@ -225,6 +229,7 @@ export class Picker {
     this.marked.forEach((id) => this.stored.add(id));
     this.marked.clear();
     this.undoStack = [];
+    this.adding = null;
     this.l?.roll.invalidate();
     this.drawSteps();
   }
@@ -296,17 +301,39 @@ export class Picker {
 
   private openPopup(editSet?: string): void {
     if (!this.l) return;
-    const { notes, popup } = this.l, show = this.d.store.state.show!, set = editSet !== undefined ? show.picks?.[editSet] : undefined;
+    const { notes, popup } = this.l, show = this.d.store.state.show!;
+    if (this.adding && (editSet === undefined || (editSet === this.adding.id && this.marked.size))) {
+      const { id, widget, notes: set } = this.adding, layer = firstClipOf(show, id);
+      const { chips, on, values } = addedChips(notes.filter((n) => this.marked.has(n.id)), set, notes);
+      popup.open({ chips, on, values, resume: widget, edit: { id, widget: layer?.widget ?? null, knobs: layer?.knobs } });
+      this.duck();
+      return;
+    }
+    const set = editSet !== undefined ? show.picks?.[editSet] : undefined;
     const { chips, on, values } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
     const layer = set ? firstClipOf(show, editSet!) : null;
     popup.open({ chips, on, values, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
     this.duck();
   }
 
+  /** From the popup on a set to the roll: its notes picked, in view, ready for the ones that were forgotten. Nothing changes in
+      the scene until the popup's Update. */
+  private addNotes(id: string, widget: string, set: PickNote[]): void {
+    if (!this.l) return;
+    this.freshStart();
+    for (const n of picksOnRoll(set, this.l.notes).found) this.marked.add(n.id);
+    this.adding = { id, widget, notes: set, base: JSON.stringify(this.d.store.state.show?.picks?.[id]?.notes) };
+    this.popup?.close(Math.max(0, (set[0]?.[0] ?? 0) - 1));
+    this.l.roll.follow(set[0]?.[0] ?? 0);
+    this.l.roll.invalidate();
+    this.drawSteps();
+  }
+
   /** One edit, one undo in the studio. The new layer is selected, so its lane is open; the playhead goes a second before
       the first pick. */
   private commit(widget: string, notes: PickNote[], id: string | null): void {
     const { store } = this.d, set = id ?? nextPicksId(store.state.show!);
+    this.adding = null;   // before the edit, which is no change under it
     this.sceneEdited = true;
     store.dispatch({ type: 'edit', edit: id ? { kind: 'updatePicks', id, widget, notes } : { kind: 'placePicks', widget, notes } });
     const at = firstClipOf(store.state.show!, set);
@@ -317,11 +344,17 @@ export class Picker {
 
   /** The show or the notices changed. */
   private drawStore(): void {
-    const { show, notices } = this.d.store.state;
+    const { show } = this.d.store.state;
     // The whole show, not its picks: a moved or removed clip changes a row with the same set of picks.
     if (show && show !== this.drawnShow) {
       this.drawnShow = show;
       this.rows = setRows(show);
+      // The set was removed, or changed on disk, while notes were being added: an update would overwrite it. The picks stay.
+      if (this.adding && JSON.stringify(show.picks?.[this.adding.id]?.notes) !== this.adding.base) {
+        this.adding = null;
+        this.popup?.close();
+        this.d.notify({ id: 'picker-adding', level: 'info', text: 'That set changed, so you are no longer adding to it. Your picks are still selected, and can be connected as a new set.' });
+      }
       if (this.l) {
         const { notes, roll } = this.l;
         this.dots = new Map(this.rows.flatMap((r) => picksOnRoll(r.notes, notes).found.map((n) => [n.id, hueColor(r.widget ?? '')] as const)));
@@ -333,7 +366,7 @@ export class Picker {
     // The studio's notices sit under the overlay: what they say is said here too.
     const box = this.$('.np-notices');
     box.textContent = '';
-    for (const n of notices) {
+    for (const n of this.d.store.state.notices) {   // now, as ending an adding above says so
       const div = Object.assign(document.createElement('div'), { className: `notice ${n.level}` });
       div.append(Object.assign(document.createElement('span'), { className: 'notice-text', textContent: n.text }));
       const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', textContent: '✕' });
@@ -397,9 +430,12 @@ export class Picker {
 
   private drawSteps(): void {
     const n = this.marked.size, placed = this.rows.length > 0;
-    this.$('[data-s1t]').textContent = n ? `${n} note${n === 1 ? '' : 's'} picked` : 'Nothing picked yet';
+    const name = this.adding && (this.d.catalogue.get(this.adding.widget)?.meta.name ?? this.adding.widget);
+    this.$('[data-s1t]').textContent = name ? `Adding notes to ${name}: ${n} picked. Click the ones you forgot.` : n ? `${n} note${n === 1 ? '' : 's'} picked` : 'Nothing picked yet';
+    this.$('[data-connect]').textContent = name ? `Back to ${name}…` : 'Connect to a widget…';
+    this.$('[data-stop-adding]').hidden = !name;
     const back = earlierMarks(this.stored, this.marked, this.dots).length, bring = this.$('[data-bring]');
-    bring.hidden = !back;
+    bring.hidden = !back || !!name;
     bring.textContent = `Bring back ${back} earlier mark${back === 1 ? '' : 's'}`;
     this.$<HTMLButtonElement>('[data-connect]').disabled = !n;
     this.$('[data-s1]').className = n ? 'done' : 'on';

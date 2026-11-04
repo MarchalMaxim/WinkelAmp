@@ -8,7 +8,7 @@ import { applyEdit } from '../src/studio/show/edit';
 import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
-import {
+import { barLook, loudnessScale,
   boxHits, chipLayout, chipRuler, clock, countWords, earlierMarks, everyOther, fineClock, pickedSpan, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
   NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
@@ -488,5 +488,31 @@ describe('the popup', () => {
     expect(recordingVolume(0, false)).toBe(1);
     expect(recordingVolume(2, false)).toBe(0.3);
     expect(recordingVolume(2, true)).toBe(1);
+  });
+});
+
+describe('how loud a note looks on the roll', () => {
+  const scale = (vs: number[]) => loudnessScale(vs.map((v) => ({ v })));
+  it('goes by rank in this song, whatever part of the scale it uses', () => {
+    const narrow = scale([60, 61, 62, 63]), wide = scale([10, 40, 80, 120]);
+    expect([narrow[60], narrow[61], narrow[62], narrow[63]]).toEqual([wide[10], wide[40], wide[80], wide[120]]);
+    expect(narrow[63]).toBeGreaterThan(narrow[60]);
+  });
+  it('gives notes of one velocity one middle share', () => {
+    const s = scale([50, 50, 50, 90]);
+    expect(s[50]).toBeCloseTo(0.375);
+    expect(s[90]).toBeCloseTo(0.875);
+  });
+  it('copes with no notes, and with velocities out of range', () => {
+    expect(scale([])[64]).toBe(0.5);
+    expect(scale([300, -3])[127]).toBeCloseTo(0.75);
+  });
+  it('lets most notes recede and the loud ones stand out, in brightness and thickness', () => {
+    const [quiet, middle, loud] = [0, 0.5, 1].map(barLook);
+    expect(quiet.alpha).toBeGreaterThan(0.1);
+    expect(middle.alpha).toBeLessThan(0.45);
+    expect(loud.alpha).toBe(1);
+    expect(loud.height).toBe(1);
+    expect(quiet.height).toBeLessThan(middle.height);
   });
 });

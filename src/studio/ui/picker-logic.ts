@@ -249,6 +249,27 @@ export function earlierMarks(stored: ReadonlySet<number>, picked: ReadonlySet<nu
   return [...stored].filter((id) => !picked.has(id) && !connected.has(id));
 }
 
+/** The popup's chips back from adding notes: all on. The notes picked now, whose values the set had kept, and any pick with
+    no note on the roll, which the roll can't show or take off. */
+export function addedChips(picked: readonly RollNote[], set: readonly PickNote[], notes: readonly RollNote[]): { chips: RollNote[]; on: Set<number>; values: Map<number, Readonly<NoteValues>> } {
+  const { lost, values } = picksOnRoll(set, notes);
+  lost.forEach((n, k) => { if (n[4] !== undefined) values.set(-1 - k, valuesOf(n)); });
+  const gone = lost.map(([t, e, m, v], k): RollNote => ({ id: -1 - k, t, e, m, v, i: -1 }));
+  const chips = [...picked, ...gone].sort((a, b) => a.t - b.t || a.id - b.id);
+  return { chips, on: new Set(chips.map((n) => n.id)), values };
+}
+
+/** Picks with no note on the roll are numbered by their place in the set (addedChips), so those left on after Add more get new
+    numbers on the way back. The values held for them move along; one taken off has left the set, and its values with it. */
+export function renumberLost(picked: readonly { id: number; t: number }[], maps: Iterable<Map<number, Readonly<NoteValues>>>): void {
+  const to = new Map(picked.filter((n) => n.id < 0).sort((a, b) => a.t - b.t).map((n, k) => [n.id, -1 - k] as const));
+  for (const m of maps) {
+    const lost = [...m].filter(([id]) => id < 0);
+    for (const [id] of lost) m.delete(id);
+    for (const [id, v] of lost) { const k = to.get(id); if (k !== undefined) m.set(k, v); }
+  }
+}
+
 /** The popup's chips: the notes being picked, in order, and when editing every pick of the set too, a note not being picked
     or a pick with no note on the roll (given an id below zero and no instrument), so an update never loses one. on: those
     of the set. */
@@ -456,6 +477,22 @@ export function pickedSpan(notes: readonly RollNote[]): string {
 const loudWord = (v: number): string => (v > 95 ? 'loud' : v > 60 ? 'medium' : 'soft');
 
 /** Hovering a note: its instrument (an ensemble's), note, time and loudness. */
+/**
+ * How loud each velocity is for this song, 0..1: the share of its notes that are softer, ties counted by their middle. By
+ * rank, as recordings use the velocity scale differently: the same loudest tenth stands out on any of them.
+ */
+export function loudnessScale(notes: readonly { v: number }[]): Float32Array {
+  const counts = new Float32Array(128), out = new Float32Array(128);
+  for (const n of notes) counts[Math.max(0, Math.min(127, Math.round(n.v)))]++;
+  let below = 0;
+  for (let v = 0; v < 128; v++) { out[v] = notes.length ? (below + counts[v] / 2) / notes.length : 0.5; below += counts[v]; }
+  return out;
+}
+
+/** How a note of this loudness looks on the roll. Most notes recede, so the loud ones can be found: both faint and thin, as
+    colours overlap in a full score and thickness survives where brightness can't. */
+export const barLook = (u: number): { alpha: number; height: number } => ({ alpha: 0.24 + 0.76 * Math.pow(u, 2.2), height: 0.42 + 0.58 * u });
+
 export const tipWords = (n: RollNote, instrument: string | null): string =>
   `${instrument ? `${instrument} · ` : ''}${nameOf(n.m)} · ${clock(n.t)} · ${loudWord(n.v)}`;
 

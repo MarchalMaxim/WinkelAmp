@@ -16,7 +16,7 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
-import { amountBars, attackMates, barWords, chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, INTENSITY_LANE, knobLane, laneShare, laneValue, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type LaneScale, type Instrument, type RollNote } from './picker-logic';
+import { amountBars, attackMates, barWords, chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, INTENSITY_LANE, knobLane, laneShare, laneValue, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, renumberLost, sweptChips, toPicks, type Chip, type LaneScale, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import type { WidgetPalette } from './widget-palette';
@@ -31,6 +31,8 @@ export interface PopupDeps {
   tone(m: number, gain: number, len: number): void;
   /** Place in scene, or Update the scene on the set with this id. */
   commit(widget: string, notes: PickNote[], id: string | null): void;
+  /** Add more notes: to the roll, with the set as it now stands in the popup. */
+  addNotes(id: string, widget: string, notes: PickNote[]): void;
   /** However it closed. */
   closed(): void;
 }
@@ -40,6 +42,8 @@ export interface PopupOpen {
   chips: readonly RollNote[]; on: ReadonlySet<number>;
   /** The values the set's notes have, by chip id. */
   values?: ReadonlyMap<number, Readonly<NoteValues>>;
+  /** Back from adding notes, on this widget: what was set on the other widgets tried is still there. */
+  resume?: string;
   edit: { id: string; widget: string | null; knobs?: Record<string, KnobSetting> } | null;
 }
 
@@ -66,6 +70,8 @@ export class PickerPopup {
   /** What the bars set: intensity, or one of the widget's knobs. */
   private laneKey = INTENSITY;
   private amountDrag = false;
+  /** The knob values held while notes are added: a row's popup opened meanwhile has its own. */
+  private tried = new Map<string, Map<number, NoteValues>>();
   private widget = FIRST_CHOICE;
   private mode: 'pick' | 'all' = 'pick';
   private before = 0;
@@ -115,7 +121,7 @@ export class PickerPopup {
               <button type="button" data-cmp="pick" aria-pressed="true">Your picks</button>
               <button type="button" data-cmp="all" aria-pressed="false">Every note, as it is today</button>
             </div>
-            <div class="np-row"><span class="np-sp"></span><button type="button" class="primary" data-ok disabled>Place in scene</button></div>
+            <div class="np-row"><button type="button" data-add hidden title="To the whole song's notes, with these picked: click the ones you forgot, then come back here">Add more notes…</button><span class="np-sp"></span><button type="button" class="primary" data-ok disabled>Place in scene</button></div>
           </div>
         </div>
       </div>`;
@@ -142,6 +148,14 @@ export class PickerPopup {
       if (!notes.length) return;
       this.d.player.audio.pause();
       this.d.commit(this.widget, notes, this.opened?.edit?.id ?? null);
+    });
+    this.$('[data-add]').addEventListener('click', () => {
+      const id = this.opened?.edit?.id;
+      if (!id) return;
+      const set = this.toSet();
+      renumberLost(this.picked(), this.knobValues.values());
+      this.tried = this.knobValues;
+      this.d.addNotes(id, this.widget, set);
     });
     const lane = this.$('.np-chips-in');
     lane.addEventListener('pointerdown', (e) => {
@@ -304,10 +318,10 @@ export class PickerPopup {
     this.opened = o;
     this.picks = new Set(o.on);
     this.intensities = new Map();
-    this.knobValues = new Map();
+    this.knobValues = o.resume !== undefined ? this.tried : new Map();
     this.laneKey = INTENSITY;
     this.mode = 'pick';
-    this.widget = o.edit?.widget ?? (catalogue.has(FIRST_CHOICE) ? FIRST_CHOICE : order[0]);
+    this.widget = o.resume ?? o.edit?.widget ?? (catalogue.has(FIRST_CHOICE) ? FIRST_CHOICE : order[0]);
     const own = new Map<number, NoteValues>();
     for (const [id, vals] of o.values ?? []) {
       const { [INTENSITY]: a, ...knobs } = vals;
@@ -328,6 +342,7 @@ export class PickerPopup {
     this.conductor.reset(player.time);
     this.stopLive = startLive(this.conductor, this.runtime, player.audio, (t) => this.frame(t));
     this.$('[data-ok]').textContent = o.edit ? 'Update the scene' : 'Place in scene';
+    this.$('[data-add]').hidden = !o.edit;
     this.drawWidget();
     this.drawCompare();
     this.drawPicks();
