@@ -274,8 +274,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
     case 'updatePicks': {
       const old = show.picks?.[e.id], notes = repairPickNotes(e.notes);
       if (!old || !notes.length || !e.widget) return show;
-      const same = JSON.stringify(notes) === JSON.stringify(old.notes);
-      const clips = respanPicks(show, e.id, e.widget, notes, same, env);
+      const bare = (l: readonly Note[]) => JSON.stringify(l.map((n) => n.slice(0, 4)));
+      const same = JSON.stringify(notes) === JSON.stringify(old.notes), sameBare = bare(notes) === bare(old.notes);
+      // Only an intensity changed: the clips stay exactly as they were placed, however short.
+      const untouched = sameBare && !same && C.every((c) => picksId(c.listen) !== e.id || c.widget === e.widget);
+      const clips = untouched ? C : respanPicks(show, e.id, e.widget, notes, sameBare, env);
       if (same && JSON.stringify(clips) === JSON.stringify(C)) return show;
       return withPicks({ ...show, clips }, { ...show.picks, [e.id]: { notes } });
     }

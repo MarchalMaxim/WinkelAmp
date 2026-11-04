@@ -7,7 +7,7 @@
 import { TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { Conductor } from '../show/conductor';
-import type { KnobSetting, Show } from '../show/show';
+import { MAX_AMOUNT, type KnobSetting, type Show } from '../show/show';
 import { startLive } from '../../widgets/driver';
 import type { WaLayers } from '../../widgets/layers';
 import { WidgetRuntime } from '../../widgets/runtime';
@@ -15,7 +15,7 @@ import { labTagWords, labTags } from '../../widgets/sources';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, Note, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
-import { chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type Instrument, type RollNote } from './picker-logic';
+import { amountAt, amountBars, amountWords, chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, sweptChips, toPicks, type Chip, type Instrument, type RollNote } from './picker-logic';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import type { WidgetPalette } from './widget-palette';
@@ -37,6 +37,8 @@ export interface PopupDeps {
 /** What the popup opens on: its chips, those on, and when editing the set's id, widget and first layer's knobs. */
 export interface PopupOpen {
   chips: readonly RollNote[]; on: ReadonlySet<number>;
+  /** The intensities the set's notes have, by chip id. */
+  amounts?: ReadonlyMap<number, number>;
   /** Marked notes get their instrument's ring: a pick whose mark has gone has none. */
   marked: ReadonlySet<number>;
   edit: { id: string; widget: string | null; knobs?: Record<string, KnobSetting> } | null;
@@ -57,12 +59,16 @@ export class PickerPopup {
   private stopLive: (() => void) | null = null;
   private opened: PopupOpen | null = null;
   private picks = new Set<number>();
+  /** Each note's intensity, by chip id; none is 1. A note taken off keeps its value, should it go back on. */
+  private amounts = new Map<number, number>();
+  private amountDrag = false;
   private widget = FIRST_CHOICE;
   private mode: 'pick' | 'all' = 'pick';
   private before = 0;
   private until: number | null = null;
   private sweep: Sweep | null = null;
   private layout: Chip[] = [];
+  private bars: { id: number; x: number; w: number }[] = [];
   /** The middle of the last chip pressed, for Shift. */
   private lastChip: number | null = null;
   private heard = 0;
@@ -86,6 +92,7 @@ export class PickerPopup {
           <div class="picker np-chooser" hidden></div>
         </div>
         <div class="np-row"><span class="dim">Your melody, spaced as it plays: a wide space is a long wait, a note's tail is how long it sounds, a dashed line a pause. Click a note, or drag anywhere to pick all you pass (on a picked note, or with Alt, it takes them off). Shift-click picks up to there, double-click the whole phrase.</span></div>
+        <div class="dim small">Under each picked note, a bar sets its intensity: drag it up or down, across several to shape them together, and double-click to put it back.</div>
         <div class="np-chips"><div class="np-chips-in"></div></div>
         <div class="np-pop-bottom">
           <div class="np-pop-stage"><canvas width="1280" height="720" aria-label="The preview"></canvas></div>
@@ -127,10 +134,36 @@ export class PickerPopup {
     this.$('[data-play]').addEventListener('click', () => this.toggle());
     this.el.querySelectorAll<HTMLButtonElement>('[data-cmp]').forEach((b) => b.addEventListener('click', () => this.compare(b.dataset.cmp as 'pick' | 'all')));
     this.$('[data-ok]').addEventListener('click', () => {
-      const notes = toPicks(this.picked());
+      const notes = toPicks(this.picked(), this.amounts);
       if (!notes.length) return;
       this.d.player.audio.pause();
       this.d.commit(this.widget, notes, this.opened?.edit?.id ?? null);
+    });
+    const lane = this.$('.np-chips-in');
+    lane.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || !(e.target as HTMLElement).closest('.np-lane, .np-amount')) return;
+      e.preventDefault(); e.stopPropagation();
+      this.amountDrag = true;
+      const on = this.setAmountAt(e.clientX, e.clientY);
+      if (on) this.d.tone(on.m, 0.12 * Math.max(0.2, this.amounts.get(on.id) ?? 1), 0.4);
+    });
+    window.addEventListener('pointermove', (e) => { if (this.amountDrag) this.setAmountAt(e.clientX, e.clientY); });
+    window.addEventListener('pointerup', () => { if (this.amountDrag) { this.amountDrag = false; this.draft(false); } });
+    lane.addEventListener('dblclick', (e) => {
+      const bar = (e.target as HTMLElement).closest<HTMLElement>('.np-amount');
+      if (!bar) return;
+      this.amounts.delete(Number(bar.dataset.for));
+      this.drawAmounts();
+      this.draft(false);
+    });
+    lane.addEventListener('keydown', (e) => {
+      const bar = (e.target as HTMLElement).closest<HTMLElement>('.np-amount');
+      if (!bar || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+      e.preventDefault(); e.stopPropagation();
+      const id = Number(bar.dataset.for), now = this.amounts.get(id) ?? 1;
+      this.putAmount(id, Math.max(0, Math.min(MAX_AMOUNT, Math.round((now + (e.key === 'ArrowUp' ? 0.1 : -0.1)) * 20) / 20)));
+      this.drawAmounts();
+      this.draft(false);
     });
     const strip = this.$('.np-chips');
     const contentX = (clientX: number) => clientX - strip.getBoundingClientRect().left + strip.scrollLeft;
@@ -180,6 +213,22 @@ export class PickerPopup {
     });
   }
 
+  private putAmount(id: number, a: number): void { if (a === 1) this.amounts.delete(id); else this.amounts.set(id, a); }
+
+  /** The bar nearest the pointer takes the pointer's height, a picked note's only. Says whose it was. */
+  private setAmountAt(clientX: number, clientY: number): RollNote | null {
+    const lane = this.$('.np-lane').getBoundingClientRect(), x = clientX - this.$('.np-chips-in').getBoundingClientRect().left;
+    let best: { id: number } | null = null, d = 14;
+    for (const b of this.bars) {
+      const off = Math.abs(b.x + b.w / 2 - x);
+      if (this.picks.has(b.id) && off < d) { best = b; d = off; }
+    }
+    if (!best) return null;
+    this.putAmount(best.id, amountAt(clientY - lane.top, lane.height));
+    this.drawAmounts();
+    return this.melody().find((n) => n.id === best!.id) ?? null;
+  }
+
   /** The picks the drag has made so far: what they were, with the notes it has passed added or taken off. Going back undoes. */
   private applySweep(): void {
     const s = this.sweep!, lo = Math.min(s.from, s.to), hi = Math.max(s.from, s.to);
@@ -216,6 +265,7 @@ export class PickerPopup {
     const { player, pack, lib, meta, catalogue, order } = this.d;
     this.opened = o;
     this.picks = new Set(o.on);
+    this.amounts = new Map(o.amounts ?? []);
     this.mode = 'pick';
     this.widget = o.edit?.widget ?? (catalogue.has(FIRST_CHOICE) ? FIRST_CHOICE : order[0]);
     this.before = player.time;
@@ -235,6 +285,9 @@ export class PickerPopup {
     this.drawCompare();
     this.drawPicks();
     this.$('[data-choose]').focus();
+    // Editing a set: its notes in view, whenever in the song they are.
+    const first = this.layout.find((c) => this.picks.has(c.note.id));
+    this.$('.np-chips').scrollLeft = first ? Math.max(0, first.x - 60) : 0;
   }
 
   /** Back to the studio's picture, the playhead where it was, or at `to` after a placement. */
@@ -267,7 +320,7 @@ export class PickerPopup {
   private draftNow(): Show {
     const { pack } = this.d, edit = this.opened?.edit;
     const knobs = edit && edit.widget === this.widget ? edit.knobs : undefined;
-    return draftShow(pack.id, pack.duration, this.widget, this.mode === 'pick' ? toPicks(this.picked()) : null, knobs);
+    return draftShow(pack.id, pack.duration, this.widget, this.mode === 'pick' ? toPicks(this.picked(), this.amounts) : null, knobs);
   }
 
   /** The draft to the preview; another instance (cold: a new widget, or the other side of the compare) starts its picture
@@ -342,6 +395,30 @@ export class PickerPopup {
       if (tail > 10) c.style.setProperty('--tail', `${Math.round(tail)}px`);
       box.append(c);
     }
+    box.append(Object.assign(document.createElement('div'), { className: 'np-lane' }));
+    this.bars = amountBars(chips);
+    for (const b of this.bars) {
+      const el = Object.assign(document.createElement('div'), { className: 'np-amount', tabIndex: 0 });
+      el.dataset.for = String(b.id);
+      el.setAttribute('role', 'slider');
+      el.setAttribute('aria-valuemin', '0'); el.setAttribute('aria-valuemax', String(MAX_AMOUNT));
+      el.style.left = `${b.x}px`; el.style.width = `${Math.max(2, b.w - 1)}px`;
+      box.append(el);
+    }
+  }
+
+  /** The bars of the picked notes, at their values. */
+  private drawAmounts(): void {
+    const byId = new Map(this.melody().map((n) => [n.id, n] as const));
+    this.el.querySelectorAll<HTMLElement>('.np-amount').forEach((el) => {
+      const id = Number(el.dataset.for), note = byId.get(id)!, a = this.amounts.get(id) ?? 1;
+      el.hidden = !this.picks.has(id);
+      el.style.setProperty('--amount', String(a / MAX_AMOUNT));
+      el.classList.toggle('set', a !== 1);
+      el.title = amountWords(note, a);
+      el.setAttribute('aria-label', el.title);
+      el.setAttribute('aria-valuenow', String(a));
+    });
   }
 
   private drawPicks(): void {
@@ -350,6 +427,7 @@ export class PickerPopup {
       c.classList.toggle('sel', on);
       c.setAttribute('aria-pressed', String(on));
     });
+    this.drawAmounts();
     const picked = this.picked(), w = countWords(picked, this.melody().length);
     this.$('[data-count]').textContent = w.count;
     this.$('[data-of]').textContent = w.of;

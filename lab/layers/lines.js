@@ -14,11 +14,12 @@
   WA.groupChords = function (notes) {
     var out = [];
     for (var i = 0; i < notes.length; i++) {
-      var s = notes[i][0], e = notes[i][1], m = notes[i][2], v = notes[i][3];
+      var s = notes[i][0], e = notes[i][1], m = notes[i][2], v = notes[i][3], note = { m: m, v: v, d: e - s };
+      if (notes[i][4] !== undefined) note.amount = notes[i][4];
       var last = out[out.length - 1];
       if (last && s - last.t < 0.04) {
-        last.notes.push({ m: m, v: v, d: e - s }); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m);
-      } else out.push({ t: s, notes: [{ m: m, v: v, d: e - s }], vel: v, lo: m, hi: m });
+        last.notes.push(note); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m);
+      } else out.push({ t: s, notes: [note], vel: v, lo: m, hi: m });
     }
     return out;
   };

@@ -7,6 +7,9 @@
 // later the keys and the crater age away quickly and together (the user: a dissolve "implies some sort of attack", so nothing
 // travels or takes turns here), and the widget stays empty. Picked notes after the stomp bring the row back down: each presses
 // one key into the ground, starting from the stomp's end of the row, and the two seconds count from the last of them.
+// A picked note's intensity (the bar under it in the note picker), where it has one: a stronger key is bigger and snaps up, a
+// softer one is smaller, slower and fainter; on the stomp it sets how deep the crater goes and how far the ripple shakes; a key
+// sent back goes down as hard as its note. At the usual ×1 none of this changes anything.
 // All of it is worked out from the notes in advance, so every frame is a function of song time: a seek needs no replay.
 (() => {
   const W = 1280, H = 720, BASE = H * 0.88, TOP = BASE * 0.9;
@@ -15,6 +18,8 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (v) => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
   const rng = (seed) => { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+
+  const hardness = (i) => 0.4 + 0.6 * i;                                   // how much faster than usual a key of this intensity moves
 
   /** The chord's loudest attacks, spaced out over the piece: what a song without picked notes gets. */
   function thin(chords) {
@@ -29,7 +34,7 @@
   /** What will happen: the keys in order of their first note, and the time of the stomp (null without notes). */
   function planOf(chords) {
     let hits = [];
-    for (const c of chords) for (const n of c.notes) hits.push({ t: c.t, m: n.m });
+    for (const c of chords) for (const n of c.notes) hits.push({ t: c.t, m: n.m, i: n.amount ?? 1 });
     const picked = hits.length <= MAX_ATTACKS;
     if (!picked) hits = thin(chords);
     if (!hits.length) return { keys: [], stomp: null };
@@ -37,12 +42,13 @@
     const opening = hits.filter((h) => h.t === hits[0].t), start = opening.reduce((a, h) => a + h.m, 0) / opening.length;
     const end = start > (hi + low) / 2 ? low : hi;                             // where the line is heading: down from up there, else up
     const stomp = Math.max(...hits.filter((h) => h.m === end).map((h) => h.t));   // that note played twice: the last of them
+    const strike = hits.find((h) => h.m === end && h.t === stomp).i ?? 1;
     const byPitch = new Map();
     for (const h of hits) {
       if (h.t > stomp) continue;
       const k = byPitch.get(h.m);
       if (k) { if (h.t > k.hits[k.hits.length - 1]) k.hits.push(h.t); }
-      else byPitch.set(h.m, { m: h.m, t: h.t, hits: [h.t] });
+      else byPitch.set(h.m, { m: h.m, t: h.t, hits: [h.t], i: h.i ?? 1 });
     }
     const keys = [...byPitch.values()].sort((a, b) => a.t - b.t || a.m - b.m);
     const pitches = keys.map((k) => k.m), lo = Math.min(...pitches), span = Math.max(1, Math.max(...pitches) - lo);
@@ -50,18 +56,22 @@
     const across = clamp(keys.length * wide * 0.72, W * 0.4, W * 0.84), left = (W - across) / 2;   // a short line stays together
     for (const k of keys) {
       const R = rng(k.m * 7919 + 13), u = (k.m - lo) / span;
-      k.w = wide * (0.88 + R() * 0.26);
-      k.h = TOP * (0.2 + 0.78 * u) * (0.97 + R() * 0.06);
+      k.w = wide * (0.88 + R() * 0.26) * (0.7 + 0.3 * k.i);
+      k.h = Math.min(TOP * (0.2 + 0.78 * u) * (0.97 + R() * 0.06) * (0.65 + 0.35 * k.i), BASE * 0.97);
+      k.rise = RISE / hardness(k.i);
+      k.sink = SINK;
+      k.show = Math.min(1, 0.1 + 0.9 * k.i);
       k.foot = left + u * across + (R() - 0.5) * wide * 0.25;
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
     // The way back: one key per note, away from the stomp. A whole song thinned to a few keys has no way back to show.
     const away = [...keys].sort((a, b) => (end === hi ? b.m - a.m : a.m - b.m)), back = picked ? hits.filter((h) => h.t > stomp).slice(0, keys.length) : [];
-    back.forEach((h, i) => { away[i].press = h.t; });
-    return { keys, stomp, end, last: back.length ? back[back.length - 1].t : stomp };
+    back.forEach((h, i) => { away[i].press = h.t; away[i].sink = SINK / hardness(h.i ?? 1); });
+    return { keys, stomp, end, strike, last: back.length ? back[back.length - 1].t : stomp };
   }
 
+  const dimmed = (by, rgb) => `rgb(${rgb.map((v) => Math.round(v * by)).join(',')})`;
   // One hairline: dark, with a pale line beside it, so it reads as cut into the surface.
   function hairline(g, R, w, h) {
     const pts = [[w * (0.15 + R() * 0.7), R() * h * 0.7]], dir = R() < 0.5 ? 1 : -1, len = h * (0.3 + R() * 0.4), step = Math.max(2, h / 40);
@@ -92,6 +102,8 @@
     fill(w * 0.93, 0, w, 0, [[0, 'rgba(70,50,25,0)'], [1, 'rgba(70,50,25,0.3)']], w * 0.93, 0, w * 0.07, h);
     fill(0, h * 0.2, 0, h, [[0, 'rgba(125,104,74,0)'], [0.6, 'rgba(125,104,74,0.09)'], [1, 'rgba(125,104,74,0.34)']], 0, 0, w, h);
     fill(0, 0, 0, 7, [[0, 'rgba(255,255,255,0.9)'], [1, 'rgba(255,255,255,0)']], 0, 0, w, 7);
+    // A soft key is a dim one, in the picture itself: see-through, the ripple's overlapping slices would show as stripes.
+    if (k.show < 1) { g.globalCompositeOperation = 'multiply'; g.fillStyle = dimmed(k.show, [255, 255, 255]); g.fillRect(0, 0, w, h); }
     fill(w * 0.18, 0, w * 0.5, 0, [[0, 'rgba(255,255,255,0)'], [0.6, 'rgba(255,255,255,0.28)'], [1, 'rgba(255,255,255,0)']], w * 0.18, 0, w * 0.32, h);
     return c;
   }
@@ -134,7 +146,7 @@
   // One key in its own leaning frame: the foot at the origin, standing up towards -y.
   function drawKey(g, where, k, keyTop, sh, amp, rs) {
     const L = -k.w / 2, r = Math.min(k.w * 0.1, 6), px = 1 / rs;
-    g.save(); g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 9; g.shadowOffsetX = -3; g.fillStyle = '#f4efe3';
+    g.save(); g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 9; g.shadowOffsetX = -3; g.fillStyle = dimmed(k.show, [244, 239, 227]);
     g.beginPath(); g.roundRect(L, keyTop, k.w, k.full, r); g.fill(); g.restore();
     if (!(amp > 0 && sh > 0 && sh < RIPPLE_FOR)) { g.drawImage(k.img, L, keyTop, k.w, k.full); return; }
     const ca = Math.cos(k.angle), sa = Math.sin(k.angle), run = sh * FRONT, row = 3, end = keyTop + k.full, iw = k.img.width;
@@ -185,25 +197,25 @@
       g.globalAlpha = 1; g.fillStyle = '#000';
       for (const k of keys) {
         const since = k.press !== undefined ? x.t - k.press : -1;
-        if (since < 0 || since > SINK + 0.05) continue;
+        if (since < 0 || since > k.sink + 0.05) continue;
         g.save(); g.translate(k.foot, BASE + 4); g.rotate(k.angle); g.fillRect(-k.w / 2 - 12, -k.h - 10, k.w + 24, k.h + 14); g.restore();
       }
       if (sh > 0) {
-        const pressed = smooth(sh / 0.09), deep = x.p('crater');
+        const pressed = smooth(sh / 0.09), deep = x.p('crater') * plan.strike;
         g.globalAlpha = settles(pres * pressed * deep * 0.8 * (1 - smooth(after)));
         g.drawImage(sheets.dark, 0, 0, W, H); g.drawImage(sheets.lit, 0, 0, W, H);
         g.globalAlpha = pres * Math.exp(-sh / 0.3) * 0.35 * deep; g.strokeStyle = 'rgb(246,236,216)'; g.lineWidth = 1;
         g.beginPath(); g.ellipse(where.cx, where.cy, where.R * (1 + sh * 1.1), where.R * (1 + sh * 1.1) * where.sq, 0, 0, 6.3); g.stroke();
       }
-      const jolt = sh > 0 ? 2.4 * Math.exp(-sh / 0.08) * Math.cos(sh * 55) : 0, amp = x.p('ripple');
+      const jolt = sh > 0 ? 2.4 * plan.strike * Math.exp(-sh / 0.08) * Math.cos(sh * 55) : 0, amp = x.p('ripple') * plan.strike;
       g.globalAlpha = settles(pres * gone);
       g.save(); g.beginPath(); g.rect(0, 0, W, BASE + jolt); g.clip();   // they stand in the ground
       for (const k of keys) {
         if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; }
-        const a = (x.t - k.t) / RISE, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
+        const a = (x.t - k.t) / k.rise, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
         let last = k.t; for (const t of k.hits) if (t <= x.t) last = t;
         const dip = last > k.t ? Math.min(10, k.h * 0.04) * Math.exp(-(x.t - last) / 0.18) : 0;   // the same pitch again
-        const sunk = k.press !== undefined ? smooth((x.t - k.press) / SINK) : 0;
+        const sunk = k.press !== undefined ? smooth((x.t - k.press) / k.sink) : 0;
         if (sunk >= 1) continue;
         const keyTop = -k.h + (1 - risen) * k.full + dip + sunk * (k.h + 8);
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);

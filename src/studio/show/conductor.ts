@@ -9,7 +9,7 @@ import type { Stepper } from '../../widgets/driver';
 import { resolveKnobs } from '../../widgets/features';
 import { studioLayers } from '../../widgets/layers-source';
 import type { RuntimeLike, Slot } from '../../widgets/runtime';
-import type { InstanceSpec, Param, SlotLayer, WidgetMeta } from '../../widgets/types';
+import type { InstanceSpec, Note, Param, SlotLayer, WidgetMeta } from '../../widgets/types';
 import { clipsAt, entriesBetween, scheduleAt, type ScheduledWidget } from './schedule';
 import { hasHowPresent, instanceKey, listenOf, picksId, sortedClips, widgetOfKey, type KnobSetting, type Show } from './show';
 
@@ -21,13 +21,26 @@ export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
   step(t: number, dt: number, slots: readonly ShowSlot[]): void;
 }
 
+/** The set as its widgets hear it: a note with an intensity as loud as that makes it, the value still on it for a widget
+    that wants it itself. The same array for the same set, as new notes make the runtime evaluate a widget again. */
+const heardSets = new WeakMap<readonly Note[], Note[]>();
+function heardPicks(notes: Note[]): Note[] {
+  if (notes.every((n) => n[4] === undefined)) return notes;
+  let heard = heardSets.get(notes);
+  if (!heard) {
+    heard = notes.map(([s, e, m, v, a]): Note => (a === undefined ? [s, e, m, v] : [s, e, m, Math.min(127, Math.round(v * a)), a]));
+    heardSets.set(notes, heard);
+  }
+  return heard;
+}
+
 /** The instances of a show, one per clip, in the order a show is saved. own: it listens to a part or has a curve.
     notes: a set of picks' notes, so a pick is the note itself and needs no song to look it up in; none for a missing set. */
 export function showInstances(show: Show): InstanceSpec[] {
   return sortedClips(show.clips).map((c) => {
     const listen = listenOf(c), id = picksId(listen);
     return { key: instanceKey(c), widget: c.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined || !!c.intensity?.length,
-      ...(id !== null ? { notes: show.picks?.[id]?.notes ?? [] } : {}) };
+      ...(id !== null ? { notes: heardPicks(show.picks?.[id]?.notes ?? []) } : {}) };
   });
 }
 

@@ -268,9 +268,9 @@ export class Picker {
   private openPopup(editSet?: string): void {
     if (!this.l) return;
     const { notes, popup } = this.l, show = this.d.store.state.show!, set = editSet !== undefined ? show.picks?.[editSet] : undefined;
-    const { chips, on } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
+    const { chips, on, amounts } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
     const layer = set ? firstClipOf(show, editSet!) : null;
-    popup.open({ chips, on, marked: this.marked, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
+    popup.open({ chips, on, amounts, marked: this.marked, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
     this.duck();
   }
 
@@ -467,6 +467,7 @@ export class Picker {
   private readonly onKey = (e: KeyboardEvent): void => {
     const mod = e.ctrlKey || e.metaKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (mod && k === 's') return;
+    if ((k === 'ArrowUp' || k === 'ArrowDown') && (e.target as HTMLElement | null)?.closest?.('.np-amount')) return;   // an intensity bar's own
     if (this.d.palette.isOpen && !(mod && k === 'p')) return;   // its field has the keys, its dialog the Escape
     e.stopPropagation();
     const popup = this.popup, popupOpen = !!popup?.isOpen;

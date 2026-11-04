@@ -4,11 +4,11 @@ import type { Chord, Note, SoundingNote } from './types';
 /** Notes whose onsets fall within 40 ms of a chord's FIRST note are one attack; notes are taken in the given order. */
 export function groupChords(notes: readonly Note[]): Chord[] {
   const out: Chord[] = [];
-  for (const [s, e, m, v] of notes) {
-    const last = out[out.length - 1];
+  for (const [s, e, m, v, amount] of notes) {
+    const last = out[out.length - 1], note = { m, v, d: e - s, ...(amount === undefined ? {} : { amount }) };
     if (last && s - last.t < 0.04) {
-      last.notes.push({ m, v, d: e - s }); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m);
-    } else out.push({ t: s, notes: [{ m, v, d: e - s }], vel: v, lo: m, hi: m });
+      last.notes.push(note); last.vel = Math.max(last.vel, v); last.lo = Math.min(last.lo, m); last.hi = Math.max(last.hi, m);
+    } else out.push({ t: s, notes: [note], vel: v, lo: m, hi: m });
   }
   return out;
 }

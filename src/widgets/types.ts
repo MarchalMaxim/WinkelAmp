@@ -4,9 +4,10 @@
  */
 
 /** A transcribed note, as the lab's `window.NOTES`: song seconds, MIDI pitch, velocity 0..127. */
-export type Note = [start: number, end: number, midi: number, vel: number];
+/** amount: only on a picked note, set by hand: how strongly it counts, 0..2, as a factor on its velocity. Absent: 1. */
+export type Note = [start: number, end: number, midi: number, vel: number, amount?: number];
 /** One attack: notes whose onsets fall within 40 ms of the first one (the lab's CHORDS entry). */
-export interface Chord { t: number; notes: { m: number; v: number; d: number }[]; vel: number; lo: number; hi: number }
+export interface Chord { t: number; notes: { m: number; v: number; d: number; amount?: number }[]; vel: number; lo: number; hi: number }
 export interface SoundingNote { m: number; v: number; start: number; end: number }
 export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density';
 export interface Param {

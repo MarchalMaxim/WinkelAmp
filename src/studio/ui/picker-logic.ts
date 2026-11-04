@@ -6,7 +6,7 @@
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
 import { canonicalMelody, LEAVING_MAX, matchMarks, type Mark, type Melody } from '../show/melody';
-import { instanceKey, picksId, picksListen, validateShow, type Clip, type KnobSetting, type Layer, type Show } from '../show/show';
+import { instanceKey, MAX_AMOUNT, picksId, picksListen, validateShow, withAmount, type Clip, type KnobSetting, type Layer, type Show } from '../show/show';
 import { groupChords } from '../../widgets/chords';
 import type { WaLayers } from '../../widgets/layers';
 import type { Note } from '../../widgets/types';
@@ -219,14 +219,16 @@ export function countWords(picked: readonly RollNote[], total: number): { count:
 }
 
 /** Sorted by start. */
-export const toPicks = (n: readonly RollNote[]): Note[] => [...n].sort((a, b) => a.t - b.t).map((x): Note => [x.t, x.e, x.m, x.v]);
+export const toPicks = (n: readonly RollNote[], amounts?: ReadonlyMap<number, number>): Note[] => [...n].sort((a, b) => a.t - b.t).map((x): Note => withAmount([x.t, x.e, x.m, x.v], amounts?.get(x.id)));
 
 export const noteMark = (n: RollNote): Mark => (n.track === undefined ? [n.t, n.e, n.m, n.v] : [n.t, n.e, n.m, n.v, n.track]);
 
 /** A set's notes on the roll (matchMarks): those found, and the picks with no note there. */
-export function picksOnRoll(picks: readonly Note[], notes: readonly RollNote[]): { found: RollNote[]; lost: Note[] } {
-  const { matched, unmatched } = matchMarks(picks, notes.map(noteMark));
-  return { found: [...matched.values()].map((j) => notes[j]), lost: unmatched.map((k) => picks[k]) };
+export function picksOnRoll(picks: readonly Note[], notes: readonly RollNote[]): { found: RollNote[]; lost: Note[]; amounts: Map<number, number> } {
+  // Without the intensity: in a mark, the fifth place is a track.
+  const { matched, unmatched } = matchMarks(picks.map(([s, e, m, v]): Mark => [s, e, m, v]), notes.map(noteMark)), amounts = new Map<number, number>();
+  for (const [k, j] of matched) { const a = picks[k][4]; if (a !== undefined) amounts.set(notes[j].id, a); }
+  return { found: [...matched.values()].map((j) => notes[j]), lost: unmatched.map((k) => picks[k]), amounts };
 }
 
 /** A melody file's marks on the roll: the ids they find, and the marks with no note here, which stay. */
@@ -242,12 +244,13 @@ export function marksToSave(marked: ReadonlySet<number>, notes: readonly RollNot
 
 /** The popup's chips: the melody in order, and when editing every pick of the set too, an unmarked note or a pick with no
     note on the roll (given an id below zero and no instrument), so an update never loses one. on: those of the set. */
-export function popupChips(melody: readonly RollNote[], picks: readonly Note[] | null, notes: readonly RollNote[]): { chips: RollNote[]; on: Set<number> } {
-  if (!picks) return { chips: [...melody], on: new Set() };
-  const { found, lost } = picksOnRoll(picks, notes), ids = new Set(melody.map((n) => n.id));
+export function popupChips(melody: readonly RollNote[], picks: readonly Note[] | null, notes: readonly RollNote[]): { chips: RollNote[]; on: Set<number>; amounts: Map<number, number> } {
+  if (!picks) return { chips: [...melody], on: new Set(), amounts: new Map() };
+  const { found, lost, amounts } = picksOnRoll(picks, notes), ids = new Set(melody.map((n) => n.id));
+  lost.forEach((n, k) => { if (n[4] !== undefined) amounts.set(-1 - k, n[4]); });
   const gone = lost.map(([t, e, m, v], k): RollNote => ({ id: -1 - k, t, e, m, v, i: -1 }));
   const chips = [...melody, ...found.filter((n) => !ids.has(n.id)), ...gone].sort((a, b) => a.t - b.t || a.id - b.id);
-  return { chips, on: new Set([...found, ...gone].map((n) => n.id)) };
+  return { chips, on: new Set([...found, ...gone].map((n) => n.id)), amounts };
 }
 
 /** The notice for marks with no note here. */
@@ -349,6 +352,29 @@ export function firstClipOf(show: Show, id: string): Clip | null {
 export function draftShow(song: string, duration: number, widget: string, notes: readonly Note[] | null, knobs?: Record<string, KnobSetting>): Show {
   const layer: Layer = { widget, ...(notes ? { listen: picksListen('draft') } : {}), ...(knobs ? { knobs } : {}) };
   return { version: 3, id: 'draft', song, clips: [{ id: 'draft', start: 0, end: duration, track: 0, fade: 0, ...layer }], ...(notes ? { picks: { draft: { notes: [...notes] } } } : {}) };
+}
+
+/** The intensity bars under the chips, their room shared between the notes of one attack, which stand at the same x. */
+export function amountBars(chips: readonly Chip[], room = 16): { id: number; x: number; w: number }[] {
+  const atX = new Map<number, number>();
+  for (const c of chips) atX.set(c.x, (atX.get(c.x) ?? 0) + 1);
+  const seen = new Map<number, number>();
+  return chips.map((c) => {
+    const k = seen.get(c.x) ?? 0, w = room / atX.get(c.x)!;
+    seen.set(c.x, k + 1);
+    return { id: c.note.id, x: c.x + 2 + k * w, w };
+  });
+}
+
+/** A height in the intensity lane, as an intensity: 0 at the bottom, MAX_AMOUNT at the top, caught at 1. */
+export function amountAt(fromTop: number, height: number): number {
+  const a = Math.round((1 - Math.max(0, Math.min(1, fromTop / height))) * MAX_AMOUNT * 20) / 20;
+  return Math.abs(a - 1) <= 0.05 ? 1 : a;
+}
+
+/** A bar's words: the intensity, and how loud the note then plays, which stops at 127 however high the bar. */
+export function amountWords(n: { m: number; t: number; v: number }, amount: number): string {
+  return `${nameOf(n.m)} at ${fineClock(n.t)}: intensity ×${amount.toFixed(2)}, played as ${Math.min(127, Math.round(n.v * amount))} of 127`;
 }
 
 /** From a second before the first note to 1.5 s after the last has ended. */

@@ -247,13 +247,22 @@ function validateLayer(l: Record<string, unknown>, at: string, span: Span | null
   }
 }
 
+/** A picked note's intensity, set by hand: a factor on its velocity, 0..MAX_AMOUNT, and 1 is no value at all. */
+export const MAX_AMOUNT = 2;
+/** The note with this intensity: none stored for 1, so a set nobody touched stays as it was. */
+export function withAmount(n: Note, amount: number | undefined): Note {
+  const [s, e, m, v] = n;
+  return amount === undefined || amount === 1 ? [s, e, m, v] : [s, e, m, v, Math.round(Math.max(0, Math.min(MAX_AMOUNT, amount)) * 1e4) / 1e4];
+}
+
 /** What is wrong with a note of a set, or null. */
 function badNote(n: unknown): string | null {
-  if (!Array.isArray(n) || n.length !== 4 || !n.every(isNum)) return 'not [start, end, midi, velocity]';
-  const [s, e, m, v] = n as Note;
+  if (!Array.isArray(n) || (n.length !== 4 && n.length !== 5) || !n.every(isNum)) return 'not [start, end, midi, velocity] or [start, end, midi, velocity, intensity]';
+  const [s, e, m, v, amount] = n as Note;
   if (e < s) return `ends at ${fmt(e)} s, before it starts at ${fmt(s)} s`;
   if (m < 0 || m > 127) return `midi ${m} is outside 0..127`;
   if (v < 0 || v > 127) return `velocity ${v} is outside 0..127`;
+  if (amount !== undefined && (amount < 0 || amount > MAX_AMOUNT)) return `intensity ${amount} is outside 0..${MAX_AMOUNT}`;
   return null;
 }
 
@@ -402,10 +411,14 @@ export function repairPivots(p: unknown, at = 'intensity', span: Span | null = n
 export function repairPickNotes(n: unknown, at = 'notes', fix: Report = () => {}): Note[] {
   if (!Array.isArray(n)) { fix(at, 'was not a list of notes: removed'); return []; }
   const out: Note[] = [];
-  n.forEach((x: unknown, i) => {
+  n.forEach((raw: unknown, i) => {
+    // A bad intensity is no reason to lose the note: back to none.
+    const x = Array.isArray(raw) && raw.length === 5 && (!isNum(raw[4]) || raw[4] < 0 || raw[4] > MAX_AMOUNT) ? raw.slice(0, 4) : raw;
+    if (x !== raw) fix(`${at}[${i}]`, `intensity ${JSON.stringify((raw as unknown[])[4])} is not in 0..${MAX_AMOUNT}: removed`);
     const why = badNote(x);
-    if (why) fix(`${at}[${i}]`, `${why}: dropped`);
-    else out.push((x as Note).map((v) => Math.round(v * 1e4) / 1e4 || 0) as Note);
+    if (why) { fix(`${at}[${i}]`, `${why}: dropped`); return; }
+    const [s, e, m, v, amount] = (x as Note).map((u) => Math.round((u as number) * 1e4) / 1e4 || 0) as Note;
+    out.push(withAmount([s, e, m, v], amount));
   });
   if (out.every((x, i) => i === 0 || x[0] >= out[i - 1][0])) return out;
   fix(at, 'sorted the notes by start');

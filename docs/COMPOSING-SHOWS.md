@@ -145,7 +145,10 @@ notes only, each as strongly as it was played. The notes themselves are in the s
 ] } }
 ```
 
-`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. Each clip on the set says
+`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. A note may have a fifth number, its
+intensity, set by hand with the bar under it in the picker: 0 to 2, and 1 is the same as none, which is how it is written.
+Every widget hears that note at `velocity × intensity`, up to 127, so all that answer to loudness follow it. A widget can
+also read the value itself, as `amount` on the chord's note (absent means 1): Ivory does, as it ignores loudness. Each clip on the set says
 `"listen": "picks:p1"`; one set can have many clips. Notes within
 40 ms are one attack, as everywhere. These are the user's hand work: leave them alone unless asked, and make them in the
 studio, not here. A clip on a set that isn't there is an error, and `check-show --fix` drops the clip rather than let it
