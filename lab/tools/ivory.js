@@ -43,25 +43,28 @@
     const end = start > (hi + low) / 2 ? low : hi;                             // where the line is heading: down from up there, else up
     const stomp = Math.max(...hits.filter((h) => h.m === end).map((h) => h.t));   // that note played twice: the last of them
     const strike = hits.find((h) => h.m === end && h.t === stomp).i ?? 1;
-    const byPitch = new Map();
+    // Every note its own key. The same pitch again stands beside the earlier ones (twin: how many came before it).
+    const keys = [], played = new Set(), twins = new Map();
     for (const h of hits) {
-      if (h.t > stomp) continue;
-      const k = byPitch.get(h.m);
-      if (k) { if (h.t > k.hits[k.hits.length - 1]) k.hits.push(h.t); }
-      else byPitch.set(h.m, { m: h.m, t: h.t, hits: [h.t], i: h.i ?? 1 });
+      if (h.t > stomp || played.has(`${h.t}:${h.m}`)) continue;
+      played.add(`${h.t}:${h.m}`);
+      const twin = twins.get(h.m) ?? 0;
+      twins.set(h.m, twin + 1);
+      keys.push({ m: h.m, t: h.t, twin, i: h.i ?? 1 });
     }
-    const keys = [...byPitch.values()].sort((a, b) => a.t - b.t || a.m - b.m);
-    const pitches = keys.map((k) => k.m), lo = Math.min(...pitches), span = Math.max(1, Math.max(...pitches) - lo);
+    keys.sort((a, b) => a.t - b.t || a.m - b.m);
+    const pitches = keys.map((k) => k.m), lo = Math.min(...pitches), range = Math.max(...pitches) - lo, span = Math.max(1, range);
     const wide = clamp(W * 0.84 / Math.max(1, keys.length - 1) * 2.1, 34, 84);
     const across = clamp(keys.length * wide * 0.72, W * 0.4, W * 0.84), left = (W - across) / 2;   // a short line stays together
     for (const k of keys) {
-      const R = rng(k.m * 7919 + 13), u = (k.m - lo) / span;
+      const R = rng(k.m * 7919 + 13 + k.twin * 6151), u = (k.m - lo) / span, same = twins.get(k.m);
       k.w = wide * (0.88 + R() * 0.26) * (0.7 + 0.3 * k.i);
       k.h = Math.min(TOP * (0.2 + 0.78 * u) * (0.97 + R() * 0.06) * (0.65 + 0.35 * k.i), BASE * 0.97);
       k.rise = RISE / hardness(k.i);
       k.sink = SINK;
       k.show = Math.min(1, 0.1 + 0.9 * k.i);
-      k.foot = left + u * across + (R() - 0.5) * wide * 0.25;
+      const beside = (k.twin - (same - 1) / 2) * Math.min(wide * 0.5, (range ? across / span : across) / same);
+      k.foot = clamp(left + (range || keys.length === 1 ? u : 0.5) * across + beside + (R() - 0.5) * wide * 0.25, wide / 2, W - wide / 2);
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
@@ -92,7 +95,7 @@
   // The key's picture, at the shared canvas's real resolution: milk white, faint grain, a lit top and a shade towards the ground.
   function texture(k, rs, cracks) {
     const c = document.createElement('canvas'); c.width = Math.ceil(k.w * rs); c.height = Math.ceil(k.full * rs);
-    const g = c.getContext('2d'), R = rng(k.m * 104729 + 5), w = k.w, h = k.full; g.scale(rs, rs);
+    const g = c.getContext('2d'), R = rng(k.m * 104729 + 5 + k.twin * 6151), w = k.w, h = k.full; g.scale(rs, rs);
     g.beginPath(); g.roundRect(0, 0, w, h, Math.min(w * 0.1, 6)); g.clip();
     const fill = (x0, y0, x1, y1, stops, rx, ry, rw, rh) => { const e = g.createLinearGradient(x0, y0, x1, y1); for (const [at, col] of stops) e.addColorStop(at, col); g.fillStyle = e; g.fillRect(rx, ry, rw, rh); };
     fill(0, 0, w, 0, [[0, 'rgb(241,235,222)'], [0.14, 'rgb(251,248,241)'], [0.86, 'rgb(251,248,241)'], [1, 'rgb(241,235,222)']], 0, 0, w, h);
@@ -164,7 +167,7 @@
 
   TOOLS.push({
     id: 'ivory', name: 'Ivory', tag: 'new',
-    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.',
+    blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch, and the same note played again stands beside the first. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.',
     plan: planOf,
     params: [
       { key: 'floor', label: 'where the crater is', min: 0, max: 1, step: 1, value: 0,
@@ -213,11 +216,9 @@
       for (const k of keys) {
         if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; }
         const a = (x.t - k.t) / k.rise, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
-        let last = k.t; for (const t of k.hits) if (t <= x.t) last = t;
-        const dip = last > k.t ? Math.min(10, k.h * 0.04) * Math.exp(-(x.t - last) / 0.18) : 0;   // the same pitch again
         const sunk = k.press !== undefined ? smooth((x.t - k.press) / k.sink) : 0;
         if (sunk >= 1) continue;
-        const keyTop = -k.h + (1 - risen) * k.full + dip + sunk * (k.h + 8);
+        const keyTop = -k.h + (1 - risen) * k.full + sunk * (k.h + 8);
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);
         drawKey(g, where, k, keyTop, sh, amp, rs);
         if (after > 0) { g.globalCompositeOperation = 'multiply'; g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); g.globalCompositeOperation = 'source-over'; }

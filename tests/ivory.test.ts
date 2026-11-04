@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 interface Chord { t: number; notes: { m: number; v: number; d: number }[]; vel: number; lo: number; hi: number }
-interface Plan { keys: { m: number; t: number; hits: number[]; w: number; h: number; foot: number; angle: number; press?: number }[]; stomp: number | null; last?: number }
+interface Plan { keys: { m: number; t: number; w: number; h: number; foot: number; angle: number; press?: number }[]; stomp: number | null; last?: number }
 
 const tools: { id: string; plan: (c: Chord[]) => Plan }[] = [];
 new Function('TOOLS', 'ICON', 'CHORDS', readFileSync('lab/tools/ivory.js', 'utf8'))(tools, {}, []);
@@ -29,11 +29,24 @@ describe('ivory plan', () => {
   it('stomps on the last time the top pitch is played', () => {
     const p = plan([chord(1, 60), chord(2, 72), chord(3, 62), chord(4, 72), chord(5, 64)]);
     expect(p.stomp).toBe(4);
-    expect(p.keys.map((k) => k.m)).toEqual([60, 72, 62]);
+    expect(p.keys.map((k) => k.m)).toEqual([60, 72, 62, 72]);
   });
-  it('keeps one key for a pitch that comes back, and remembers each time', () => {
+  it('gives a pitch that comes back a key of its own, beside the first and on the picture', () => {
     const p = plan([chord(1, 60), chord(2, 62), chord(3, 60), chord(4, 70)]);
-    expect(p.keys.filter((k) => k.m === 60).map((k) => k.hits)).toEqual([[1, 3]]);
+    const twins = p.keys.filter((k) => k.m === 60);
+    expect(twins.map((k) => k.t)).toEqual([1, 3]);
+    expect(twins[0].foot).not.toBe(twins[1].foot);
+    for (const k of p.keys) { expect(k.foot).toBeGreaterThan(0); expect(k.foot).toBeLessThan(1280); }
+  });
+  it('gives every note before the stomp a key on a line of few pitches, and the rest press them down', () => {
+    const line = [67, 68, 65, 65, 67, 68, 70, 68, 67, 68, 70, 72, 73, 67, 68, 70, 68, 67, 70, 72];
+    const p = plan(line.map((m, i) => chord(i + 1, m)));
+    expect(p.stomp).toBe(13);
+    expect(p.keys).toHaveLength(13);
+    expect(p.keys.filter((k) => k.press !== undefined)).toHaveLength(7);
+  });
+  it('makes one key of the same note twice at the same moment', () => {
+    expect(plan([chord(1, 60, 60), chord(2, 70)]).keys).toHaveLength(2);
   });
   it('draws a key for each note of a picked chord', () => {
     expect(plan([chord(1, 60, 64, 67)]).keys).toHaveLength(3);
