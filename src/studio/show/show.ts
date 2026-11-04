@@ -14,6 +14,7 @@ import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { NoteType } from '../../widgets/types';
 import { TRACKS, isTrackId } from '../pack/instruments';
 import type { Drive, Family, KnobState, Line, Listen, Note, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
+import { badValue, valuesOf, withValues, type NoteValues, type PickNote } from './note-values';
 
 export const SHOW_VERSION = 3, DEFAULT_FADE = 1, MAX_LAYERS = 6, MIN_CLIP = 0.25, MAX_FADE = 10;
 /** Pivots per clip (WaLayers.MAX_PIVOTS). */
@@ -32,7 +33,7 @@ export const hasHowPresent = (params: readonly { key: string }[]): boolean => pa
     fades in at its start and out at its end, default DEFAULT_FADE, 0 a hard cut, at most half its length. */
 export interface Clip extends Layer { id: string; start: number; end: number; track: number; fade?: number }
 /** Notes in full, sorted by start: a new transcription doesn't move them. */
-export interface PickSet { notes: Note[] }
+export interface PickSet { notes: PickNote[] }
 export interface Show {
   version: typeof SHOW_VERSION; id: string; song: string; title?: string;
   composer?: { by: 'auto' | 'claude' | 'user'; at: string };
@@ -247,22 +248,16 @@ function validateLayer(l: Record<string, unknown>, at: string, span: Span | null
   }
 }
 
-/** A picked note's intensity, set by hand: a factor on its velocity, 0..MAX_AMOUNT, and 1 is no value at all. */
-export const MAX_AMOUNT = 2;
-/** The note with this intensity: none stored for 1, so a set nobody touched stays as it was. */
-export function withAmount(n: Note, amount: number | undefined): Note {
-  const [s, e, m, v] = n;
-  return amount === undefined || amount === 1 ? [s, e, m, v] : [s, e, m, v, Math.round(Math.max(0, Math.min(MAX_AMOUNT, amount)) * 1e4) / 1e4];
-}
-
 /** What is wrong with a note of a set, or null. */
 function badNote(n: unknown): string | null {
-  if (!Array.isArray(n) || (n.length !== 4 && n.length !== 5) || !n.every(isNum)) return 'not [start, end, midi, velocity] or [start, end, midi, velocity, intensity]';
-  const [s, e, m, v, amount] = n as Note;
+  if (!Array.isArray(n) || (n.length !== 4 && n.length !== 5) || !n.slice(0, 4).every(isNum)) return 'not [start, end, midi, velocity] or [start, end, midi, velocity, values]';
+  const [s, e, m, v] = n as Note;
   if (e < s) return `ends at ${fmt(e)} s, before it starts at ${fmt(s)} s`;
   if (m < 0 || m > 127) return `midi ${m} is outside 0..127`;
   if (v < 0 || v > 127) return `velocity ${v} is outside 0..127`;
-  if (amount !== undefined && (amount < 0 || amount > MAX_AMOUNT)) return `intensity ${amount} is outside 0..${MAX_AMOUNT}`;
+  if (n.length === 4) return null;
+  if (!isNum(n[4]) && !isObj(n[4])) return 'its values are neither an intensity nor an object';
+  for (const [key, x] of Object.entries(valuesOf(n as PickNote))) { const why = badValue(key, x); if (why) return why; }
   return null;
 }
 
@@ -290,6 +285,7 @@ function validatePicks(picks: unknown, clips: unknown[], err: Report, warn: Repo
     // A pick is heard by a clip playing at its time, unless a live step can carry it past that clip's end.
     const using = clips.filter((o): o is Clip => isObj(o) && isNum(o.start) && isNum(o.end) && picksId(o.listen) === id);
     if (!using.length) { warn(at, 'no clip uses it'); continue; }
+    if (new Set(using.map((o) => o.widget)).size > 1 && notes.some((n: unknown) => Array.isArray(n) && isObj(n[4]))) warn(at, 'its notes hold knob values, and clips of different widgets use it: each takes those it has a knob of that name for');
     const holds = (t: number) => using.some((o) => t >= o.start && t < o.end);
     notes.forEach((n: unknown, i) => {
       if (badNote(n)) return;
@@ -408,17 +404,23 @@ export function repairPivots(p: unknown, at = 'intensity', span: Span | null = n
 
 /** Notes as a set holds them: malformed ones dropped, numbers to 4 decimals, sorted by start (stable). Says each fix
     (the rounding is no fix: canonicalShow writes that anyway); never mutates `n`. */
-export function repairPickNotes(n: unknown, at = 'notes', fix: Report = () => {}): Note[] {
+export function repairPickNotes(n: unknown, at = 'notes', fix: Report = () => {}): PickNote[] {
   if (!Array.isArray(n)) { fix(at, 'was not a list of notes: removed'); return []; }
-  const out: Note[] = [];
+  const out: PickNote[] = [];
   n.forEach((raw: unknown, i) => {
-    // A bad intensity is no reason to lose the note: back to none.
-    const x = Array.isArray(raw) && raw.length === 5 && (!isNum(raw[4]) || raw[4] < 0 || raw[4] > MAX_AMOUNT) ? raw.slice(0, 4) : raw;
-    if (x !== raw) fix(`${at}[${i}]`, `intensity ${JSON.stringify((raw as unknown[])[4])} is not in 0..${MAX_AMOUNT}: removed`);
+    // A bad value is no reason to lose the note, or its other values.
+    const values: NoteValues = {}, fifth = Array.isArray(raw) ? raw[4] : undefined;
+    const given = isNum(fifth) || isObj(fifth) ? Object.entries(valuesOf(raw as PickNote)) : [];
+    if (fifth !== undefined && !given.length && !isObj(fifth)) fix(`${at}[${i}]`, 'its values are neither an intensity nor an object: removed');
+    for (const [key, x] of given) {
+      const bad = badValue(key, x);
+      if (bad) fix(`${at}[${i}]`, `${bad}: removed`); else values[key] = x;
+    }
+    const x = Array.isArray(raw) && raw.length === 5 ? raw.slice(0, 4) : raw;
     const why = badNote(x);
     if (why) { fix(`${at}[${i}]`, `${why}: dropped`); return; }
-    const [s, e, m, v, amount] = (x as Note).map((u) => Math.round((u as number) * 1e4) / 1e4 || 0) as Note;
-    out.push(withAmount([s, e, m, v], amount));
+    const [s, e, m, v] = (x as number[]).map((u) => Math.round(u * 1e4) / 1e4 || 0);
+    out.push(withValues([s, e, m, v], values));
   });
   if (out.every((x, i) => i === 0 || x[0] >= out[i - 1][0])) return out;
   fix(at, 'sorted the notes by start');
@@ -548,7 +550,7 @@ export function canonicalShow(show: Show): string {
   const noteLines: string[] = [];
   const note = (n: unknown): unknown => {
     if (!Array.isArray(n)) return n;
-    noteLines.push(`[${n.map((x) => JSON.stringify(r4(x))).join(', ')}]`);
+    noteLines.push(`[${(isObj(n[4]) ? withValues(n as PickNote, n[4] as NoteValues) : n).map((x) => JSON.stringify(r4(x))).join(', ')}]`);
     return `\u0000N${noteLines.length - 1}`;
   };
   const pickSet = (p: unknown) => (isObj(p) ? pick(p, KEYS.pickSet, (_k, v) => (Array.isArray(v) ? v.map(note) : v)) : p);

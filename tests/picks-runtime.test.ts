@@ -119,7 +119,7 @@ describe('a widget on a set of picks', () => {
     c.reset(0);
     const before = log().resets.pick;
     play(c, 0, 10);
-    expect(log().heard.pick).toEqual(asHeard(s.picks!.p1.notes));
+    expect(log().heard.pick).toEqual(asHeard(s.picks!.p1.notes as Note[]));
     expect(log().resets.pick).toBe(before + 1);
   });
 

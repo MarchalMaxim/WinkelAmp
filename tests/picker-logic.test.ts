@@ -351,7 +351,7 @@ describe('popupChips', () => {
     const r = popupChips([], picks, notes);
     expect(r.chips.map((n) => n.t)).toEqual([2, 3, 3.5]);
     expect(r.on.size).toBe(3);
-    expect(toPicks(r.chips.filter((n) => r.on.has(n.id)), r.amounts)).toEqual([[2, 2.2, 62, 80], [3, 3.2, 64, 80, 0.5], [3.5, 3.6, 70, 66]]);
+    expect(toPicks(r.chips.filter((n) => r.on.has(n.id)), r.values)).toEqual([[2, 2.2, 62, 80], [3, 3.2, 64, 80, 0.5], [3.5, 3.6, 70, 66]]);
   });
 
   it('editing: the set on, an unmarked pick listed, a pick off every note listed with an id below zero', () => {

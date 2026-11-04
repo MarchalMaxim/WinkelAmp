@@ -19,6 +19,7 @@
  */
 import './lanes.css';
 import type { SongPack } from '../pack/pack';
+import { heardSets } from '../show/note-values';
 import { picksId, type Clip, type Show } from '../show/show';
 import { NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { Span, WaLayers } from '../../widgets/layers';
@@ -320,7 +321,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     if (l?.listen && l.listen !== 'all') {
       const listen = l.listen;
       chips.push({ id: 'plays', label: 'While it plays', menu: 'While its part plays', note: listenWord(listen), icon: ICONS.plays,
-        make: (sp, floor) => P.plays(sp, L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks }, listen).notes, { floor }) });
+        make: (sp, floor) => P.plays(sp, L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: heardSets(show()?.picks) }, listen).notes, { floor }) });
     }
     chips.push({ id: 'half', label: 'Half', menu: 'Half', note: 'a steady 50 %', icon: ICONS.half, make: (sp) => P.level(sp, 0.5) });
     chips.push({ id: 'clear', label: 'Full', menu: 'Clear curve', note: 'always at 100 %', icon: ICONS.clear, make: () => [] });
@@ -360,7 +361,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   strip.addEventListener('pointerout', (e) => { if (chipOf(e)) { ghost = null; draw(); } });
 
   const ticks = (listen: string | undefined): Chord[] => {
-    const k = listen ?? 'all', song = { notes: d.song.notes, tracks: d.song.tracks, picks: show()?.picks };
+    const k = listen ?? 'all', song = { notes: d.song.notes, tracks: d.song.tracks, picks: heardSets(show()?.picks) };
     if (picksId(listen) !== null) return L.groupChords(L.listenNotes(song, listen).notes);   // a set changes with the show
     let c = ticksFor.get(k);
     if (!c) {

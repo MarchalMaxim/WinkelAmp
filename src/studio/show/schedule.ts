@@ -5,7 +5,8 @@
  * track never overlap, not even while fading. What it leaves on the shared canvas fades on its own.
  */
 import type { Listen, Pivot, Region } from '../../widgets/types';
-import { DEFAULT_FADE, instanceKey, listenOf, sortedClips, type Clip, type KnobSetting, type Show } from './show';
+import { heldValues, perNote } from './note-values';
+import { DEFAULT_FADE, instanceKey, listenOf, picksId, sortedClips, type Clip, type KnobSetting, type Show } from './show';
 
 export interface ScheduledWidget {
   /** the instance key */
@@ -32,9 +33,23 @@ export function edgeWeight(c: Pick<Clip, 'start' | 'end' | 'fade'>, t: number): 
 export const clipsAt = (show: Show, t: number): Clip[] =>
   show.clips.filter((c) => c.start <= t && t < c.end).sort((a, b) => a.track - b.track);
 
+/** A clip's knobs at t: its own, with the values its set's last attack holds as the base, a drive kept. */
+function knobsAt(show: Show, c: Clip, t: number): Record<string, KnobSetting> {
+  const knobs = c.knobs ?? {}, id = picksId(c.listen), notes = id !== null ? show.picks?.[id]?.notes : undefined;
+  const held = notes ? heldValues(notes, c.start, t) : null;
+  if (!held) return knobs;
+  const out = { ...knobs };
+  for (const [key, base] of Object.entries(held)) {
+    if (!perNote(c.widget, key)) continue;
+    const s = out[key];
+    out[key] = s !== undefined && typeof s !== 'number' ? { ...s, base } : base;
+  }
+  return out;
+}
+
 /** A clip's instance as scheduled at t: only the fields it has. */
-function entry(c: Clip, t: number): ScheduledWidget {
-  const w: ScheduledWidget = { id: instanceKey(c), clip: c.id, widget: c.widget, receiving: true, weight: edgeWeight(c, t), knobs: c.knobs ?? {} };
+function entry(show: Show, c: Clip, t: number): ScheduledWidget {
+  const w: ScheduledWidget = { id: instanceKey(c), clip: c.id, widget: c.widget, receiving: true, weight: edgeWeight(c, t), knobs: knobsAt(show, c, t) };
   const listen = listenOf(c);
   if (listen !== undefined) w.listen = listen;
   if (c.region) w.region = c.region;
@@ -46,7 +61,7 @@ function entry(c: Clip, t: number): ScheduledWidget {
 }
 
 /** The clips playing at t, bottom first, as the runtime is to draw them. */
-export const scheduleAt = (show: Show, t: number): ScheduledWidget[] => clipsAt(show, t).map((c) => entry(c, t));
+export const scheduleAt = (show: Show, t: number): ScheduledWidget[] => clipsAt(show, t).map((c) => entry(show, c, t));
 
 /** Clips starting at a time b with t0 < b ≤ t1, in the order they load: the Conductor resets them as it crosses b. id: the
     instance key. */

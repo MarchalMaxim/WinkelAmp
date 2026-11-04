@@ -336,6 +336,28 @@ try {
   const showFile = JSON.parse(readFileSync(path.join(dirs.shows, `${SONG}.json`), 'utf8'));
   check('Ctrl+S saves the picks and the listen to the temp show', showFile.picks?.p1?.notes.length === 6 && JSON.stringify(showFile.clips).includes('picks:p1'));
 
+  // ---- a knob on a note ----
+  const knob = await page.evaluate(async () => {
+    const s = window.__studio, popup = s.picker.popup, setBefore = s.store.state.show.clips.find((c) => c.listen === 'picks:p1');
+    await s.picker.open('p1');
+    await new Promise((r) => setTimeout(r, 300));
+    const lane = document.querySelector('[data-lane]'), first = lane.options[1];
+    const offersPresence = [...lane.options].some((o) => o.value === 'presence');
+    lane.value = first.value;
+    lane.dispatchEvent(new Event('change', { bubbles: true }));
+    const bar = [...document.querySelectorAll('.np-amount')].find((b) => !b.hidden), r = bar.getBoundingClientRect();
+    bar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: r.left + r.width / 2, clientY: r.top + 2 }));
+    window.dispatchEvent(new PointerEvent('pointerup', {}));
+    const key = first.value, specBefore = JSON.stringify(popup.conductor.current.picks.draft.notes);
+    document.querySelector('[data-ok]').click();
+    await new Promise((f) => setTimeout(f, 300));
+    const after = s.store.state.show, clip = after.clips.find((c) => c.listen === 'picks:p1');
+    return { key, offersPresence, held: specBefore.includes(key), stored: after.picks.p1.notes.some((n) => n[4] && typeof n[4] === 'object' && key in n[4]), sameClip: clip.start === setBefore.start && clip.end === setBefore.end };
+  });
+  check('the lane offers a widget\'s knobs, never how present', !!knob.key && knob.key !== 'intensity' && !knob.offersPresence, knob.key);
+  check('a bar on a knob goes to the preview and into the set', knob.held && knob.stored, JSON.stringify(knob));
+  check('a knob value leaves the clip where it was placed', knob.sameClip);
+
   // ---- a pick left behind ----
   const warned = await page.evaluate(async () => {
     // A set over one clip, split, and its first part then gone: that part's pick has nothing to fire.

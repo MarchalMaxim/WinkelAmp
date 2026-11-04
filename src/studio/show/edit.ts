@@ -14,7 +14,8 @@
  * A set of picks lives as long as a clip uses it: an edit that removes its last clip removes it too, and no edit leaves a
  * picks listen without its set. Placing, updating and removing a set are one edit each, so one undo step.
  */
-import type { Listen, Note, Pivot, Region } from '../../widgets/types';
+import type { Listen, Pivot, Region } from '../../widgets/types';
+import type { PickNote } from './note-values';
 import {
   DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_CLIP, freeTrack, isListen, nextClipId, overlaps, picksId, picksListen, repairPickNotes, repairPivots, repairRegion, topTrack,
   type Clip, type KnobSetting, type PickSet, type Show, type Span,
@@ -38,9 +39,9 @@ export type ShowEdit =
   /** null removes the field; listen 'all' is the same as null. */
   | { kind: 'setClip'; clip: string; patch: ClipPatch }
   /** A new set of picks, with one clip around its notes, on top. */
-  | { kind: 'placePicks'; widget: string; notes: Note[] }
+  | { kind: 'placePicks'; widget: string; notes: PickNote[] }
   /** The set's new notes and widget: it keeps its id, and its clips span the new notes. */
-  | { kind: 'updatePicks'; id: string; widget: string; notes: Note[] }
+  | { kind: 'updatePicks'; id: string; widget: string; notes: PickNote[] }
   | { kind: 'removePicks'; id: string };
 
 /** curve: for edge pivots, WaLayers.automationAt; without it an edge pivot takes the value of the cut pivot nearest the
@@ -91,7 +92,7 @@ export function nextPicksId(show: Show): string {
 
 /** The span a clip on these notes needs: from its fade before the first note (fully seen by then) until the last has
     ended and its fade is over; kept in the song. Notes sorted. */
-function picksSpan(notes: readonly Note[], duration: number): Span {
+function picksSpan(notes: readonly PickNote[], duration: number): Span {
   const last = Math.max(...notes.map((n) => n[1]), notes[notes.length - 1][0] + LONGEST_STEP);
   return { start: ms(Math.max(0, notes[0][0] - DEFAULT_FADE)), end: ms(Math.min(duration, last + DEFAULT_FADE)) };
 }
@@ -124,7 +125,7 @@ const withClip = (show: Show, c: Clip): Show => ({ ...show, clips: show.clips.ma
 /** updatePicks: every clip of the set takes the widget (a new one drops its knobs) and those holding no note go, the last
     one excepted. With new notes one clip spans them exactly; with the same notes (or several clips) they only grow to reach
     them: a hand-made length stays. No clip yet: one on top. */
-function respanPicks(show: Show, id: string, widget: string, notes: readonly Note[], same: boolean, env?: EditEnv): Clip[] {
+function respanPicks(show: Show, id: string, widget: string, notes: readonly PickNote[], same: boolean, env?: EditEnv): Clip[] {
   const D = env?.duration?.() ?? Infinity, span = picksSpan(notes, D), mine = show.clips.filter((c) => picksId(c.listen) === id);
   if (!mine.length) return [...show.clips, { id: nextClipId(show.clips), ...span, track: topTrack(show.clips, span), widget, listen: picksListen(id) }];
   const holds = (c: Clip) => notes.some((n) => n[0] >= c.start && n[0] < c.end);
@@ -274,7 +275,7 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
     case 'updatePicks': {
       const old = show.picks?.[e.id], notes = repairPickNotes(e.notes);
       if (!old || !notes.length || !e.widget) return show;
-      const bare = (l: readonly Note[]) => JSON.stringify(l.map((n) => n.slice(0, 4)));
+      const bare = (l: readonly PickNote[]) => JSON.stringify(l.map((n) => n.slice(0, 4)));
       const same = JSON.stringify(notes) === JSON.stringify(old.notes), sameBare = bare(notes) === bare(old.notes);
       // Only an intensity changed: the clips stay exactly as they were placed, however short.
       const untouched = sameBare && !same && C.every((c) => picksId(c.listen) !== e.id || c.widget === e.widget);

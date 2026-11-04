@@ -68,8 +68,11 @@
 .np-chips-in { position: relative; height: 202px; isolation: isolate; }
 .np-chip-time { position: absolute; top: 131px; height: 15px; border-left: 1px solid #5a4b4f; color: var(--dim); font-size: 10px; line-height: 15px; padding-left: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
 .np-chips { cursor: crosshair; }
+.np-lane-head { flex-wrap: nowrap; }
+.np-lane-head [data-lane-hint] { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-lane-head select { flex: none; max-width: 240px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 /* The intensity lane, under the times. The line through it is a note as it was played. */
-.np-lane { position: absolute; left: 0; right: 0; top: 150px; height: 48px; cursor: ns-resize; touch-action: none; background: linear-gradient(#5a4b4f, #5a4b4f) 0 50% / 100% 1px no-repeat, #ffffff06; }
+.np-lane { position: absolute; left: 0; right: 0; top: 150px; height: 48px; cursor: ns-resize; touch-action: none; background: linear-gradient(#5a4b4f, #5a4b4f) 0 var(--base, 50%) / 100% 1px no-repeat, #ffffff06; }
 .np-amount { position: absolute; top: 150px; height: 48px; cursor: ns-resize; touch-action: none; }
 .np-amount[hidden] { display: none; }
 .np-amount::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--amount, 0.5) * 100%); min-height: 2px; background: #f4b74055; border-radius: 2px 2px 0 0; }

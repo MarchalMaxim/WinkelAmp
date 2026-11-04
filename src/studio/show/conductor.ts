@@ -9,7 +9,8 @@ import type { Stepper } from '../../widgets/driver';
 import { resolveKnobs } from '../../widgets/features';
 import { studioLayers } from '../../widgets/layers-source';
 import type { RuntimeLike, Slot } from '../../widgets/runtime';
-import type { InstanceSpec, Note, Param, SlotLayer, WidgetMeta } from '../../widgets/types';
+import type { InstanceSpec, Param, SlotLayer, WidgetMeta } from '../../widgets/types';
+import { heardPicks } from './note-values';
 import { clipsAt, entriesBetween, scheduleAt, type ScheduledWidget } from './schedule';
 import { hasHowPresent, instanceKey, listenOf, picksId, sortedClips, widgetOfKey, type KnobSetting, type Show } from './show';
 
@@ -19,19 +20,6 @@ export type ShowSlot = Slot & { layer?: SlotLayer };
 export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
   load(specs: readonly (string | InstanceSpec)[]): void;
   step(t: number, dt: number, slots: readonly ShowSlot[]): void;
-}
-
-/** The set as its widgets hear it: a note with an intensity as loud as that makes it, the value still on it for a widget
-    that wants it itself. The same array for the same set, as new notes make the runtime evaluate a widget again. */
-const heardSets = new WeakMap<readonly Note[], Note[]>();
-function heardPicks(notes: Note[]): Note[] {
-  if (notes.every((n) => n[4] === undefined)) return notes;
-  let heard = heardSets.get(notes);
-  if (!heard) {
-    heard = notes.map(([s, e, m, v, a]): Note => (a === undefined ? [s, e, m, v] : [s, e, m, Math.min(127, Math.round(v * a)), a]));
-    heardSets.set(notes, heard);
-  }
-  return heard;
 }
 
 /** The instances of a show, one per clip, in the order a show is saved. own: it listens to a part or has a curve.
@@ -148,25 +136,32 @@ export class Conductor implements Stepper {
     const was = new Set(clipsAt(this.show, this.lastT).map(instanceKey));
     this.show = show;
     this.load(showInstances(show));
-    for (const c of clipsAt(show, this.lastT)) if (!was.has(instanceKey(c))) this.rt.resetWidget(instanceKey(c));
-    for (const w of scheduleAt(show, this.lastT)) this.applyKnobs(w.id, this.knobsAt(w, this.lastT));
+    const playing = scheduleAt(show, this.lastT);
+    for (const w of playing) if (!was.has(w.id)) { this.applyKnobs(w.id, w.knobs); this.rt.resetWidget(w.id); }
+    for (const w of playing) this.applyKnobs(w.id, this.knobsAt(w, this.lastT));
   }
 
   /** Seek: the picture starts again at t. */
   reset(t: number): void {
     const show = this.show;
     this.setMomentAt(t);   // before reset(): lewitt's reset() remembers the moment
+    const playing = scheduleAt(show, t);
+    for (const w of playing) this.applyKnobs(w.id, w.knobs);   // a reset may read a knob: it gets what a note holds at t, not yet a curve's
     this.rt.reset(t);
     this.lastT = t;
-    for (const w of scheduleAt(show, t)) this.applyKnobs(w.id, this.knobsAt(w, t));
+    for (const w of playing) this.applyKnobs(w.id, this.knobsAt(w, t));
   }
 
   step(t: number, dt: number): void {
-    const show = this.show;
-    for (const e of entriesBetween(show, this.lastT, t)) this.rt.resetWidget(e.id);
+    const show = this.show, playing = scheduleAt(show, t);
+    for (const e of entriesBetween(show, this.lastT, t)) {
+      const w = playing.find((p) => p.id === e.id);
+      if (w) this.applyKnobs(w.id, w.knobs);
+      this.rt.resetWidget(e.id);
+    }
     this.setMomentAt(t);
     const slots: ShowSlot[] = [];
-    for (const w of scheduleAt(show, t)) {
+    for (const w of playing) {
       this.applyKnobs(w.id, this.knobsAt(w, t));
       const slot: ShowSlot = { id: w.id, receiving: w.receiving, weight: w.weight }, layer = slotLayer(w, this.moved(w));
       if (layer) slot.layer = layer;

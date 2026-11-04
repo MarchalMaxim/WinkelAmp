@@ -6,11 +6,12 @@
  * a new selection: amber is only what is being picked now, and the file keeps every earlier mark apart from it.
  */
 import './picker.css';
+import type { PickNote } from '../show/note-values';
 import type { SongPack } from '../pack/pack';
 import { emptyMelody, validateMelody, type Mark } from '../show/melody';
 import { nextPicksId } from '../show/edit';
 import type { WaLayers } from '../../widgets/layers';
-import type { LabHarness, Note, WidgetMeta } from '../../widgets/types';
+import type { LabHarness, WidgetMeta } from '../../widgets/types';
 import type { ShowStore } from './api';
 import type { CatalogueEntry } from './panel';
 import { PickerPopup } from './picker-popup';
@@ -296,15 +297,15 @@ export class Picker {
   private openPopup(editSet?: string): void {
     if (!this.l) return;
     const { notes, popup } = this.l, show = this.d.store.state.show!, set = editSet !== undefined ? show.picks?.[editSet] : undefined;
-    const { chips, on, amounts } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
+    const { chips, on, values } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
     const layer = set ? firstClipOf(show, editSet!) : null;
-    popup.open({ chips, on, amounts, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
+    popup.open({ chips, on, values, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
     this.duck();
   }
 
   /** One edit, one undo in the studio. The new layer is selected, so its lane is open; the playhead goes a second before
       the first pick. */
-  private commit(widget: string, notes: Note[], id: string | null): void {
+  private commit(widget: string, notes: PickNote[], id: string | null): void {
     const { store } = this.d, set = id ?? nextPicksId(store.state.show!);
     this.sceneEdited = true;
     store.dispatch({ type: 'edit', edit: id ? { kind: 'updatePicks', id, widget, notes } : { kind: 'placePicks', widget, notes } });

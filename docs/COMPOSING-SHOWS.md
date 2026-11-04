@@ -145,10 +145,22 @@ notes only, each as strongly as it was played. The notes themselves are in the s
 ] } }
 ```
 
-`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. A note may have a fifth number, its
-intensity, set by hand with the bar under it in the picker: 0 to 2, and 1 is the same as none, which is how it is written.
-Every widget hears that note at `velocity × intensity`, up to 127, so all that answer to loudness follow it. A widget can
-also read the value itself, as `amount` on the chord's note (absent means 1): Ivory does, as it ignores loudness. Each clip on the set says
+`[start, end, midi, velocity]`, sorted by start, the numbers as the pack has them. A note may have values, set by hand with
+the bars under it in the picker. The fifth place is a number for an intensity alone, `[12.3, 13.1, 76, 92, 1.5]`, and an
+object once it holds a knob, `[12.3, 13.1, 76, 92, {"crater": 0.8, "intensity": 1.5}]`.
+
+Intensity is 0 to 2, and 1 is the same as none, which is how it is written. Every widget hears that note at
+`velocity × intensity`, up to 127, so all that answer to loudness follow it. A widget can also read the value itself, as
+`amount` on the chord's note (absent means 1): Ivory does, as it ignores loudness.
+
+A knob's value holds from that note's attack until the set's next attack; an attack without it returns the knob to the
+clip's own value. No widget code knows of this (`src/studio/show/note-values.ts`). A knob read at the attack marks that
+note; one read every frame changes the whole picture until the next attack. Every knob can be set this way unless it is
+`presence` or in that file's `NOT_PER_NOTE`: knobs that restart or wipe the widget, replay the past with one value, re-roll
+what is on screen, or rebuild something costly at each note. A new widget's knobs are all included until one proves
+otherwise. After a seek, Score redraws its visible page with one value, until it scrolls away. Two attacks inside one step
+share the later one's value: never at the 60 Hz of a render, but a slow live frame or a paused picture can show it. Knob
+values reach every clip on the set, so give a different widget its own set. Each clip on the set says
 `"listen": "picks:p1"`; one set can have many clips. Notes within
 40 ms are one attack, as everywhere. These are the user's hand work: leave them alone unless asked, and make them in the
 studio, not here. A clip on a set that isn't there is an error, and `check-show --fix` drops the clip rather than let it

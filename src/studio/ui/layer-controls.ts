@@ -15,6 +15,7 @@ import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { NoteType } from '../../widgets/types';
 import { TRACKS, TRACK_IDS } from '../pack/instruments';
 import type { SongPack } from '../pack/pack';
+import { heardSets } from '../show/note-values';
 import { FAMILIES, LINES, listenOf, picksId, type Layer, type Show } from '../show/show';
 import type { Span, WaLayers } from '../../widgets/layers';
 import type { Family, Line, Listen, Pivot, Region, TrackId } from '../../widgets/types';
@@ -151,7 +152,7 @@ export function presetPivots(L: WaLayers, choice: PresetChoice, span: Span,
     case 'swell': return P.swell(span);
     case 'pulse': return P.pulse(span, pack.beats, { every: choice.every * (choice.unit === 'bars' ? 4 : 1) });
     case 'gate': return P.gate(span, pack.loudness, { above: choice.above });
-    case 'plays': return P.plays(span, L.listenNotes({ notes: pack.notes, tracks: pack.tracks, picks }, listen).notes);
+    case 'plays': return P.plays(span, L.listenNotes({ notes: pack.notes, tracks: pack.tracks, picks: heardSets(picks) }, listen).notes);
   }
 }
 
@@ -287,7 +288,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     const set = picksId(listen), mine = set !== null ? d.picks()?.[set]?.notes : undefined;   // an edited set draws again
     if (key === drawn && mine === drawnNotes) return;
     drawn = key; drawnNotes = mine;
-    const { notes, heard } = L.listenNotes({ notes: d.pack.notes, tracks: d.pack.tracks, picks: d.picks() }, listen);
+    const { notes, heard } = L.listenNotes({ notes: d.pack.notes, tracks: d.pack.tracks, picks: heardSets(d.picks()) }, listen);
     const dpr = window.devicePixelRatio || 1;
     spark.width = Math.round(SPARK_W * dpr); spark.height = Math.round(SPARK_H * dpr);
     const g = spark.getContext('2d')!, len = Math.max(1e-6, span.end - span.start);
