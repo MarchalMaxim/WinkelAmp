@@ -162,7 +162,8 @@ otherwise. After a seek, Score redraws its visible page with one value, until it
 share the later one's value: never at the 60 Hz of a render, but a slow live frame or a paused picture can show it. Knob
 values reach every clip on the set, so give a different widget its own set. Each clip on the set says
 `"listen": "picks:p1"`; one set can have many clips. Notes within
-40 ms are one attack, as everywhere. These are the user's hand work: leave them alone unless asked, and make them in the
+40 ms are one attack, as everywhere. Every picked note counts: a widget that otherwise skips notes (Dread squares above its
+low limit, Flee's low notes, Martin's loud ones) answers them all on a set. How present still thins what it thins. These are the user's hand work: leave them alone unless asked, and make them in the
 studio, not here. A clip on a set that isn't there is an error, and `check-show --fix` drops the clip rather than let it
 play on every note. A set no clip uses, and a pick outside every clip using its set (never heard), are warnings.
 
@@ -626,7 +627,7 @@ Feel: heavy, dark, dread, stabbing · Suits: piano, contrabass, timpani · Role:
 | `size` | size | 0.3..2 | 1 | fixed | How big the squares are. Left: small tiles. Right: huge slabs. Follows how present: 0.7 at its left end. |
 | `life` | how long they stay | 0.3..4 | 1.4 | fixed | How long a square stays. Left: a blink. Right: lingers for seconds. Follows how present: 1.1 at its left end. |
 | `blur` | soft edges | 0..3 | 1 | fixed | How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones. |
-| `split` | which notes count as low | 36..72 | 50 | fixed | Only notes below this point make squares. Left: only the deepest bass. Right: up to the middle of the piano. Follows how present: 44 at its left end. |
+| `split` | which notes count as low | 36..72 | 50 | fixed | Only notes below this point make squares; on picked notes, every note does. Left: only the deepest bass. Right: up to the middle of the piano. Follows how present: 44 at its left end. |
 | `shake` | shake on loud notes | 0..2 | 1 | louder → more | How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt. |
 | `presence` | how present | 0..1 | 1 | fixed | How many squares you see: how many notes count as low, how big each is, how long it stays. Left: only the deeper bass makes a square, small, and it soon fades. Right: every low note lands a big square that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
