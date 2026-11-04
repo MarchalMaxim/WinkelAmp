@@ -2,7 +2,8 @@
  * The note picker (spec 2026-11-01-note-picker), over the whole studio for the current song: mark the melody on a roll,
  * connect a few of those notes to a widget in a popup, and the widget answers those notes only. This file is the overlay:
  * its tools, the legend, the three steps, the stage mirror, the set rows, the marks with their own undo and saving, the
- * tones, and the keys, which it takes before the studio does while it is open.
+ * tones, and the keys, which it takes before the studio does while it is open. Each opening, and each connection, starts
+ * a new selection: amber is only what is being picked now, and the file keeps every earlier mark apart from it.
  */
 import './picker.css';
 import type { SongPack } from '../pack/pack';
@@ -15,7 +16,7 @@ import type { CatalogueEntry } from './panel';
 import { PickerPopup } from './picker-popup';
 import { PickerRoll } from './picker-roll';
 import {
-  clock, firstClipOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
+  clock, earlierMarks, firstClipOf, marksOnRoll, marksToSave, MarksSaver, NoteIndex, pickerNotes, picksOnRoll, popupChips, recordingVolume, setRows, suggestLine, undoWords, unmatchedWords,
   type Instrument, type RollNote, type SetRow,
 } from './picker-logic';
 import type { Player } from './player';
@@ -41,14 +42,17 @@ export class Picker {
   private loading: Promise<Loaded> | null = null;
   private l: Loaded | null = null;
   private isOpen = false;
+  /** What is being picked right now: amber, and all the undo, the tones and the popup see. */
   private readonly marked = new Set<number>();
+  /** The file's marks from before this selection. Unpicking can't touch them, so the file never falls below them. */
+  private readonly stored = new Set<number>();
   private unmatched: Mark[] = [];
   private undoStack: { marked: number[]; unmatched: Mark[] }[] = [];
   /** A widget was placed or removed since the marks last changed: Ctrl+Z may be meant for that, and doesn't do it. */
   private sceneEdited = false;
   private saveTimer = 0;
   private readonly saver = new MarksSaver({
-    snapshot: () => ({ ...emptyMelody(this.d.pack.id), notes: marksToSave(this.marked, this.l?.notes ?? [], this.unmatched) }),
+    snapshot: () => ({ ...emptyMelody(this.d.pack.id), notes: marksToSave(this.stored, this.marked, this.l?.notes ?? [], this.unmatched) }),
     write: (m, leaving) => this.d.api.saveMelody(m, leaving),
     saved: () => { if (this.d.store.state.notices.some((n) => n.id === 'picker-save')) this.d.store.dispatch({ type: 'dismiss', id: 'picker-save' }); },
     failed: (e) => this.d.notify({ id: 'picker-save', level: 'error', text: `The marked melody was not saved: ${e.message}` }),
@@ -82,11 +86,11 @@ export class Picker {
         <span class="np-time" data-time>0:00</span>
         <button type="button" data-out aria-label="Zoom out">−</button>
         <button type="button" data-in aria-label="Zoom in">+</button>
-        <button type="button" data-ping aria-pressed="true" title="A soft tone on each melody note while it plays, so you can check your marks by ear">Tone on melody notes</button>
-        <button type="button" data-suggest title="Marks a line in the part you're looking at, from the instruments on show. Undo takes it back.">Suggest top line here</button>
+        <button type="button" data-ping aria-pressed="true" title="A soft tone on each picked note while it plays, so you can check them by ear">Tone on picked notes</button>
+        <button type="button" data-suggest title="Picks a line in the part you're looking at, from the instruments on show. Undo takes it back.">Suggest top line here</button>
         <button type="button" data-undo>Undo</button>
         <span class="np-sp"></span>
-        <span class="np-hint">Click a note to mark it · drag across several · Alt-drag to unmark · Ctrl-scroll to zoom</span>
+        <span class="np-hint">Click a note to pick it · drag across several · Alt-drag to unpick · Ctrl-scroll to zoom · a dot: already connected to a widget</span>
       </div>
       <div class="np-tools np-legend" hidden></div>
       <div class="np-notices" aria-live="polite"></div>
@@ -99,7 +103,7 @@ export class Picker {
           <div class="np-card np-stage"><canvas aria-label="The scene"></canvas><div class="np-stage-label"></div></div>
           <div class="np-card">
             <ol class="np-steps">
-              <li data-s1><i>1</i><div>Mark the melody<small data-s1t></small></div></li>
+              <li data-s1><i>1</i><div>Pick notes<small data-s1t></small><button type="button" class="np-bring" data-bring hidden title="Picks the notes you marked earlier that aren't connected to a widget. Undo takes it back."></button></div></li>
               <li data-s2><i>2</i><div>Connect notes to a widget<div class="np-connect"><button type="button" class="primary" data-connect disabled>Connect to a widget…</button></div></div></li>
               <li data-s3><i>3</i><div>Hear it in the scene<small>Each picked note fires the widget once</small></div></li>
             </ol>
@@ -115,6 +119,7 @@ export class Picker {
     this.$('[data-ping]').addEventListener('click', () => { this.tones = !this.tones; this.$('[data-ping]').setAttribute('aria-pressed', String(this.tones)); });
     this.$('[data-suggest]').addEventListener('click', () => this.suggest());
     this.$('[data-undo]').addEventListener('click', () => this.undo());
+    this.$('[data-bring]').addEventListener('click', () => this.bringBack());
     this.$('[data-connect]').addEventListener('click', () => this.openPopup());
     window.addEventListener('pagehide', () => { clearTimeout(this.saveTimer); this.saver.leaving(); });
   }
@@ -132,6 +137,7 @@ export class Picker {
     const l = (this.l = await (this.loading ??= this.load()));
     if (!this.isOpen) {
       this.isOpen = true;
+      this.freshStart();
       this.el.hidden = false;
       window.addEventListener('keydown', this.onKey, true);
       this.unsubscribe = this.d.store.subscribe(() => this.drawStore());
@@ -178,7 +184,7 @@ export class Picker {
       notify({ id: 'picker-marks', level: 'error', text: `Could not read the marked melody (${(e as Error).message}): marks made now will not be saved, so the file stays as it is.` });
     }
     const r = marksOnRoll(marks, notes);
-    r.marked.forEach((id) => this.marked.add(id));
+    r.marked.forEach((id) => this.stored.add(id));
     this.unmatched = r.unmatched;
     this.tellUnmatched();
     const roll = new PickerRoll({
@@ -186,9 +192,12 @@ export class Picker {
       unmatched: () => this.unmatched, dotOf: (id) => this.dots.get(id), time: () => this.d.player.time,
       click: (n) => { this.remember(); if (this.marked.has(n.id)) this.marked.delete(n.id); else this.marked.add(n.id); this.tone(n.m, 0.12, 0.5); this.changed(); },
       box: (hits, unmark, lost) => {
+        // Only a box around nothing but outlines drops them: unpicking must never take an earlier mark along.
+        const drop = hits.length ? [] : lost;
+        if (unmark && !drop.length && !hits.some((n) => this.marked.has(n.id))) return;
         this.remember();
         for (const n of hits) if (unmark) this.marked.delete(n.id); else this.marked.add(n.id);
-        if (lost.length) { this.unmatched = this.unmatched.filter((k) => !lost.includes(k)); this.tellUnmatched(); }
+        if (drop.length) { this.unmatched = this.unmatched.filter((k) => !drop.includes(k)); this.tellUnmatched(); }
         this.changed();
       },
       seek: (t) => this.d.player.seek(t),
@@ -208,6 +217,25 @@ export class Picker {
   }
 
   // ---- the marks ----
+
+  /** Nothing picked, and no undo that would bring the old picks back. They join the stored marks, so the file doesn't
+      change and nothing needs saving. */
+  private freshStart(): void {
+    this.marked.forEach((id) => this.stored.add(id));
+    this.marked.clear();
+    this.undoStack = [];
+    this.l?.roll.invalidate();
+    this.drawSteps();
+  }
+
+  /** The earlier marks no widget uses, as one undo. Outlines can't come back: they have no note here to pick. */
+  private bringBack(): void {
+    const back = earlierMarks(this.stored, this.marked, this.dots);
+    if (!back.length) return;
+    this.remember();
+    back.forEach((id) => this.marked.add(id));
+    this.changed();
+  }
 
   private remember(): void {
     this.undoStack.push({ marked: [...this.marked], unmatched: this.unmatched });
@@ -270,7 +298,7 @@ export class Picker {
     const { notes, popup } = this.l, show = this.d.store.state.show!, set = editSet !== undefined ? show.picks?.[editSet] : undefined;
     const { chips, on, amounts } = popupChips(notes.filter((n) => this.marked.has(n.id)), set?.notes ?? null, notes);
     const layer = set ? firstClipOf(show, editSet!) : null;
-    popup.open({ chips, on, amounts, marked: this.marked, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
+    popup.open({ chips, on, amounts, edit: set ? { id: editSet!, widget: layer?.widget ?? null, knobs: layer?.knobs } : null });
     this.duck();
   }
 
@@ -282,6 +310,7 @@ export class Picker {
     store.dispatch({ type: 'edit', edit: id ? { kind: 'updatePicks', id, widget, notes } : { kind: 'placePicks', widget, notes } });
     const at = firstClipOf(store.state.show!, set);
     if (at) store.dispatch({ type: 'select', clip: at.id });
+    this.freshStart();
     this.popup?.close(Math.max(0, notes[0][0] - 1));
   }
 
@@ -367,7 +396,10 @@ export class Picker {
 
   private drawSteps(): void {
     const n = this.marked.size, placed = this.rows.length > 0;
-    this.$('[data-s1t]').textContent = n ? `${n} melody note${n === 1 ? '' : 's'} marked` : 'No notes marked yet';
+    this.$('[data-s1t]').textContent = n ? `${n} note${n === 1 ? '' : 's'} picked` : 'Nothing picked yet';
+    const back = earlierMarks(this.stored, this.marked, this.dots).length, bring = this.$('[data-bring]');
+    bring.hidden = !back;
+    bring.textContent = `Bring back ${back} earlier mark${back === 1 ? '' : 's'}`;
     this.$<HTMLButtonElement>('[data-connect]').disabled = !n;
     this.$('[data-s1]').className = n ? 'done' : 'on';
     this.$('[data-s2]').className = placed ? 'done' : n ? 'on' : '';
@@ -426,7 +458,7 @@ export class Picker {
     o.connect(v).connect(a.destination); o.start(); o.stop(a.currentTime + len);
   }
 
-  /** The tones on the notes the playhead just passed: marked ones, and those of an instrument being heard. */
+  /** The tones on the notes the playhead just passed: those being picked, and those of an instrument being heard. */
   private sound(t: number, { notes, index }: Loaded): void {
     if (t < this.lastT || t - this.lastT > 1) this.cursor = index.firstFrom(t);
     this.lastT = t;
@@ -463,7 +495,7 @@ export class Picker {
   };
 
   /** Every key first, or the studio's would act on the show underneath. Space plays, Esc closes the popup and then the
-      picker, Ctrl+Z undoes marks, Ctrl+S still saves. */
+      picker, Ctrl+Z undoes picks, Ctrl+S still saves. */
   private readonly onKey = (e: KeyboardEvent): void => {
     const mod = e.ctrlKey || e.metaKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (mod && k === 's') return;

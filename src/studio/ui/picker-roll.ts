@@ -80,7 +80,7 @@ export class PickerRoll {
     this.el.className = 'np-roll';
     this.bars.className = 'np-roll-bars';
     this.top.className = 'np-roll-top';
-    this.top.setAttribute('aria-label', 'Piano roll of the song. Click notes to mark them as melody.');
+    this.top.setAttribute('aria-label', 'Piano roll of the song. Click notes to pick them.');
     this.tip.className = 'np-tip';
     this.tip.hidden = true;
     this.el.append(this.bars, this.top, this.tip);
@@ -181,7 +181,8 @@ export class PickerRoll {
     for (const n of this.shown) {
       const c = this.d.dotOf(n.id);
       if (!c || geo.xOf(n.t) < GUTTER) continue;
-      g.fillStyle = c; g.beginPath(); g.arc(geo.xOf(n.t), geo.yOf(n.m) + rh / 2, Math.max(3.5, rh * 0.62), 0, 7); g.fill();
+      // A dark ring: some widgets' hues are close to amber, and a dot must not melt into a picked note.
+      g.fillStyle = c; g.strokeStyle = '#0d0a0d'; g.lineWidth = 1.5; g.beginPath(); g.arc(geo.xOf(n.t), geo.yOf(n.m) + rh / 2, Math.max(3.5, rh * 0.62), 0, 7); g.fill(); g.stroke();
     }
     // A mark with no note here: an outline, so it is seen and can be judged, never dropped silently.
     g.strokeStyle = MARK; g.lineWidth = 1; g.setLineDash([3, 2]);

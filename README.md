@@ -166,12 +166,13 @@ npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid
 ### Pick the melody's notes for a widget
 
 Some widgets answer every attack and drown the melody. **Pick notes** (in the transport bar) opens a piano roll of the
-song, with the real recording playing: click or box-select notes to mark the melody (Suggest top line gives a start; on
+song, with the real recording playing and nothing selected: click or box-select the notes you want (Suggest top line gives a start; on
 an ensemble, colours and a legend say which instrument is which, and a name hides that instrument or plays its notes as
-tones). **Pick the notes** from the marks, choose a widget, preview it on your picks against every note, and **Place in
+tones). **Pick the notes** from those, choose a widget, preview it on your picks against every note, and **Place in
 scene**: the widget then answers those notes only, each as strongly as it was played, and one undo takes the placement
-back. Marks are kept per song in `melodies/<song>.json` (committed, saved by themselves); the picks themselves are in
-the show (`picks`, see [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md)). Studio only; a widget you don't connect
+back. Notes already connected to a widget carry a dot. Everything you pick is also kept per song as marks in
+`melodies/<song>.json` (committed, saved by themselves), and **Bring back** selects the ones no widget uses; the picks
+themselves are in the show (`picks`, see [docs/COMPOSING-SHOWS.md](docs/COMPOSING-SHOWS.md)). Studio only; a widget you don't connect
 behaves as before.
 
 ### Have Claude compose a show

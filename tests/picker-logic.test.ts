@@ -9,7 +9,7 @@ import { showInstances } from '../src/studio/show/conductor';
 import { validateShow, type Show } from '../src/studio/show/show';
 import type { LabelNote } from '../src/studio/ui/api';
 import {
-  boxHits, chipLayout, chipRuler, clock, countWords, everyOther, fineClock, pickedSpan, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
+  boxHits, chipLayout, chipRuler, clock, countWords, earlierMarks, everyOther, fineClock, pickedSpan, phraseOf, sweptChips, draftKey, draftShow, firstClipOf, impulseWords, instrumentColor, loudest, marksOnRoll, marksToSave, moveView, nameOf,
   NoteIndex, noteAt, noteMark, pickerNotes, picksOnRoll, popupChips, previewSpan, recordingVolume, setRows, suggestLine, tipWords, toPicks, unmatchedInBox, unmatchedWords, undoWords, zoomView,
   type RollGeo, type RollNote,
 } from '../src/studio/ui/picker-logic';
@@ -316,11 +316,23 @@ describe('marks', () => {
 
   it('are saved with the ones that found none, never dropped', () => {
     const lost: Mark = [9, 9.2, 60, 80, 'violin'];
-    expect(marksToSave(new Set([2]), notes, [lost])).toEqual([[2, 2.2, 62, 80, 'violin'], lost]);
+    expect(marksToSave(new Set(), new Set([2]), notes, [lost])).toEqual([[2, 2.2, 62, 80, 'violin'], lost]);
+  });
+
+  it('are saved as the earlier marks and the new picks together, each note once: unpicking loses no earlier mark', () => {
+    const lost: Mark = [9, 9.2, 60, 80, 'violin'], saved = (picked: number[]) => marksToSave(new Set([0, 1]), new Set(picked), notes, [lost]);
+    expect(saved([])).toEqual([[1, 1.2, 60, 80, 'violin'], [1, 1.2, 60, 80, 'viola'], lost]);
+    expect(saved([1, 2])).toEqual([[1, 1.2, 60, 80, 'violin'], [1, 1.2, 60, 80, 'viola'], [2, 2.2, 62, 80, 'violin'], lost]);
+  });
+
+  it('are offered back when neither being picked nor connected to a widget', () => {
+    expect(earlierMarks(new Set([0, 1, 2]), new Set([1]), new Map([[2, 'hsl(0 0% 0%)']]))).toEqual([0]);
+    expect(earlierMarks(new Set([1]), new Set([1]), new Set())).toEqual([]);
+    expect(earlierMarks(new Set(), new Set(), new Set())).toEqual([]);
   });
 
   it('come back as they went', () => {
-    const saved = marksToSave(new Set([0, 2]), notes, []);
+    const saved = marksToSave(new Set([0]), new Set([2]), notes, []);
     expect([...marksOnRoll(saved, notes).marked].sort()).toEqual([0, 2]);
   });
 });
@@ -332,6 +344,14 @@ describe('popupChips', () => {
     const r = popupChips([notes[0], notes[2]], null, notes);
     expect(ids(r.chips)).toEqual([0, 2]);
     expect(r.on.size).toBe(0);
+  });
+
+  it('editing with nothing being picked: the set alone, all on, a pick off every note too, so an update loses none', () => {
+    const picks: Note[] = [[2, 2.2, 62, 80], [3, 3.2, 64, 80, 0.5], [3.5, 3.6, 70, 66]];
+    const r = popupChips([], picks, notes);
+    expect(r.chips.map((n) => n.t)).toEqual([2, 3, 3.5]);
+    expect(r.on.size).toBe(3);
+    expect(toPicks(r.chips.filter((n) => r.on.has(n.id)), r.amounts)).toEqual([[2, 2.2, 62, 80], [3, 3.2, 64, 80, 0.5], [3.5, 3.6, 70, 66]]);
   });
 
   it('editing: the set on, an unmarked pick listed, a pick off every note listed with an id below zero', () => {
@@ -444,15 +464,15 @@ describe('the marks by hand', () => {
   });
 
   it('unmatchedWords: counts, and says how to drop one on purpose', () => {
-    expect(unmatchedWords(1)).toMatch(/^1 marked note has no note/);
-    expect(unmatchedWords(3)).toMatch(/^3 marked notes have no note/);
-    expect(unmatchedWords(1)).toMatch(/Alt-drag/);
+    expect(unmatchedWords(1)).toMatch(/^1 earlier mark has no note/);
+    expect(unmatchedWords(3)).toMatch(/^3 earlier marks have no note/);
+    expect(unmatchedWords(1)).toMatch(/Alt-drag a small box around just that outline, touching no notes/);
   });
 
   it('undoWords: says what the undo did, and where a placement is undone', () => {
-    expect(undoWords(1)).toMatch(/^Undo here took back 1 change to your marks/);
+    expect(undoWords(1)).toMatch(/^Undo here took back 1 change to your picked notes/);
     expect(undoWords(3)).toMatch(/3 changes/);
-    expect(undoWords(0)).toMatch(/^Undo here is for your marks/);
+    expect(undoWords(0)).toMatch(/^Undo here is for your picked notes/);
     for (const k of [0, 1]) expect(undoWords(k)).toMatch(/Back to the studio/);
   });
 });

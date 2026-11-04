@@ -76,7 +76,7 @@ function shell(): Record<string, HTMLElement> {
         <span class="clock" data-clock>0:00 <span class="dim">/ 0:00</span></span>
         <span class="now" data-now></span>
         <span class="spacer"></span>
-        <button type="button" data-pick title="Mark the melody and connect a few of its notes to a widget">Pick notes</button>
+        <button type="button" data-pick title="Pick notes on a roll of the song and connect them to a widget">Pick notes</button>
         <button type="button" class="icon" data-hide aria-label="Hide the controls (H)" title="Hide the controls (H)">${ICONS.hide}</button>
         <button type="button" class="icon" data-full aria-label="Full screen (F)" title="Full screen (F)">${ICONS.full}</button>
       </div>

@@ -39,8 +39,6 @@ export interface PopupOpen {
   chips: readonly RollNote[]; on: ReadonlySet<number>;
   /** The intensities the set's notes have, by chip id. */
   amounts?: ReadonlyMap<number, number>;
-  /** Marked notes get their instrument's ring: a pick whose mark has gone has none. */
-  marked: ReadonlySet<number>;
   edit: { id: string; widget: string | null; knobs?: Record<string, KnobSetting> } | null;
 }
 
@@ -387,10 +385,10 @@ export class PickerPopup {
     for (const { note: n, x, y, tail } of chips) {
       const c = Object.assign(document.createElement('button'), { type: 'button', className: 'np-chip', textContent: pitchClass(n.m) });
       const who = many && n.i >= 0 ? `${this.d.instruments[n.i].label}, ` : '';
-      c.title = `${who}${nameOf(n.m)} at ${fineClock(n.t)}${o.marked.has(n.id) ? '' : ': no longer marked'}`;
+      c.title = `${who}${nameOf(n.m)} at ${fineClock(n.t)}${n.i < 0 ? ': no note here any more' : ''}`;
       c.setAttribute('aria-label', c.title);
       c.dataset.id = String(n.id);
-      if (many && o.marked.has(n.id)) c.style.setProperty('--ic', this.d.instruments[n.i].color);
+      if (many && n.i >= 0) c.style.setProperty('--ic', this.d.instruments[n.i].color);
       c.style.left = `${x}px`; c.style.top = `${y}px`;
       if (tail > 10) c.style.setProperty('--tail', `${Math.round(tail)}px`);
       box.append(c);

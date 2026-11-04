@@ -1,5 +1,5 @@
 // The note picker in a real browser, on Vivaldi's Winter only (the logic is pinned in tests/picker-logic.test.ts): what a
-// browser alone can show. Marks reach their file; no key reaches the studio under the overlay; the preview leaves the
+// browser alone can show. Marks reach their file and stay there, whatever is picked next; no key reaches the studio under the overlay; the preview leaves the
 // store, the history, the disk and the studio's conductor alone; a placement is one undo and fires exactly its attacks.
 //
 //   npm run picker-check [-- --headed] [--keep] [--shots <dir>]
@@ -33,6 +33,13 @@ const noteOnRoll = (k = 0) => page.evaluate((k) => {
   return out.sort((a, b) => a.t - b.t)[k];
 }, k);
 const markedCount = () => page.evaluate(() => Number(document.querySelector('[data-s1t]').textContent.split(' ')[0]) || 0);
+const bringCount = () => page.evaluate(() => { const b = document.querySelector('[data-bring]'); return b.hidden ? 0 : Number(b.textContent.match(/\d+/)[0]); });
+/** A note in view that is not a mark yet: picking it has to grow the file. */
+const unmarkedOnRoll = () => page.evaluate(() => {
+  const p = window.__studio.picker, r = p.roll, at = (n) => ({ x: r.xOf(n.t) + 1, y: r.yOf(n.m) + r.geo.rowH / 2 });
+  return at(p.l.index.inView(r.view.a, r.view.b).find((n) => !p.stored.has(n.id) && !p.marked.has(n.id) && r.noteAt(at(n).x, at(n).y)?.id === n.id));
+});
+const undoButton = async () => { await page.click('.np-tools [data-undo]'); await settle(); };
 
 try {
   // ---- open ----
@@ -67,6 +74,7 @@ try {
   check('Suggest marks a line', suggested > 5, `${suggested} marked`);
   await page.waitForTimeout(1300);
   const file = path.join(dirs.tmp, 'melodies', `${SONG}.json`);
+  const fileMarks = () => JSON.parse(readFileSync(file, 'utf8')).notes.length;
   const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).notes.length : -1;
   check('the marks are in the temp melody file a second later', saved === suggested, `${saved} in the file`);
   const warnsOnLeaving = () => page.evaluate(() => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
@@ -230,6 +238,20 @@ try {
   check('Place: a set, a clip on it, selected, the playhead a second before the first pick', placed.notes?.length === 6 && placed.clips.length === 1 && placed.selected === placed.clips[0] && Math.abs(placed.t - Math.max(0, placed.notes[0][0] - 1)) < 0.01);
   check('a row with ticks under the roll', await page.evaluate(() => !!document.querySelector('.np-set[data-set="p1"] canvas')));
   await shot('placed-roll');
+
+  // ---- a new selection ----
+  check('after connecting, nothing is selected and Connect is off', (await markedCount()) === 0 && await page.isDisabled('[data-connect]'));
+  await page.evaluate(() => window.__studio.picker.saving);
+  check('and the melody file still holds every mark', fileMarks() === suggested, `${fileMarks()} in the file, ${suggested} marked`);
+  check('Bring back offers the marks no widget uses', (await bringCount()) === suggested - 6, `${await bringCount()} offered, ${suggested} marked, 6 connected`);
+  await page.click('[data-bring]'); await settle();
+  await shot('brought-back');
+  check('Bring back picks them', (await markedCount()) === suggested - 6 && (await bringCount()) === 0, String(await markedCount()));
+  await undoButton();
+  check('Undo takes Bring back back', (await markedCount()) === 0 && (await bringCount()) === suggested - 6);
+  await undoButton();
+  check('and no undo is left to bring the old selection back', (await markedCount()) === 0);
+  await page.click('[data-bring]'); await settle();   // the tones below are on these
   // Fires exactly the attacks: played through the first few picks.
   const delivered = await page.evaluate(async () => {
     const s = window.__studio, n = s.store.state.show.picks.p1.notes, key = `pointillism@picks:p1#${s.store.state.selected.clip}`;
@@ -283,6 +305,16 @@ try {
   await page.click('[data-edit-picks]');
   await settle(300);
   check('Edit picks opens the popup with those chips on, saying Update the scene', (await page.textContent('[data-ok]')) === 'Update the scene' && (await page.textContent('[data-count]')) === '6');
+  check('and only those: the earlier marks are not in it', (await page.locator('.np-chip').count()) === 6);
+  const setNotes = () => page.evaluate(() => JSON.stringify(window.__studio.store.state.show.picks.p1.notes));
+  const sixNotes = await setNotes();
+  await page.click('[data-ok]');
+  await settle(300);
+  check('an update with nothing changed loses none', (await setNotes()) === sixNotes);
+  check('and starts a new selection', (await markedCount()) === 0);
+  await page.click('.np-set[data-set="p1"] canvas');
+  await settle(300);
+  check('its row opens it the same way', (await page.textContent('[data-count]')) === '6' && (await page.locator('.np-chip').count()) === 6);
   await page.click('.np-modal [data-clear]');
   await page.locator('.np-chip').nth(0).click();
   await page.click('[data-ok]');
@@ -334,6 +366,19 @@ try {
   check('a clip moved off a drawn set: its row says so', moved.same && moved.before === '' && moved.after === '2 never heard', JSON.stringify(moved));
   check('and moved back with the picker open, it stops', moved.back === '', moved.back);
 
+  // A pick with no note on the roll, opened on nothing picked: it is on, says so, and an update with another widget keeps it.
+  const offRoll = await page.evaluate(async () => {
+    const s = window.__studio, notes = [[80, 80.2, 2, 80], [81, 81.2, 2, 80]];
+    s.store.dispatch({ type: 'edit', edit: { kind: 'placePicks', widget: 'halftone', notes } });
+    s.picker.openPopup('p4');
+    const chips = [...document.querySelectorAll('.np-chip')].map((c) => c.title), count = document.querySelector('[data-count]').textContent;
+    s.picker.popup.takeWidget('marbling');
+    document.querySelector('[data-ok]').click();
+    return { chips, count, kept: JSON.stringify(s.store.state.show.picks.p4.notes) === JSON.stringify(notes), widget: s.store.state.show.clips.find((c) => c.listen === 'picks:p4').widget };
+  });
+  await settle();
+  check('a pick off every note: shown on, said so, and an update loses none', offRoll.count === '2' && offRoll.chips.length === 2 && offRoll.chips.every((t) => /no note here any more/.test(t)) && offRoll.kept && offRoll.widget === 'marbling', JSON.stringify(offRoll));
+
   // ---- the window ----
   const wide = await page.evaluate(() => document.querySelector('.np-set[data-set="p1"] canvas').width);
   await page.setViewportSize({ width: 1100, height: 900 });
@@ -362,6 +407,9 @@ try {
   await page.click('[data-pick]');
   await settle(300);
   const count = await markedCount();
+  check('Pick notes opens with nothing selected', count === 0, String(count));
+  await undoButton();
+  check('and Undo does not bring the last selection back', (await markedCount()) === 0);
   await clickNote(await noteOnRoll(0));
   await page.click('.np-set[data-set="p1"] button');
   await settle();
@@ -370,13 +418,59 @@ try {
   const told = await page.textContent('.np-notices');
   check('Ctrl+Z after removing a set: the marks go back, and it says so and where that is undone', (await markedCount()) === count && /took back 1 change.*Back to the studio/.test(told), told);
   await page.waitForTimeout(1300);
-  await clickNote(await noteOnRoll(0));
-  const want = await page.evaluate(() => { const p = window.__studio.picker; return p.marked.size + p.unmatched.length; });
+  const before2 = fileMarks();
+  await clickNote(await unmarkedOnRoll());
+  const want = await page.evaluate(() => { const p = window.__studio.picker; return new Set([...p.stored, ...p.marked]).size + p.unmatched.length; });
   page.on('dialog', (d) => void d.accept());
   await page.reload();
   let inFile = -1;
-  for (let k = 0; k < 20 && inFile !== want; k++) { await page.waitForTimeout(100); inFile = JSON.parse(readFileSync(file, 'utf8')).notes.length; }
-  check('a mark made just before a reload reaches the file', inFile === want, `${inFile} in the file, ${want} marked`);
+  for (let k = 0; k < 20 && inFile !== want; k++) { await page.waitForTimeout(100); inFile = fileMarks(); }
+  check('a mark made just before a reload reaches the file', inFile === want && want === before2 + 1, `${inFile} in the file, ${want} marked, ${before2} before it`);
+
+  // ---- after a reload: the file's marks, kept apart from a new selection ----
+  await page.waitForSelector('[data-pick]');
+  await page.click('[data-pick]');
+  await page.waitForSelector('.np:not([hidden]) .np-roll-top');
+  await settle(400);
+  check('reloaded: nothing selected, every mark still known', (await markedCount()) === 0 && await page.evaluate(() => window.__studio.picker.stored.size) === want);
+  const afterSave = async () => { await page.waitForTimeout(1300); await page.evaluate(() => window.__studio.picker.saving); return fileMarks(); };
+  const unmarked = await unmarkedOnRoll();
+  await clickNote(unmarked);
+  check('a new pick adds to the file', (await markedCount()) === 1 && (await afterSave()) === want + 1, String(fileMarks()));
+  await clickNote(unmarked);
+  check('unpicked again it is gone, and no other mark with it', (await markedCount()) === 0 && (await afterSave()) === want, String(fileMarks()));
+  const offered = await bringCount();
+  check('Bring back offers the unconnected marks after a reload too', offered > 0, String(offered));
+  await page.click('[data-bring]'); await settle();
+  check('and picks them', (await markedCount()) === offered);
+  const r2 = await rollBox();
+  await page.keyboard.down('Alt');
+  await page.mouse.move(r2.x + 125, r2.y + 25); await page.mouse.down(); await page.mouse.move(r2.x + r2.width - 5, r2.y + r2.height - 5, { steps: 4 }); await page.mouse.up();
+  await page.keyboard.up('Alt');
+  await settle();
+  const unpicked = await markedCount();
+  check('Alt-drag unpicks them', unpicked < offered, `${unpicked} of ${offered}`);
+  check('and the file keeps them all', (await afterSave()) === want, String(fileMarks()));
+  await undoButton();
+  check('Undo puts the unpicked ones back', (await markedCount()) === offered);
+  await undoButton();
+  check('Undo again takes Bring back back', (await markedCount()) === 0);
+
+  // An outline only goes with a box around nothing else, and Undo restores it.
+  const outline = await page.evaluate(() => {
+    const p = window.__studio.picker, box = p.roll.d.box, k = [1, 1.1, 60, 80], n = p.l.notes[0];
+    p.unmatched = [k];
+    box([n], true, [k]);
+    const withNote = p.unmatched.length;
+    box([], true, [k]);
+    const alone = p.unmatched.length;
+    p.undo();
+    const undone = p.unmatched.length;
+    p.unmatched = [];
+    p.tellUnmatched();
+    return { withNote, alone, undone };
+  });
+  check('an outline: an Alt-drag over notes leaves it, a box around it alone drops it, Undo restores it', outline.withNote === 1 && outline.alone === 0 && outline.undone === 1, JSON.stringify(outline));
 
   check('no page errors', !errors.length, errors[0] ?? '');
 } finally {

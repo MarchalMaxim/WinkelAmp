@@ -237,13 +237,20 @@ export function marksOnRoll(marks: readonly Mark[], notes: readonly RollNote[]):
   return { marked: new Set([...matched.values()].map((j) => notes[j].id)), unmatched: unmatched.map((k) => marks[k]) };
 }
 
-/** What the file holds: the marked notes and the marks that found none, never dropped. */
-export function marksToSave(marked: ReadonlySet<number>, notes: readonly RollNote[], unmatched: readonly Mark[]): Mark[] {
-  return [...notes.filter((n) => marked.has(n.id)).map(noteMark), ...unmatched];
+/** What the file holds: the earlier marks and the notes being picked now, each note once, and the marks that found none,
+    never dropped. Unpicking a note only takes it out of `picked`, so an earlier mark stays. */
+export function marksToSave(stored: ReadonlySet<number>, picked: ReadonlySet<number>, notes: readonly RollNote[], unmatched: readonly Mark[]): Mark[] {
+  return [...notes.filter((n) => stored.has(n.id) || picked.has(n.id)).map(noteMark), ...unmatched];
 }
 
-/** The popup's chips: the melody in order, and when editing every pick of the set too, an unmarked note or a pick with no
-    note on the roll (given an id below zero and no instrument), so an update never loses one. on: those of the set. */
+/** The earlier marks Bring back offers: not being picked now, and not connected to a widget (not in any set of the show). */
+export function earlierMarks(stored: ReadonlySet<number>, picked: ReadonlySet<number>, connected: { has(id: number): boolean }): number[] {
+  return [...stored].filter((id) => !picked.has(id) && !connected.has(id));
+}
+
+/** The popup's chips: the notes being picked, in order, and when editing every pick of the set too, a note not being picked
+    or a pick with no note on the roll (given an id below zero and no instrument), so an update never loses one. on: those
+    of the set. */
 export function popupChips(melody: readonly RollNote[], picks: readonly Note[] | null, notes: readonly RollNote[]): { chips: RollNote[]; on: Set<number>; amounts: Map<number, number> } {
   if (!picks) return { chips: [...melody], on: new Set(), amounts: new Map() };
   const { found, lost, amounts } = picksOnRoll(picks, notes), ids = new Set(melody.map((n) => n.id));
@@ -255,12 +262,12 @@ export function popupChips(melody: readonly RollNote[], picks: readonly Note[] |
 
 /** The notice for marks with no note here. */
 export function unmatchedWords(k: number): string {
-  return `${k} marked note${k === 1 ? ' has' : 's have'} no note here any more: drawn as an outline and kept in the file. Alt-drag across one to drop it.`;
+  return `${k} earlier mark${k === 1 ? ' has' : 's have'} no note here any more: drawn as an outline and kept in the file. To drop one, Alt-drag a small box around just that outline, touching no notes.`;
 }
 
 /** What an undo in the picker did, told once after a widget was placed or removed, which it does not undo. */
 export function undoWords(changed: number): string {
-  const what = changed ? `Undo here took back ${changed} change${changed === 1 ? '' : 's'} to your marks.` : 'Undo here is for your marks.';
+  const what = changed ? `Undo here took back ${changed} change${changed === 1 ? '' : 's'} to your picked notes.` : 'Undo here is for your picked notes.';
   return `${what} To undo placing or removing a widget: Back to the studio, then Ctrl+Z.`;
 }
 
