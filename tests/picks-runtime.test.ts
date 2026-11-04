@@ -1,5 +1,6 @@
 // A real WidgetRuntime and Conductor on stub canvases: the attacks a widget answers are exactly groupChords(picks).
 /// <reference types="node" />
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { Conductor, samePreview, showInstances } from '../src/studio/show/conductor';
@@ -321,5 +322,36 @@ describe('a widget on a set of picks', () => {
     play(c, 0, 10);
     expect(log().heard.pick).toEqual(asHeard(PICKS));
     expect(log().heard.other).toEqual(asHeard(PICKS));
+  });
+});
+
+describe('Dread squares and the notes it is given', () => {
+  const SQUARES = readFileSync('lab/tools/squares.js', 'utf8');
+  const META_SQ: WidgetMeta = { id: 'squares', name: 'squares', blurb: '', tag: '', verdict: null, params: [] };
+  /** The sizes it draws, by song time: its squares are the only rectangles centred on the origin. */
+  function sizes(clip: Partial<Clip>, song: Note[], picks?: Note[]): number[] {
+    const canvas = fakeCanvas(), seen: number[] = [];
+    (canvas.getContext('2d') as unknown as { fillRect: unknown }).fillRect = (x: number, _y: number, w: number) => { if (x < 0) seen.push(w); };
+    const rt = new WidgetRuntime(canvas, { notes: song }, { sources: { squares: SQUARES }, harness: { ...HARNESS, toolIds: ['squares'] }, layers: WA });
+    const s: Show = { version: 3, id: 'demo', song: 'demo', clips: [{ id: 'p', start: 0, end: 5, track: 0, fade: 0, widget: 'squares', ...clip }], ...(picks ? { picks: { p1: { notes: picks } } } : {}) };
+    const c = new Conductor(rt, s, () => META_SQ);
+    c.reset(0);
+    play(c, 0, 0.2);
+    expect(rt.errors).toEqual({});
+    return seen;
+  }
+  const high: Note[] = [[0.1, 0.5, 77, 100]], low: Note[] = [[0.1, 0.5, 40, 100]];
+
+  it('draws a picked note however high it is, at a real size', () => {
+    const drawn = sizes({ listen: 'picks:p1' }, high, high);
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(Math.min(...drawn)).toBeGreaterThan(50);
+  });
+  it('still skips a high note it was not given by hand', () => {
+    expect(sizes({}, high)).toEqual([]);
+    expect(sizes({ listen: 'melody' }, high)).toEqual([]);
+  });
+  it('draws a low note as it did, picked or not', () => {
+    expect(Math.max(...sizes({ listen: 'picks:p1' }, low, low))).toBeCloseTo(Math.max(...sizes({}, low)));
   });
 });

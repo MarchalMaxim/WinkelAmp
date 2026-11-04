@@ -44,6 +44,8 @@ export interface WidgetCtx {
   top(): SoundingNote | null;
   pitch01(m: number): number;
   p(key: string): number | undefined;
+  /** Whether this instance hears a set of notes picked by hand. Those were chosen: a widget that sorts notes by pitch shouldn't drop them. */
+  onPicks(): boolean;
 }
 
 export type IconLib = Record<string, any> & { ink: string; gauge(g: CanvasRenderingContext2D, v: number, w: number, h: number): void };

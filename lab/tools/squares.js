@@ -3,7 +3,7 @@
   let sq = [], shake = 0;
   TOOLS.push({
     id: 'squares', name: 'Dread squares', tag: 'v2', on: true,
-    blurb: 'Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred.',
+    blurb: 'Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred. Notes you picked by hand always land, however high.',
     // The reference for the new knob style: at most 5 knobs, each with a plain hint and a small picture (see lab/README.md).
     params: [
       { key: 'size', label: 'size', min: 0.3, max: 2, value: 1, less: 0.7,
@@ -16,7 +16,7 @@
         hint: 'How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones.',
         icon: (g, v, w, h) => ICON.blur(g, v * 3, () => ICON.square(g, w / 2, h / 2, h - 8, ICON.red)) },
       { key: 'split', label: 'which notes count as low', min: 36, max: 72, step: 1, value: 50, less: 44,
-        hint: 'Only notes below this point make squares. Left: only the deepest bass. Right: up to the middle of the piano.',
+        hint: 'Only notes below this point make squares; notes you picked by hand always do. Left: only the deepest bass. Right: up to the middle of the piano.',
         icon: (g, v, w, h) => ICON.keys(g, w, h, 0, 0.17 + v * 0.42, ICON.red) },
       { key: 'shake', label: 'shake on loud notes', min: 0, max: 2, value: 1, drive: '+level',
         hint: 'How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt.',
@@ -28,8 +28,8 @@
     reset() { sq = []; shake = 0; },
     onChord(ch, x) {
       for (const n of ch.notes) {
-        const lim = x.p('split'); if (n.m >= lim) continue;
-        const s = (110 + (lim - n.m) * 9) * (0.55 + 0.45 * n.v / 110) * x.p('size');
+        const lim = x.p('split'); if (n.m >= lim && !x.onPicks()) continue;
+        const s = (110 + Math.max(0, lim - n.m) * 9) * (0.55 + 0.45 * n.v / 110) * x.p('size');   // above the point: the smallest
         sq.push({ x: x.rnd(s / 2, x.W - s / 2), y: x.rnd(x.H * 0.3, x.H * 0.8), s, age: 0, v: n.v, rot: x.rnd(-0.06, 0.06) });
         if (n.v > 95) shake = Math.max(shake, (n.v - 90) * 0.9 * x.p('shake'));
       }

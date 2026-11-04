@@ -482,6 +482,8 @@ const ctx = {
   top() { let b = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
   /** MIDI → 0..1 (piano range 21..108). */
   pitch01: (m) => Math.max(0, Math.min(1, (m - 21) / 87)),
+  /** The studio's: an instance on notes picked by hand. There are none here. */
+  onPicks: () => false,
 };
 function lo(t) { let a = 0, b = NOTES.length; while (a < b) { const k = (a + b) >> 1; if (NOTES[k][0] < t) a = k + 1; else b = k; } return a; }
 

@@ -99,6 +99,7 @@ export class WidgetRuntime implements RuntimeLike {
         const m = (knobs[cur.key] ??= {});   // the instance's knobs: its key is the widget's id unless it listens to a part
         return knobValue(q, (m[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 }), ctx.feat);
       },
+      onPicks: () => this.onPicks.has(cur.key),
     };
     this.ctx = ctx;
     const make = (w: number, h: number) => Object.assign(document.createElement('canvas'), { width: w, height: h });
