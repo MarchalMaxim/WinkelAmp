@@ -14,8 +14,10 @@
 // an attack is drawn on the first frame at or after its time, and the same show gives the same frames every time
 // (randomness is seeded). A start after 0 is pre-rolled 3 s so the first frame is not black.
 //
-// Frames leave the page losslessly: the canvas as PNG (toBlob) is POSTed to /__frame on the render's own server, whose
-// middleware writes it, in order, to ffmpeg's stdin (-f image2pipe) and answers once the pipe has drained. Measured in
+// Frames leave the page losslessly: six workers compress copies of the canvas to PNG and POST them to /__frame on the render's
+// own server, whose middleware writes them, in order, to ffmpeg's stdin (-f image2pipe) and answers once each is in the pipe.
+// That made a 5 s busy passage 30 % faster and a light one 35 % than one toBlob and POST at a time, at the price of a few
+// pixels a frame now and then being 1/255 off between runs (framemd5 can differ; nothing you could see). Measured in
 // round 2 T9 at 2× (beethoven5 155–160, 300 frames; drawing alone 583 ms a frame): PNG 627 ms a frame, getImageData's
 // raw RGBA POSTed 1146 ms (Chrome uploads 14.7 MB bodies at about 27 MB/s), base64 through page.evaluate 885 ms.
 // Outputs (scripts/lib/encode.mjs has the exact arguments):
@@ -72,6 +74,7 @@ const FPS = num('fps', 60), HZ = num('hz', 60), CRF = num('crf', 13), SCALE = nu
 const PRESET = opts.preset ?? 'slow', MASTER = opts.master ?? 'x264';
 if (opts.share && opts['no-share']) fail('--share or --no-share, not both');
 const SHARE = !opts['no-share'];
+const SENDERS = 6;   // Chrome keeps six connections to one server: more would only queue
 const PREROLL = 3, BATCH = 30, CAL = 120;   // CAL: frames that calibrate the sampled ETA (a multiple of BATCH)
 // Measured in T9 on beethoven5 155–170 at 2× (2560×1440 60 fps master): the sound mux and both share passes, s per video
 // second (the frames themselves took 4.1 s per video second there).
@@ -97,11 +100,28 @@ const run = (cmd, args, { stdin = false } = {}) => {
   return { p, done };
 };
 
-// The frame sink: POST /__frame?k=<n> bodies (one PNG each), in order, into the current ffmpeg's stdin. One request at a
-// time (the page awaits each answer before sending the next); the answer comes once the bytes are in the pipe, or names
-// what went wrong.
+// The frame sink: POST /__frame?k=<n> bodies (one PNG each) into the current ffmpeg's stdin, in order. Several arrive at
+// once, as the page's workers compress and send side by side; each is answered once its bytes are in the pipe, so a worker
+// is not free again until its frame has gone, which is what holds the page back when the encoder falls behind.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const sink = { ff: null, next: 0, error: null };
+const sink = {
+  ff: null, next: 0, error: null, waiting: new Map(), writing: false,
+  /** Whatever is due goes out; anything else waits for its turn. */
+  pump() {
+    if (this.writing || this.error) return;
+    const frame = this.waiting.get(this.next);
+    if (!frame) return;
+    this.waiting.delete(this.next);
+    this.writing = true;
+    const sent = () => { this.writing = false; this.next++; frame.answer(204); this.pump(); };
+    if (this.ff.p.stdin.write(frame.body)) sent(); else this.ff.p.stdin.once('drain', sent);
+  },
+  fail(message) {
+    this.error ??= message;
+    for (const frame of this.waiting.values()) frame.answer(500, this.error);
+    this.waiting.clear();
+  },
+};
 const frameSink = {
   name: 'render-show-frames',
   configureServer(server) {
@@ -109,22 +129,19 @@ const frameSink = {
       const answer = (status, msg = '') => { res.statusCode = status; res.end(msg); };
       if (req.method !== 'POST') return answer(405);
       const k = Number(new URL(req.url, 'http://x').searchParams.get('k'));
-      const stdin = sink.ff?.p.stdin;
-      if (!stdin || sink.error) { req.resume(); return answer(500, sink.error ?? 'no encoder'); }
-      if (k !== sink.next) { req.resume(); return answer(409, `frame ${k} came when ${sink.next} was due`); }
-      let got = 0;
-      req.on('data', (c) => {
-        if (got === 0 && !c.subarray(0, 8).equals(PNG_SIGNATURE)) sink.error = `frame ${k} is not a PNG`;
-        got += c.length;
-        if (sink.error) return;
-        if (!stdin.write(c)) { req.pause(); stdin.once('drain', () => req.resume()); }
-      });
+      if (!sink.ff || sink.error) { req.resume(); return answer(500, sink.error ?? 'no encoder'); }
+      if (!(k >= sink.next) || sink.waiting.has(k)) { req.resume(); return answer(409, `frame ${k} came when ${sink.next} was due`); }
+      const parts = [];
+      req.on('data', (c) => parts.push(c));
       req.on('error', (e) => answer(500, String(e)));
       req.on('end', () => {
-        if (!sink.error && got === 0) sink.error = `frame ${k} came empty`;
+        const body = Buffer.concat(parts);
+        if (sink.error) return answer(500, sink.error);
+        if (!body.length) sink.fail(`frame ${k} came empty`);
+        else if (!body.subarray(0, 8).equals(PNG_SIGNATURE)) sink.fail(`frame ${k} is not a PNG`);
         if (sink.error) return answer(400, sink.error);
-        sink.next++;
-        if (stdin.writableNeedDrain) stdin.once('drain', () => answer(204)); else answer(204);
+        sink.waiting.set(k, { body, answer });
+        sink.pump();
       });
     });
   },
@@ -214,6 +231,8 @@ try {
   const openPage = async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
     page.on('pageerror', (e) => pageErrors.push(e.message));
+    // render.html takes Worker away from the widgets, to keep them repeatable; the frame senders keep it.
+    await page.addInitScript(() => { window.__Worker = window.Worker; });
     // No live reload mid-render (other work edits files), never the lab's ratings server, and this exact show.
     await page.route('**/@vite/client', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
     await page.route(/localhost:5174/, (r) => r.abort());
@@ -300,29 +319,55 @@ try {
     // a second output: the md5 of each decoded frame's RGBA
     ...(opts.framemd5 ? ['-map', '0:v', '-frames:v', String(n), '-c:v', 'rawvideo', '-pix_fmt', 'rgba', '-f', 'framemd5', md5File] : [])],
   { stdin: true });
-  Object.assign(sink, { ff, next: 0, error: null });
-  ff.p.stdin.on('error', (e) => { sink.error = `ffmpeg's input: ${e.message}`; });
-  ff.done.catch((e) => { sink.error = e.message; });
+  Object.assign(sink, { ff, next: 0, error: null, writing: false });
+  sink.waiting.clear();
+  ff.p.stdin.on('error', (e) => sink.fail(`ffmpeg's input: ${e.message}`));
+  ff.done.catch((e) => sink.fail(e.message));
 
   const t0 = Date.now();
   let lastReport = t0, tCal = t0;
   for (let k = 0; k < n; k += BATCH) {
-    // Draw k+1 while frame k is compressed and on its way (toBlob takes the picture when called); each frame waits for
-    // the previous answer, so they arrive in order.
-    await page.evaluate(async ({ start, FPS, k0, k1 }) => {
+    // Each picture is copied to plain memory the moment it is drawn, and workers compress and send those copies side by side
+    // (a PNG of a busy 2× frame takes longer than drawing it, and one upload from Chrome only manages about 30 MB/s). The sink
+    // puts them in order. The copy has to be this one: createImageBitmap changed a few pixels of a few frames, differently
+    // each run, and reading the canvas itself would change how Chrome draws on it.
+    await page.evaluate(async ({ start, FPS, k0, k1, SENDERS }) => {
       const c = document.getElementById('c');
-      let prev = Promise.resolve();
+      const pool = (window.__senders ??= (() => {
+        const source = `onmessage = async ({ data: { k, w, h, pixels, url } }) => {
+            try {
+              const copy = new OffscreenCanvas(w, h);
+              copy.getContext('2d', { willReadFrequently: true }).putImageData(new ImageData(new Uint8ClampedArray(pixels), w, h), 0, 0);
+              // The PNG's bytes, not the Blob: a Blob body goes through Chrome's blob store, and busy 2× frames (4–5 MB PNGs:
+              // Winter Wind's horizon) made a POST fail with "Failed to fetch" after 100 to 150 frames (T24).
+              const png = await copy.convertToBlob({ type: 'image/png' });
+              const r = await fetch(url, { method: 'POST', body: await png.arrayBuffer() });
+              postMessage(r.ok ? {} : { error: 'frame ' + k + ': ' + r.status + ' ' + await r.text() });
+            } catch (e) { postMessage({ error: 'frame ' + k + ': ' + e }); }
+          };`;
+        const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+        const p = { free: [], wake: null, error: null };
+        for (let i = 0; i < SENDERS; i++) {
+          const w = new window.__Worker(url);
+          w.onmessage = ({ data }) => { p.error ??= data.error ?? null; p.free.push(w); p.wake?.(); };
+          w.onerror = (e) => { p.error ??= e.message; p.free.push(w); p.wake?.(); };
+          p.free.push(w);
+        }
+        p.until = async (ok) => { while (!ok() && !p.error) await new Promise((r) => { p.wake = r; }); if (p.error) throw new Error(p.error); };
+        p.shot = Object.assign(document.createElement('canvas'), { width: c.width, height: c.height }).getContext('2d', { willReadFrequently: true });
+        return p;
+      })());
+      const shot = pool.shot;
+      shot.globalCompositeOperation = 'copy';
       for (let k = k0; k < k1; k++) {
         if (k > 0) window.renderTo(start + k / FPS);
-        const png = new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error(`frame ${k}: no PNG`))), 'image/png'));
-        await prev;
-        // The PNG's bytes, not the Blob: a Blob body goes through Chrome's blob store, and busy 2× frames (4–5 MB PNGs:
-        // Winter Wind's horizon) made a POST fail with "Failed to fetch" after 100 to 150 frames (T24).
-        prev = png.then(async (b) => fetch(`/__frame?k=${k}`, { method: 'POST', body: await b.arrayBuffer() }))
-          .then(async (r) => { if (!r.ok) throw new Error(`frame ${k}: ${r.status} ${await r.text()}`); });
+        shot.drawImage(c, 0, 0);
+        const pixels = shot.getImageData(0, 0, c.width, c.height).data.buffer;
+        await pool.until(() => pool.free.length > 0);
+        pool.free.pop().postMessage({ k, w: c.width, h: c.height, pixels, url: new URL(`/__frame?k=${k}`, location.href).href }, [pixels]);
       }
-      await prev;
-    }, { start, FPS, k0: k, k1: Math.min(n, k + BATCH) });
+      await pool.until(() => pool.free.length === SENDERS);
+    }, { start, FPS, k0: k, k1: Math.min(n, k + BATCH), SENDERS });
     const now = Date.now(), done = Math.min(n, k + BATCH), per = (now - t0) / 1000 / done;
     if (profile && done === CAL) tCal = now;
     if (!eta && profile && done >= 2 * CAL && done < n) {
