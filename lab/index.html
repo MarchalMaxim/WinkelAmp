@@ -399,7 +399,9 @@ const TOOL_IDS = ['gliss', 'ivory', 'johansson', 'tree', 'fireworks', 'clumsy', 
   'matisse', 'kusama', 'ikeda', 'horizon',
   'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
-  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
+  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket',
+  // Tonight's snap candidates (docs/mockups/snap/DESIGN.md), registered up front so builders never edit this line.
+  'squares-snap', 'flee-snap', 'fireworks-snap', 'hammer', 'handover', 'blade'];
 const LOAD_NOTES = { missing: [], broken: [] };
 const TOOL_SRC = {};   // id → the widget file's text: a layer instance that listens to a part runs its own copy
 async function loadTools() {
@@ -1013,6 +1015,8 @@ if (RENDER) {
   };
   /** How present, as the slider sets it, for a render at another value. */
   window.renderPresent = (id, s) => setPresent(toolOf(id), s);
+  /** Knob bases for a render (snap-compare): renderKnobs('squares', { life: 0.5 }) sets those knobs' bases, nothing else. */
+  window.renderKnobs = (id, vals) => { const t = toolOf(id); for (const q of t?.params ?? []) if (q.key in vals) pst(t, q).base = Number(vals[q.key]); };
   /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
   window.renderTo = (t) => window.renderStep(t - lastT);
 }

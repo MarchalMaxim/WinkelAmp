@@ -6,9 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "snap-compare": "node scripts/snap-compare.mjs",
     "build": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "snap-scenes-check": "node scripts/checks/snap-scenes-check.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "ingest": "tsx scripts/ingest.ts",
     "ears": "tsx scripts/ears/server.ts",
