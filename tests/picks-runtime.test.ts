@@ -44,7 +44,9 @@ const LATE = `TOOLS.push({ id: 'late', name: 'late',
 /** Fails to load on a set of 5 notes. */
 const FUSSY = `if (window.NOTES.length === 5) throw new Error('not on five');
 ${probe('fussy')}`;
-const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other'), late: LATE, fussy: FUSSY };
+/** What x.picked says while it runs. */
+const ASKS = `TOOLS.push({ id: 'asks', name: 'asks', onChord(ch, x) { (window.__asked ??= []).push(x.picked); }, frame() {} });`;
+const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other'), late: LATE, fussy: FUSSY, asks: ASKS };
 const HARNESS: LabHarness = { toolIds: Object.keys(SOURCES), verdicts: {}, drives: [], iconSource: '{ ink: "#000", gauge() {} }' };
 const META: WidgetMeta = { id: 'x', name: 'x', blurb: '', tag: '', verdict: null, params: [{ key: 'size', min: 0, max: 9, value: 1 }] };
 
@@ -353,5 +355,20 @@ describe('Dread squares and the notes it is given', () => {
   });
   it('draws a low note as it did, picked or not', () => {
     expect(Math.max(...sizes({ listen: 'picks:p1' }, low, low))).toBeCloseTo(Math.max(...sizes({}, low)));
+  });
+});
+
+describe('x.picked', () => {
+  const asked = () => (globalThis as unknown as { __asked?: boolean[] }).__asked;
+  const heardWith = (clip: Partial<Clip>, s: Partial<Show> = {}) => {
+    delete (globalThis as unknown as { __asked?: boolean[] }).__asked;
+    const { c } = start({ ...song({ id: 'a', start: 0, end: 30, track: 0, fade: 0, widget: 'asks', ...clip }), ...s });
+    c.reset(0); play(c, 0, 5);
+    return asked();
+  };
+  it('is true for a widget on a set of picks, and false for one on all notes, a track or a line', () => {
+    expect(heardWith({ listen: 'picks:p1' }, { picks: { p1: { notes: PICKS } } })).toEqual([true, true]);
+    expect(heardWith({})!.every((a) => a === false)).toBe(true);
+    expect(heardWith({ listen: 'melody' })!.every((a) => a === false)).toBe(true);
   });
 });

@@ -135,9 +135,10 @@
     ],
     reset(x) { W = x.W; H = x.H; ink.fill(0); inkT.fill(0); tint.fill(0); },
     onChord(ch, x) {
-      const mark = x.p('mark');
+      // a picked note always marks, however loud: at least what the knob's left end of how present leaves
+      const mark = x.picked ? Math.max(x.p('mark'), 0.3) : x.p('mark');
       for (const n of ch.notes) {
-        const b = Math.floor(semiOf(n.m) / BAND), a = clamp(0.42 * quiet(n.v) * mark * (0.7 + 0.3 * Math.min(1, n.d / 0.6)));
+        const b = Math.floor(semiOf(n.m) / BAND), a = clamp(0.42 * (x.picked ? 1 : quiet(n.v)) * mark * (0.7 + 0.3 * Math.min(1, n.d / 0.6)));
         inkT[b] = 1 - (1 - inkT[b]) * (1 - a);
       }
     },

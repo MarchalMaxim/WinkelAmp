@@ -474,6 +474,7 @@ const ctx = {
   level: 0,      // 0..1 smoothed loudness from recent attack velocities
   rate: 0,       // attacks per second, smoothed
   hit: 0,        // 0..1 each attack's jump, half gone in 0.08 s (the '+hit' drive: each note → jump)
+  picked: false, // on a set of picks (the studio only): the composer chose the notes, answer every one
   rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
   /** Notes sounding at song time t: [{ m, v, start, end }]. While a layer instance that hears a part is called, its
       part's (SND.notes; the shared lines.js soundingAt, as the studio's). */
@@ -485,8 +486,6 @@ const ctx = {
   top() { let b = null; for (const n of ctx.sounding()) if (!b || n.m > b.m) b = n; return b; },
   /** MIDI → 0..1 (piano range 21..108). */
   pitch01: (m) => Math.max(0, Math.min(1, (m - 21) / 87)),
-  /** The studio's: an instance on notes picked by hand. There are none here. */
-  onPicks: () => false,
 };
 function lo(t) { let a = 0, b = NOTES.length; while (a < b) { const k = (a + b) >> 1; if (NOTES[k][0] < t) a = k + 1; else b = k; } return a; }
 

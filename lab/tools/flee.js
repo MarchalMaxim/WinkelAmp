@@ -516,8 +516,9 @@
         burst = null;
       }
       // Spawn.
-      const pSpawn = 0.4 + 0.6 * panic;
-      const highs = ch.notes.filter((n) => n.m >= reg).sort((a, b) => a.m - b.m).slice(panic > 0.5 ? -6 : -4);
+      // Picked notes all call up a shape, low ones too.
+      const pSpawn = x.picked ? 1 : 0.4 + 0.6 * panic;
+      const highs = ch.notes.filter((n) => x.picked || n.m >= reg).sort((a, b) => a.m - b.m).slice(x.picked ? 0 : panic > 0.5 ? -6 : -4);
       const mix = x.p('mix');
       for (const n of highs) {
         if (shapes.length >= 110 || Math.random() > pSpawn || !hardNote(n.v, cut)) continue;
