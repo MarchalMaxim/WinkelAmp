@@ -21,7 +21,10 @@ const SHOWS = {
 
 // --disable-accelerated-2d-canvas: Chrome's GPU 2D canvas is not bit-stable on blurred fills (1-2 pixels flip by 1 between runs),
 // while the software canvas is. Slower (about 2.5 s a sample), but the hashes then repeat exactly.
-const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !HEADED, args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-gl=angle', '--disable-accelerated-2d-canvas'] });
+// --use-angle=swiftshader (+ --enable-unsafe-swiftshader, which it needs): WebGL (gliss's fluid, fireworks) on the real GPU
+// (ANGLE / D3D11) is not bit-stable either: the same WebGL calls with the same arguments gave different pixels from run to run
+// (rach-concerto-2 @ 90 s, gliss c14). SwiftShader runs WebGL in software, deterministically; both shows take about 3 min.
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !HEADED, args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-gl=angle', '--disable-accelerated-2d-canvas', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const hashes = {}, errors = {};
 try {
   for (const [id, times] of Object.entries(SHOWS)) {
