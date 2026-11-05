@@ -15,11 +15,13 @@ const bi = argv.indexOf('--base');
 const BASE = (bi >= 0 ? argv[bi + 1] : 'http://localhost:5300').replace(/\/$/, '');
 const BASELINE = path.join(ROOT, 'docs', 'mockups', 'snap', 'baseline.json');
 const SHOWS = {
-  liebesleid: [12, 45, 90, 140, 200, 250, 290],
-  'rach-concerto-2': [8, 40, 60, 78, 130, 240, 300, 360, 450, 600, 700],
+  liebesleid: [12, 18, 27, 45, 49, 70, 100, 168, 177, 182, 192, 200, 210, 235, 240, 290],
+  'rach-concerto-2': [8, 38, 43, 45, 52, 60, 75, 81, 85, 90, 100, 120, 128, 135, 138, 142, 160],
 };
 
-const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !HEADED, args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-gl=angle'] });
+// --disable-accelerated-2d-canvas: Chrome's GPU 2D canvas is not bit-stable on blurred fills (1-2 pixels flip by 1 between runs),
+// while the software canvas is. Slower (about 2.5 s a sample), but the hashes then repeat exactly.
+const browser = await chromium.launch({ channel: 'chrome', chromiumSandbox: true, headless: !HEADED, args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-gl=angle', '--disable-accelerated-2d-canvas'] });
 const hashes = {}, errors = {};
 try {
   for (const [id, times] of Object.entries(SHOWS)) {

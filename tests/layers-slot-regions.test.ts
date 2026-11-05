@@ -16,7 +16,7 @@ for (let i = 0; i < 40; i++) notes.push([i * 0.25, i * 0.25 + 0.4, 40 + ((i * 7)
 const chords = groupChords(notes);
 
 function inst(over: Partial<InstanceState> = {}): InstanceState {
-  return { key: 'rorschach', widget: 'rorschach', salt: WA.fnv32('rorschach'), notes, chords, ci: 0, pulse: { level: 0, rate: 0 },
+  return { key: 'rorschach', widget: 'rorschach', salt: WA.fnv32('rorschach'), notes, chords, ci: 0, pulse: { level: 0, rate: 0, hit: 0 },
     feat: newFeatures(), own: false, routed: false, persist: 'strokes', win: null, ...over };
 }
 function slot(i: InstanceState, over: Partial<LayeredSlot> = {}): LayeredSlot {

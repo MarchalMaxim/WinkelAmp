@@ -1,5 +1,11 @@
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FeatureExtractor, estimateBpm, pitchClass } from '../src/audio/features';
+import { advanceFeatures, knobValue, newFeatures } from '../src/widgets/features';
+import { readLabHarness } from '../src/widgets/lab-harness';
+import { DRIVES } from '../src/studio/show/show';
+import type { Chord } from '../src/widgets/types';
 import { fifthsPosition, noteHue, paletteColor, PALETTES } from '../src/visual/color';
 
 const SR = 48000;
@@ -131,5 +137,66 @@ describe('color', () => {
     const c = paletteColor(sunset, 0.37);
     expect(c.h).toBeGreaterThanOrEqual(0);
     expect(c.h).toBeLessThan(360);
+  });
+});
+
+// The widgets' pulse (src/widgets/features.ts), not the audio extractor above: the +hit drive, "each note → jump".
+describe('feat.hit, the +hit drive', () => {
+  const chord = (vel: number): Chord => ({ t: 0, notes: [{ m: 60, v: vel, d: 1 }], vel, lo: 60, hi: 60 });
+  const pulse = () => ({ level: 0, rate: 0, hit: 0 });
+
+  it('a full-strength note lifts it to 1 in its own step, and half of it is gone 0.08 s later', () => {
+    const p = pulse(), f = newFeatures();
+    advanceFeatures(p, f, [chord(127)], [], 1 / 60);
+    expect(f.hit).toBe(1);
+    advanceFeatures(p, f, [], [], 0.08);
+    expect(f.hit).toBeCloseTo(0.5, 12);
+    advanceFeatures(p, f, [], [], 0.08);
+    expect(f.hit).toBeCloseTo(0.25, 12);
+    // in 60 Hz steps too: about 70 ms above half
+    const q = pulse(), g = newFeatures();
+    advanceFeatures(q, g, [chord(127)], [], 1 / 60);
+    let n = 0; while (g.hit > 0.5) { advanceFeatures(q, g, [], [], 1 / 60); n++; }
+    expect(n).toBe(5);
+  });
+
+  it('a soft note after a loud one still makes it jump, where level does not move', () => {
+    const p = pulse(), f = newFeatures();
+    advanceFeatures(p, f, [chord(120)], [], 1 / 60);
+    advanceFeatures(p, f, [], [], 0.1);
+    const hit0 = f.hit, level0 = f.level;
+    advanceFeatures(p, f, [chord(40)], [], 1 / 60);
+    expect(f.level).toBeLessThan(level0);          // level only decays: max(level, 40/115) is still the old level
+    const decayed = hit0 * Math.pow(0.5, (1 / 60) / 0.08);
+    expect(f.hit).toBeGreaterThan(decayed + 0.1);  // the soft note added its share
+    expect(f.hit).toBeLessThanOrEqual(1);
+  });
+
+  it('two notes at once never pass 1, and louder notes kick harder', () => {
+    const p = pulse(), f = newFeatures();
+    advanceFeatures(p, f, [chord(127), chord(127)], [], 1 / 60);
+    expect(f.hit).toBe(1);
+    const soft = pulse(), fs = newFeatures(), loud = pulse(), fl = newFeatures();
+    advanceFeatures(soft, fs, [chord(40)], [], 1 / 60);
+    advanceFeatures(loud, fl, [chord(100)], [], 1 / 60);
+    expect(fs.hit).toBeGreaterThan(0.1);
+    expect(fl.hit).toBeGreaterThan(fs.hit);
+  });
+
+  it('drives a knob up or down like any other drive', () => {
+    const q = { key: 'size', min: 0, max: 2, value: 1 };
+    const f = { ...newFeatures(), hit: 0.5 };
+    expect(knobValue(q, { base: 1, drive: '+hit', depth: 0.3 }, f)).toBeCloseTo(1.3, 12);
+    expect(knobValue(q, { base: 1, drive: '-hit', depth: 0.3 }, f)).toBeCloseTo(0.7, 12);
+    expect(knobValue(q, { base: 1, drive: '+hit', depth: 0.3 }, newFeatures())).toBe(1);
+  });
+
+  it("is in the lab's drive menu with its words, and the studio accepts it in a show", () => {
+    const h = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
+    expect(h.drives).toContainEqual(['+hit', 'each note → jump']);
+    expect(h.drives).toContainEqual(['-hit', 'each note → dip']);
+    expect(DRIVES).toContain('+hit');
+    expect(DRIVES).toContain('-hit');
+    for (const [d] of h.drives) expect(DRIVES).toContain(d);
   });
 });

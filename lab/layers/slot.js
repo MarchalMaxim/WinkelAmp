@@ -23,7 +23,7 @@
   'use strict';
 
   /** A fresh pulse's features: src/widgets/features.ts newFeatures. */
-  WA.newFeatures = function () { return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 }; };
+  WA.newFeatures = function () { return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 }; };
 
   /** An instance starting cold at song time t, as after a seek: the next attack it hears is its first chord after t, its
       pulse is 0 and its features fresh. The hosts call it on every reset and when an own instance comes back after a
@@ -32,7 +32,7 @@
     var cs = inst.chords, i = 0;
     while (i < cs.length && cs[i].t <= t) i++;
     inst.ci = i;
-    inst.pulse.level = 0; inst.pulse.rate = 0;
+    inst.pulse.level = 0; inst.pulse.rate = 0; inst.pulse.hit = 0;
     var f = WA.newFeatures();
     for (var k in f) inst.feat[k] = f[k];
   };

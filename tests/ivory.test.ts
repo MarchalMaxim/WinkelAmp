@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 interface Chord { t: number; notes: { m: number; v: number; d: number }[]; vel: number; lo: number; hi: number }
 interface Plan { keys: { m: number; t: number; w: number; h: number; foot: number; angle: number; press?: number }[]; stomp: number | null; last?: number }
 
-const tools: { id: string; plan: (c: Chord[]) => Plan }[] = [];
+const tools: { id: string; plan: (c: Chord[]) => Plan; params: { key: string; value: number; min: number; max: number }[] }[] = [];
 new Function('TOOLS', 'ICON', 'CHORDS', readFileSync('lab/tools/ivory.js', 'utf8'))(tools, {}, []);
-const { plan } = tools[0];
+const { plan, params } = tools[0];
 
 const chord = (t: number, ...ms: number[]): Chord => ({ t, notes: ms.map((m) => ({ m, v: 80, d: 0.5 })), vel: 80, lo: Math.min(...ms), hi: Math.max(...ms) });
 
@@ -108,5 +108,26 @@ describe('ivory plan', () => {
   it('has no way back on a whole song', () => {
     const song = Array.from({ length: 4000 }, (_, i) => chord(i * 0.2, 40 + (i * 7) % 48));
     expect(plan(song).keys.every((k) => k.press === undefined)).toBe(true);
+  });
+});
+
+// The strike knob (snap night, C5) is opt-in: at 0 Ivory draws what it always drew, and the plan never sees the knob.
+describe('ivory strike knob', () => {
+  it('holds five knobs plus presence, strike last before presence and off by default', () => {
+    expect(params.map((p) => p.key)).toEqual(['floor', 'crater', 'ripple', 'cracks', 'strike', 'presence']);
+    const strike = params.find((p) => p.key === 'strike')!;
+    expect([strike.min, strike.max, strike.value]).toEqual([0, 1, 0]);
+  });
+  it('leaves the plan as it was: the numbers below were taken before the knob existed', () => {
+    const picked = (t: number, m: number, amount?: number): Chord => ({ t, notes: [{ m, v: 80, d: 0.5, ...(amount ? { amount } : {}) }], vel: 80, lo: m, hi: m });
+    const p = plan([picked(1, 60), picked(2, 64, 1.6), picked(3, 67), picked(4, 72), picked(5, 65)]) as Plan & { keys: { rise: number }[] };
+    const near = (a: number[], b: number[]) => a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 9));
+    near(p.keys.map((k) => k.w), [75.10989891003817, 93.01284995781519, 89.22077495042235, 86.11027939707041]);
+    near(p.keys.map((k) => k.h), [113.05545624772488, 310.7440089724027, 374.6640858484405, 545.6874842695064]);
+    near(p.keys.map((k) => k.foot), [385.5344736019615, 551.9137802302527, 693.0215146517537, 901.1554597737268]);
+    near(p.keys.map((k) => k.angle), [0.06705982016213238, 0.07285036224685609, 0.026403783362358806, -0.06676482072845101]);
+    near((p.keys as unknown as { rise: number }[]).map((k) => k.rise), [0.2, 0.2 / (0.4 + 0.6 * 1.6), 0.2, 0.2]);
+    expect(p.keys.map((k) => k.press)).toEqual([undefined, undefined, undefined, 5]);
+    expect([p.stomp, p.last]).toEqual([4, 5]);
   });
 });

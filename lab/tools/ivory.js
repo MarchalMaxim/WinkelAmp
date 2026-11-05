@@ -182,6 +182,10 @@
       { key: 'cracks', label: 'how many cracks', min: 0, max: 8, value: 1.5,
         hint: 'Hairline cracks on each key. Left: spotless. Right: well worn.',
         icon: (g, v, w, h) => ICON.lines(g, Math.round(v * 6), w, h, { dir: 'v' }) },
+      { key: 'strike', label: 'how hard the keys strike', min: 0, max: 1, value: 0,
+        hint: 'Left: keys rise as they always have, over a fifth of a second. Right: a key is up in two frames, jumps past its height and settles, its top edge lit for an instant.',
+        // A key on the right; the line it rises along gets steeper as the strike gets harder.
+        icon: (g, v, w, h) => { ICON.rect(g, w * 0.62, 5, w * 0.2, h - 9, ICON.ink); ICON.line(g, 3, h - 3, w * (0.56 - 0.42 * v), 5, ICON.dim, 1.5); ICON.line(g, 2, h - 3, w - 2, h - 3, ICON.dim, 1); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
         hint: 'How strongly it all shows. Left: not at all. Right: fully.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => ICON.rect(g, w * 0.3, 4, w * 0.4, h - 8, ICON.ink)) },
@@ -212,15 +216,39 @@
       }
       const jolt = sh > 0 ? 2.4 * plan.strike * Math.exp(-sh / 0.08) * Math.cos(sh * 55) : 0, amp = x.p('ripple') * plan.strike;
       g.globalAlpha = settles(pres * gone);
+      const s = x.p('strike'), BONE = 'rgb(236,226,208)';   // how hard the keys strike; 0 is Ivory exactly as it always was
       g.save(); g.beginPath(); g.rect(0, 0, W, BASE + jolt); g.clip();   // they stand in the ground
       for (const k of keys) {
         if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; }
-        const a = (x.t - k.t) / k.rise, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
+        let risen, over = 1;
+        if (s > 0) {
+          // A hammer, not a bow: up in a fraction of the time, at full speed from the first frame, then a short bounce
+          // past its height that dies in a few tenths. Age from the key's own note, so a seek lands on the same frame.
+          const u = x.t - k.t, a = u / (k.rise * (1 - 0.7 * s));
+          risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3 + 3 * s);
+          if (u >= 0 && u <= 0.4) over = 1 + 0.12 * s * Math.exp(-u / 0.07) * Math.cos(2 * Math.PI * 9 * u);
+        } else {
+          const a = (x.t - k.t) / k.rise;
+          risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
+        }
         const sunk = k.press !== undefined ? smooth((x.t - k.press) / k.sink) : 0;
         if (sunk >= 1) continue;
         const keyTop = -k.h + (1 - risen) * k.full + sunk * (k.h + 8);
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);
+        // The bounce stretches the key about its foot, so the part in the ground stays in the ground (it is only 30 px deep).
+        if (s > 0 && over !== 1) g.scale(1, over);
         drawKey(g, where, k, keyTop, sh, amp, rs);
+        if (s > 0) {
+          // The struck edge: lit for two steps. The first is drawn at full; the second at the alpha that holds it there
+          // over the canvas's fade, so it shows as one even flash and then the canvas takes it away.
+          const u = x.t - k.t, lit = 0.6 * s;
+          if (u >= 0 && u < 0.033) {
+            const was = g.globalAlpha;
+            g.globalAlpha = pres * (u < x.dt ? lit : 0.12 * lit / (1 - 0.88 * lit));
+            g.fillStyle = BONE; g.fillRect(-k.w / 2 + 1, keyTop, k.w - 2, 2 / over);
+            g.globalAlpha = was;
+          }
+        }
         if (after > 0) { g.globalCompositeOperation = 'multiply'; g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); g.globalCompositeOperation = 'source-over'; }
         g.restore();
       }

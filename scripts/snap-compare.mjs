@@ -2,7 +2,9 @@
 //
 //   node scripts/snap-compare.mjs --song liebesleid --from 60 --to 75 --left "<url>" --right "<url>" --out renders/snap/x.mp4
 //        [--fps 30] [--width 640] [--labels "today|snap"] [--base http://localhost:5300]
-//        [--left-knobs '{"life":0.4}'] [--right-knobs '{"life":0.5}']
+//        [--left-knobs '{"life":0.4}'] [--right-knobs '{"life":0.5}'] [--trace]
+// --trace stacks a scrolling brightness trace (mean luma per frame, 0..80) under each half, so snap can be read as well as seen:
+// a spike on each note with a trough between is snap; rounded hills drifting past the notes are mush. If this ffmpeg has no drawgraph, the trace is skipped and said so.
 //
 // A URL is a render page with the frame-by-frame API (window.renderReady, renderSeek, renderTo, renderErrors): the lab
 // (lab/index.html?render=1&song=<id>&only=<widget>) or the studio's render.html?show=<id>. A relative URL is resolved against --base.
@@ -20,9 +22,10 @@ const opt = (n, d) => { const i = argv.indexOf(`--${n}`); return i < 0 ? d : arg
 const song = opt('song'), from = Number(opt('from')), to = Number(opt('to')), out = opt('out');
 const FPS = Number(opt('fps', 30)), W = Number(opt('width', 640)), H = Math.round((W * 720) / 1280 / 2) * 2;
 const BASE = opt('base', 'http://localhost:5300'), WARM = 4, BATCH = 15;
+const TRACE = argv.includes('--trace');
 const [labL, labR] = (opt('labels', '') || '').split('|');
 if (!song || !(to > from) || !opt('left') || !opt('right') || !out) {
-  console.error('usage: node scripts/snap-compare.mjs --song <id> --from <s> --to <s> --left <url> --right <url> --out <file.mp4> [--fps 30] [--width 640] [--labels "a|b"] [--base url] [--left-knobs json] [--right-knobs json]');
+  console.error('usage: node scripts/snap-compare.mjs --song <id> --from <s> --to <s> --left <url> --right <url> --out <file.mp4> [--fps 30] [--width 640] [--labels "a|b"] [--base url] [--left-knobs json] [--right-knobs json] [--trace]');
   process.exit(1);
 }
 const audio = path.resolve('songs', song, 'audio.mp3');
@@ -95,12 +98,20 @@ try {
 const hasDrawtext = await new Promise((res) => { const p = spawn('ffmpeg', ['-hide_banner', '-filters']); let o = ''; p.stdout.on('data', (d) => (o += d)); p.on('close', () => res(/drawtext/.test(o))); });
 const FONT = 'C\\:/Windows/Fonts/segoeuib.ttf';
 const dt = (l) => `drawtext=fontfile='${FONT}':text='${String(l).replace(/[\\':%]/g, '')}':x=12:y=10:fontsize=${Math.round(H / 16)}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=6`;
-let lf = '[0:v]null[a];[1:v]null[b];';
-if ((labL || labR) && hasDrawtext) lf = `[0:v]${labL ? dt(labL) : 'null'}[a];[1:v]${labR ? dt(labR) : 'null'}[b];`;
-else if (labL || labR) problems.push('ffmpeg has no drawtext: labels skipped');
+const hasGraph = await new Promise((res) => { const p = spawn('ffmpeg', ['-hide_banner', '-filters']); let o = ''; p.stdout.on('data', (d) => (o += d)); p.on('close', () => res(/ drawgraph /.test(o))); });
+const trace = TRACE && hasGraph;
+if (TRACE && !hasGraph) problems.push('ffmpeg has no drawgraph: no brightness trace');
+// The trace reads the picture before the label is drawn, so the label does not move it; it is stacked under the labelled half.
+const half = (i, o, l) => {
+  const lab = l && hasDrawtext ? dt(l) : 'null';
+  if (!trace) return `[${i}:v]${lab}[${o}];`;
+  return `[${i}:v]split[${o}s][${o}t];[${o}t]signalstats,drawgraph=m1=lavfi.signalstats.YAVG:min=0:max=80:slide=scroll:s=${W}x60:fg1=0xffffffff:bg=black:r=${FPS}[${o}g];[${o}s]${lab}[${o}l];[${o}l][${o}g]vstack,fps=${FPS}[${o}];`;
+};
+if ((labL || labR) && !hasDrawtext) problems.push('ffmpeg has no drawtext: labels skipped');
+const lf = half(0, 'a', labL) + half(1, 'b', labR);
 const inp = (s) => ['-framerate', String(FPS), '-i', path.join(tmp, s, 'f%05d.jpg')];
 await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', ...inp('left'), ...inp('right'), '-ss', String(from), '-t', String(to - from), '-i', audio,
-  '-filter_complex', `${lf}[a][b]hstack=inputs=2[v]`, '-map', '[v]', '-map', '2:a', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-preset', 'medium',
+  '-filter_complex', `${lf}[a][b]hstack=inputs=2[v]`, '-map', '[v]', '-map', '2:a', '-r', String(FPS), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-preset', 'medium',
   '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-shortest', outPath]);
 const sheet = outPath.replace(/\.mp4$/i, '') + '-sheet.png', every = Math.max(1, Math.round(FPS / 2)), cols = Math.ceil(N / every), tw = Math.min(W, 320);
 await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', ...inp('left'), ...inp('right'), '-filter_complex',

@@ -15,7 +15,7 @@ for (let i = 0; i < 400; i++) notes.push([i * 0.25, i * 0.25 + 0.4, 40 + ((i * 7
 const chords = groupChords(notes);
 
 function inst(over: Partial<InstanceState> = {}): InstanceState {
-  return { key: 'strings', widget: 'strings', salt: WA.fnv32('strings'), notes, chords, ci: 0, pulse: { level: 0, rate: 0 },
+  return { key: 'strings', widget: 'strings', salt: WA.fnv32('strings'), notes, chords, ci: 0, pulse: { level: 0, rate: 0, hit: 0 },
     feat: newFeatures(), own: false, routed: false, persist: 'redraw', win: null, ...over };
 }
 function slot(i: InstanceState, over: Partial<LayeredSlot> = {}): LayeredSlot {
@@ -45,11 +45,11 @@ function host(log: string[], S = 1): LayerHost {
 
 describe('coldInstance', () => {
   it('starts at the first chord after t, with a zero pulse and fresh features', () => {
-    const i = inst({ ci: 3, pulse: { level: 0.7, rate: 2 } });
+    const i = inst({ ci: 3, pulse: { level: 0.7, rate: 2, hit: 0.5 } });
     i.feat.pitch = 0.9; i.feat.density = 0.4;
     WA.coldInstance(i, 10);
     expect(i.ci).toBe(chords.findIndex((c) => c.t > 10));
-    expect(i.pulse).toEqual({ level: 0, rate: 0 });
+    expect(i.pulse).toEqual({ level: 0, rate: 0, hit: 0 });
     expect(i.feat).toEqual(newFeatures());
     expect(WA.newFeatures()).toEqual(newFeatures());
     WA.coldInstance(i, 1e9);
@@ -128,7 +128,7 @@ describe('drawLayered', () => {
     expect(log[log.length - 3]).toBe('g.globalAlpha=1');   // 1 − 0
   });
   it('an own instance\'s pulse advances on what it was delivered, bit for bit advanceFeatures', () => {
-    const i = inst({ own: true, routed: true }), ref = { level: 0, rate: 0 }, rf = newFeatures();
+    const i = inst({ own: true, routed: true }), ref = { level: 0, rate: 0, hit: 0 }, rf = newFeatures();
     WA.coldInstance(i, 0);
     let ci = chords.findIndex((c) => c.t > 0);   // cold at 0: the chord at 0 is behind it
     for (let k = 1; k <= 600; k++) {

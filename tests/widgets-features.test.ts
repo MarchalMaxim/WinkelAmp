@@ -37,16 +37,16 @@ describe('advanceFeatures (the lab step arithmetic)', () => {
   const snd = (...ms: [number, number][]): SoundingNote[] => ms.map(([m, v]) => ({ m, v, start: 0, end: 1 }));
 
   it('level halves in 0.8 s, rate in 1 s', () => {
-    const p = { level: 0.5, rate: 1 }, f = feat();
+    const p = { level: 0.5, rate: 1, hit: 0 }, f = feat();
     advanceFeatures(p, f, [], [], 0.8);
     expect(p.level).toBeCloseTo(0.25, 12);
-    const p2 = { level: 0, rate: 1 };
+    const p2 = { level: 0, rate: 1, hit: 0 };
     advanceFeatures(p2, feat(), [], [], 1);
     expect(p2.rate).toBeCloseTo(0.5, 12);
   });
 
   it('a chord sets level from its velocity and adds to rate', () => {
-    const p = { level: 0, rate: 0 }, f = feat();
+    const p = { level: 0, rate: 0, hit: 0 }, f = feat();
     advanceFeatures(p, f, [chord(115)], [], 0.01);
     expect(p.level).toBe(1);
     expect(p.rate).toBeCloseTo(1 / 1.44, 12);
@@ -56,7 +56,7 @@ describe('advanceFeatures (the lab step arithmetic)', () => {
 
   it('pitch, bass and density move halfway in 0.25 s', () => {
     const f = feat();
-    advanceFeatures({ level: 0, rate: 0 }, f, [], snd([40, 127], [45, 127], [108, 60], [70, 60], [72, 60]), 0.25);
+    advanceFeatures({ level: 0, rate: 0, hit: 0 }, f, [], snd([40, 127], [45, 127], [108, 60], [70, 60], [72, 60]), 0.25);
     expect(f.pitch).toBeCloseTo(0.5 + (1 - 0.5) * 0.5, 12);   // top 108 → 1
     expect(f.bass).toBeCloseTo(0.5, 12);                      // two m < 50 at 127 → target 1
     expect(f.density).toBeCloseTo(0.25, 12);                  // five sounding → target 0.5
@@ -64,7 +64,7 @@ describe('advanceFeatures (the lab step arithmetic)', () => {
 
   it('nothing sounding: pitch holds', () => {
     const f = feat({ pitch: 0.8 });
-    advanceFeatures({ level: 0, rate: 0 }, f, [], [], 0.25);
+    advanceFeatures({ level: 0, rate: 0, hit: 0 }, f, [], [], 0.25);
     expect(f.pitch).toBe(0.8);
   });
 });

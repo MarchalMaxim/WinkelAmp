@@ -2,7 +2,7 @@
 import type { Chord, Features, KnobMap, KnobState, Param, SoundingNote } from './types';
 
 export function newFeatures(): Features {
-  return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
+  return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 };
 }
 
 /** The lab's ctx.p: base, moved by a drive (pitch centred on 0.5), clamped to the knob's range. */
@@ -25,12 +25,18 @@ export function resolveKnobs(params: readonly Param[], over?: Record<string, num
   return out;
 }
 
-export interface Pulse { level: number; rate: number }
+/** hit: each attack's jump, gone in a blink (half-life 0.08 s); level and rate are the slow pulse. */
+export interface Pulse { level: number; rate: number; hit: number }
 
-/** One step of the lab's features: the pulse decays, fired chords kick it, pitch/bass/density follow what sounds. */
+/** One step of the lab's features: the pulse decays, fired chords kick it, pitch/bass/density follow what sounds.
+    hit's statements stand on their own lines after the others', which are untouched: level and rate run exactly the
+    arithmetic they always did, and hit (read by nothing else) is the same whether kicked in that loop or its own.
+    hit is kicked toward 1 by a soft union, not a max: a soft note right after a loud one still makes it jump. */
 export function advanceFeatures(p: Pulse, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void {
   p.level *= Math.pow(0.5, dt / 0.8); p.rate *= Math.pow(0.5, dt / 1.0);
+  p.hit *= Math.pow(0.5, dt / 0.08);
   for (const ch of fired) { p.level = Math.max(p.level, ch.vel / 115); p.rate += 1 / 1.44; }
+  for (const ch of fired) p.hit = 1 - (1 - p.hit) * (1 - Math.pow(ch.vel / 127, 1.4));
   const k = 1 - Math.pow(0.5, dt / 0.25);
   let top: SoundingNote | null = null, bass = 0;
   for (const n of snd) { if (!top || n.m > top.m) top = n; if (n.m < 50) bass += n.v / 127; }
@@ -38,6 +44,7 @@ export function advanceFeatures(p: Pulse, f: Features, fired: readonly Chord[], 
   f.pitch += ((top ? pitch01(top.m) : f.pitch) - f.pitch) * k;
   f.bass += (Math.min(1, bass / 2) - f.bass) * k;
   f.density += (Math.min(1, snd.length / 10) - f.density) * k;
+  f.hit = p.hit;
 }
 
 /** MIDI → 0..1 over the piano (21..108). */
