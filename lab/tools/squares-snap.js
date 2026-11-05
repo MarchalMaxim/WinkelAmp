@@ -1,4 +1,4 @@
-// Snap squares: Dread squares, answering each note sharply. A crack on the attack, a fast sink, a quiet ember (docs/mockups/snap/DESIGN.md, C3).
+// Snap squares: Dread squares, answering each note sharply. A crack on the attack, a sink you can tune, a quiet ember (docs/mockups/snap/DESIGN.md, C3).
 (() => {
 // SNAP v1 begin
 // SNAP: a piano note on screen. An instant hammer, a fast fall, a quiet tail, so the eye can count the notes.
@@ -146,14 +146,15 @@ var SNAP = SNAP || {};
   let sq = [], shake = 0;
   TOOLS.push({
     id: 'squares-snap', name: 'Snap squares', tag: 'new', on: false,
-    blurb: 'Low notes land as big dark-red squares, in the same places as Dread squares, but each one cracks on at full strength, lit for an instant, and sinks back within a fifth of a second to a quiet ember. Notes you picked by hand always land, however high.',
+    blurb: 'Low notes land as big dark-red squares, in the same places as Dread squares, but each one cracks on at full strength, lit for an instant, and then sinks back to a quiet ember; you set how long the sink takes (the default is about half a second, so you can see it). Notes you picked by hand always land, however high.',
     // The reference for the new knob style: at most 5 knobs, each with a plain hint and a small picture (see lab/README.md).
     params: [
       { key: 'size', label: 'size', min: 0.3, max: 2, value: 1, less: 0.7,
         hint: 'How big the squares are. Left: small tiles. Right: huge slabs.',
         icon: (g, v, w, h) => ICON.square(g, w / 2, h / 2, 4 + v * (h - 4), ICON.red) },
-      { key: 'life', label: 'how long they stay', min: 0.3, max: 4, value: 1.4, less: 1.1,
-        hint: 'How long a square stays. Left: a blink. Right: lingers for seconds. It cracks on and sinks back within a fifth of a second, whatever this is set to; this only sets how long the ember lasts.',
+      // In seconds: how long the full-strength crack takes to sink back to the ember (about the time it takes to fall to a tenth of the crack).
+      { key: 'life', label: 'how long a square takes to sink', min: 0.15, max: 3, value: 0.6, less: 0.3,
+        hint: 'How long a square takes to sink back after it cracks on at full strength. Left: it drops at once, in about a sixth of a second. Right: it sinks slowly, over about three seconds. It always lands at full strength; this only sets how slowly it comes down.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.1 + v * 0.9, ICON.red) },
       { key: 'blur', label: 'soft edges', min: 0, max: 3, value: 1,
         hint: 'How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones. A square is always sharp at the instant it lands and softens over a moment.',
@@ -181,21 +182,34 @@ var SNAP = SNAP || {};
     frame(x) {
       const g = x.g;
       if (shake > 0.3) { g.translate(x.rnd(-shake, shake), x.rnd(-shake, shake)); shake *= Math.pow(0.86, x.dt * 60); }
-      // The ember length rides on the 'how long they stay' knob (1.4 s is the preset as it stands). Age is read from the chord's time, never added up.
-      const ring = x.p('life') / 1.4, blur = x.p('blur');
-      const o = { preset: 'piano', ring, picks: x.onPicks() };
+      // The 'sink' knob stretches only the crack (the hold and the flash); the ember under it keeps the piano preset's own length.
+      // k = 1 is the envelope as it stands (the crack is down to a tenth in about 0.2 s). Age is read from the chord's time, never added up.
+      const k = Math.max(0.1, x.p('life') / 0.2), blur = x.p('blur');
+      const o = { preset: 'piano', ring: 1, picks: x.onPicks() };
+      const P = SNAP.preset('piano');
+      const smooth = (a, b, v) => { const u = Math.max(0, Math.min(1, (v - a) / (b - a))); return u * u * (3 - 2 * u); };
+      // SNAP.env with the flash's time stretched by k; the same pieces, so E(0) = P (full strength on the attack) and it only falls.
+      const shape = (t, nt, e) => {
+        if (!(t >= 0) || t >= e.L) return 0;
+        const hb = SNAP.hb(nt.m, P, 1), g = SNAP.gain(nt.a == null ? 1 : nt.a);
+        let E = e.P * (P.wf * g * SNAP.flash(t / k) + P.wb * e.body + P.wt * Math.pow(0.5, t / (8 * hb))) / (P.wf * g + P.wb + P.wt);
+        E *= 1 - smooth(e.L - 0.1, e.L, t);
+        if (nt.d != null && nt.d < 0.15 && nt.m < 89 && t > nt.d) E *= Math.pow(0.5, (t - nt.d) / 0.06);
+        return E;
+      };
       for (const q of sq) {
         const t = Math.max(0, x.t - q.t0), nt = { v: q.v, m: q.m, d: q.d, a: q.a };
-        const e = SNAP.env(t, nt, o), prev = SNAP.env(t - x.dt, nt, o);
+        const e = SNAP.env(t, nt, o), E = shape(t, nt, e), Eprev = shape(t - x.dt, nt, SNAP.env(t - x.dt, nt, o));
+        const fl = SNAP.flash(t / k);
         q.dead = t > e.L;
-        if (q.dead || e.E <= 0.002) continue;
-        const sz = q.s * SNAP.size(t, q.v, { o: 0.18 }) * (0.7 + 0.3 * e.E / e.P);
-        const lit = 0.35 + 0.65 * e.flash;
+        if (q.dead || E <= 0.002) continue;
+        const sz = q.s * SNAP.size(t, q.v, { o: 0.18 }) * (0.7 + 0.3 * E / e.P);
+        const lit = 0.35 + 0.65 * fl;
         const r = Math.round(70 + 90 * lit * q.v / 110);
-        const [hr, hg, hb] = SNAP.hot([r, Math.round(4 + 10 * lit), Math.round(6 + 8 * lit)], t, q.a);
+        const [hr, hg, hb] = SNAP.hot([r, Math.round(4 + 10 * lit), Math.round(6 + 8 * lit)], t / k, q.a);
         const sh = SNAP.sharp(t, blur);
         g.save(); g.translate(q.x, q.y0 + t * 18); g.rotate(q.rot);
-        g.globalAlpha = SNAP.alpha(e.E, prev.E);
+        g.globalAlpha = SNAP.alpha(E, Eprev);
         g.shadowColor = `rgb(${r},6,8)`; g.shadowBlur = (10 + sz * 0.05) * sh;
         g.filter = `blur(${((4 + sz * 0.025) * sh).toFixed(1)}px)`;
         g.fillStyle = `rgb(${hr},${hg},${hb})`;

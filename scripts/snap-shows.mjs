@@ -25,8 +25,9 @@ const KNOB_TURNS = {
   },
 };
 
-/** The same clips on sharper code: widget -> its snap twin. Every ivory clip also gets strike 1. */
-const SNAP_SWAPS = { squares: 'squares-snap', flee: 'flee-snap', fireworks: 'fireworks-snap' };
+/** The same clips on sharper code: widget -> its snap twin. Every ivory clip also gets strike 1, every flee clip snap 1 (its
+    switch; flee-snap.js was folded into flee.js on 2026-11-05). */
+const SNAP_SWAPS = { squares: 'squares-snap', fireworks: 'fireworks-snap' };
 
 /** The new widgets on the user's picks, per song: [widget the clip has now, picked set, new widget, new knobs]. */
 const NEW_SWAPS = {
@@ -90,6 +91,7 @@ export function buildCopies(show, keysOf = null) {
     } else if (kind === 'snap') {
       for (const c of s.clips) {
         if (c.widget === 'ivory') { setKnob(c, 'strike', 1); log.push(`${c.id} ivory strike = 1`); }
+        else if (c.widget === 'flee') { setKnob(c, 'snap', 1); log.push(`${c.id} flee snap = 1`); }
         else if (SNAP_SWAPS[c.widget]) swap(c, SNAP_SWAPS[c.widget], {}, keysOf, log, 'snappier code');
       }
     } else {

@@ -152,7 +152,8 @@ var SNAP = SNAP || {};
     while (lo <= hi) { const mid = (lo + hi) >> 1; if (cs[mid].t <= t) { at = mid; lo = mid + 1; } else hi = mid - 1; }
     return at;
   };
-  const dark = (v) => [Math.round(92 + 88 * v / 127), 10, 12];   // Squares' red, brighter for a harder note
+  const dark = (v) => [Math.round(140 + 100 * v / 127), 18, 22];   // a clear red, brighter for a harder note
+  const strike = (v, age) => { const c = dark(v), k = 0.97 * SNAP.flash(age); return [0, 1, 2].map((i) => Math.round(c[i] + (SNAP.BONE[i] - c[i]) * k)); };   // bone at the blow, cooling to red
 
   TOOLS.push({
     id: 'handover', name: 'Handover', tag: 'snap', on: false,
@@ -181,13 +182,13 @@ var SNAP = SNAP || {};
       const next = Math.min(c.t + x.p('goneBy'), i + 1 < cs.length ? cs[i + 1].t : Infinity);
       const span = next - c.t; if (!(span > 0) || age >= span) return;
       const u = Math.pow(age / span, x.p('ring'));   // ring > 1 keeps the slab big longer (u^ring); the design's u^(1/ring) would shrink it faster
-      const area = (1 - u) * Math.exp(-4 * u);       // reaches 0 exactly at u = 1
+      const area = (1 - u) * Math.exp(-2.2 * u);       // reaches 0 exactly at u = 1
       const g = x.g, picks = x.onPicks(), size = x.p('size'), W = x.W, H = x.H;
       for (const n of c.notes) {
-        const v = n.v, T = SNAP.peak(v, true);       // brightness holds; only the area falls (P6: a picked note always lands)
+        const v = n.v, T = Math.max(0.6, SNAP.peak(v, true));       // brightness holds; only the area falls (P6: a picked note always lands)
         // The previous step's brightness: T if the slab already stood there, 0 on the attack step.
         const Tprev = age - x.dt >= 0 && age - x.dt < span ? T : 0;
-        const w = (190 + 130 * v / 127) * size * Math.sqrt(area), h = w / 1.6;
+        const w = (230 + 430 * Math.pow(v / 127, 1.3)) * size * Math.sqrt(area), h = w / 1.6;
         if (w < 0.5) continue;
         const oct = Math.floor(n.m / 12) - 1;        // octave rows, bass at the bottom
         const cx = (0.06 + 0.88 * x.pitch01(n.m)) * W;
@@ -195,9 +196,9 @@ var SNAP = SNAP || {};
         g.save();
         // While the strike cools from bone to red, the canvas would hold the bone (a low alpha repaints a pixel only a
         // little each step), so for those steps the new colour goes down at least half-strength: it cools as fast as flash().
-        const cooling = age > SNAP.H && age < SNAP.H + 0.3;
-        g.globalAlpha = Math.max(SNAP.alpha(T, Tprev), cooling ? 0.5 : 0);
-        g.fillStyle = `rgb(${SNAP.hot(dark(v), age, n.amount).join(',')})`;
+        const cooling = age > SNAP.H && age < SNAP.H + 0.45;
+        g.globalAlpha = Math.max(SNAP.alpha(T, Tprev), cooling ? 0.6 : 0);
+        g.fillStyle = `rgb(${strike(v, age).join(',')})`;
         g.fillRect(cx - w / 2, cy - h / 2, w, h);
         g.restore();
       }

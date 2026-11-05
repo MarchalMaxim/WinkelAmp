@@ -21,7 +21,7 @@ const FONT = 'C\\:/Windows/Fonts/segoeuib.ttf';
 
 // segment: [song, from, to, left, right, labels, shows needed, extra snap-compare args]
 const REELS = [
-  { n: '01', name: 'squares', title: 'Snap squares', line: "Each square cracks on at full strength and sinks back in a fifth of a second. Left: today's Dread squares. Right: Snap squares.",
+  { n: '01', name: 'squares', title: 'Snap squares', line: "Each square cracks on at full strength and sinks back over a time you set (0.6 s here). Left: today's Dread squares. Right: Snap squares.",
     segs: [[RACH, 5, 30, L(RACH, 'squares'), L(RACH, 'squares-snap'), 'dread squares|snap squares', []],
            [RACH, 79, 84, R(RACH), R(`${RACH}-snap`), 'dread squares|snap squares', [RACH, `${RACH}-snap`]]] },
   { n: '02', name: 'ivory-strike', title: 'Ivory strike', line: 'The keys hit harder and let go faster. Left: strike 0 (today). Right: strike 1. Watch each key as the note lands.',
@@ -29,12 +29,13 @@ const REELS = [
   { n: '03', name: 'hammer', title: 'Hammer', line: 'A piano-true strike: bright at the blow, then a quiet ring. Left: Ivory. Right: Hammer. Sighs first, then the rolls: four strikes, not eighteen flashes.',
     segs: [[LIE, 10.7, 28.5, R(LIE), R(`${LIE}-new`), 'ivory|hammer', [LIE, `${LIE}-new`]],
            [LIE, 174.9, 186.2, R(LIE), R(`${LIE}-new`), 'ivory|hammer, roll 1', [LIE, `${LIE}-new`]]] },
-  { n: '04', name: 'handover', title: 'Handover', line: 'One mark gives way to the next: each note is gone by the time the following one lands. Left: the original widget. Right: Handover.',
-    segs: [[LIE, 17, 37, R(LIE), R(`${LIE}-new`), 'original|handover', [LIE, `${LIE}-new`]]] },
-  { n: '05', name: 'blade', title: 'Blade', line: 'A treble cascade where each drop is a thin blade, distinct from the next. Left: Gliss. Right: Blade.',
+  { n: '04', name: 'handover', title: 'Handover', line: 'One slab per note, struck bone-white, cooling to red, gone as the next lands. Left: Ivory alone. Right: Handover alone. Staccato first, then the sighs.',
+    segs: [[LIE, 24, 30, L(LIE, 'ivory'), L(LIE, 'handover'), 'ivory|handover', []],
+           [LIE, 10.7, 28.5, L(LIE, 'ivory'), L(LIE, 'handover'), 'ivory|handover', []]] },
+  { n: '05', name: 'blade', title: 'Blade', line: 'A treble cascade where each drop is a thin blade, distinct from the next; the blades now rise from the floor. Left: Gliss. Right: Blade.',
     segs: [[LIE, 226, 250, R(LIE), R(`${LIE}-new`), 'gliss|blade', [LIE, `${LIE}-new`]]] },
-  { n: '06', name: 'flee', title: 'Flee snap', line: 'The accents land as one hard hit instead of a bow. Left: Flee. Right: Flee snap.',
-    segs: [[LIE, 28, 48, R(LIE), R(`${LIE}-snap`), 'flee|flee snap', [LIE, `${LIE}-snap`]]] },
+  { n: '06', name: 'flee', title: 'Flee snap', line: 'Each high note lands as one hard hit instead of a bow. Left: Flee. Right: flee with the snap switch on.',
+    segs: [[LIE, 28, 48, L(LIE, 'flee'), L(LIE, 'flee'), 'flee|flee, snap on', [], ['--right-knobs', '{"snap":1}']]] },
   { n: '07', name: 'fireworks', title: 'Fireworks snap', line: 'No attack is dropped and each burst has a short bone-white heart. Left: Fireworks. Right: Fireworks snap.',
     segs: [[RACH, 132, 152, R(RACH), R(`${RACH}-snap`), 'fireworks|fireworks snap', [RACH, `${RACH}-snap`]]] },
   { n: '08', name: 'hit-drive', skip: 'snap-compare and renderKnobs set only knob bases; a drive (+level / +hit) cannot be set by URL or renderKnobs, and localStorage is cleared per render. Needs a small change to the lab or snap-compare.' },

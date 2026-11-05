@@ -59,6 +59,7 @@ measure screen presentation. Use `-- --ids squares,fireworks --json renders/spee
 ## Knobs (from the 2026-10-31 round on)
 
 The user found knob names hard to grasp, so a widget has **at most 5 knobs**, each with a plain sentence and a small picture.
+`tools/flee.js` also has a sixth knob, `snap`, a 0/1 switch the user asked for (2026-11-05) to keep the snap version behind.
 `tools/squares.js` is the reference.
 
 ```js

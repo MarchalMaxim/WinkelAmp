@@ -1,4 +1,5 @@
 // Blade: a sound-roll seen from the playhead. Every note is a wedge standing on a cliff a fifth of the way across;
+// (The switch 'from' turns the whole picture to stand on a floor near the bottom, pointing up, pitch across the width.)
 // to the right of the cliff lies what is left of the note, drawn 240 px per second, tall where it still rings and
 // thinning out as it dies away. As time passes the wedge slides into the cliff and is eaten from the left, so the
 // height at the cliff is always how loud the note is now, and its length is how long it has still to ring.
@@ -215,7 +216,7 @@ var SNAP = SNAP || {};
 
   TOOLS.push({
     id: 'blade', name: 'Blade', tag: 'new',
-    blurb: 'Every note is a wedge on a cliff a fifth of the way across: what it has still to ring, seen from the playhead. It strikes bone-hot, then slides into the cliff and is eaten from the left; the bass rings long, the treble is gone in a breath.',
+    blurb: 'Every note is a wedge on a floor a fifth of the way up (or a cliff a fifth of the way across, with the switch): what it has still to ring, seen from the playhead. It strikes bone-hot, then slides into the floor and is eaten from the bottom; the bass rings long, the treble is gone in a breath.',
     params: [
       { key: 'touch', label: 'articulation', min: 0, max: 3, step: 1, value: 2,
         hint: 'How a note is struck and how it rings, in four steps: staccato, marcato, piano, bell. Left: here and gone, a short sharp sliver. Right: a bright strike that drops at once to a long quiet ring.',
@@ -226,6 +227,15 @@ var SNAP = SNAP || {};
       { key: 'size', label: 'how tall', min: 0.4, max: 2, value: 1, less: 0.6,
         hint: 'How tall a wedge stands at the cliff. Left: thin slivers, every note on its own line. Right: tall blades that lean over their neighbours.',
         icon: (g, v, w, h) => wedgeIcon(g, w, h, 0.85, 0.2 + v * 0.8, 0.2, 0.3, ICON.red) },
+      { key: 'from', label: 'where the blades come from', min: 0, max: 1, step: 1, value: 1,
+        hint: 'Left: from a cliff on the left, pointing right. Right: up from the floor, pointing up.',
+        icon: (g, v, w, h) => {
+          const col = ICON.gold;
+          g.save();
+          if (v >= 0.5) { g.translate(0, h); g.rotate(-Math.PI / 2); wedgeIcon(g, h, w, 0.85, 0.7, 0.2, 0.3, col); }
+          else wedgeIcon(g, w, h, 0.85, 0.7, 0.2, 0.3, col);
+          g.restore();
+        } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much of the music you see: how tall the wedges stand and how long they ring. Left: thin, short slivers that are soon gone. Right: tall wedges that ring far to the right. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
@@ -241,7 +251,14 @@ var SNAP = SNAP || {};
       for (const k of marks.keys()) { if (k >= ch.t - BACK) break; marks.delete(k); }
     },
     frame(x) {
-      const g = x.g, W = x.W, H = x.H, X0 = Math.round(CLIFF * W);
+      const g = x.g, W = x.W, H = x.H;
+      // Where the blades come from: below 0.5 a cliff on the left, blades pointing right, pitch up the height; from 0.5 a
+      // floor near the bottom, blades pointing up, pitch across the width (low left). One geometry, drawn in two axes:
+      // u runs along the blade (away from the cliff), c across it (the pitch axis); rect() maps a box in (u, c) to pixels.
+      const floor = x.p('from') >= 0.5;
+      const X0 = Math.round(CLIFF * W), Y0 = H - Math.round(CLIFF * H);
+      const reach = floor ? Y0 : W - X0;
+      const rect = floor ? (u0, u1, c0, c1) => g.fillRect(c0, Y0 - u1, c1 - c0, u1 - u0) : (u0, u1, c0, c1) => g.fillRect(X0 + u0, c0, u1 - u0, c1 - c0);
       // How it is painted, and why not through SNAP.alpha (a deliberate departure from P5). Every wedge is drawn
       // afresh each frame in whole pixels, its colour already scaled to the brightness T it should show, with
       // 'lighten'. After the shared fade a pixel holds 0.88·Tprev, and lighten leaves max(T, 0.88·Tprev): T while the
@@ -252,13 +269,13 @@ var SNAP = SNAP || {};
       // does not blot out the clips under it; whole pixels keep the edges free of history too.
       g.globalCompositeOperation = 'lighten'; g.globalAlpha = 1;
       // The cliff itself, faint: the playhead the notes run into.
-      g.fillStyle = 'rgb(14,12,10)'; g.fillRect(X0 - 1, 0, 1, H);
+      g.fillStyle = 'rgb(14,12,10)'; rect(-1, 0, 0, floor ? W : H);
       const chords = typeof CHORDS !== 'undefined' ? CHORDS : [];
       if (!chords.length) return;
       // Each wedge keeps the knobs its attack was struck with; one struck before a seek takes them as they are now.
       const marks = this.marks || (this.marks = new Map()), picks = x.onPicks();
       const now = { touch: x.p('touch'), ring: x.p('ring'), size: x.p('size') };
-      const { lo, hi } = rangeOf(chords), ofM = (m) => Math.round(H * (0.9 - 0.8 * Math.max(0, Math.min(1, (m - lo) / (hi - lo)))));
+      const { lo, hi } = rangeOf(chords), fr = (m) => Math.max(0, Math.min(1, (m - lo) / (hi - lo))), ofM = floor ? (m) => Math.round(W * (0.1 + 0.8 * fr(m))) : (m) => Math.round(H * (0.9 - 0.8 * fr(m)));
       const t = x.t;
       // Oldest first, so a later note, and above all the same pitch struck again, lands at its full height over
       // what is left of the first one (P7).
@@ -298,28 +315,28 @@ var SNAP = SNAP || {};
           if (h00 < 0.5) continue;
           g.fillStyle = rgb(col, T);
           // Columns of the same height are merged into one rectangle: the long thin tail is a handful of fills.
-          let end = X0, runX = X0, runT = 0, runB = 0;
-          for (let X = X0; X < W; X += STEP) {
-            const s = age + (X - X0) / PXS;
+          let end = 0, runX = 0, runT = 0, runB = 0;
+          for (let u = 0; u < reach; u += STEP) {
+            const s = age + u / PXS;
             if (s >= L) break;
-            const hh = (h0 / 2) * Math.pow(prof(s), TAPER) * (1 + jolt * Math.exp(-(X - X0) / 14));
+            const hh = (h0 / 2) * Math.pow(prof(s), TAPER) * (1 + jolt * Math.exp(-u / 14));
             const top = Math.round(y - hh), bot = Math.round(y + hh);
             if (bot <= top) break;
             if (top !== runT || bot !== runB) {
-              if (end > runX) g.fillRect(runX, runT, end - runX, runB - runT);
-              runX = X; runT = top; runB = bot;
+              if (end > runX) rect(runX, end, runT, runB);
+              runX = u; runT = top; runB = bot;
             }
-            end = X + STEP;
+            end = u + STEP;
           }
-          if (end > runX) g.fillRect(runX, runT, end - runX, runB - runT);
+          if (end > runX) rect(runX, end, runT, runB);
           // The note's line through its wedge, a shade lighter: the roll reads as pitches, not as a heap of shapes.
           g.fillStyle = rgb(col, Math.min(1, T * 1.3));
-          g.fillRect(X0, y, end - X0, 1);
+          rect(0, end, y, y + 1);
           // The cliff face, lit: bone while the strike lasts, its own colour, a little paler, after.
           const face = col.map((c, k) => c + (SNAP.BONE[k] - c) * 0.35);
           g.fillStyle = rgb(face, Math.min(1, T * 1.15));
           const ft = Math.round(y - h00), fb = Math.round(y + h00);
-          g.fillRect(X0 - 1, ft, 3, Math.max(1, fb - ft));
+          rect(-1, 2, ft, ft + Math.max(1, fb - ft));
         }
       }
     },
