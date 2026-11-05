@@ -439,7 +439,7 @@
       "start": 230.219,
       "end": 237.16,
       "track": 1,
-      "widget": "blade",
+      "widget": "ivory",
       "listen": "picks:p12"
     },
     {
@@ -447,7 +447,7 @@
       "start": 233.82,
       "end": 237.16,
       "track": 0,
-      "widget": "blade",
+      "widget": "ivory",
       "listen": "picks:p13"
     },
     {
@@ -455,7 +455,7 @@
       "start": 236.402,
       "end": 242.152,
       "track": 3,
-      "widget": "blade",
+      "widget": "ivory",
       "listen": "picks:p14"
     },
     {
@@ -463,7 +463,7 @@
       "start": 238.604,
       "end": 242.18,
       "track": 4,
-      "widget": "blade",
+      "widget": "ivory",
       "listen": "picks:p15"
     }
   ],

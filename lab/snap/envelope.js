@@ -12,7 +12,7 @@
 //                            the written length in seconds, the picked note's intensity (n.amount, default 1).
 //                            o = {preset, ring, picks}: preset is 'staccato', 'marcato', 'piano' (the default) or
 //                            'bell', or the touch knob's 0..3; ring stretches how long it rings (1 = as the preset
-//                            says); picks = x.onPicks(), which raises the floor so every picked note lands.
+//                            says); picks = x.picked, which raises the floor so every picked note lands.
 //                            Returns {E, flash, body, P, L}: E the brightness to show (E(0) = P, it only falls after
 //                            the two-step hold, and it is 0 from L on), flash the 0..1 strike that carries the attack,
 //                            body the 0..1 note under it, P the peak, L when the mark is gone (drop it then).

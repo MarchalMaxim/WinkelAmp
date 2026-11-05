@@ -35,11 +35,10 @@ const NEW_SWAPS = {
     ['ivory', 'p1', 'hammer', {}], ['ivory', 'p2', 'hammer', {}], ['ivory', 'p3', 'hammer', {}],
     ['ivory', 'p5', 'hammer', { roll: 1 }], ['ivory', 'p6', 'hammer', { roll: 1 }], ['ivory', 'p7', 'hammer', { roll: 1 }], ['ivory', 'p8', 'hammer', { roll: 1 }],
     ['ivory', 'p11', 'handover', {}],
-    ['ivory', 'p12', 'blade', {}], ['ivory', 'p13', 'blade', {}], ['ivory', 'p14', 'blade', {}], ['ivory', 'p15', 'blade', {}],
   ],
   'rach-concerto-2': [
     ['squares', 'p2', 'hammer', {}], ['squares', 'p6', 'handover', {}],
-    ['ivory', 'p14', 'blade', {}], ['halftone', 'p15', 'hammer', { touch: 0 }],
+    ['halftone', 'p15', 'hammer', { touch: 0 }],
   ],
 };
 

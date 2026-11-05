@@ -199,7 +199,7 @@ precision highp float; in vec2 uv; out vec4 o; ${body}`;
       const rate = x.feat.rate, gap = 0.16 + 0.75 * rate * (1 - v * 0.8);
       // On picked notes the note is the point: a close one is not dropped but goes off at half power.
       const close = clock - lastBurst < gap;
-      if (close && !x.onPicks()) return;
+      if (close && !x.picked) return;
       lastBurst = clock;
       const top = ch.notes.reduce((a, n) => Math.max(a, n.m), 0), p = pitchRank(top), power = (Math.pow(v, 1.3) * (1 - 0.35 * rate) + 0.08) * (close ? 0.5 : 1);
       const hue = x.p('hue') + x.p('range') * (p - 0.5), col = hsv(hue, 0.86, 1);

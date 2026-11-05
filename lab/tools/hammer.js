@@ -12,7 +12,7 @@
 //                            the written length in seconds, the picked note's intensity (n.amount, default 1).
 //                            o = {preset, ring, picks}: preset is 'staccato', 'marcato', 'piano' (the default) or
 //                            'bell', or the touch knob's 0..3; ring stretches how long it rings (1 = as the preset
-//                            says); picks = x.onPicks(), which raises the floor so every picked note lands.
+//                            says); picks = x.picked, which raises the floor so every picked note lands.
 //                            Returns {E, flash, body, P, L}: E the brightness to show (E(0) = P, it only falls after
 //                            the two-step hold, and it is 0 from L on), flash the 0..1 strike that carries the attack,
 //                            body the 0..1 note under it, P the peak, L when the mark is gone (drop it then).
@@ -237,7 +237,7 @@ var SNAP = SNAP || {};
     onChord(ch, x) {
       // Read now, so a note picked with its own articulation or ring keeps it for as long as it sounds.
       const touch = SNAP.TOUCH[Math.max(0, Math.min(3, Math.round(x.p('touch') ?? 2)))];
-      const ring = x.p('ring') ?? 1, picks = x.onPicks();
+      const ring = x.p('ring') ?? 1, picks = !!x.picked;
       const role = (x.p('roll') ?? 0) >= 0.5 ? roleOf(ch) : '';
       for (const n of ch.notes) {
         const old = marks.get(n.m);

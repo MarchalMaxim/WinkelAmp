@@ -8,7 +8,7 @@
 //                            the written length in seconds, the picked note's intensity (n.amount, default 1).
 //                            o = {preset, ring, picks}: preset is 'staccato', 'marcato', 'piano' (the default) or
 //                            'bell', or the touch knob's 0..3; ring stretches how long it rings (1 = as the preset
-//                            says); picks = x.onPicks(), which raises the floor so every picked note lands.
+//                            says); picks = x.picked, which raises the floor so every picked note lands.
 //                            Returns {E, flash, body, P, L}: E the brightness to show (E(0) = P, it only falls after
 //                            the two-step hold, and it is 0 from L on), flash the 0..1 strike that carries the attack,
 //                            body the 0..1 note under it, P the peak, L when the mark is gone (drop it then).
@@ -172,7 +172,7 @@ var SNAP = SNAP || {};
     reset() { sq = []; shake = 0; },
     onChord(ch, x) {
       for (const n of ch.notes) {
-        const lim = x.p('split'); if (n.m >= lim && !x.onPicks()) continue;
+        const lim = x.p('split'); if (n.m >= lim && !x.picked) continue;
         const s = (110 + Math.max(0, lim - n.m) * 9) * (0.55 + 0.45 * n.v / 110) * x.p('size');   // above the point: the smallest
         // the draw order x, y, rot is the same as Squares, so every square lands where Squares puts it
         sq.push({ x: x.rnd(s / 2, x.W - s / 2), y0: x.rnd(x.H * 0.3, x.H * 0.8), s, v: n.v, rot: x.rnd(-0.06, 0.06), t0: ch.t, m: n.m, d: n.d, a: n.amount ?? 1 });
@@ -185,7 +185,7 @@ var SNAP = SNAP || {};
       // The 'sink' knob stretches only the crack (the hold and the flash); the ember under it keeps the piano preset's own length.
       // k = 1 is the envelope as it stands (the crack is down to a tenth in about 0.2 s). Age is read from the chord's time, never added up.
       const k = Math.max(0.1, x.p('life') / 0.2), blur = x.p('blur');
-      const o = { preset: 'piano', ring: 1, picks: x.onPicks() };
+      const o = { preset: 'piano', ring: 1, picks: !!x.picked };
       const P = SNAP.preset('piano');
       const smooth = (a, b, v) => { const u = Math.max(0, Math.min(1, (v - a) / (b - a))); return u * u * (3 - 2 * u); };
       // SNAP.env with the flash's time stretched by k; the same pieces, so E(0) = P (full strength on the attack) and it only falls.

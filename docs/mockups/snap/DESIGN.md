@@ -170,7 +170,7 @@ an entry at the **end** of `TOOL_IDS` in `lab/index.html`. Add an entry to `lab/
 The `TOOL_IDS` line is shared, so implementers append only. The orchestrator merges candidates one at a time and
 resolves that line itself.
 
-**Picks.** A `picks:pN` clip gives the widget `n.amount`, held per-note `x.p(key)`, `x.onPicks()` and the set's own
+**Picks.** A `picks:pN` clip gives the widget `n.amount`, held per-note `x.p(key)`, `x.picked` and the set's own
 `CHORDS`. The lab has no picks, so the user's notes are judged through show copies (C7) rendered by
 `render.html?show=<id>`; `scripts/studio-api.ts` serves any `shows/<id>.json`.
 
@@ -236,7 +236,7 @@ Hours are Sonnet hours. **"Scene check"** means: start the dev server with `npx 
 - In `onChord`, keep the three `x.rnd` calls per note in the same order (x, y, rot), so positions match Squares
   exactly. Add `t0: ch.t`, `m: n.m`, `d: n.d` and `a: n.amount ?? 1` to the pushed object.
 - In `frame`, with `t = x.t − q.t0`:
-  - `const e = SNAP.env(t, q, { preset: 'piano', ring: x.p('life') / 1.4, picks: x.onPicks() })`;
+  - `const e = SNAP.env(t, q, { preset: 'piano', ring: x.p('life') / 1.4, picks: x.picked })`;
   - `g.globalAlpha = SNAP.alpha(e.E, prev.E)`, where `prev = SNAP.env(t − x.dt, …)` (0 when `t − x.dt < 0`);
   - the red channel is lit by `e.flash` instead of the linear `lit`, and the colour goes through `SNAP.hot`;
   - size is `q.s · SNAP.size(t, q.v, {o: 0.18})`, times a shrink `0.7 + 0.3·e.E/P` on the way out;
@@ -401,7 +401,7 @@ over the same second (in the test, use the lab's `?render=1`).
 - The hesitation is 0 (no `0.06 + hes` freeze).
 - The bolt follows P10: position `D·(1 − e^(−t/0.1))`, so it is at full speed at once, and the streak length is set by
   the current speed.
-- `pSpawn = 1` when `x.onPicks()`, and also on the accents part.
+- `pSpawn = 1` when `x.picked`, and also on the accents part.
 - The flash half-life is 0.05 s with a 2-step hold.
 - A shape lives 2 s, with the last 0.3 s fading.
 

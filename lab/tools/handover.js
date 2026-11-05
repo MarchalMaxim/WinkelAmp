@@ -9,7 +9,7 @@
 //                            the written length in seconds, the picked note's intensity (n.amount, default 1).
 //                            o = {preset, ring, picks}: preset is 'staccato', 'marcato', 'piano' (the default) or
 //                            'bell', or the touch knob's 0..3; ring stretches how long it rings (1 = as the preset
-//                            says); picks = x.onPicks(), which raises the floor so every picked note lands.
+//                            says); picks = x.picked, which raises the floor so every picked note lands.
 //                            Returns {E, flash, body, P, L}: E the brightness to show (E(0) = P, it only falls after
 //                            the two-step hold, and it is 0 from L on), flash the 0..1 strike that carries the attack,
 //                            body the 0..1 note under it, P the peak, L when the mark is gone (drop it then).
@@ -183,7 +183,7 @@ var SNAP = SNAP || {};
       const span = next - c.t; if (!(span > 0) || age >= span) return;
       const u = Math.pow(age / span, x.p('ring'));   // ring > 1 keeps the slab big longer (u^ring); the design's u^(1/ring) would shrink it faster
       const area = (1 - u) * Math.exp(-2.2 * u);       // reaches 0 exactly at u = 1
-      const g = x.g, picks = x.onPicks(), size = x.p('size'), W = x.W, H = x.H;
+      const g = x.g, picks = !!x.picked, size = x.p('size'), W = x.W, H = x.H;
       for (const n of c.notes) {
         const v = n.v, T = Math.max(0.6, SNAP.peak(v, true));       // brightness holds; only the area falls (P6: a picked note always lands)
         // The previous step's brightness: T if the slab already stood there, 0 on the attack step.

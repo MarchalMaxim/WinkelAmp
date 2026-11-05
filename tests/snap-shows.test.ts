@@ -54,7 +54,7 @@ describe('snap show copies', () => {
     expect(w('c10').widget).toBe('hammer');
     expect(w('c10').knobs).toEqual({ roll: 1 });
     expect(w('c19').widget).toBe('handover');
-    expect(w('c23').widget).toBe('blade');
+    expect(w('c23').widget).toBe('ivory');
     const r = buildCopies(original('rach-concerto-2'), keysOf).new.show.clips;
     expect(r.find((c: { id: string; knobs?: Record<string, unknown> }) => c.id === 'c21')!.knobs).toEqual({ touch: 0 });
   });

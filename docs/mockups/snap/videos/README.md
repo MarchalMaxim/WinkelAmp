@@ -20,7 +20,6 @@ Judging order: V1, V2, V6, V9, V4, V7, then the rest.
 - V7, 10.7-28.5 s, same passage. Left liebesleid-knobs, right liebesleid-snap (ivory strike 1). Look for: does code beat a knob turn? `renders/snap/V7-sighs-knobs-vs-snap.mp4`
 - V8, 30-45 s, the flee accents. Left liebesleid, right liebesleid-snap. Look for: bow against hammer. `renders/snap/V8-flee-accents.mp4`
 - V9, 174.9-186.2 s, the rolls p5-p8. Left liebesleid, right liebesleid-new (hammer, roll 1). Look for: four strikes, not eighteen flashes. `renders/snap/V9-rolls-p5-p8.mp4`
-- V10, 230-242 s, the glass passage p12-p15. Left liebesleid, right liebesleid-new (blade). Look for: a treble cascade where each drop is distinct. `renders/snap/V10-glass-p12-p15.mp4`
 
 Notes: DESIGN.md C12 names `make.sh`; the script is `make.mjs` because this runs on Windows and Node is already required
 (same commands). The trace is frame-locked: the graph is clocked at the video's fps and the stacked half is re-timed to

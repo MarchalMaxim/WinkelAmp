@@ -59,6 +59,5 @@
   "squares-snap": {"feel":["heavy","dark","dread","stabbing"],"instruments":["piano","contrabass","timpani"],"role":"accent"},
   "fireworks-snap": {"feel":["glowing","vivid","triumphant","whirling"],"instruments":["tutti","timpani","trumpet","piano"],"role":"top"},
   "hammer": {"feel":["stabbing","glowing","vivid"],"instruments":["piano"],"role":"lead"},
-  "handover": {"feel":["heavy","dark","stabbing"],"instruments":["piano"],"role":"accent"},
-  "blade": {"feel":["vivid","flickering","stabbing"],"instruments":["piano"],"role":"lead"}
+  "handover": {"feel":["heavy","dark","stabbing"],"instruments":["piano"],"role":"accent"}
 }

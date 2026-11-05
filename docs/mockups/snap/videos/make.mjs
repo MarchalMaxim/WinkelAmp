@@ -27,7 +27,6 @@ const VIDEOS = [
   ['V7', 'sighs-knobs-vs-snap', LIE, 10.7, 28.5, R(`${LIE}-knobs`), R(`${LIE}-snap`), 'knobs only|ivory strike 1', [`${LIE}-knobs`, `${LIE}-snap`]],
   ['V8', 'flee-accents', LIE, 30, 45, R(LIE), R(`${LIE}-snap`), 'bow|hammer', [LIE, `${LIE}-snap`]],
   ['V9', 'rolls-p5-p8', LIE, 174.9, 186.2, R(LIE), R(`${LIE}-new`), 'today|hammer, roll 1', [LIE, `${LIE}-new`]],
-  ['V10', 'glass-p12-p15', LIE, 230, 242, R(LIE), R(`${LIE}-new`), 'today|blade', [LIE, `${LIE}-new`]],
 ];
 
 const only = process.argv.slice(2).map((s) => s.toUpperCase());
