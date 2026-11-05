@@ -54,7 +54,8 @@ canvas used for bit-exact proofs, with the host's own fade and burn (`src/widget
 
 **1. Dim bodies drawn through `settles` or `alpha` are not on the screen.** Those formulas account for the 0.12 fade and not for the
 colour-burn, which takes about 3 levels off every channel each step. So a low target loses most of its value, and more on the software
-canvas than the default one.
+canvas than the default one. (The SNAP presets' timings were tuned through the burn on a bright mark, so they stand. What they don't cover is a
+dim colour held steady: dark channels lose the largest share, and oxblood's green and blue fall to 1, which shifts its hue too.)
 
 | drawn as | ideal | default canvas | software canvas |
 |---|---|---|---|
@@ -70,6 +71,10 @@ over 15 steps. A colour stepped down each step follows its curve exactly (half-l
 cannot erase another clip: over a grey of 100 it left 100. It needs no correction formula and it looks the same in live play and in
 renders. Of the eight essays, only essay 5 found this. The one trade-off: a `lighten` mark does not cover what lies under it in a layered scene; it combines
 per channel. Restore the composite mode afterwards.
+
+My test was a solid fill. A pixel only partly covered settles lower, at about `c/(0.12 + 0.88c)` of the tone for coverage `c`, so roughly 0.5 at a tenth. That
+matters for faint fibres. So **bake tiles and sprites opaque on black**, not on transparent: `lighten` with black changes nothing, and every fibre then holds
+exactly. Crimp's wool, Nap's tile and Cut's stages all depend on this.
 
 ```js
 // In every widget below, outside the SNAP markers (they must stay byte-identical to lab/snap/envelope.js).
@@ -292,5 +297,6 @@ scars that the burn eats (the finding above). One palette. And pitch given to a 
 
 ## Outside this brief
 
-The burn finding may touch last night's work too. `hammer`, `handover` and `squares-snap` draw through `SNAP.alpha` and none uses `lighten`, so their embers may be dimmer than designed, and differ between the default canvas and the software canvas (13 against 5 at
-oxblood T 0.25, measured on a held fill). I haven't measured those widgets themselves, and any change is the user's call by eye. Noted here and in the report, not acted on.
+The burn finding touches last night's work only narrowly. The presets' timings were tuned through the burn, so they aren't in question. What this adds: a dim dark colour held steady sits below what that tuning on a bright mark predicts, its darkest channels
+go to almost nothing, and it differs between the default canvas and the software canvas (13 against 5 at oxblood T 0.25, on a held fill). `hammer`, `handover` and `squares-snap` draw through `SNAP.alpha` and none uses `lighten`. I haven't measured those widgets
+themselves, and any change is the user's call by eye. Noted here and in the shared notes, not acted on.
