@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
-import type { Chord, IconLib, Note, ToolDef } from '../src/widgets/types';
+import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 /** A 2D context that writes every call and every set into `log` (canvases by number, numbers to 3 places). */
 function recorder(log: string[], ids: Map<unknown, number>) {
@@ -43,20 +43,20 @@ function play(knobs: Record<string, number>, secs = 6, { flipAt = -1, randomThro
   let seed = 7;
   const rnd = (a: number, b: number) => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return a + (b - a) * (((t ^ (t >>> 14)) >>> 0) / 4294967296); };
   const g = rec({});
-  const x = { g, t: 0, dt: 1 / 60, W: 1280, H: 720, feat: { rate: 0.3, bass: 0.2, level: 0.5, pitch: 0.5, density: 0.3 }, rnd, p: (k: string) => vals[k], onPicks: () => false };
+  const x = { g, t: 0, dt: 1 / 60, W: 1280, H: 720, feat: { rate: 0.3, bass: 0.2, level: 0.5, pitch: 0.5, density: 0.3 }, rnd, p: (k: string) => vals[k], onPicks: () => false } as unknown as WidgetCtx & { t: number };
   const random = Math.random;
   if (randomThrows) Math.random = () => { throw new Error('Math.random on the snap side'); };
   const firstDraw: number[] = [];
   try {
-    tool.reset(0);
+    tool.reset!(0 as unknown as WidgetCtx);
     let ci = 0;
     for (let f = 1; f <= secs * 60; f++) {
       x.t = f / 60;
       if (f === flipAt) vals.snap = 1 - vals.snap;
       const heard = ci;
-      while (ci < CHORDS.length && CHORDS[ci].t <= x.t) tool.onChord(CHORDS[ci++], x);
+      while (ci < CHORDS.length && CHORDS[ci].t <= x.t) tool.onChord!(CHORDS[ci++], x);
       const before = log.length;
-      tool.frame(x);
+      tool.frame!(x);
       if (ci > heard) firstDraw.push(log.slice(before).filter((l) => l.startsWith('drawImage')).length);
     }
   } finally { Math.random = random; }
