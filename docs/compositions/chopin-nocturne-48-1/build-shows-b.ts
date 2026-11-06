@@ -29,35 +29,22 @@ type Scene = { n: number; slug: string; title: string; start: number; end: numbe
 
 // Bottom to top: ground, then the supporting strands, the lead last (drawn on top).
 const scenes: Scene[] = [
-  // b1 (agitato, 239.6 s: handover on the theme, pluck on the throb, hammer, squares, fields) and b5 (last light, 350.6 s:
-  // hammer, mica, squares on the final chords) were rejected by the user on 2026-11-06 ("shapes not congruent with the
-  // melody", the handover flashing too fast; "very incongruent") and their shows removed.
-  // b1 again, a second try at the agitato: the theme as soft, short Ivory rows (the same treatment as b2, where this theme
-  // comes back ff), hammer bars pulsing on the triplet throb, and the current's thread following the bass in place of fields.
+  // Only the scenes the user liked are kept (b1 and b5 were rejected, b2 is cut to its liked first part); ../STYLE.md says why.
   {
-    n: 1, slug: 'sotto-voce', title: 'The theme, sotto voce', start: 239.6, end: 250.2, fade: 0.35,
-    layers: [
-      { widget: 'current', set: 'b1-bass', knobs: { threads: 2, width: 1.4, flow: 0.8, hue: 20, presence: 0.75 } },
-      { widget: 'hammer', set: 'b1-throb', knobs: { touch: 1, ring: 0.9, size: 1, presence: 0.85 } },
-      ...['b1-t1', 'b1-t2', 'b1-t3'].map((set): Layer => ({ widget: 'ivory', set, span: 'notes',
-        knobs: { strike: 0.3, crater: 0.25, ripple: 1.8, cracks: 0.8, presence: 0.85 } })),
-    ],
-  },
-  {
-    n: 2, slug: 'fire', title: 'Keys through fire', start: 294.3, end: 306.3, fade: 0.3,
+    n: 2, slug: 'fire', title: 'Keys through fire', start: 294.3, end: 301.5, fade: 0.3,
     layers: [
       { widget: 'fields', knobs: { back: 0.5, dyn: 0.8, chords: 0.8, home: 0.1, n: 3 } },
       { widget: 'squares-snap', set: 'b2-bass', knobs: { size: 1.7, life: 1.8, blur: 0.8, shake: 1.2, presence: 1 } },
       { widget: 'fireworks-snap', set: 'b2-chords', knobs: { hue: 0.02, range: 0.2, size: 1.4, swirl: 0.7, linger: 0.45, presence: 0.85 } },
       // One short Ivory row per phrase (the user: "make the ivory sequences shorter").
-      ...['b2-p1', 'b2-p2', 'b2-p3', 'b2-p4'].map((set, i): Layer => ({ widget: 'ivory', set, span: 'notes',
-        knobs: { strike: 1, crater: i === 3 ? 0.8 : 0.5, ripple: i === 3 ? 5 : 3, cracks: i === 3 ? 2 : 1.2, presence: 1 } })),
+      ...['b2-p1', 'b2-p2'].map((set): Layer => ({ widget: 'ivory', set, span: 'notes',
+        knobs: { strike: 1, crater: 0.5, ripple: 3, cracks: 1.2, presence: 1 } })),
     ],
   },
   {
     n: 3, slug: 'collapse', title: 'Bells, a flare and a sinking voice', start: 315.2, end: 327.6, fade: 0.3,
     layers: [
-      // No fields here (the user: the colour fields are in a lot of the scenes), and the squares calmer ("a bit too much").
+      // On black, and small calm squares: fields in every scene and big squares were too much.
       { widget: 'squares-snap', set: 'b3-bells', knobs: { size: 0.8, life: 1.1, blur: 1.4, shake: 0.2, presence: 0.65 } },
       { widget: 'crimp', set: 'b3-inner', knobs: { reach: 1, stays: 1.6, presence: 1 } },
       { widget: 'handover', set: 'b3-sink', knobs: { goneBy: 1.4, ring: 1.5, size: 0.7, presence: 0.9 } },

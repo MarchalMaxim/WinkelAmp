@@ -261,6 +261,8 @@ song"), and the auto-composer reads the description's feel words and routes an a
 
 ## The user's taste
 
+- **Theme combos** (widgets tied to pick sets): [compositions/STYLE.md](compositions/STYLE.md) says which work and the
+  rules behind them.
 - **Abstract, never literal.** Shatter, lightning, ripples, moire, whitney and albers were dropped (too physical, or not
   right); they are not in the collection (`lab/tools/dropped/`).
 - **Loved:** casket (its slashing cuts: "insanely good"), dread squares, rorschach ("parametrize the hell out of it",

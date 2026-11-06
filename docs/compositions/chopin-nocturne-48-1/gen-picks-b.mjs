@@ -63,7 +63,7 @@ function add(id, o, notes) {
   sets.push({ id, ...o, attacks: clusters(notes).length, source: o.source ?? 'roll', notes: notes.map(asTuple) });
 }
 
-// ================= the sets, by scene =================
+// ================= the sets, by scene (b1 and b5 were rejected by the user and removed; see ../STYLE.md) =================
 // Melody notes are the loud tops: in the doppio movimento the theme sings at v 70-100 over chords at v 35-65.
 // Notes YourMT3 found and the piano model did not (guessed velocity) are left out of the lines: here they are mostly a held
 // note split into repeats.
@@ -72,55 +72,17 @@ const melody = (a, b, minV = 62, minM = 62) => skyline(roll, a, b, (n) => n.m >=
     (the left hand's triplets above a bass note are left out). */
 const lowline = (a, b, maxM, minV) => clusters(inWin(packNotes, a, b, (n) => n.m <= maxM && n.v >= minV)).map((c) => c.low)
   .filter((n) => !inWin(packNotes, n.t - 0.8, n.t + 0.3).some((x) => x.m < n.m));
-const melodyTimes = (ms) => new Set(ms.map((n) => n.t));
 
-// --- b1, 239.6-250.2: the doppio movimento enters, sotto voce ---
+// --- b2, 294.3-301: the loudest stretch of the second half, the theme ff in octaves ---
 {
-  const A = 239.9, B = 250.2, mel = melody(A, B, 50);
-  add('b1-theme', { name: 'Agitato theme (top line)', scene: 'b1', from: A, to: B, rule: 'skyline of roll notes >= D4 the piano model also has, minDur 0.15, velocity >= 50', why: 'The C minor theme back over the throbbing chords: Eb5-G5, C5-Ab5-G5, Eb5-F5-Eb5-Eb5-F5-G5-C5, C5-D5-C5.' }, mel);
-  // The theme's phrases, one short Ivory row each. a3 and a4 are the same cells as b2-p1 and b2-p2, sotto voce here: the
-  // theme that comes back ff in b2.
-  const PHRASES_A = [
-    ['b1-a1', 240.9, 241.6, 'Eb5-Eb5-G5: the upbeat rising to G5'],
-    ['b1-a2', 242.2, 244.5, 'C5-C5-Eb5-Ab5, then G5: up to Ab5 and one step back'],
-    ['b1-a3', 245.1, 246.5, 'Eb5-F5-Eb5-Eb5-F5-G5: the cell of b2-p1, soft'],
-    ['b1-a4', 246.5, 249.0, 'C5-C5-C5-D5-C5: three knocks and a lift to D5, as in b2-p2'],
-  ];
-  for (const [id, a, b, why] of PHRASES_A) add(id, { name: `Agitato theme, phrase ${id.slice(-1)}`, scene: 'b1', from: a, to: b, rule: `b1-theme notes in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
-  // Third try (the user: the rows were "not well timed with the notes"). The skyline above mixes the tune with the tops of
-  // the repeated chords, which share its register and loudness. The tune is what is held and voiced out: pack notes >= D4
-  // that last >= 0.28 s (the throb's strikes last 0.15-0.26 s), with velocity >= 60, the loudest of their chord.
-  const tune = packNotes.filter((n) => n.t >= 240.5 && n.t < 250 && n.m >= 62 && n.e - n.t >= 0.28 && n.v >= 60
-    && !packNotes.some((x) => x !== n && Math.abs(x.t - n.t) < 0.04 && x.v >= n.v));
-  const TUNE = [
-    ['b1-t1', 241.4, 244.5, 'G5-Ab5, then the held G5: up to Ab5 and back'],
-    ['b1-t2', 244.5, 246.5, 'D5-Eb5-F5-Eb5-D5-Eb5-F5-G5: the winding climb to G5'],
-    ['b1-t3', 246.5, 250, 'C5-C5-D5-C5-Ab4-G4: the fall to G4'],
-  ];
-  for (const [id, a, b, why] of TUNE) add(id, { name: `Agitato tune (held notes), phrase ${id.slice(-1)}`, scene: 'b1', from: a, to: b, source: 'pack', rule: `pack notes >= D4 in ${a}-${b} s lasting >= 0.28 s, velocity >= 60, the loudest of their chord`, why }, tune.filter((n) => n.t >= a && n.t < b));
-  const mt = melodyTimes(mel);
-  add('b1-octave', { name: 'Theme, lower octave', scene: 'b1', from: A, to: B, rule: 'for each b1-theme note, the roll note an octave below within 50 ms', why: 'Where the right hand doubles the theme an octave down: the same line one register lower, for a second, sparser layer.' },
-    mel.flatMap((n) => inWin(roll, n.t - 0.05, n.t + 0.05, (x) => x.m === n.m - 12).slice(0, 1)));
-  // The throb: the repeated chords between bass and tune, one note each (their top, under the tune), every attack.
-  add('b1-throb', { name: 'Triplet chord throb', scene: 'b1', from: A, to: B, rule: 'roll clusters with a note in 51..74 that is not a theme note; of each, its highest note in 51..74 below the theme, velocity < 70', why: 'The restless repeated chords of the doppio movimento, as one pulsing strand: what makes the passage agitated.' },
-    clusters(inWin(roll, A, B, (n) => n.m >= 51 && n.m <= 74 && !mt.has(n.t) && n.v < 70)).map((c) => c.top));
-  add('b1-bass', { name: 'Bass steps', scene: 'b1', from: A, to: B, source: 'pack', rule: 'pack notes midi <= 50 and velocity >= 40, the lowest of each cluster with nothing lower struck 0.8 s before or 0.3 s after', why: 'The bass of the left hand on its beats, under its own triplets.' },
-    lowline(A, B, 50, 40));
-}
-
-// --- b2, 294.3-304.6: the loudest stretch of the second half, the theme ff in octaves, up to C6 ---
-{
-  const A = 294.6, B = 304.6, mel = melody(A, B, 66, 64);
-  add('b2-theme', { name: 'Theme ff, top of the octaves', scene: 'b2', from: A, to: B, rule: 'skyline of roll notes >= E4 the piano model also has, minDur 0.15, velocity >= 66', why: 'The theme in octaves at full voice: Eb5-F5-Eb5-Eb5-F5-G5, C5 x3, F5-Eb5-F5, B4-C5-D5-C5-D5-Eb5, up to C6 at 303.81 and the hardest note of the half (G5 v104, 304.09) under it.' }, mel);
-  // The same line cut into its phrases, one short Ivory row each (the user, 2026-11-06: "make the ivory sequences shorter").
-  // Each ends on its own extreme note, where Ivory stomps.
+  const A = 294.6, B = 301, mel = melody(A, B, 66, 64);
+  // The theme ff cut into its phrases, one short Ivory row each ("make the ivory sequences shorter"); each ends on its own
+  // extreme note, where Ivory stomps. Only the first two: the second half of the climax was "not quite right" and dropped.
   const PHRASES = [
     ['b2-p1', 294.6, 296.5, 'Eb5-F5-Eb5-Eb5-F5-G5-G5: the theme\'s cell, up to G5'],
     ['b2-p2', 296.9, 299.5, 'C5-C5-C5-F5-Eb5-F5: three knocks and a lift to F5'],
-    ['b2-p3', 300.2, 302.25, 'F5-D5-C5-D5-C5-C5: falling back to C5'],
-    ['b2-p4', 302.3, 304.0, 'D5-Eb5-G4-C6: the leap to the climax note C6 (303.81)'],
   ];
-  for (const [id, a, b, why] of PHRASES) add(id, { name: `Theme ff, phrase ${id.slice(-1)}`, scene: 'b2', from: a, to: b, rule: `b2-theme notes in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
+  for (const [id, a, b, why] of PHRASES) add(id, { name: `Theme ff, phrase ${id.slice(-1)}`, scene: 'b2', from: a, to: b, rule: `skyline of roll notes >= E4 the piano model also has, minDur 0.15, velocity >= 66, in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
   add('b2-chords', { name: 'ff chord blocks', scene: 'b2', from: A, to: B, source: 'pack', rule: 'pack clusters with >= 4 notes and loudest >= 88; of each, the lowest and highest note', why: 'The full chords that carry the climax, struck hardest (pack velocities: the roll guesses ~107 for notes it alone has).' },
     outer(clusters(inWin(packNotes, A, B)).filter((c) => c.ns.length >= 4 && c.vmax >= 88)));
   add('b2-bass', { name: 'Bass octaves ff', scene: 'b2', from: A, to: B, source: 'pack', rule: 'pack notes midi <= 45 and velocity >= 70, the lowest of each cluster with nothing lower struck 0.8 s before or 0.3 s after', why: 'The bass octaves hammered under the climax (Eb, Ab, G, Ab, Eb1).' },
@@ -147,16 +109,6 @@ const melodyTimes = (ms) => new Set(ms.map((n) => n.t));
     clusters(inWin(packNotes, 336, 346.6, (n) => n.m <= 45)).map((c) => c.low));
   add('b4-turns', { name: 'Leading tones of the climb', scene: 'b4', from: 336.9, to: 346.6, rule: 'the b4-line notes on F#, B and Bb, and the final C6', why: 'The notes that lean on the next one (F#4, B4, F#5, Bb5) and the arrival C6: the climb\'s tension points, sparse.' },
     inWin(roll, 336.9, 346.6, (n) => n.m >= 55 && ([6, 11, 10].includes(n.m % 12) || n.m === 84)));
-}
-
-// --- b5, 349.8-360.3: the final bars, three soft C minor chords ---
-{
-  add('b5-top', { name: 'Final chords, top Eb4', scene: 'b5', from: 350, to: 360, source: 'pack', rule: 'pack notes Eb4 (63) in 350-360 s', why: 'The top of each closing chord is the same Eb4 (351.25, 353.69, 357.62): the minor third, sounding three times.' },
-    inWin(packNotes, 350, 360, (n) => n.m === 63));
-  add('b5-body', { name: 'Final chords, inner notes', scene: 'b5', from: 350, to: 360, source: 'pack', rule: 'pack notes 50..62 in 350-360 s', why: 'Eb3/G3/C4 inside each closing chord, pianissimo.' },
-    inWin(packNotes, 350, 360, (n) => n.m >= 50 && n.m <= 62));
-  add('b5-bass', { name: 'Final chords, bass C', scene: 'b5', from: 350, to: 360, source: 'pack', rule: 'pack notes 36..49 in 350-360 s', why: 'C2 and C3 under each closing chord: the tonic, three times.' },
-    inWin(packNotes, 350, 360, (n) => n.m >= 36 && n.m <= 49));
 }
 
 // ---- checks and output ----
