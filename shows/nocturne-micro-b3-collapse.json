@@ -5,7 +5,7 @@
   "title": "Chopin Nocturne Op. 48 No. 1 · micro b3: Bells, a flare and a sinking voice",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:13:05.031Z"
+    "at": "2026-11-06T02:20:52.838Z"
   },
   "clips": [
     {
@@ -14,13 +14,14 @@
       "end": 327.6,
       "track": 0,
       "fade": 0.3,
-      "widget": "fields",
+      "widget": "squares-snap",
+      "listen": "picks:b3-bells",
       "knobs": {
-        "back": 0.6,
-        "dyn": 0.7,
-        "chords": 0.7,
-        "home": -0.4,
-        "n": 3
+        "size": 0.8,
+        "life": 1.1,
+        "blur": 1.4,
+        "shake": 0.2,
+        "presence": 0.65
       }
     },
     {
@@ -28,22 +29,6 @@
       "start": 315.2,
       "end": 327.6,
       "track": 1,
-      "fade": 0.3,
-      "widget": "squares-snap",
-      "listen": "picks:b3-bells",
-      "knobs": {
-        "size": 1.4,
-        "life": 2.4,
-        "blur": 1.2,
-        "shake": 0.8,
-        "presence": 1
-      }
-    },
-    {
-      "id": "c3",
-      "start": 315.2,
-      "end": 327.6,
-      "track": 2,
       "fade": 0.3,
       "widget": "crimp",
       "listen": "picks:b3-inner",
@@ -54,10 +39,10 @@
       }
     },
     {
-      "id": "c4",
+      "id": "c3",
       "start": 315.2,
       "end": 327.6,
-      "track": 3,
+      "track": 2,
       "fade": 0.3,
       "widget": "handover",
       "listen": "picks:b3-sink",
@@ -69,10 +54,10 @@
       }
     },
     {
-      "id": "c5",
+      "id": "c4",
       "start": 315.2,
       "end": 327.6,
-      "track": 4,
+      "track": 3,
       "fade": 0.3,
       "widget": "ivory",
       "listen": "picks:b3-flare",

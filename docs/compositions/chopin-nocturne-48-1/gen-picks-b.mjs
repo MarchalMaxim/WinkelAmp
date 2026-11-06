@@ -92,6 +92,15 @@ const melodyTimes = (ms) => new Set(ms.map((n) => n.t));
 {
   const A = 294.6, B = 304.6, mel = melody(A, B, 66, 64);
   add('b2-theme', { name: 'Theme ff, top of the octaves', scene: 'b2', from: A, to: B, rule: 'skyline of roll notes >= E4 the piano model also has, minDur 0.15, velocity >= 66', why: 'The theme in octaves at full voice: Eb5-F5-Eb5-Eb5-F5-G5, C5 x3, F5-Eb5-F5, B4-C5-D5-C5-D5-Eb5, up to C6 at 303.81 and the hardest note of the half (G5 v104, 304.09) under it.' }, mel);
+  // The same line cut into its phrases, one short Ivory row each (the user, 2026-11-06: "make the ivory sequences shorter").
+  // Each ends on its own extreme note, where Ivory stomps.
+  const PHRASES = [
+    ['b2-p1', 294.6, 296.5, 'Eb5-F5-Eb5-Eb5-F5-G5-G5: the theme\'s cell, up to G5'],
+    ['b2-p2', 296.9, 299.5, 'C5-C5-C5-F5-Eb5-F5: three knocks and a lift to F5'],
+    ['b2-p3', 300.2, 302.25, 'F5-D5-C5-D5-C5-C5: falling back to C5'],
+    ['b2-p4', 302.3, 304.0, 'D5-Eb5-G4-C6: the leap to the climax note C6 (303.81)'],
+  ];
+  for (const [id, a, b, why] of PHRASES) add(id, { name: `Theme ff, phrase ${id.slice(-1)}`, scene: 'b2', from: a, to: b, rule: `b2-theme notes in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
   add('b2-chords', { name: 'ff chord blocks', scene: 'b2', from: A, to: B, source: 'pack', rule: 'pack clusters with >= 4 notes and loudest >= 88; of each, the lowest and highest note', why: 'The full chords that carry the climax, struck hardest (pack velocities: the roll guesses ~107 for notes it alone has).' },
     outer(clusters(inWin(packNotes, A, B)).filter((c) => c.ns.length >= 4 && c.vmax >= 88)));
   add('b2-bass', { name: 'Bass octaves ff', scene: 'b2', from: A, to: B, source: 'pack', rule: 'pack notes midi <= 45 and velocity >= 70, the lowest of each cluster with nothing lower struck 0.8 s before or 0.3 s after', why: 'The bass octaves hammered under the climax (Eb, Ab, G, Ab, Eb1).' },

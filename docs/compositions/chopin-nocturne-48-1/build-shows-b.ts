@@ -20,37 +20,34 @@ const widgets = loadCatalogue().widgets;
 type Knobs = Clip['knobs'];
 /** One layer of a scene. set absent: hears every note (only the ground). boost: every note's intensity (heard velocity =
     velocity x boost), for the pianissimo end where the marks would otherwise sink into the burn. */
-type Layer = { widget: string; set?: string; knobs: Knobs; region?: Clip['region']; intensity?: [number, number][]; boost?: number };
+type Layer = { widget: string; set?: string; knobs: Knobs; region?: Clip['region']; intensity?: [number, number][]; boost?: number;
+  /** 'notes': the clip spans only its set (0.4 s before the first note to 3.7 s after the last: Ivory's hold and age), not the window. */
+  span?: 'notes' };
 /** Squeezed into the middle of the screen: Ivory's keys stand closer together, as a huddle. */
 const HUDDLE: Clip['region'] = { mode: 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.6, h: 1, feather: 0.05, fit: 'stretch' };
 type Scene = { n: number; slug: string; title: string; start: number; end: number; fade: number; layers: Layer[] };
 
 // Bottom to top: ground, then the supporting strands, the lead last (drawn on top).
 const scenes: Scene[] = [
+  // b1 (agitato, 239.6 s: handover on the theme, pluck on the throb, hammer, squares, fields) and b5 (last light, 350.6 s:
+  // hammer, mica, squares on the final chords) were rejected by the user on 2026-11-06 ("shapes not congruent with the
+  // melody", the handover flashing too fast; "very incongruent") and their shows removed.
   {
-    n: 1, slug: 'agitato', title: 'Slabs over plucked threads', start: 239.6, end: 250.2, fade: 0.35,
-    layers: [
-      { widget: 'fields', knobs: { back: 0.7, dyn: 0.7, chords: 0.7, home: -0.3, n: 3 } },
-      { widget: 'squares-snap', set: 'b1-bass', knobs: { size: 0.8, life: 1.1, blur: 1.2, shake: 0.3, presence: 0.85 } },
-      { widget: 'pluck', set: 'b1-throb', knobs: { pull: 1.1, ring: 0.9, touch: 1, presence: 0.8 } },
-      { widget: 'hammer', set: 'b1-octave', knobs: { touch: 2, ring: 1.4, size: 1.2, presence: 0.75 } },
-      { widget: 'handover', set: 'b1-theme', knobs: { goneBy: 1.2, ring: 1.3, size: 0.8, presence: 1 } },
-    ],
-  },
-  {
-    n: 2, slug: 'fire', title: 'Keys through fire', start: 294.3, end: 305.6, fade: 0.3,
+    n: 2, slug: 'fire', title: 'Keys through fire', start: 294.3, end: 306.3, fade: 0.3,
     layers: [
       { widget: 'fields', knobs: { back: 0.5, dyn: 0.8, chords: 0.8, home: 0.1, n: 3 } },
       { widget: 'squares-snap', set: 'b2-bass', knobs: { size: 1.7, life: 1.8, blur: 0.8, shake: 1.2, presence: 1 } },
       { widget: 'fireworks-snap', set: 'b2-chords', knobs: { hue: 0.02, range: 0.2, size: 1.4, swirl: 0.7, linger: 0.45, presence: 0.85 } },
-      { widget: 'ivory', set: 'b2-theme', knobs: { strike: 1, crater: 0.7, ripple: 5, cracks: 2, presence: 1 } },
+      // One short Ivory row per phrase (the user: "make the ivory sequences shorter").
+      ...['b2-p1', 'b2-p2', 'b2-p3', 'b2-p4'].map((set, i): Layer => ({ widget: 'ivory', set, span: 'notes',
+        knobs: { strike: 1, crater: i === 3 ? 0.8 : 0.5, ripple: i === 3 ? 5 : 3, cracks: i === 3 ? 2 : 1.2, presence: 1 } })),
     ],
   },
   {
     n: 3, slug: 'collapse', title: 'Bells, a flare and a sinking voice', start: 315.2, end: 327.6, fade: 0.3,
     layers: [
-      { widget: 'fields', knobs: { back: 0.6, dyn: 0.7, chords: 0.7, home: -0.4, n: 3 } },
-      { widget: 'squares-snap', set: 'b3-bells', knobs: { size: 1.4, life: 2.4, blur: 1.2, shake: 0.8, presence: 1 } },
+      // No fields here (the user: the colour fields are in a lot of the scenes), and the squares calmer ("a bit too much").
+      { widget: 'squares-snap', set: 'b3-bells', knobs: { size: 0.8, life: 1.1, blur: 1.4, shake: 0.2, presence: 0.65 } },
       { widget: 'crimp', set: 'b3-inner', knobs: { reach: 1, stays: 1.6, presence: 1 } },
       { widget: 'handover', set: 'b3-sink', knobs: { goneBy: 1.4, ring: 1.5, size: 0.7, presence: 0.9 } },
       { widget: 'ivory', set: 'b3-flare', knobs: { strike: 1, crater: 0.5, ripple: 3, cracks: 1.5, presence: 1 } },
@@ -65,15 +62,6 @@ const scenes: Scene[] = [
       { widget: 'hammer', set: 'b4-bass', knobs: { touch: 3, ring: 2, size: 1.6, presence: 1 }, boost: 1.8 },
     ],
   },
-  {
-    n: 5, slug: 'last-light', title: 'Last light', start: 350.6, end: 360.6, fade: 0.3,
-    layers: [
-      { widget: 'fields', knobs: { back: 0, dyn: 0.15, chords: 0.5, home: -0.5, n: 2 } },
-      { widget: 'squares-snap', set: 'b5-bass', knobs: { size: 1.6, life: 3, blur: 1.2, shake: 0, presence: 1 }, boost: 2 },
-      { widget: 'mica', set: 'b5-body', knobs: { ring: 2.5, size: 60, spread: 110, flecks: 140, presence: 0.8 }, boost: 1.5 },
-      { widget: 'hammer', set: 'b5-top', knobs: { touch: 3, ring: 3, size: 1.8, presence: 1 }, boost: 2 },
-    ],
-  },
 ];
 
 let bad = 0;
@@ -83,10 +71,20 @@ for (const sc of scenes) {
   sc.layers.forEach((l, track) => {
     const clip: Clip = { id: `c${track + 1}`, start: sc.start, end: sc.end, track, fade: sc.fade, widget: l.widget, knobs: l.knobs };
     if (l.set) {
-      const ns = (sets.get(l.set) ?? []).filter((n) => n[0] >= sc.start + sc.fade && n[0] < sc.end - 0.3);
+      const all = sets.get(l.set) ?? [];
+      if (l.span === 'notes' && all.length) {
+        clip.start = Math.max(sc.start, Math.round((all[0][0] - 0.4) * 1000) / 1000);
+        clip.end = Math.min(sc.end, Math.round((all[all.length - 1][0] + 3.7) * 1000) / 1000);
+      }
+      const ns = all.filter((n) => n[0] >= clip.start + sc.fade && n[0] < clip.end - 0.3);
       if (!ns.length) throw new Error(`${id}: ${l.set} has no notes in the window`);
       picks[l.set] = { notes: l.boost ? ns.map((n) => withValues([n[0], n[1], n[2], n[3]], { intensity: l.boost! })) : ns };
       clip.listen = `picks:${l.set}`;
+    }
+    if (l.span === 'notes') {
+      // A row gives way as the next row of the same widget begins: it fades out over the next phrase's first 0.2 s.
+      const next = sc.layers.slice(track + 1).find((o) => o.span === 'notes' && o.widget === l.widget && o.set);
+      if (next) clip.end = Math.min(clip.end, Math.round(((sets.get(next.set!) ?? [])[0][0] + 0.2) * 1000) / 1000);
     }
     if (l.region) clip.region = l.region;
     if (l.intensity) clip.intensity = l.intensity.map(([t, v]) => ({ t, v }));
