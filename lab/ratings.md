@@ -124,6 +124,9 @@ The user rated the morning round (5) and the pioneers round (6) together. Versio
 - Retagged from the user's own words: woven threads (strings), kline, murmuration, rorschach (see `tags.json`).
 - Reworked: kline v3 (fades without motion, a colour knob), rorschach v3 (a how-present knob).
 
+## 2026-11-06, the concerto micro scenes
+- DROP: tack (moved to `tools/dropped/`, out of the card list, its tags and the shows that used it): "I don't like the gluey widget, archive it."
+
 ## 2026-11-06, Chopin Nocturne Op. 48/1 micro scenes (first half), as theme proposals
 Shows `shows/nocturne-micro-a1..a5-*.json`; analysis `docs/compositions/chopin-nocturne-48-1/ANALYSIS-A.md`.
 - a1 lantern and keys: LOVE. "The solemness of the little light goes well with the sad entrance. Great theme." The current (one thread) on the first three melody notes, then huddled Ivory on the rising line, Hammer on the off-beat chords, Snap squares on the bass, fields.

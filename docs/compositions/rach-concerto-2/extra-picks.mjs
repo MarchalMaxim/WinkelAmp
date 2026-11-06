@@ -100,6 +100,87 @@ add('coda-drive', { name: 'Coda II: the drive begins', section: 'Coda II', from:
   rule: 'top note of roll piano clusters 656-680 s whose loudest note is >= 65', why: 'The steady figuration of Coda II, its firmer strokes, before the last crescendo.' },
   clusters(inWin(roll, 656, 680, (n) => n.f === 'pno')).filter((c) => c.vmax >= 65).map((c) => c.top));
 
+
+// ================= threads (2026-11-06 revision): every orchestral and piano voice as its own attack-tied set =================
+// Whole-song sets; build-show.ts removes the notes inside each thread's statement windows and splits the rest into clips.
+const LOWSTR = /Cello|Contrabass|Acoustic Bass|String Ensemble|Bassoon|Electric Bass/;
+/** One note per window of 'gap' seconds: the loudest (ties: the lowest pitch). */
+function thinOut(ns, gap) { const out = []; for (const n of ns) { const p = out[out.length - 1]; if (p && n.t - p.t < gap) { if (n.v > p.v) out[out.length - 1] = n; } else out.push(n); } return out; }
+const ALLT = [0, 706];
+add('th-bass', { name: 'Thread: the bass line (piano and low strings)', section: 'all', from: 0, to: 706, pair: 'deep',
+  rule: 'lowest pack note of each cluster at midi <= 45, plus roll low-string/bassoon notes at midi <= 50 (minDur 0.2); one per 0.3 s, the loudest',
+  why: 'The bells thread: the bass under everything, dim between the deep strokes.' },
+  thinOut([...clusters(inWin(packNotes, ...ALLT, (n) => n.m <= 45)).map((c) => c.low), ...inWin(roll, ...ALLT, (n) => LOWSTR.test(n.label) && n.m <= 50 && n.e - n.t >= 0.2)].sort((a, b) => a.t - b.t || a.m - b.m), 0.3));
+add('th-inner', { name: 'Thread: the inner strings (violas, cellos in the tenor)', section: 'all', from: 0, to: 706, pair: 't1-cell',
+  rule: 'skyline of roll Viola, Cello at midi >= 50 and String Ensemble at midi 50-67, minDur 0.25',
+  why: 'Theme 1 thread: the inner string voice between the statements.' },
+  skyline(roll, ...ALLT, (n) => /Viola/.test(n.label) || (/Cello/.test(n.label) && n.m >= 50) || (/String Ensemble/.test(n.label) && n.m >= 50 && n.m <= 67), 0.25));
+add('th-violin', { name: 'Thread: the violins', section: 'all', from: 0, to: 706, pair: 't2-tail',
+  rule: 'skyline of roll Violin and String Ensemble at midi >= 66, minDur 0.25',
+  why: 'Theme 2 thread: the high strings passing its shape around; split into phrases for Ivory by build-show.ts.' },
+  skyline(roll, ...ALLT, (n) => /Violin/.test(n.label) || (/String Ensemble/.test(n.label) && n.m >= 66), 0.25));
+add('th-high', { name: 'Thread: the highest piano voice', section: 'all', from: 0, to: 706,
+  rule: 'skyline of roll piano notes at midi >= 76, minDur 0.12, one per 0.2 s', why: 'Points of light, dim, between the high passages.' },
+  thinOut(skyline(roll, ...ALLT, (n) => n.f === 'pno' && n.m >= 76, 0.12), 0.2));
+add('th-acc', { name: 'Thread: the piano accompaniment figures', section: 'all', from: 0, to: 706,
+  rule: 'for each roll piano cluster, its lowest note at midi 48-74; one per 0.14 s, the loudest', why: 'The drive of the piano at every speed.' },
+  thinOut(clusters(inWin(roll, ...ALLT, (n) => n.f === 'pno' && n.m >= 48 && n.m <= 74)).map((c) => c.low), 0.14));
+add('th-accents', { name: 'Thread: every accent', section: 'all', from: 0, to: 706,
+  rule: 'top note of every roll cluster whose loudest note is >= 92; one per 0.25 s', why: 'The chord blocks as small dry bursts.' },
+  thinOut(clusters(inWin(roll, ...ALLT)).filter((c) => c.vmax >= 92).map((c) => c.top), 0.25));
+add('th-winds', { name: 'Thread: the winds (clarinet, oboe, horn, bassoon, flute)', section: 'all', from: 0, to: 706,
+  rule: 'skyline of wind-family roll notes, minDur 0.2', why: 'The lone wind voice, wherever a wind plays.' },
+  skyline(roll, ...ALLT, (n) => n.f === 'wind', 0.2));
+// The piano's runs: >= 7 cluster tops, each <= 0.14 s after the last, mostly one way, spanning >= 10 semitones.
+{
+  const tops = clusters(inWin(roll, ...ALLT, (n) => n.f === 'pno')).map((c) => c.top), runs = [];
+  let cur = [];
+  const close = () => { if (cur.length >= 7) { const net = cur[cur.length - 1].m - cur[0].m, dir = Math.sign(net); const same = cur.slice(1).filter((n, i) => Math.sign(n.m - cur[i].m) === dir).length; if (Math.abs(net) >= 10 && same >= 0.65 * (cur.length - 1)) runs.push(cur); } cur = []; };
+  for (const n of tops) { const p = cur[cur.length - 1]; if (p && n.t - p.t <= 0.14 && Math.abs(n.m - p.m) <= 9) cur.push(n); else { close(); cur = [n]; } }
+  close();
+  add('th-runs', { name: 'Thread: the piano runs', section: 'all', from: 0, to: 706, pair: 'runs',
+    rule: 'runs of >= 7 roll piano cluster tops, each <= 0.14 s and <= 9 semitones after the last, >= 65 % one way, spanning >= 10 semitones',
+    why: 'Gliss wherever the piano runs.' }, runs.flat());
+  console.log('runs', runs.map((r) => r[0].t.toFixed(1) + '(' + r.length + ')').join(' '));
+}
+
+
+// ---- the solo ladders, for stacked Ivory: each ladder split into three ranks (build-show.ts cuts each rank into chunks Ivory
+// draws whole). By register: the ladder's pitch range in thirds, one note per cluster per third (its highest there).
+// By succession (lad-122): the detected runs in turn, run i to rank i mod 3.
+const LADDERS = [
+  { id: 'lad-076', from: 75.9, to: 79.3, src: 'pno', why: 'The run that launches the strings rise (76-79 s).' },
+  { id: 'lad-219', from: 218.3, to: 231.8, src: 'pno', why: 'Theme 2 climax: the piano climbs in ladders to Ab6 at 231.7 s (the user: the one starting at 3:39).' },
+  { id: 'lad-303', from: 302.9, to: 305.2, src: 'pno', why: 'The development: the 21-note run at 303 s.' },
+  { id: 'lad-345', from: 344.6, to: 347.5, src: 'pno', why: 'The agitato: the 25-note run at 345 s.' },
+  { id: 'lad-478', from: 477.9, to: 479.6, src: 'pno', why: 'The falling run after the deep stroke at 475 s.' },
+  { id: 'lad-616', from: 616.3, to: 618.4, src: 'pack', why: 'The coda sweep, C3 to C7.' },
+  { id: 'lad-643', from: 643.5, to: 649.6, src: 'pno', why: 'The coda scale, Eb4 to B5, into the first peak.' },
+  { id: 'lad-692', from: 692.2, to: 694.7, src: 'all', why: 'The final rising scale, into the last chords.' },
+];
+for (const L of LADDERS) {
+  const src = L.src === 'pack' ? inWin(packNotes, L.from, L.to) : inWin(roll, L.from, L.to, (n) => L.src === 'all' || n.f === 'pno');
+  const lo = Math.min(...src.map((n) => n.m)), hi = Math.max(...src.map((n) => n.m)), step = (hi - lo + 1) / 3;
+  for (let r = 0; r < 3; r++) {
+    const a = lo + r * step, b = lo + (r + 1) * step;
+    const ns = clusters(src.filter((n) => n.m >= a && n.m < b)).map((c) => c.top);
+    if (ns.length) add(`${L.id}-r${r}`, { name: `Ladder at ${L.from} s, rank ${r} (${['low', 'middle', 'top'][r]} third)`, section: 'ladder', from: L.from, to: L.to,
+      source: L.src === 'pack' ? 'pack' : 'roll', pair: 'ladder',
+      rule: `${L.src} notes ${L.from}-${L.to} s at midi ${a.toFixed(1)}-${b.toFixed(1)}, the top of each cluster`, why: L.why }, ns);
+  }
+}
+{ // lad-122: the piu mosso runs, by succession
+  const tops = clusters(inWin(roll, 117, 135, (n) => n.f === 'pno')).map((c) => c.top), runs = [];
+  let cur = [];
+  const close = () => { if (cur.length >= 7) { const net = cur[cur.length - 1].m - cur[0].m, dir = Math.sign(net); const same = cur.slice(1).filter((n, i) => Math.sign(n.m - cur[i].m) === dir).length; if (Math.abs(net) >= 8 && same >= 0.6 * (cur.length - 1)) runs.push(cur); } cur = []; };
+  for (const n of tops) { const p = cur[cur.length - 1]; if (p && n.t - p.t <= 0.16 && Math.abs(n.m - p.m) <= 9) cur.push(n); else { close(); cur = [n]; } }
+  close();
+  for (let r = 0; r < 3; r++) add(`lad-122-r${r}`, { name: `Piu mosso runs, rank ${r}`, section: 'T', from: 117, to: 135, pair: 'ladder',
+    rule: 'runs of >= 7 roll piano cluster tops (each <= 0.16 s, <= 9 semitones after the last, >= 60 % one way, >= 8 semitones); run i to rank i mod 3',
+    why: 'The piu mosso runs (117-134 s), each run its own rank in turn.' }, runs.filter((_, i) => i % 3 === r).flat());
+  console.log('lad-122 runs', runs.map((x) => x[0].t.toFixed(1) + '(' + x.length + ')').join(' '));
+}
+
 const slug = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 for (const s of sets) {
   if (!slug.test(s.id)) throw new Error(`${s.id} is not a slug`);
@@ -110,4 +191,4 @@ for (const s of sets) {
 const out = { song: 'rach-concerto-2', made: 'extra-picks.mjs', sets: sets.map(({ attacks, ...s }) => ({ id: s.id, name: s.name, why: s.why, rule: s.rule, section: s.section, pair: s.pair, source: s.source, from: s.from, to: s.to, attacks, notes: s.notes })) };
 const text = JSON.stringify(out, null, 2).replace(/\[\s+([-\d.]+),\s+([-\d.]+),\s+(\d+),\s+(\d+)\s+\]/g, '[$1, $2, $3, $4]');
 writeFileSync(join(W, 'docs/compositions/rach-concerto-2/extra-picks.json'), text + '\n');
-for (const s of sets) console.log(`${s.id.padEnd(16)} ${String(s.attacks).padStart(3)} att ${String(s.notes.length).padStart(3)} notes ${s.from}-${s.to} | ${s.notes.map((n) => n[0].toFixed(2) + nm(n[2])).join(' ')}`);
+for (const s of sets) console.log(`${s.id.padEnd(16)} ${String(s.attacks).padStart(4)} att ${String(s.notes.length).padStart(4)} notes ${s.from}-${s.to} | ${s.notes.slice(0, 12).map((n) => n[0].toFixed(2) + nm(n[2])).join(' ')}`);

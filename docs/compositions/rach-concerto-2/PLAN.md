@@ -146,3 +146,137 @@ catalogue) and writes `shows/rach-concerto-2-full.json` through `canonicalShow`.
 - At 179.3 the second statement of theme 2 rose among the 19 still-standing keys of the first tail: `t2-tail-b` and `t2-tail-b2` now end (0.5 s fade) just before the next statement.
 - The horn statement (522) was a faint grey stub: presence 0.6 to 0.85, intensities 0.62-0.8 to 0.8-0.95.
 - Hammer's lines were hair-thin: sizes 0.75-0.9 to 1.3-1.5.
+
+# Revision 2 (2026-11-06): a score of threads
+
+The user's verdict on the first version was: "The end is really good, the middle not so much. I am missing the
+consistency." The coda (616-706) is the reference density. The middle now runs as threads, like orchestral sections.
+Each motif is a thread that never stops between its statements; it only changes weight.
+
+## R2.1 The threads and their sets
+
+| Thread | Widget | Between statements (dim) | At its statements (full, as before) |
+|---|---|---|---|
+| Ground, broad | `fields` | one clip, 0-706; its curve is made from `pack.loudness`, at about 0.85 of the first version's level, and it never drops out | - |
+| Ground, fine | `mica` | all notes, 0-706, a dim curve that follows the loudness | - |
+| The bells | `squares-snap` | `th-bass`: the piano's lowest note per cluster at midi 45 or below, plus the low strings and bassoon; small (0.45) and dim (intensity 0.55) | opening, C1 pulse, deep strokes, march bass, descent, final |
+| Theme 1 | `handover` | `th-inner`: violas and tenor cellos, small (0.35) and dim | 46-112, 321-342, 424-477 |
+| Theme 2 | `ivory` | `th-violin`: the violins in phrases (cut so Ivory draws every note), presence 0.35 | the statements as before, plus the stacked ladders (R2.3) |
+| Points of light | `hammer` | `th-high`: the piano's highest voice at midi 76 or above, intensity 0.55 | filigree, trill, meno, coda |
+| Chord blocks | `fireworks-snap` | `th-accents`: every accent (velocity 92 or above), small and dry (size 0.45, linger 0.05) | tutti, climax chords, storm, march, final |
+| The piano's drive | `pluck` (flee only as an all-notes texture 342-422 and 656-696; R2.5) | `th-acc`: the accompaniment figures, presence 0.6, intensity 0.6 | transition, D1, agitato, coda (now pluck) |
+| The runs | `gliss` | `th-runs`: every run the transcription holds (7 or more cluster tops, each within 0.14 s, mostly one way) | 76, 478, 616, 643, 692 |
+| The wind voice | `current` | `th-winds`: every wind note (clarinet, oboe, horn, bassoon, flute) | bridge, codetta |
+
+The theme 2 entrances keep their spare moment, which the user liked ("the lonely, quiet ball of light followed by ivory
+of the upgoing theme"). Over 141-156.5, 177.5-183 and 519.5-528 only current and ivory play; the other threads fade out
+before and back in after, over 2-3 s.
+
+## R2.2 Weights per 30 s window (planned before placing)
+
+0 is off, 0.2 a dim trace, 1 full. Every window has at least four threads above 0.2 and two above 0.5.
+
+| s | fields | mica | bells | theme 1 | theme 2 | light | chords | drive | runs | winds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0-30 | 0.3 | 0.3 | 1 | 0 | 0 | 0.3 | 0.2 | 0.3 | 0 | 0 |
+| 30-60 | 0.7 | 0.3 | 1 | 1 | 0.2 | 0.2 | 0.3 | 0.3 | 0.3 | 0 |
+| 60-90 | 0.7 | 0.3 | 0.6 | 1 | 0.6 (ladder 76) | 0.3 | 0.3 | 0.3 | 1 | 0 |
+| 90-120 | 0.6 | 0.3 | 0.3 | 0.8 | 0.2 | 0.3 | 0.3 | 0.6 | 0.4 | 0 |
+| 120-150 | 0.6 | 0.4 | 0.5 | 0.2 | 0.6 (ladders 127-134) | 0.3 | 1 | 1 | 0.6 | 0.6 |
+| 150-180 | 0.3 | 0.25 | 0.25 | 0.2 | 1 | 0.3 | 0.2 | 0.3 | 0.2 | 0.3 |
+| 180-210 | 0.4 | 0.3 | 0.3 | 0.25 | 1 | 0.3 | 0.25 | 0.35 | 0.2 | 0.2 |
+| 210-240 | 0.7 | 0.4 | 0.3 | 0.25 | 1 (climax line + ladder ranks) | 0.4 | 0.35 | 0.4 | 0.3 | 0 |
+| 240-270 | 0.6 | 0.35 | 0.3 | 0.2 | 0.4 | 0.3 | 1 | 0.35 | 0.2 | 0.6 |
+| 270-300 | 0.4 | 0.3 | 0.25 | 0.2 | 0.3 | 1 | 0.2 | 0.3 | 0.2 | 0.5 |
+| 300-330 | 0.6 | 0.35 | 0.3 | 0.7 | 0.5 (ladder 303) | 0.3 | 0.3 | 1 | 0.5 | 0.3 |
+| 330-360 | 0.5 | 0.3 | 0.3 | 1 | 0.5 (ladder 345) | 0.3 | 0.3 | 0.8 | 0.5 | 0.3 |
+| 360-390 | 0.75 | 0.4 | 0.3 | 0.3 | 0.3 | 0.4 | 0.4 | 1 | 0.5 | 0.2 |
+| 390-420 | 0.85 | 0.5 | 0.6 | 0.3 | 0.3 | 0.6 | 1 | 0.4 | 0.3 | 0 |
+| 420-450 | 0.8 | 0.4 | 0.6 | 1 | 0.2 | 0.3 | 0.6 | 0.35 | 0.3 | 0 |
+| 450-480 | 0.7 | 0.4 | 0.5 | 1 | 0.5 (ladder 478) | 0.3 | 0.3 | 0.4 | 0.6 | 0 |
+| 480-510 | 0.5 | 0.3 | 0.6 | 0.3 | 0.3 | 0.3 | 0.25 | 0.35 | 0.2 | 0.2 |
+| 510-540 | 0.3 | 0.25 | 0.4 | 0.2 | 1 (horn) | 0.2 | 0 | 0.2 | 0 | 0.4 |
+| 540-570 | 0.5 | 0.3 | 0.3 | 0.3 | 0.6 | 0.3 | 0.2 | 0.3 | 0.2 | 0.3 |
+| 570-600 | 0.35 | 0.3 | 0.2 | 0.2 | 0.25 | 1 | 0.2 | 0.3 | 0 | 0.2 |
+| 600-630 | 0.45 | 0.3 | 1 | 0.2 | 0.5 (ladder 616) | 1 | 0.2 | 0.3 | 1 | 0.2 |
+| 630-660 | 0.7 | 0.3 | 0.3 | 0.2 | 0.6 (ladder 643) | 0.6 | 0.3 | 0.35 | 0.8 | 0.2 |
+| 660-690 | 0.75 | 0.3 | 0.3 | 0.25 | 0.2 | 0.3 | 0.35 | 1 | 0.5 | 0 |
+| 690-706 | 1 | 0.3 | 1 | 0.2 | 0.6 (ladder 692) | 0.3 | 1 | 0.8 | 0.8 | 0 |
+
+## R2.3 Stacked ivory on the solo ladders
+
+On each long ladder, two or three ivory clips play at once. Each clip has its own pick set cut from the ladder: low,
+middle and top register, or one clip per successive run. Each rank sits in its own window (a `region`, blend lighten),
+lower-left to upper-right, so the keys climb in ranks as the run climbs. The ranks differ in strike and intensity. Every
+rank set is cut into chunks by Ivory's own rule (no notes after the stomp beyond the number of keys), so every note
+lands. The ladders: 76-79 (A'), 122-134 (the più mosso runs), 218-232 (theme 2's climax, the user's "3:39"), 303, 345
+(development), 478 (falling, A'' cont.), 616 (the coda's sweep), 643 (the coda's scale) and 692 (the final scale).
+
+## R2.4 As built: weights per 30 s window
+
+Computed from the built show by `weights.mjs`: a statement clip counts 1, a ladder rank 0.6, a dim thread 0.3, a ground its curve's mean over the window. Each value is scaled down when the clip covers only part of the window. The last column is the most clips playing at once, grounds included. Every window meets the rule except 150-180, which is the theme 2 entrance the user asked to keep spare.
+
+| s | fields | mica | bells | theme1 | theme2 | light | chords | drive | flee | runs | winds | >0.2 | >0.5 | clips at once (max) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0-30 | 0.54 | 0.34 | 1 | 0 | 0 | 0 | 0.22 | 0.3 | 0 | 0 | 0 | 5 | 2 | 5 |
+| 30-60 | 0.86 | 0.52 | 1 | 1 | 0.27 | 0 | 0.3 | 0.3 | 0 | 0.3 | 0 | 8 | 4 | 10 |
+| 60-90 | 0.84 | 0.51 | 0.59 | 1 | 0.47 | 0.3 | 0.3 | 0.3 | 0 | 0.69 | 0 | 9 | 5 | 13 |
+| 90-120 | 0.81 | 0.48 | 0.3 | 1 | 0.31 | 0.09 | 0.3 | 0.62 | 0 | 0.21 | 0 | 8 | 3 | 10 |
+| 120-150 | 0.53 | 0.32 | 0.59 | 0.24 | 0.43 | 0.3 | 1 | 1 | 0 | 0.3 | 0.98 | 10 | 5 | 12 |
+| 150-180 | 0.38 | 0.21 | 0.3 | 0.2 | 1 | 0 | 0.19 | 0.3 | 0 | 0 | 0.46 | 6 | 1 | 6 |
+| 180-210 | 0.56 | 0.32 | 0.3 | 0.3 | 1 | 0.06 | 0.06 | 0.3 | 0 | 0 | 0 | 6 | 2 | 6 |
+| 210-240 | 0.8 | 0.47 | 0.3 | 0.3 | 1 | 0.3 | 0.3 | 0.3 | 0 | 0 | 0 | 8 | 2 | 13 |
+| 240-270 | 0.78 | 0.47 | 0.3 | 0.19 | 0.9 | 0.3 | 1 | 0.3 | 0 | 0 | 1 | 8 | 4 | 9 |
+| 270-300 | 0.66 | 0.38 | 0.3 | 0.16 | 0.19 | 1 | 0 | 0.3 | 0 | 0 | 0.96 | 6 | 3 | 7 |
+| 300-330 | 0.78 | 0.47 | 0.3 | 1 | 0.42 | 0.44 | 0.29 | 1 | 0 | 0.23 | 0.3 | 10 | 3 | 13 |
+| 330-360 | 0.79 | 0.47 | 0.3 | 1 | 0.39 | 0.3 | 0.3 | 1 | 0.39 | 0.25 | 0.22 | 11 | 3 | 15 |
+| 360-390 | 0.86 | 0.52 | 0.3 | 0.3 | 0.28 | 0.3 | 0.3 | 1 | 0.64 | 0.24 | 0.23 | 11 | 4 | 12 |
+| 390-420 | 0.9 | 0.55 | 0.63 | 0.3 | 0.3 | 0.49 | 1 | 0.3 | 0.67 | 0 | 0.1 | 9 | 5 | 12 |
+| 420-450 | 0.85 | 0.51 | 1 | 1 | 0.3 | 0.3 | 1 | 0.3 | 0.01 | 0 | 0.2 | 8 | 5 | 11 |
+| 450-480 | 0.78 | 0.46 | 0.59 | 1 | 0.3 | 0.3 | 0.3 | 0.3 | 0 | 0.45 | 0 | 9 | 3 | 13 |
+| 480-510 | 0.73 | 0.43 | 1 | 0.3 | 0.33 | 0.3 | 0.29 | 0.3 | 0 | 0.41 | 0.24 | 10 | 2 | 13 |
+| 510-540 | 0.42 | 0.24 | 1 | 0.2 | 1 | 0 | 0 | 0.3 | 0 | 0 | 0.3 | 6 | 2 | 5 |
+| 540-570 | 0.74 | 0.44 | 0.3 | 0.3 | 1 | 0.19 | 0.3 | 0.3 | 0 | 0 | 0.3 | 8 | 2 | 9 |
+| 570-600 | 0.64 | 0.37 | 0.23 | 0.28 | 0.98 | 1 | 0.08 | 0.3 | 0 | 0 | 0.25 | 8 | 3 | 9 |
+| 600-630 | 0.65 | 0.37 | 0.59 | 0.16 | 0.42 | 1 | 0 | 0.3 | 0 | 0.81 | 0.18 | 7 | 4 | 10 |
+| 630-660 | 0.74 | 0.44 | 0.3 | 0.25 | 0.52 | 1 | 0.3 | 0.5 | 0.07 | 1 | 0.3 | 10 | 4 | 13 |
+| 660-690 | 0.76 | 0.45 | 0.3 | 0.2 | 0.26 | 0.3 | 0.3 | 1 | 0.46 | 0.24 | 0 | 9 | 2 | 9 |
+| 690-706 | 0.72 | 0.49 | 1 | 0.3 | 0.6 | 0 | 1 | 0.99 | 0.44 | 1 | 0 | 9 | 6 | 14 |
+
+## R2.5 What changed, per section
+
+- **Everywhere.**
+  - The fields ground is one clip, 4-706 s. Its curve follows the loudness (0.55-0.9, back 0.7), so it is plainly visible through the middle. It dips to 0 only at the three theme-2 carve-outs.
+  - Mica is the fine ground: on all notes, dim (0.3-0.55). Each note glints its own shard set.
+  - Seven threads run between their statements: bass squares, inner-strings handover, violin ivory, high-voice hammer, accent fireworks, accompaniment pluck, runs gliss and winds current.
+- **The drive.** Flee came off every pick set (the user: it suits overwhelming numbers of notes, not specific notes). The drive thread is now **pluck**: each note pulls its own straight thread to one hard bone-white corner, and a repeated note pulls the same thread. That suits repeated accompaniment figures. Its red ring-out also stays in the show's palette, whereas tack's red slabs would collide with handover and squares, and crimp's wool smears. The statement sets that flee had (transition, D1, agitato, coda drive and build) now play on pluck at full presence. Flee survives only as a texture on all notes, 342-422 s (agitato and climax storm) and 656-696 s (coda II), at snap 1.
+- **Transition (112-141).** Ivory ranks on the più mosso runs, plus dim violins, the bass, accents and the inner strings over the grounds. The tutti is as before.
+- **Bridge and theme 2 (141-200).** The entrance at 151.5 is kept as the user liked it: the current thread, then the first key alone on black. The other threads return about 156.5 s. The 179.3 statement has a short clearing (177.5-183.2), then the threads come back.
+- **B2 and the climax (200-253).** The strings' climb, plus three windowed ivory ranks on the 218-232 ladder over the full-frame climax line. Threads around them.
+- **Codetta and close (253-298).** Current and filigree as before, now over visible fields, mica, dim violins, pluck and bass.
+- **Development (298-388).** Pluck statements (D1, agitato), ivory ranks at 303 and 345, handover on the inner strings throughout, flee texture from 342.
+- **Climax and recap (388-480).** Flee texture, the red storm, the trill, the march. Ladder ranks at 478.
+- **Dissolve and horn (480-556).** The descent squares are a little larger (size 1, blur 1.5). The horn entrance at 522.4 clears 519.5-528, then fields, mica, bass and violins return dimly under the horn's ivory and current.
+- **B'' and meno mosso (556-616).** The echoes' ivory and the meno hammer over visible fields, mica, the current, dim violins and pluck.
+- **Coda.** As before, plus the grounds and the threads. The drive is now pluck, and flee is a texture on 656-696. Ladder ranks at 616, 643 and 692.
+- **Ivory.** `huddle` is 0.8 on theme 2 and the violin thread, 0.85 on the ladder ranks.
+
+## R2.6 The ladders
+
+Each ladder is cut into three ranks, the low, middle and top third of its pitch range. Each rank keeps its own climb (on
+478, its fall) and plays in its own window: lower left, centre, upper right. From the lowest rank to the highest, strike
+goes 0.4 → 0.7 → 1, presence 0.65 → 0.8 → 1 and intensity 0.85 → 1 → 1.25. Rank notes that do not continue the climb
+are left out of the ranks; the other threads still hear them. A rank that climbs again after a pause of more than 2.5 s
+becomes a new chunk. The 122 ladder ranks by succession instead: run i goes to rank i mod 3.
+
+| Ladder | s | Rank clips (keys) low / middle / top |
+|---|---|---|
+| lad-076 | 75.7-82.0 | 1 (2) / 1 (3) / 1 (3) |
+| lad-122 (più mosso runs) | 116.8-135.0 | 3 (17) / 2 (8) / 2 (17) |
+| lad-219 (the user's 3:39) | 217.9-235.7 | 5 (7) / 4 (9) / 3 (11), over the full-frame climax line |
+| lad-303 | 302.5-308.3 | 1 (2) / 1 (3) / 1 (3) |
+| lad-345 | 344.2-351.4 | 2 (2) / 1 (2) / 2 (3) |
+| lad-478 (falling) | 477.6-483.5 | 1 (1) / 1 (4) / 1 (2) |
+| lad-616 (coda sweep) | 616.1-622.1 | 1 (5) / 1 (5) / 1 (4) |
+| lad-643 | 643.3-653.4 | 2 (4) / 2 (9) / 2 (6) |
+| lad-692 | 691.8-698.1 | 1 (3) / 1 (3) / 1 (5) |
