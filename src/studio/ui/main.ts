@@ -376,6 +376,9 @@ async function boot(): Promise<void> {
   audio.addEventListener('loadedmetadata', () => { (ui.play as HTMLButtonElement).disabled = false; store.notify(); player.onTick?.(player.time); });
   audio.addEventListener('error', () => store.dispatch({ type: 'notice', notice: { id: 'audio', level: 'error', text: `The recording did not load (${api.audioUrl(pack)}).` } }));
   ui.play.addEventListener('click', () => player.toggle());
+  // ?t=<seconds> opens the song there (paused, the picture at that time), once the recording knows its length.
+  const startAt = Number(params.get('t'));
+  if (params.get('t') && Number.isFinite(startAt) && startAt > 0) audio.addEventListener('loadedmetadata', () => seek(startAt), { once: true });
 
   // Export: record the show to an MP4 here (the song plays through once), or the command for a frame-exact one.
   const recorder = installExport({
