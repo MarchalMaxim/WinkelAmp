@@ -51,9 +51,9 @@ lines stay visible over its smoke.
 | show | window (s) | sets → widgets |
 |---|---|---|
 | `nocturne-micro-a1-lantern-and-keys` | 3.0–14.4 | a1-melody-head → current · a1-melody-rise → ivory (lead) · a1-chords → hammer · a1-bass → squares-snap · fields |
-| `nocturne-micro-a2-slabs-and-threads` | 23.0–34.0 | a2-melody → handover (lead) · a2-turn → pluck · a2-chords → squares-snap · a2-bass → hammer · fields |
-| `nocturne-micro-a3-ivory-peak` | 101.2–111.4 | a3-rise, a3-fall → ivory ×2 (lead) · a3-after → hammer · a3-chords → fireworks-snap · a3-bass → squares-snap · fields |
-| `nocturne-micro-a4-lantern-into-the-chorale` | 117.0–127.8 | a4-voice → current (lead) · a4-chorale → crimp · a4-bass → squares-snap · fields |
+| `nocturne-micro-a2-slabs-and-threads` | 23.0–34.0 | a2-melody → handover (lead) · a2-turn → pluck · a2-chords → squares-snap (milk) · a2-bass → hammer · fields |
+| `nocturne-micro-a3-ivory-peak` | 101.2–111.4 | a3-rise, a3-fall → ivory ×2 (lead) · a3-after → hammer · a3-chords → mica (bone) · a3-bass → squares-snap (milk) · fields |
+| `nocturne-micro-a4-lantern-into-the-chorale` | 117.0–127.8 | a4-voice → current (lead) · a4-chorale → squares-snap (milk, slow) · a4-bass → hammer (bell) · fields |
 | `nocturne-micro-a5-octave-storm` | 216.6–227.8 | a5-chords → fireworks-snap (lead) · a5-octaves → interlock · a5-arpeggio → pluck · a5-descent → hammer · fields |
 
 Each set's rule and the reason for it are written in `picks-a.json`.

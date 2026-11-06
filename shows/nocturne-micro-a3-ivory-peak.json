@@ -2,10 +2,10 @@
   "version": 3,
   "id": "nocturne-micro-a3-ivory-peak",
   "song": "chopin-nocturne-48-1",
-  "title": "Chopin Nocturne Op. 48/1 · micro a3 · Ivory peak: Ivory climbing to C6 and falling back, Fireworks on the beat chords, Hammer on the line picking up again, Snap squares on the bass, fields underneath",
+  "title": "Chopin Nocturne Op. 48/1 · micro a3 · Ivory peak: Ivory climbing to C6 and falling back, bone Mica glinting on the beat chords, Hammer on the line picking up again, milky Snap squares on the bass, fields underneath",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:31:29.614Z"
+    "at": "2026-11-06T02:36:38.266Z"
   },
   "clips": [
     {
@@ -34,15 +34,15 @@
       "end": 111.4,
       "track": 2,
       "fade": 0.3,
-      "widget": "fireworks-snap",
+      "widget": "mica",
       "listen": "picks:a3-chords",
       "knobs": {
-        "hue": 0.06,
-        "range": 0.15,
-        "size": 0.9,
-        "swirl": 0.5,
-        "linger": 0.35,
-        "presence": 0.7
+        "flecks": 110,
+        "spread": 140,
+        "size": 50,
+        "ring": 1.3,
+        "colour": 1,
+        "presence": 0.75
       }
     },
     {
@@ -54,11 +54,12 @@
       "widget": "squares-snap",
       "listen": "picks:a3-bass",
       "knobs": {
-        "size": 1.2,
-        "life": 1,
-        "blur": 1,
-        "shake": 1,
-        "presence": 0.75
+        "size": 1,
+        "life": 1.2,
+        "blur": 1.4,
+        "shake": 0.5,
+        "milk": 1,
+        "presence": 0.6
       }
     },
     {
