@@ -109,6 +109,62 @@
       ]
     },
     {
+      "id": "b1-t1",
+      "name": "Agitato tune (held notes), phrase 1",
+      "why": "G5-Ab5, then the held G5: up to Ab5 and back",
+      "rule": "pack notes >= D4 in 241.4-244.5 s lasting >= 0.28 s, velocity >= 60, the loudest of their chord",
+      "scene": "b1",
+      "source": "pack",
+      "from": 241.4,
+      "to": 244.5,
+      "attacks": 3,
+      "notes": [
+        [241.4917, 242.2269, 79, 80],
+        [242.9958, 243.4592, 80, 72],
+        [244.1716, 246.27, 79, 68]
+      ]
+    },
+    {
+      "id": "b1-t2",
+      "name": "Agitato tune (held notes), phrase 2",
+      "why": "D5-Eb5-F5-Eb5-D5-Eb5-F5-G5: the winding climb to G5",
+      "rule": "pack notes >= D4 in 244.5-246.5 s lasting >= 0.28 s, velocity >= 60, the loudest of their chord",
+      "scene": "b1",
+      "source": "pack",
+      "from": 244.5,
+      "to": 246.5,
+      "attacks": 8,
+      "notes": [
+        [244.6419, 245.77, 74, 79],
+        [245.2188, 245.61, 75, 72],
+        [245.4458, 246.1, 77, 77],
+        [245.6238, 245.92, 75, 77],
+        [245.7794, 246.6181, 74, 80],
+        [245.9306, 246.6211, 75, 82],
+        [246.114, 246.6199, 77, 85],
+        [246.2849, 246.65, 79, 91]
+      ]
+    },
+    {
+      "id": "b1-t3",
+      "name": "Agitato tune (held notes), phrase 3",
+      "why": "C5-C5-D5-C5-Ab4-G4: the fall to G4",
+      "rule": "pack notes >= D4 in 246.5-250 s lasting >= 0.28 s, velocity >= 60, the loudest of their chord",
+      "scene": "b1",
+      "source": "pack",
+      "from": 246.5,
+      "to": 250,
+      "attacks": 6,
+      "notes": [
+        [246.6047, 247.26, 72, 79],
+        [247.2688, 247.77, 72, 86],
+        [247.9591, 249.61, 74, 83],
+        [248.7674, 249.5968, 72, 69],
+        [249.199, 249.5989, 68, 79],
+        [249.5139, 250.33, 67, 83]
+      ]
+    },
+    {
       "id": "b1-octave",
       "name": "Theme, lower octave",
       "why": "Where the right hand doubles the theme an octave down: the same line one register lower, for a second, sparser layer.",

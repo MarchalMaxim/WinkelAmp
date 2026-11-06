@@ -87,6 +87,17 @@ const melodyTimes = (ms) => new Set(ms.map((n) => n.t));
     ['b1-a4', 246.5, 249.0, 'C5-C5-C5-D5-C5: three knocks and a lift to D5, as in b2-p2'],
   ];
   for (const [id, a, b, why] of PHRASES_A) add(id, { name: `Agitato theme, phrase ${id.slice(-1)}`, scene: 'b1', from: a, to: b, rule: `b1-theme notes in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
+  // Third try (the user: the rows were "not well timed with the notes"). The skyline above mixes the tune with the tops of
+  // the repeated chords, which share its register and loudness. The tune is what is held and voiced out: pack notes >= D4
+  // that last >= 0.28 s (the throb's strikes last 0.15-0.26 s), with velocity >= 60, the loudest of their chord.
+  const tune = packNotes.filter((n) => n.t >= 240.5 && n.t < 250 && n.m >= 62 && n.e - n.t >= 0.28 && n.v >= 60
+    && !packNotes.some((x) => x !== n && Math.abs(x.t - n.t) < 0.04 && x.v >= n.v));
+  const TUNE = [
+    ['b1-t1', 241.4, 244.5, 'G5-Ab5, then the held G5: up to Ab5 and back'],
+    ['b1-t2', 244.5, 246.5, 'D5-Eb5-F5-Eb5-D5-Eb5-F5-G5: the winding climb to G5'],
+    ['b1-t3', 246.5, 250, 'C5-C5-D5-C5-Ab4-G4: the fall to G4'],
+  ];
+  for (const [id, a, b, why] of TUNE) add(id, { name: `Agitato tune (held notes), phrase ${id.slice(-1)}`, scene: 'b1', from: a, to: b, source: 'pack', rule: `pack notes >= D4 in ${a}-${b} s lasting >= 0.28 s, velocity >= 60, the loudest of their chord`, why }, tune.filter((n) => n.t >= a && n.t < b));
   const mt = melodyTimes(mel);
   add('b1-octave', { name: 'Theme, lower octave', scene: 'b1', from: A, to: B, rule: 'for each b1-theme note, the roll note an octave below within 50 ms', why: 'Where the right hand doubles the theme an octave down: the same line one register lower, for a second, sparser layer.' },
     mel.flatMap((n) => inWin(roll, n.t - 0.05, n.t + 0.05, (x) => x.m === n.m - 12).slice(0, 1)));

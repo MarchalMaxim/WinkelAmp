@@ -73,7 +73,7 @@ trimmed to the window. Tracks go from the bottom up: ground, support, then the l
 | show | window | combo |
 |---|---|---|
 | nocturne-micro-b1-agitato | 239.6–250.2 | Slabs over plucked threads: handover on the theme, hammer on its lower octave, pluck on the throb, squares-snap on the bass, fields under them |
-| nocturne-micro-b1-sotto-voce | 239.6–250.2 | The theme, sotto voce (second try): soft short Ivory rows, one per phrase of the agitato theme (b1-a1..a4; a3 and a4 are the cells that return ff in b2-p1/p2), hammer bars pulsing on the triplet throb, current's gold thread following the bass, on black |
+| nocturne-micro-b1-sotto-voce | 239.6–250.2 | The theme, sotto voce (third try): soft short Ivory rows on the held tune, one per phrase (b1-t1..t3: up to Ab5, the winding climb to G5, the fall to G4), hammer bars pulsing on the triplet throb, current's gold thread following the bass, on black |
 | nocturne-micro-b2-fire | 294.3–306.3 | Keys through fire: four short Ivory rows, one per phrase of the ff theme (b2-p1..p4, each giving way as the next begins; the last stomps on C6), fireworks-snap on the full chords, squares-snap on the bass octaves, fields bright |
 | nocturne-micro-b3-collapse | 315.2–327.6 | Bells, a flare and a sinking voice: small squares-snap bells on the bass octaves, Ivory on the flare, handover on the recitative, crimp on the inner chords, on black (no fields) |
 | nocturne-micro-b4-climb | 335.7–348.3 | Keys climbing alone: Ivory on the lone line (squeezed into the middle 60 % by a region, so the keys huddle), current (one ball of light) on its leaning notes, hammer on the three low tolls, fields |
@@ -94,3 +94,12 @@ in each scene, with no widget errors.
 | b3 collapse (315.2) | good, but similar to b2. Fields are in too many scenes, and the snap squares are too much | fields dropped; squares smaller, shorter and dimmer |
 | b4 climb (335.7) | good, but this theme doesn't come back often | kept as it is |
 | b5 last light (350.6) | "very incongruent" | show removed |
+
+### Later verdicts (2026-11-06, night)
+
+| scene | verdict | state |
+|---|---|---|
+| b1 sotto voce, 2nd try (Ivory rows on the skyline phrases b1-a1..a4) | "the ivory is just off, it doesn't make sense, isn't well timed with the notes" | The cause was the set. In the agitato the tune shares its register and loudness with the repeated chords, so the skyline put keys on chord tops (C5 at 242.26 and 242.45) and missed held tune notes (G5 at 244.17, D5 at 244.64). 3rd try: b1-t1..t3, the held and voiced-out notes (>= 0.28 s, loudest of their chord). Not judged yet. |
+| b2 fire | the first part is liked; "in the second part we don't get it quite right" | Open. Likely the same cause: b2-p3/p4 (F5-D5-C5-D5-C5-C5, then D5-Eb5-G4-C6) come from the skyline. Retry with the held-note rule. |
+| b3 collapse (no fields, calmer squares) | "yeah good one!" | kept |
+| b4 climb | "nice one!" | kept |

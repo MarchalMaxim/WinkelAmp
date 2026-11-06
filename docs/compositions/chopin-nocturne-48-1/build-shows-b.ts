@@ -39,7 +39,7 @@ const scenes: Scene[] = [
     layers: [
       { widget: 'current', set: 'b1-bass', knobs: { threads: 2, width: 1.4, flow: 0.8, hue: 20, presence: 0.75 } },
       { widget: 'hammer', set: 'b1-throb', knobs: { touch: 1, ring: 0.9, size: 1, presence: 0.85 } },
-      ...['b1-a1', 'b1-a2', 'b1-a3', 'b1-a4'].map((set): Layer => ({ widget: 'ivory', set, span: 'notes',
+      ...['b1-t1', 'b1-t2', 'b1-t3'].map((set): Layer => ({ widget: 'ivory', set, span: 'notes',
         knobs: { strike: 0.3, crater: 0.25, ripple: 1.8, cracks: 0.8, presence: 0.85 } })),
     ],
   },
