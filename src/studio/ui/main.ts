@@ -140,8 +140,18 @@ async function boot(): Promise<void> {
   let songs: LibraryEntry[] = [];
   try { songs = await api.songs(); } catch (e) { store.dispatch({ type: 'notice', notice: { id: 'songs', level: 'error', text: `Could not list the songs: ${(e as Error).message}` } }); }
   store.state.library = songs;
-  const want = params.get('song') ?? lsGet(LAST_SONG);
+  // ?show=<id> opens that show file and takes the song from its own 'song' field; it wins over ?song=.
+  const showParam = params.get('show');
+  let openShow: Show | null = null;
+  if (showParam) {
+    try { openShow = await api.show(showParam); } catch (e) { console.warn(`Could not read show '${showParam}': ${(e as Error).message}`); }
+    if (!openShow) store.dispatch({ type: 'notice', notice: { id: 'missing-show', level: 'warn', text: `There is no show '${showParam}'.` } });
+    else if (params.get('song') && params.get('song') !== openShow.song) console.warn(`?song=${params.get('song')} disagrees with show '${showParam}' (song '${openShow.song}'): the show wins.`);
+  }
+  const want = openShow?.song ?? params.get('song') ?? lsGet(LAST_SONG);
   const entry = songs.find((s) => s.id === want && !s.error) ?? songs.find((s) => !s.error) ?? null;
+  if (openShow && entry?.id !== openShow.song) openShow = null;   // its song cannot be played: fall back to the usual way
+  const showId = openShow ? showParam! : entry?.id ?? '';   // the show file this page reads and saves
   const library = new Library(entry?.id ?? null, api.writable, (f) => void adder.add(f));
   library.render(songs);
   document.body.append(library.el);
@@ -161,7 +171,7 @@ async function boot(): Promise<void> {
 
   if (!entry) { emptyState(ui, api, () => library.choose()); document.body.classList.add('no-song'); return; }
   for (const n of takeFlash(entry.id)) store.dispatch({ type: 'notice', notice: n });
-  if (params.get('song') && params.get('song') !== entry.id) {
+  if (!openShow && params.get('song') && params.get('song') !== entry.id) {
     store.dispatch({ type: 'notice', notice: { id: 'missing-song', level: 'warn', text: `There is no playable song '${params.get('song')}': here is ${entry.title}.` } });
   }
   lsSet(LAST_SONG, entry.id);
@@ -194,11 +204,11 @@ async function boot(): Promise<void> {
   const ctxShow = { duration: pack.duration, widgets: metas, tracks: Object.keys(pack.tracks ?? {}) };
   const compose = async () => composeShow({ pack, widgets: metas, at: new Date().toISOString(),
     description: await api.description(pack.id).catch(() => ''), layers: studioLayers(), words: labTagWords() });
-  const emptyShow = (): Show => ({ version: SHOW_VERSION, id: pack.id, song: pack.id, title: pack.title, clips: [] });
+  const emptyShow = (): Show => ({ version: SHOW_VERSION, id: showId, song: pack.id, title: pack.title, clips: [] });
   let show: Show = emptyShow(), origin: 'file' | 'auto' | 'repaired' = 'auto';
   let saved: Show | null = null;
   // Only a song with a show of its own asks for it: a 404 for the others would be a red line in every console.
-  try { saved = entry.hasShow ? await api.show(pack.id) : null; } catch (e) {
+  try { saved = openShow ?? (entry.hasShow ? await api.show(showId) : null); } catch (e) {
     store.dispatch({ type: 'notice', notice: { id: 'show-read', level: 'error', text: `Could not read the saved show: ${(e as Error).message}. Starting from an empty timeline.` } });
   }
   if (saved && saved.version !== SHOW_VERSION) {
@@ -370,7 +380,7 @@ async function boot(): Promise<void> {
   // Export: record the show to an MP4 here (the song plays through once), or the command for a frame-exact one.
   const recorder = installExport({
     store, player, canvas, host: ui.play.parentElement!, before: ui.hide,
-    renderCommand: api.writable ? `npm run render-show -- ${pack.id}` : null,
+    renderCommand: api.writable ? `npm run render-show -- ${showId}` : null,
     notify: (level, text) => store.dispatch({ type: 'notice', notice: { id: 'record', level, text } }),
   });
 
@@ -444,7 +454,7 @@ async function boot(): Promise<void> {
   // Claude (or anyone) edits shows/<id>.json on disk: a clean show follows it; a dirty one asks.
   noticeActions['disk'] = { label: 'Load the version on disk', run: () => void reloadFromDisk(true) };
   const reloadFromDisk = async (force: boolean) => {
-    const s = await api.show(pack.id).catch(() => null);
+    const s = await api.show(showId).catch(() => null);
     if (!s) return;
     const text = canonicalShow(s);
     if (text === store.state.saved && !force) return;
@@ -462,7 +472,7 @@ async function boot(): Promise<void> {
   };
   // The file watcher can miss a second write that follows the first within a second or so: look again a little later.
   import.meta.hot?.on('studio:show-changed', (d: { id: string }) => {
-    if (d.id !== pack.id) return;
+    if (d.id !== showId) return;
     void reloadFromDisk(false);
     setTimeout(() => void reloadFromDisk(false), 1500);
   });
