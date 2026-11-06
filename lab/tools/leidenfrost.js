@@ -40,11 +40,15 @@
 
   // ---- state
   let drops = [], steam = [], started = false, emptySince = -1, gustAmp = 60;
-  let cv = null, cg = null, sprite = null, statsFor = null, stats = null;
+  let cv = null, cg = null, cvS = 0, sprite = null, statsFor = null, stats = null;
 
-  function ensure() {
-    if (cv) return;
-    cv = document.createElement('canvas'); cv.width = W; cv.height = H; cg = cv.getContext('2d');
+  // The offscreen matches the stage's pixels (HD renders draw at 2x or more), so rims and highlights stay crisp.
+  function ensure(x) {
+    const cw = x.g && x.g.canvas && x.g.canvas.width, s = Math.max(1, Math.min(3, (typeof cw === 'number' && cw > 0 ? cw : W) / W));
+    if (cv && cvS === s) return;
+    if (!cv) { cv = document.createElement('canvas'); cg = cv.getContext('2d'); }
+    cv.width = Math.round(W * s); cv.height = Math.round(H * s); cvS = s;
+    if (sprite) return;
     sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
     const sg = sprite.getContext('2d'), gr = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
     gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -208,7 +212,7 @@
   // ---- the picture, whole, on the offscreen canvas
   function draw(x) {
     const g = cg;
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.setTransform(cvS, 0, 0, cvS, 0, 0);
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     // the vapour cushion glows under each drop: the heat
@@ -300,7 +304,7 @@
       }
     },
     frame(x) {
-      ensure();
+      ensure(x);
       if (!started) { started = true; drops.push(mkDrop(W / 2, H / 2, BIG, 1, x.rnd)); }
       const dt = clamp(x.dt || 0, 0, 0.05);
       if (dt > 0) step(dt, x);
