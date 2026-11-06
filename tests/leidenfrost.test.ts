@@ -21,8 +21,9 @@ const ICON = new Proxy({ ink: '#fff', of: new Proxy({}, { get: () => () => () =>
 // A 2D context that records every call; gradients are objects that take colour stops.
 function ctx2d(log: string[]) {
   const grad = () => ({ addColorStop: () => {} });
+  const img = (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) });
   return new Proxy({} as Record<string, unknown>, {
-    get: (o, k) => (k in o ? o[k as string] : k === 'createRadialGradient' || k === 'createLinearGradient' ? grad
+    get: (o, k) => (k in o ? o[k as string] : k === 'createRadialGradient' || k === 'createLinearGradient' ? grad : k === 'createImageData' ? img
       : (...a: unknown[]) => { log.push(`${String(k)}(${a.map((v) => (typeof v === 'number' ? v.toFixed(2) : typeof v)).join(',')})`); }),
     set: (o, k, v) => { o[k as string] = v; log.push(`${String(k)}=${typeof v === 'number' ? v.toFixed(3) : String(v)}`); return true; },
   });
@@ -58,11 +59,11 @@ const loud = (t: number, m = 40): Note => [t, t + 0.3, m, 120];
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 describe('leidenfrost', () => {
-  it('has the knobs: push, burst (follows each note), boil, erratic, steam, and how present', () => {
+  it('has the knobs: push, burst (follows each note), boil, erratic, steam, plate, and how present', () => {
     const tool = play({}, { secs: 0 }).tool;
     expect(tool).toMatchObject({ id: 'leidenfrost', name: 'Leidenfrost', tag: 'new' });
     const ps = tool.params!;
-    expect(ps.map((p) => p.key)).toEqual(['push', 'burst', 'boil', 'erratic', 'steam', 'presence']);
+    expect(ps.map((p) => p.key)).toEqual(['push', 'burst', 'boil', 'erratic', 'steam', 'plate', 'presence']);
     expect(ps.find((p) => p.key === 'burst')!.drive).toBe('+hit');
     expect(ps.find((p) => p.key === 'presence')).toMatchObject({ leads: true, value: 1 });
     for (const p of ps) if (p.less !== undefined) { expect(p.less).toBeGreaterThanOrEqual(p.min); expect(p.less).toBeLessThan(p.value); }
@@ -118,6 +119,12 @@ describe('leidenfrost', () => {
     const b = play({ burst: 0.5 }, { secs: 3, notes });
     expect(a.log.length).toBeGreaterThan(1000);
     expect(a.log).toEqual(b.log);
+  });
+
+  it('the plate glows in embers by default, and is left out at plate 0', () => {
+    const on = play({}, { secs: 0.1 }).log, off = play({ plate: 0 }, { secs: 0.1 }).log;
+    expect(on.filter((l) => l.startsWith('putImageData(')).length).toBe(6);
+    expect(off.some((l) => l.startsWith('putImageData('))).toBe(false);
   });
 
   it('lays its picture on the shared canvas with lighten at full alpha', () => {

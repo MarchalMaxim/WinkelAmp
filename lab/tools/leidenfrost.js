@@ -11,6 +11,8 @@
 //     and a moment of extra skittering.
 // Drops bounce off each other on their vapour and merge only when they drift together slowly. Small beads boil away by
 // themselves within seconds, the big drop lasts; an empty plate gets a new big drop, quietly, after a breath.
+// Under them the plate glows in slow ember noise; 'how much the plate glows' (asked for by the user, a sixth knob like flee's
+// snap) dims it to black, so the drops can sit over other widgets alone.
 // The picture is drawn whole on an offscreen canvas each step and laid on the shared one with 'lighten' at alpha 1, so the
 // shared fade only leaves a short motion smear. All randomness goes through x.rnd; noise time is song time.
 (() => {
@@ -41,6 +43,8 @@
   // ---- state
   let drops = [], steam = [], started = false, emptySince = -1, gustAmp = 60;
   let cv = null, cg = null, cvS = 0, sprite = null, statsFor = null, stats = null;
+  const HW = 96, HH = 54;   // the plate's ember noise is worked out on a small grid and drawn smoothed
+  let hc = null, hg = null, himg = null;
 
   // The offscreen matches the stage's pixels (HD renders draw at 2x or more), so rims and highlights stay crisp.
   function ensure(x) {
@@ -48,6 +52,7 @@
     if (cv && cvS === s) return;
     if (!cv) { cv = document.createElement('canvas'); cg = cv.getContext('2d'); }
     cv.width = Math.round(W * s); cv.height = Math.round(H * s); cvS = s;
+    if (!hc) { hc = document.createElement('canvas'); hc.width = HW; hc.height = HH; hg = hc.getContext('2d'); himg = hg.createImageData(HW, HH); }
     if (sprite) return;
     sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
     const sg = sprite.getContext('2d'), gr = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -215,6 +220,23 @@
     g.setTransform(cvS, 0, 0, cvS, 0, 0);
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    // the plate: slow ember noise, darker towards the edges
+    const pk = clamp(x.p('plate') ?? 1, 0, 1);
+    if (pk > 0.001) {
+      const px = himg.data, t = x.t;
+      for (let j = 0; j < HH; j++) for (let i = 0; i < HW; i++) {
+        let n = noise(i * 0.055, j * 0.055, t * 0.06) + 0.5 * noise(i * 0.14, j * 0.14, t * 0.2 + 5);
+        n = clamp(0.42 + 0.75 * n, 0, 1);
+        const o = (j * HW + i) * 4;
+        px[o] = pk * (12 + 120 * Math.pow(n, 1.7)); px[o + 1] = pk * (6 + 32 * Math.pow(n, 2.4)); px[o + 2] = pk * (4 + 8 * Math.pow(n, 3)); px[o + 3] = 255;
+      }
+      hg.putImageData(himg, 0, 0);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(hc, 0, 0, W, H);
+      const vg = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.62);
+      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)');
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    }
     // the vapour cushion glows under each drop: the heat
     g.globalCompositeOperation = 'lighter';
     for (const d of drops) {
@@ -276,6 +298,9 @@
       { key: 'steam', label: 'how much steam', min: 0, max: 1, value: 0.6, less: 0.15,
         hint: 'How much steam comes off the drops and every note. Left: dry. Right: thick wisps that lean with the gust.',
         icon: (g, v, w, h) => ICON.dots(g, 1 + Math.round(v * 12), w, h, { seed: 3, r: 2.5, col: ICON.dim }) },
+      { key: 'plate', label: 'how much the plate glows', min: 0, max: 1, value: 1,
+        hint: 'The hot plate under the drops, glowing in slow embers. Left: black, only the drops and their steam, to lay over other widgets. Right: the full glow.',
+        icon: (g, v, w, h) => { ICON.alpha(g, 0.08 + 0.92 * v, () => ICON.rect(g, 2, h / 2 + 2, w - 4, 8, ICON.red)); ICON.dot(g, w / 2, h / 2 - 3, 5, ICON.blue); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much each note leaves: how far it pushes and how much steam rises. Left: small nudges, dry. Right: long slides in thick steam. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
