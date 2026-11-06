@@ -126,3 +126,12 @@ The user rated the morning round (5) and the pioneers round (6) together. Versio
 
 ## 2026-11-06, the concerto micro scenes
 - DROP: tack (moved to `tools/dropped/`, out of the card list, its tags and the shows that used it): "I don't like the gluey widget, archive it."
+
+## 2026-11-06, Chopin Nocturne Op. 48/1 micro scenes (first half), as theme proposals
+Shows `shows/nocturne-micro-a1..a5-*.json`; analysis `docs/compositions/chopin-nocturne-48-1/ANALYSIS-A.md`.
+- a1 lantern and keys: LOVE. "The solemness of the little light goes well with the sad entrance. Great theme." The current (one thread) on the first three melody notes, then huddled Ivory on the rising line, Hammer on the off-beat chords, Snap squares on the bass, fields.
+- a2 slabs and threads: great, once the chord squares were milky white instead of "the incongruent red". Handover on the melody's long notes, Pluck on the turn, milky Snap squares on the off-beat chords, Hammer on the bass, fields. Snap squares got a `milk` switch for it.
+- a3 ivory peak: first version not liked. Fireworks on the beat chords were "not very congruent with the things they are connected to". The rework, with bone Mica on the chords and milky bass squares around Ivory, was judged "ok sure, fine".
+- a4 lantern into the chorale: first version not liked. Crimp's red mesh was "not congruent with the slow pace of the music there". The rework, with slow milky squares on the chorale and Hammer bells on the cadence and roots, was judged "fine".
+- a5 octave storm: LOVE. "Extremely good. You nailed the connections here, and the widgets are very appropriate for this part!" Fireworks on the hammered chords, Interlock on the climbing and trembling bass octaves, Pluck on the left-hand arpeggios, Hammer on the octave melody falling from C7, fields.
+- What this says: a widget's character has to fit the strand it is tied to and the music's pace. Fireworks belong on real blows (a5), not on routine chords under a melody (a3). Busy red textures do not suit slow, quiet passages (a4).
