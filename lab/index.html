@@ -251,6 +251,10 @@ const SONGS = {
     moments: [[0, 'return', 'Spring'], [632, 'dread', 'Summer'], [1260, 'return', 'Autumn'], [1975, 'agitato', 'Winter']] },
   'lil-wayne-bells-visualizer': { title: 'Lil Wayne: Bells', audio: 'lil-wayne-bells-visualizer.mp3', notes: 'notes-lil-wayne-bells-visualizer.js', pack: 'pack-lil-wayne-bells-visualizer.js', dur: 204.7,
     moments: [[0, 'dread', 'Opening'], [74, 'agitato', 'Later (1:14)'], [132, 'casket', 'Later (2:12)']] },
+  // The piano model's notes (coverage 100%); YourMT3 heard every note as piano, so no instrument tracks. Moments are my
+  // guesses from the pack's seven sections, not checked by ear.
+  'nutcracker-sugar-plum': { title: 'Tchaikovsky: The Nutcracker, Dance of the Sugar Plum Fairy', audio: 'nutcracker-sugar-plum.mp3', notes: 'notes-nutcracker-sugar-plum.js', pack: 'pack-nutcracker-sugar-plum.js', dur: 135.3,
+    moments: [[0, 'dread', 'The theme'], [45, 'agitato', 'Middle'], [88, 'return', 'The theme again'], [129, 'casket', 'Last bars']] },
 };
 const SONG_ID = SONGS[new URLSearchParams(location.search).get('song')] ? new URLSearchParams(location.search).get('song') : 'prelude';
 const SONG = SONGS[SONG_ID];
