@@ -2,10 +2,10 @@
   "version": 3,
   "id": "nocturne-micro-a2-slabs-and-threads",
   "song": "chopin-nocturne-48-1",
-  "title": "Chopin Nocturne Op. 48/1 · micro a2 · Slabs and threads: Handover on the melody's long notes, Pluck on the turn, milky Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath",
+  "title": "Chopin Nocturne Op. 48/1 · micro a2 · Slabs and threads: Handover on the melody's long notes, Pluck on the turn, Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:36:38.265Z"
+    "at": "2026-11-06T14:45:28.599Z"
   },
   "clips": [
     {
@@ -71,7 +71,6 @@
         "life": 1,
         "blur": 0.6,
         "shake": 0,
-        "milk": 1,
         "presence": 0.85
       }
     },

@@ -2,10 +2,10 @@
   "version": 3,
   "id": "nocturne-micro-a4-lantern-into-the-chorale",
   "song": "chopin-nocturne-48-1",
-  "title": "Chopin Nocturne Op. 48/1 · micro a4 · Lantern into the chorale: current as the lone voice after the cadence, big soft milky Snap squares sinking slowly on the chorale's first chords, Hammer bells on the cadence and the roots, fields underneath",
+  "title": "Chopin Nocturne Op. 48/1 · micro a4 · Lantern into the chorale: current as the lone voice after the cadence, big soft Snap squares sinking slowly on the chorale's first chords, Hammer bells on the cadence and the roots, fields underneath",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:36:38.267Z"
+    "at": "2026-11-06T14:45:28.601Z"
   },
   "clips": [
     {
@@ -73,7 +73,6 @@
         "life": 2.6,
         "blur": 2,
         "shake": 0,
-        "milk": 1,
         "presence": 0.75
       }
     }

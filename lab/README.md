@@ -60,7 +60,7 @@ measure screen presentation. Use `-- --ids squares,fireworks --json renders/spee
 
 The user found knob names hard to grasp, so a widget has **at most 5 knobs**, each with a plain sentence and a small picture.
 `tools/flee.js` also has a sixth knob, `snap`, a 0/1 switch the user asked for (2026-11-05) to keep the snap version behind.
-`tools/squares-snap.js` likewise has `milk`, a 0/1 switch for milky white squares instead of dark red (asked for 2026-11-06).
+`tools/squares-snap.js` likewise has `milk`, a 0/1 switch for milky white squares instead of dark red (asked for 2026-11-06; the user then wanted the squares red and the handover milky). `tools/handover.js` has a `milk` switch too, on by default: every handover is milky white unless it is set to 0.
 `tools/squares.js` is the reference.
 
 ```js

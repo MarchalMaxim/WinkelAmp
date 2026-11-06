@@ -3,7 +3,7 @@
 // and each widget hears its own strand (a set of picks); fields, the ground, hears everything. Validated exactly as
 // scripts/studio-api.ts does (pack duration, the Node widget catalogue), written with canonicalShow.
 // Run: node_modules/.bin/tsx docs/compositions/chopin-nocturne-48-1/build-shows-a.ts
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalShow, validateShow, type Clip, type Show } from '../../../src/studio/show/show';
@@ -46,28 +46,28 @@ const scenes: Scene[] = [
       { widget: 'current', set: 'a1-melody-head', role: 'counter', knobs: { threads: 1, width: 1, flow: 0.6, hue: 215, presence: 0.7 }, end: 12.2 },
       { widget: 'ivory', set: 'a1-melody-rise', role: 'lead', knobs: { strike: 0.6, crater: 0.3, ripple: 2, cracks: 1, presence: 1 } },
     ] },
-  { n: 2, slug: 'slabs-and-threads', title: 'Slabs and threads: Handover on the melody\'s long notes, Pluck on the turn, milky Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath',
+  { n: 2, slug: 'slabs-and-threads', title: 'Slabs and threads: Handover on the melody\'s long notes, Pluck on the turn, Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath',
     from: 23, to: 34, layers: [
       { widget: 'fields', role: 'ground', knobs: FIELDS(0.1), intensity: [[23, 0.6], [28.7, 0.75], [32.3, 0.9], [34, 0.8]] },
       { widget: 'hammer', set: 'a2-bass', role: 'bass', knobs: { touch: 3, ring: 1.6, size: 1.8, presence: 0.85 } },
-      { widget: 'squares-snap', set: 'a2-chords', role: 'pulse', knobs: { size: 0.9, life: 1, blur: 0.6, shake: 0, milk: 1, presence: 0.85 } },
+      { widget: 'squares-snap', set: 'a2-chords', role: 'pulse', knobs: { size: 0.9, life: 1, blur: 0.6, shake: 0, presence: 0.85 } },
       { widget: 'pluck', set: 'a2-turn', role: 'sparkle', knobs: { pull: 1.1, corner: 1, ring: 1, touch: 2, presence: 0.85 } },
       { widget: 'handover', set: 'a2-melody', role: 'lead', knobs: { goneBy: 1.6, ring: 1.3, size: 0.8, presence: 1 } },
     ] },
-  { n: 3, slug: 'ivory-peak', title: 'Ivory peak: Ivory climbing to C6 and falling back, bone Mica glinting on the beat chords, Hammer on the line picking up again, milky Snap squares on the bass, fields underneath',
+  { n: 3, slug: 'ivory-peak', title: 'Ivory peak: Ivory climbing to C6 and falling back, bone Mica glinting on the beat chords, Hammer on the line picking up again, Snap squares on the bass, fields underneath',
     from: 101.2, to: 111.4, layers: [
       { widget: 'fields', role: 'ground', knobs: FIELDS(-0.4, 0.7), intensity: [[101.2, 0.7], [104.2, 0.95], [107.3, 0.9], [111.4, 0.85]] },
-      { widget: 'squares-snap', set: 'a3-bass', role: 'bass', knobs: { size: 1, life: 1.2, blur: 1.4, shake: 0.5, milk: 1, presence: 0.6 } },
+      { widget: 'squares-snap', set: 'a3-bass', role: 'bass', knobs: { size: 1, life: 1.2, blur: 1.4, shake: 0.5, presence: 0.6 } },
       { widget: 'mica', set: 'a3-chords', role: 'pulse', knobs: { flecks: 110, spread: 140, size: 50, ring: 1.3, colour: 1, presence: 0.75 } },
       { widget: 'hammer', set: 'a3-after', role: 'counter', knobs: { touch: 2, ring: 1.4, size: 1.5, presence: 0.85 } },
       { widget: 'ivory', set: 'a3-rise', role: 'lead', knobs: { strike: 1, crater: 0.5, ripple: 3, cracks: 1.5, presence: 1 } },
       { widget: 'ivory', set: 'a3-fall', role: 'lead', knobs: { strike: 0.8, crater: 0.4, ripple: 2.5, cracks: 1.2, presence: 0.95 } },
     ] },
-  { n: 4, slug: 'lantern-into-the-chorale', title: 'Lantern into the chorale: current as the lone voice after the cadence, big soft milky Snap squares sinking slowly on the chorale\'s first chords, Hammer bells on the cadence and the roots, fields underneath',
+  { n: 4, slug: 'lantern-into-the-chorale', title: 'Lantern into the chorale: current as the lone voice after the cadence, big soft Snap squares sinking slowly on the chorale\'s first chords, Hammer bells on the cadence and the roots, fields underneath',
     from: 117, to: 127.8, layers: [
       { widget: 'fields', role: 'ground', knobs: FIELDS(0.3), intensity: [[117, 0.8], [119.5, 0.55], [123, 0.55], [124.5, 0.8], [127.8, 0.85]] },
       { widget: 'hammer', set: 'a4-bass', role: 'bass', knobs: { touch: 3, ring: 2, size: 1.6, presence: 0.85 } },
-      { widget: 'squares-snap', set: 'a4-chorale', role: 'pulse', knobs: { size: 1.3, life: 2.6, blur: 2, shake: 0, milk: 1, presence: 0.75 } },
+      { widget: 'squares-snap', set: 'a4-chorale', role: 'pulse', knobs: { size: 1.3, life: 2.6, blur: 2, shake: 0, presence: 0.75 } },
       { widget: 'current', set: 'a4-voice', role: 'lead', knobs: { threads: 1, width: 1.1, flow: 0.5, hue: 215, presence: 0.85 } },
     ] },
   { n: 5, slug: 'octave-storm', title: 'Octave storm: Fireworks on the hammered chords, Interlock on the climbing and trembling bass octaves, Pluck on the left-hand arpeggios, Hammer on the octave melody falling from C7, fields underneath',
@@ -106,12 +106,15 @@ for (const sc of scenes) {
   clips.forEach((c, i) => { c.id = `c${i + 1}`; });
   for (const c of clips) if (c.start < sc.from || c.end > sc.to) throw new Error(`${c.id} leaves the window`);
   const id = `nocturne-micro-a${sc.n}-${sc.slug}`;
+  // A show the user edited in the studio (a5: the hammer carried through the whole descent) is theirs: never overwrite it.
+  const file = join(ROOT, `shows/${id}.json`);
+  if (existsSync(file) && JSON.parse(readFileSync(file, 'utf8')).composer?.by === 'user') { console.log(`${id}: edited by the user, kept`); continue; }
   const show: Show = { version: 3, id, song: SONG, title: `Chopin Nocturne Op. 48/1 · micro a${sc.n} · ${sc.title}`,
     composer: { by: 'claude', at: new Date().toISOString() }, clips, picks };
   const { errors, warnings } = validateShow(show, { duration: typeof pack.duration === 'number' ? pack.duration : undefined, widgets, tracks: Object.keys(pack.tracks ?? {}) });
   console.log(`${id}: ${sc.from}-${sc.to} s, ${clips.length} clips, errors ${errors.length}, warnings ${warnings.length}`);
   for (const e of [...errors, ...warnings]) console.log('   ', e.path, e.message);
   if (errors.length) { bad++; continue; }
-  writeFileSync(join(ROOT, `shows/${id}.json`), canonicalShow(show));
+  writeFileSync(file, canonicalShow(show));
 }
 if (bad) process.exit(1);

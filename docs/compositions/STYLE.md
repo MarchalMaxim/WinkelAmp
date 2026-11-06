@@ -11,15 +11,15 @@ Each stack is listed from the lead down.
 | theme | the stack | verdict | show (start s) |
 |---|---|---|---|
 | Lantern and keys | the current (a lone light) on the first melody notes, then huddled Ivory on the rising line; hammer on the off-beat chords; snap squares on the bass; fields | loved | nocturne-micro-a1 (3.0) |
-| Octave storm | fireworks on hammered ff chords; interlock on climbing or trembling bass octaves; pluck on the left-hand arpeggios; hammer on a falling octave melody; fields | loved | nocturne-micro-a5 (216.6) |
-| Slabs and threads | handover on the melody's long notes; pluck on a turn; milky snap squares on the off-beat chords; hammer on the bass; fields | great | nocturne-micro-a2 (23.0) |
+| Octave storm | fireworks on hammered ff chords; interlock on climbing or trembling bass octaves; pluck on the left-hand arpeggios; hammer through the whole falling octave melody (the user's own edit); fields | loved | nocturne-micro-a5 (216.6) |
+| Slabs and threads | milky handover on the melody's long notes; pluck on a turn; snap squares on the off-beat chords; hammer on the bass; fields | great | nocturne-micro-a2 (23.0) |
 | Keys through fire | short Ivory rows, one per ff phrase; fireworks-snap on the ff chords; squares-snap on the bass octaves; fields | great | nocturne-micro-b2-fire (294.3) |
 | Keys climbing alone | huddled Ivory on a lone line; the current on its leaning notes; hammer on the far-apart low tolls; dim fields | nice | nocturne-micro-b4-climb (335.7) |
 | Bells, a flare and a sinking voice | Ivory on a broken-chord flare; handover on a slow recitative; crimp on knocking inner chords; small, calm squares-snap bells; on black | good | nocturne-micro-b3-collapse (315.2) |
 | Lone light, then keys | (concerto) the current alone, then Ivory alone on black, for a solo entrance | pretty good | rach-concerto-2-full |
 
-The a-shows are on branch `claude/nocturne-micro-a-92331b` and the b-shows on `claude/nocturne-micro-b-2c2dec`. Neither
-branch is merged.
+All nocturne shows are on `claude/nocturne-micro-b-2c2dec` (micro-a merged into it). Open them as
+`/?show=<id>`.
 
 ## Rules
 
@@ -30,8 +30,8 @@ branch is merged.
 - **Ivory:** keep the rows short, one per phrase, each ending as the next begins; or huddle them with a 0.6-wide region.
 - **Fireworks:** only on real ff blows, not on routine beat chords.
 - **The current:** a lone light for sad or solo entrances. It must not die off.
-- **Handover:** only on long, slow notes. On a fast line it flashes.
-- **Snap squares:** small and calm. Use milky ones under a quiet melody, not red.
+- **Handover:** milky white (its default now), and only on long, slow notes. On a fast line it flashes.
+- **Snap squares:** small and calm, in their own red (not milky).
 - **Fields:** not under every scene. On black is fine.
 - **Slow, quiet passages:** no busy red textures.
 - **Flee:** only on masses of unorganised notes, never on picked notes.
