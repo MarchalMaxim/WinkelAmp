@@ -2,7 +2,7 @@
   "version": 3,
   "id": "rach-micro-02-theme1-head",
   "song": "rach-concerto-2",
-  "title": "Micro 02 · Keys and hammers: huddled Ivory on the string melody, Squares on the bass pulse, Tack on the inner strings, Hammer on the piano waves, fields underneath",
+  "title": "Micro 02 · Keys and hammers: huddled Ivory on the string melody, Squares on the bass pulse, Hammer on the piano waves, fields underneath",
   "composer": {
     "by": "claude",
     "at": "2026-11-06T02:09:53.441Z"
@@ -28,22 +28,6 @@
         { "t": 44.6, "v": 0.8 },
         { "t": 58.6, "v": 0.8 }
       ]
-    },
-    {
-      "id": "c2",
-      "start": 44.6,
-      "end": 56.62,
-      "track": 2,
-      "fade": 0.5,
-      "widget": "tack",
-      "listen": "picks:t1-inner",
-      "knobs": {
-        "pull": 0.9,
-        "comb": 1.6,
-        "tack": 0.2,
-        "stay": 1,
-        "presence": 0.6
-      }
     },
     {
       "id": "c3",
@@ -126,26 +110,6 @@
         [53.0108, 54.4, 28, 89, 0.8],
         [53.7535, 54.4851, 29, 72, 0.8],
         [54.495, 55.29, 32, 80, 0.8]
-      ]
-    },
-    "t1-inner": {
-      "notes": [
-        [45.25, 45.67, 51, 101],
-        [45.7, 46.02, 50, 100],
-        [46.02, 46.4, 50, 100],
-        [46.44, 47.46, 51, 99],
-        [47.49, 47.84, 58, 85],
-        [47.87, 48.19, 56, 98],
-        [48.22, 48.54, 58, 79],
-        [48.58, 48.93, 55, 76],
-        [49.31, 49.69, 60, 71],
-        [49.69, 50.03, 62, 61],
-        [50.03, 50.37, 63, 96],
-        [50.37, 50.73, 62, 80],
-        [50.73, 51.198, 63, 95],
-        [54.02, 54.43, 56, 95],
-        [54.43, 54.82, 55, 95],
-        [54.82, 55.294, 53, 94]
       ]
     },
     "t1-head-1": {

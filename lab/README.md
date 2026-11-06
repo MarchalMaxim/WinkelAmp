@@ -13,7 +13,7 @@ to see and snap to, and own no clips. See [the studio show format](../docs/COMPO
   plain stack, so stills there come out as wide as before.
 - `tools/<id>.js`: one widget each (`TOOLS.push({ id, name, blurb, tag, params, reset, onChord, frame })`). The page loads
   the ids listed in `TOOL_IDS` in `index.html` (add yours there); a missing or broken file only shows a note above the cards.
-  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers), kept for reference.
+  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers, hilma, tack), kept for reference.
 - `combos.js`: widget combinations that do more together than side by side (`window.COMBOS = [{ ids, blurb, knobs?, tip?,
   at?, when? }]`), each shot together and alone first. A member's card shows a "combines with N" pill (hover, or tap
   on a phone) with a "try together" button: just those widgets on, the listed knob values set, from the best moment

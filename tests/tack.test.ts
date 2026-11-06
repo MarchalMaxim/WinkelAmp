@@ -7,7 +7,7 @@ import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
-const SRC = readFileSync(new URL('../lab/tools/tack.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../lab/tools/dropped/tack.js', import.meta.url), 'utf8');
 const noop = () => {};
 const ICON = { ink: '#fff', red: '#f00', rect: noop, line: noop, lines: noop, rng: () => () => 0.5, fade: noop, much: noop } as unknown as IconLib;
 

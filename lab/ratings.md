@@ -123,3 +123,6 @@ The user rated the morning round (5) and the pioneers round (6) together. Versio
 - DROP: hilma af klint (moved to `tools/dropped/`): "I don't even like it at all."
 - Retagged from the user's own words: woven threads (strings), kline, murmuration, rorschach (see `tags.json`).
 - Reworked: kline v3 (fades without motion, a colour knob), rorschach v3 (a how-present knob).
+
+## 2026-11-06, the concerto micro scenes
+- DROP: tack (moved to `tools/dropped/`, out of the card list, its tags and the shows that used it): "I don't like the gluey widget, archive it."
