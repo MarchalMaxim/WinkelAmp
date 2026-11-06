@@ -45,7 +45,8 @@ early chorale, 0.8–1.0 from 190 s to the boundary.
 
 Each one is a window of about 10 s, a separate show `shows/nocturne-micro-a<n>-<slug>.json`. Each widget hears its own set, and
 fields (the ground) hears everything. The layers are drawn bottom to top in this order: ground, bass, pulse, counter or
-sparkle, lead.
+sparkle, lead. The one exception is a5, where the lead (fireworks) is drawn under pluck and hammer on purpose, so their fine
+lines stay visible over its smoke.
 
 | show | window (s) | sets → widgets |
 |---|---|---|

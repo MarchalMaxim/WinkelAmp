@@ -34,7 +34,8 @@ type Layer = { widget: string; set?: string; role: Role; knobs: Record<string, n
 type Scene = { n: number; slug: string; title: string; from: number; to: number; layers: Layer[] };
 const FIELDS = (home: number, back = 0.8) => ({ back, dyn: 0.65, chords: 0.7, home });
 
-// Layers are listed bottom to top: the list order is the track order, so the lead is drawn last.
+// Layers are listed bottom to top: the list order is the track order, so the lead is drawn last. Except in a5, where
+// fireworks (the lead) sits under pluck and hammer so their fine lines stay visible over its smoke.
 const scenes: Scene[] = [
   { n: 1, slug: 'lantern-and-keys', title: 'Lantern and keys: current on the first three notes, huddled Ivory on the rising line, Hammer on the off-beat chords, Snap squares on the bass, fields underneath',
     from: 3, to: 14.4, layers: [
