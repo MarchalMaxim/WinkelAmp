@@ -147,6 +147,9 @@
       sad += (clamp(1.15 - 1.3 * f.level - .5 * f.pitch) - sad) * (1 - Math.exp(-moveDt / 3));
       proud += (clamp(1.3 * f.level + .5 * f.pitch - .8) - proud) * (1 - Math.exp(-moveDt / 3));
       walkClock += moveDt;
+      // run and sad keep easing during the step, so the phase where the ankles meet is solved again each frame with
+      // this frame's values: on the strike frame the landing foot is then exactly level with the other one
+      s.phiEnd = s.k * .5 + solvePhase(s.amp * (1 - .35 * sad), run);
       const u = clamp((x.t - s.tStart) / (s.tStrike - s.tStart)); phi = lerp(s.phiStart, s.phiEnd, u); amp = lerp(steps[s.k - 1]?.amp ?? s.amp, s.amp, u);
     } else if (timeline.previous) { phi = timeline.previous.phiEnd; amp = timeline.previous.amp; if (phraseIndex !== timeline.previous.phrase) { phraseIndex = timeline.previous.phrase; reanchor = true; } }
     const phrase = phrases[phraseIndex], a = amp * (1 - .35 * sad);
