@@ -1,4 +1,5 @@
 {
+  "perlin": {"feel":["viscous","swelling","dark","liquid"],"instruments":["cello","contrabass","tutti","piano"],"role":"base"},
   "gliss": {"feel":["warm","liquid","glowing","flowing"],"instruments":["piano"],"role":"accent","noteType":"runs"},
   "johansson": {"feel":["precise","playful","grainy","still"],"instruments":["piano","strings"],"role":"ground"},
   "blocks": {"feel":["stabbing","brittle","flickering","panic"],"instruments":["piano","harpsichord"],"role":"top"},
