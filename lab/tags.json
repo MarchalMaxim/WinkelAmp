@@ -68,5 +68,6 @@
   "film": {"feel":["cool","silky","still"],"instruments":["piano"],"role":"accent"},
   "mica": {"feel":["brittle","cool","grainy"],"instruments":["piano"],"role":"accent"},
   "urchin": {"feel":["stabbing","cool","still"],"instruments":["piano"],"role":"accent"},
-  "cut": {"feel":["grainy","warm","still"],"instruments":["piano"],"role":"accent"}
+  "cut": {"feel":["grainy","warm","still"],"instruments":["piano"],"role":"accent"},
+  "leidenfrost": {"feel":["liquid","skittish","gusty"],"instruments":["piano"],"role":"texture"}
 }
