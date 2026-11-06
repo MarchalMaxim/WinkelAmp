@@ -113,8 +113,9 @@ describe('ivory plan', () => {
 
 // The strike knob (snap night, C5) is opt-in: at 0 Ivory draws what it always drew, and the plan never sees the knob.
 describe('ivory strike knob', () => {
-  it('holds five knobs plus presence, strike last before presence and off by default', () => {
-    expect(params.map((p) => p.key)).toEqual(['floor', 'crater', 'ripple', 'cracks', 'strike', 'presence']);
+  it('holds six knobs plus presence, strike and huddle last before presence and off by default', () => {
+    expect(params.map((p) => p.key)).toEqual(['floor', 'crater', 'ripple', 'cracks', 'strike', 'huddle', 'presence']);
+    expect(params.find((p) => p.key === 'huddle')!.value).toBe(0);
     const strike = params.find((p) => p.key === 'strike')!;
     expect([strike.min, strike.max, strike.value]).toEqual([0, 1, 0]);
   });
@@ -129,5 +130,26 @@ describe('ivory strike knob', () => {
     near((p.keys as unknown as { rise: number }[]).map((k) => k.rise), [0.2, 0.2 / (0.4 + 0.6 * 1.6), 0.2, 0.2]);
     expect(p.keys.map((k) => k.press)).toEqual([undefined, undefined, undefined, 5]);
     expect([p.stomp, p.last]).toEqual([4, 5]);
+  });
+});
+
+// The huddle knob: the plan also holds the tidy row the keys move towards; the original numbers stay in `base`.
+describe('ivory huddle knob', () => {
+  type K = { m: number; t: number; foot: number; base: { w: number; h: number; foot: number; angle: number }; tidy: { w: number; h: number; foot: number } };
+  const keys = (plan([chord(1, 60), chord(2, 64), chord(3, 62), chord(4, 67), chord(5, 72)]) as unknown as { keys: K[] }).keys;
+  it('keeps the plain numbers as they were and lines the tidy ones up left to right by pitch', () => {
+    for (const k of keys) expect(k.base.foot).toBe(k.foot);
+    const row = [...keys].sort((a, b) => a.m - b.m).map((k) => k.tidy);
+    for (let i = 1; i < row.length; i++) { expect(row[i].foot).toBeGreaterThan(row[i - 1].foot); expect(row[i].h).toBeGreaterThan(row[i - 1].h); }
+  });
+  it('spaces the row evenly, close together, centred on the phrase', () => {
+    const row = [...keys].sort((a, b) => a.m - b.m).map((k) => k.tidy), gap = row[1].foot - row[0].foot;
+    for (let i = 1; i < row.length; i++) expect(row[i].foot - row[i - 1].foot).toBeCloseTo(gap, 9);
+    expect(gap).toBeCloseTo(row[0].w * 1.1, 9);
+    expect((row[0].foot + row[row.length - 1].foot) / 2).toBeCloseTo(keys.reduce((a, k) => a + k.foot, 0) / keys.length, 6);
+  });
+  it('makes the staircase gentler than the plain one', () => {
+    const sorted = [...keys].sort((a, b) => a.m - b.m);
+    expect(sorted[4].tidy.h - sorted[0].tidy.h).toBeLessThan(sorted[4].base.h - sorted[0].base.h);
   });
 });
