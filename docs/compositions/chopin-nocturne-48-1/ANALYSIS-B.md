@@ -47,6 +47,7 @@ Melody notes are the loud tops. In the doppio movimento the theme is at v70–10
 |---|---|---|---|
 | b1-theme | b1 | 21 (2.4) | the theme's return: Eb5-Eb5-G5, C5-Ab5-G5, Eb5-F5-Eb5-Eb5-F5-G5-C5, C5-D5-C5 |
 | b1-octave | b1 | 7 (1.0) | where the right hand doubles the theme an octave lower |
+| b1-a1..a4 | b1 | 3, 5, 6, 5 | the agitato theme cut into its phrases: Eb5-Eb5-G5, C5-C5-Eb5-Ab5-G5, Eb5-F5-Eb5-Eb5-F5-G5, C5-C5-C5-D5-C5 |
 | b1-throb | b1 | 43 (4.3) | the repeated triplet chords, one note each (the top below the theme) |
 | b1-bass | b1 | 16 (1.7) | the bass on its beats |
 | b2-theme | b2 | 23 (2.5) | the theme ff, top of the octaves, up to C6 at 303.81 |
@@ -72,6 +73,7 @@ trimmed to the window. Tracks go from the bottom up: ground, support, then the l
 | show | window | combo |
 |---|---|---|
 | nocturne-micro-b1-agitato | 239.6–250.2 | Slabs over plucked threads: handover on the theme, hammer on its lower octave, pluck on the throb, squares-snap on the bass, fields under them |
+| nocturne-micro-b1-sotto-voce | 239.6–250.2 | The theme, sotto voce (second try): soft short Ivory rows, one per phrase of the agitato theme (b1-a1..a4; a3 and a4 are the cells that return ff in b2-p1/p2), hammer bars pulsing on the triplet throb, current's gold thread following the bass, on black |
 | nocturne-micro-b2-fire | 294.3–306.3 | Keys through fire: four short Ivory rows, one per phrase of the ff theme (b2-p1..p4, each giving way as the next begins; the last stomps on C6), fireworks-snap on the full chords, squares-snap on the bass octaves, fields bright |
 | nocturne-micro-b3-collapse | 315.2–327.6 | Bells, a flare and a sinking voice: small squares-snap bells on the bass octaves, Ivory on the flare, handover on the recitative, crimp on the inner chords, on black (no fields) |
 | nocturne-micro-b4-climb | 335.7–348.3 | Keys climbing alone: Ivory on the lone line (squeezed into the middle 60 % by a region, so the keys huddle), current (one ball of light) on its leaning notes, hammer on the three low tolls, fields |
@@ -87,7 +89,7 @@ in each scene, with no widget errors.
 
 | scene | verdict | change |
 |---|---|---|
-| b1 agitato (239.6) | "meh": the shapes don't match the melody, and handover flashing on the agitated theme is too much ("epilepsy inducing") | show removed |
+| b1 agitato (239.6) | "meh": the shapes don't match the melody, and handover flashing on the agitated theme is too much ("epilepsy inducing") | show removed; replaced by b1-sotto-voce (Ivory rows, hammer, current; no handover, no fields) |
 | b2 fire (294.3) | "great", but the Ivory sequences should be shorter | the theme is cut into four phrase sets (b2-p1..p4), each its own short Ivory row |
 | b3 collapse (315.2) | good, but similar to b2. Fields are in too many scenes, and the snap squares are too much | fields dropped; squares smaller, shorter and dimmer |
 | b4 climb (335.7) | good, but this theme doesn't come back often | kept as it is |

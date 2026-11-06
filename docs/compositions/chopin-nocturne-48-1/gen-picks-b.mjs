@@ -78,6 +78,15 @@ const melodyTimes = (ms) => new Set(ms.map((n) => n.t));
 {
   const A = 239.9, B = 250.2, mel = melody(A, B, 50);
   add('b1-theme', { name: 'Agitato theme (top line)', scene: 'b1', from: A, to: B, rule: 'skyline of roll notes >= D4 the piano model also has, minDur 0.15, velocity >= 50', why: 'The C minor theme back over the throbbing chords: Eb5-G5, C5-Ab5-G5, Eb5-F5-Eb5-Eb5-F5-G5-C5, C5-D5-C5.' }, mel);
+  // The theme's phrases, one short Ivory row each. a3 and a4 are the same cells as b2-p1 and b2-p2, sotto voce here: the
+  // theme that comes back ff in b2.
+  const PHRASES_A = [
+    ['b1-a1', 240.9, 241.6, 'Eb5-Eb5-G5: the upbeat rising to G5'],
+    ['b1-a2', 242.2, 244.5, 'C5-C5-Eb5-Ab5, then G5: up to Ab5 and one step back'],
+    ['b1-a3', 245.1, 246.5, 'Eb5-F5-Eb5-Eb5-F5-G5: the cell of b2-p1, soft'],
+    ['b1-a4', 246.5, 249.0, 'C5-C5-C5-D5-C5: three knocks and a lift to D5, as in b2-p2'],
+  ];
+  for (const [id, a, b, why] of PHRASES_A) add(id, { name: `Agitato theme, phrase ${id.slice(-1)}`, scene: 'b1', from: a, to: b, rule: `b1-theme notes in ${a}-${b} s`, why }, mel.filter((n) => n.t >= a && n.t < b));
   const mt = melodyTimes(mel);
   add('b1-octave', { name: 'Theme, lower octave', scene: 'b1', from: A, to: B, rule: 'for each b1-theme note, the roll note an octave below within 50 ms', why: 'Where the right hand doubles the theme an octave down: the same line one register lower, for a second, sparser layer.' },
     mel.flatMap((n) => inWin(roll, n.t - 0.05, n.t + 0.05, (x) => x.m === n.m - 12).slice(0, 1)));

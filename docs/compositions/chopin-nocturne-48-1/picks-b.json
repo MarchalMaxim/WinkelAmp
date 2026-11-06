@@ -38,6 +38,77 @@
       ]
     },
     {
+      "id": "b1-a1",
+      "name": "Agitato theme, phrase 1",
+      "why": "Eb5-Eb5-G5: the upbeat rising to G5",
+      "rule": "b1-theme notes in 240.9-241.6 s",
+      "scene": "b1",
+      "source": "roll",
+      "from": 240.9,
+      "to": 241.6,
+      "attacks": 3,
+      "notes": [
+        [240.94, 241.2, 75, 56],
+        [241.2, 241.49, 75, 55],
+        [241.49, 242.22, 79, 80]
+      ]
+    },
+    {
+      "id": "b1-a2",
+      "name": "Agitato theme, phrase 2",
+      "why": "C5-C5-Eb5-Ab5, then G5: up to Ab5 and one step back",
+      "rule": "b1-theme notes in 242.2-244.5 s",
+      "scene": "b1",
+      "source": "roll",
+      "from": 242.2,
+      "to": 244.5,
+      "attacks": 5,
+      "notes": [
+        [242.26, 242.45, 72, 58],
+        [242.45, 242.61, 72, 64],
+        [242.62, 242.81, 75, 73],
+        [242.8, 245.752, 80, 91],
+        [243.91, 246.27, 79, 91]
+      ]
+    },
+    {
+      "id": "b1-a3",
+      "name": "Agitato theme, phrase 3",
+      "why": "Eb5-F5-Eb5-Eb5-F5-G5: the cell of b2-p1, soft",
+      "rule": "b1-theme notes in 245.1-246.5 s",
+      "scene": "b1",
+      "source": "roll",
+      "from": 245.1,
+      "to": 246.5,
+      "attacks": 6,
+      "notes": [
+        [245.2, 245.61, 75, 72],
+        [245.42, 246.1, 77, 77],
+        [245.61, 245.93, 75, 77],
+        [245.93, 246.49, 75, 82],
+        [246.1, 246.49, 77, 85],
+        [246.27, 246.49, 79, 91]
+      ]
+    },
+    {
+      "id": "b1-a4",
+      "name": "Agitato theme, phrase 4",
+      "why": "C5-C5-C5-D5-C5: three knocks and a lift to D5, as in b2-p2",
+      "rule": "b1-theme notes in 246.5-249 s",
+      "scene": "b1",
+      "source": "roll",
+      "from": 246.5,
+      "to": 249,
+      "attacks": 5,
+      "notes": [
+        [246.59, 247.26, 72, 79],
+        [247.26, 247.77, 72, 86],
+        [247.77, 247.97, 72, 80],
+        [247.95, 249.58, 74, 83],
+        [248.55, 249.58, 72, 86]
+      ]
+    },
+    {
       "id": "b1-octave",
       "name": "Theme, lower octave",
       "why": "Where the right hand doubles the theme an octave down: the same line one register lower, for a second, sparser layer.",

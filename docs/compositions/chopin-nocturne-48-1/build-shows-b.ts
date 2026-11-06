@@ -32,6 +32,17 @@ const scenes: Scene[] = [
   // b1 (agitato, 239.6 s: handover on the theme, pluck on the throb, hammer, squares, fields) and b5 (last light, 350.6 s:
   // hammer, mica, squares on the final chords) were rejected by the user on 2026-11-06 ("shapes not congruent with the
   // melody", the handover flashing too fast; "very incongruent") and their shows removed.
+  // b1 again, a second try at the agitato: the theme as soft, short Ivory rows (the same treatment as b2, where this theme
+  // comes back ff), hammer bars pulsing on the triplet throb, and the current's thread following the bass in place of fields.
+  {
+    n: 1, slug: 'sotto-voce', title: 'The theme, sotto voce', start: 239.6, end: 250.2, fade: 0.35,
+    layers: [
+      { widget: 'current', set: 'b1-bass', knobs: { threads: 2, width: 1.4, flow: 0.8, hue: 20, presence: 0.75 } },
+      { widget: 'hammer', set: 'b1-throb', knobs: { touch: 1, ring: 0.9, size: 1, presence: 0.85 } },
+      ...['b1-a1', 'b1-a2', 'b1-a3', 'b1-a4'].map((set): Layer => ({ widget: 'ivory', set, span: 'notes',
+        knobs: { strike: 0.3, crater: 0.25, ripple: 1.8, cracks: 0.8, presence: 0.85 } })),
+    ],
+  },
   {
     n: 2, slug: 'fire', title: 'Keys through fire', start: 294.3, end: 306.3, fade: 0.3,
     layers: [
