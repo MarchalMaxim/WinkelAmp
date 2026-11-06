@@ -1,0 +1,140 @@
+{
+ "scores": [
+  {
+   "essay": "curves",
+   "snappiness": 9,
+   "buildable": 8,
+   "novelty": 6,
+   "userFit": 8,
+   "why": "Has the single most important finding of the night: the shared canvas squashes alpha (B = a/(0.12+0.88a)). I checked the algebra. Squares drawn at 0.45 alpha shows at about 0.87 brightness, so today's envelopes hold their light and then drop off a cliff. That alone explains 'mushy' better than any curve choice, and the settles() fix already exists in Ivory. Ages are measured from ch.t, the presets have names, overshoot stays in geometry, and repeats get dip-then-strike. All of it is concrete and correctly hedged: it says Squares is full at 5 knobs, so the work goes in a squares-snap variant. Weaknesses: the five-preset table plus four knobs is engineer vocabulary ('τ1', 'w'), and the anticipation term invites fake-attack trouble. The mock-up's six lanes of identical red squares also risks looking like a lab instrument rather than art."
+  },
+  {
+   "essay": "perception",
+   "snappiness": 9,
+   "buildable": 7,
+   "novelty": 6,
+   "userFit": 8,
+   "why": "Gives the best rules for what the eye reads: peak in the attack's own step, a fresh contrast step on every note, flash over a dim body, sharp edges first and softness later, launch at full speed and slow down (hammer, not bow), white-hot core, shrink rather than fade. Its notes on specific widgets are the most useful of the six: fireworks' gap gate drops picks, flee's 0.55 s freeze is an ease-in, pointillism staggers dots by 40 ms, gust penalises an attack that comes soon after another. 'Judge on 60 Hz renders, not the live lab' is correct and nobody else says it. The snap meter (a luminance trace with onset ticks) is the evidence the morning needs. Risks: the meter needs a single-clip render path that may not exist (it budgets for that honestly), and six rule tiles in a mock-up is a lot of things to judge."
+  },
+  {
+   "essay": "knobs",
+   "snappiness": 6,
+   "buildable": 4,
+   "novelty": 7,
+   "userFit": 6,
+   "why": "Clever host-side idea: warp dt after each attack and duck the paste weight, so it reaches all 58 widgets without editing them. The articulation names (secco, marcato, martellato, bell, una corda) are the most musical vocabulary of the six. But the essay lists the levers' failures itself: the warp misses Ivory and Gliss (the two widgets the scenes lean on most), speeds up motion as well as ageing, is capped at 3x, and fluid widgets curl faster. The paste lever can only remove light, so there is no true flash, and it greys Kline's and Gust's grounds. A full-frame copy per slot runs every step. The build touches runtime.ts, slot.js, the lab step(), the conductor, schedule.ts and picker-popup.ts: the most cross-cutting plan of the six and the likeliest to break bit-identity. A four-knob 'Snap strip' outside the five-knob rule, plus 8 chips, plus a scope, is a lot of UI for 'feel'."
+  },
+  {
+   "essay": "architecture",
+   "snappiness": 7,
+   "buildable": 7,
+   "novelty": 5,
+   "userFit": 6,
+   "why": "The most careful about plumbing. The pulse arithmetic lives in three copies (features.ts, the lab step(), lines.js advancePulse), and only this essay names all three. It warns that host code calling x.rnd breaks every later draw, and that new lab/layers/*.js files reach all hosts for free. The x.env/x.recent design (closed form in τ = x.t − ch.t, and recent() makes a seek look like play) is the right base and the strongest on determinism. It correctly kills onRelease because n.d already exists. Factual error: it says adding a 'snap' knob to squares 'makes 5 knobs plus presence'. Squares already has size, life, blur, split, shake plus presence, so this would be a sixth knob and breaks the rule (the music essay repeats the mistake). Light on look: its squares migration is curve plumbing with no crispness, colour or geometry ideas. 'Clock gearing' is a fine one-off video experiment."
+  },
+  {
+   "essay": "music",
+   "snappiness": 8,
+   "buildable": 5,
+   "novelty": 9,
+   "userFit": 9,
+   "why": "The only essay grounded in these two recordings. It measures the piano envelope on the bell chords: about 16 dB/s, then about 2 dB/s. It points out that pack.loudness takes a full second to rise and must not drive anything. It finds that Liebesleid's rolled chords (notes 70–90 ms apart) would fire 4–5 flashes per gesture under any naive snap. That is the biggest musical risk of the night, and no one else saw it. Its rules are taste in exactly the user's sense: the sigh (p1–p3) as one glide, the roll as one climbing strike, restrikes re-kick the same object, flashes only on run heads, and only d < 0.15 is trusted as staccato. The finding that intensity 2 on a loud note clips to 127 and does nothing is a real bug in the user's own hand work. The cost is buildability: a roles() detector over 35 sets plus a new widget plus a 4 h mock-up is a lot for Sonnet, and misdetected roles (a soft real note swallowed as a 'sigh') would read as broken. It also proposes a sixth knob on Squares."
+  },
+  {
+   "essay": "wild",
+   "snappiness": 8,
+   "buildable": 7,
+   "novelty": 9,
+   "userFit": 6,
+   "why": "Handover (each mark's life is the gap to the next picked note, so it is guaranteed gone when the next note lands) is the most elegant idea of the night. It adapts to tempo, never overlaps, and is a clean change of state. Blade (the note's own decay drawn as geometry, eaten by the playhead, with ring time set by register) and Muybridge (black between notes, a strobe exposure on each one) are original and specific. Each is a self-contained new file, so it is safe for the scenes. The 2-step rule (two steps because 30 fps videos drop single frames) is a sharp practical catch. But half the list is the generic, template-like visualiser vocabulary the user has already rejected: Prism (chromatic aberration), Punch (a camera bump on every hit), Cut (full-width colour cards plus white full-frame flashes). Wipe lowers the rest fade to 0.04, which makes tails between notes three times longer than today. That is the opposite of 'dies off quickly' on sparse picks. Wind-up contradicts the peak-in-frame-0 rule and needs the user's ear before any default."
+  }
+ ],
+ "bestIdeas": [
+  {
+   "name": "Draw through settles(): correct for the canvas squash",
+   "from": "curves (Ivory already has it; perception and knobs touch the same floor)",
+   "what": "Draw every envelope at alpha = settles(E) = E·0.12/(1−0.88E), so on-screen brightness follows E itself. That makes Squares' half-brightness come at about 0.53 s instead of about 1.12 s, and the 'strike' preset's at 0.15 s instead of 0.77 s. Any variant that redraws on the shared canvas should do this.",
+   "whyBest": "It is the root cause of the hold-then-cliff 'mushy' look, it is two lines, it is already proven in Ivory, and it changes on-screen timing more than any curve choice does.",
+   "risk": "It assumes plain source-over on the shared fade. Colour-burn, 'lighter' or 'screen' compositing and widgets that paint their own ground (kline, gust, kusama, martin) need their own correction. Below about 5 % it still loses to 8-bit rounding."
+  },
+  {
+   "name": "Flash + body: one closed form in song time",
+   "from": "curves (two-stage strike/pluck), perception (hit + body), music (flash/body/ring measured per register), architecture (snapShape)",
+   "what": "E(τ) = P(v)·[flash·0.5^(τ/0.03–0.04) + body·0.5^(τ/h(m))], with τ = x.t − ch.t (never age += dt). h comes from register (about 0.37 s at C4, 0.15–0.19 s in the treble, 0.74 s at C2, scaled down for the visual). Brightness peaks in frame 0, holds for 2 steps, then only falls. One pure helper in lab/layers/snap.js.",
+   "whyBest": "It is what a piano does (the music essay measured it). It is deterministic across live play, renders and seeks, and it is the common core four essays reinvented separately.",
+   "risk": "Six different parameter sets were proposed. Pick one default in the mock-up by ear and stop. A 35 ms flash sampled at 60 Hz varies by up to 28 % at its peak, so use the 2-step hold."
+  },
+  {
+   "name": "Fast summing pulse, drive '+hit'",
+   "from": "curves, knobs, architecture, wild (deduplicated)",
+   "what": "feat.hit: half-life about 0.08–0.1 s, kicked by a screen-sum hit = 1−(1−hit)(1−(v/127)^1.4), so a soft note after a loud one still registers. Add '+hit'/'-hit' to Drive and to the lab's DRIVES. Then any existing knob (squares shake, gust power, duet push, tunnel's +level knobs) can jump on every note with no widget code.",
+   "whyBest": "Cheapest real snap for all 33 '+level' knobs. No default reads it, so both scenes stay pixel-identical, and it gives 92 % ripple on eighth notes where level gives 19 %.",
+   "risk": "It has to land in three copies (features.ts advanceFeatures, the lab step(), lines.js WA.advancePulse) plus every pulse swap in runtime.ts (safe/picksQueue/setOwn) and slot.js coldInstance. Only the architecture essay lists them all. It is one scalar per clip, not per note."
+  },
+  {
+   "name": "Musical roles: a roll is one strike, a sigh is a glide, a restrike re-kicks",
+   "from": "music (restrike also in curves' dip-then-strike)",
+   "what": "Precompute roles from the picked set once, the way Ivory plans. Roll members (3–6 attacks 40–120 ms apart, one direction) get small ticks, and only the top note flashes. In a sigh, the second note glides the previous mark down and dims it. A same-pitch restrike kicks the existing object again instead of spawning a new one. In runs, only the heads flash.",
+   "whyBest": "Without this, any 'snap' work makes Liebesleid p5–p8 flash 18 times for 4 gestures. That is the night's biggest musical failure mode, and only this essay saw it. It is also the most 'hand-made, specific' idea on the table.",
+   "risk": "A detector error swallows a real note and reads as a bug. Make it opt-in per widget, test it on the real sets (p1 gives lead+peak, sigh, last; p5's roll top is 74), and keep a 'roles off' switch for the A/B."
+  },
+  {
+   "name": "Handover: life = the gap to the next picked note",
+   "from": "wild",
+   "what": "Each picked note's mark shrinks along A = (1−u)·e^(−4u), u = (t−t0)/(next−t0), capped at 2.5 s. It is drawn statelessly from CHORDS (the set's own chords on a picks clip), so every attack is a clean handover and nothing overlaps.",
+   "whyBest": "Snappiness that adapts to tempo with no damping heuristic. It is guaranteed 'gone before the next note' (dies quickly) and seek-exact. It is the purest answer to 'individual picked notes'.",
+   "risk": "It only works on sparse hand-picked lines. On a dense set it flickers, and on a sparse one a lone note's mark lingers up to the cap. The hsl-by-pitch-class colours look generic, so give it a hand-chosen palette."
+  },
+  {
+   "name": "Crisp first, soft later; white-hot core; shrink, don't fade",
+   "from": "perception (Strike glyph in wild is close)",
+   "what": "blur(τ) = blurKnob·min(1, τ/0.15). At the peak, colour goes toward white (+55 % lightness), and the hue returns as the flash falls. On the way out, scale 0.6+0.4·body, and anything under about 12 % alpha is cut to zero.",
+   "whyBest": "Squares blurs 4–9 px from frame 0, which reads as a fade-in. Edge contrast is what the eye keys onsets on. These are cheap, local, and change the look of a strike more than timing alone does.",
+   "risk": "The white-hot core on dark-red Squares may read as a different palette. The user's red/bone taste should decide how far toward white."
+  },
+  {
+   "name": "Overshoot in geometry only; brightness only falls",
+   "from": "curves, perception (Ivory's jolt as the model)",
+   "what": "size = 1 + o·P(v)·e^(−τ/0.06–0.1)·cos(2π·8τ), with only loud notes ringing. Brightness rises to one peak in frame 0 and is monotone after that. Ivory's 2.4·e^(−sh/0.08)·cos(55·sh) is the reference.",
+   "whyBest": "It turns 'no fake attacks' into a testable rule (E non-increasing after the peak, in unit tests) while still giving impact.",
+   "risk": "Ringing on every note in dense runs becomes jitter. Gate it on velocity, as curves suggests (o(v) = 0 below v 0.55)."
+  },
+  {
+   "name": "Opt-in variants that remove the gates on picks",
+   "from": "perception, music",
+   "what": "New widget ids (not knob changes on scene widgets): fireworks-snap never drops a pick (it fires a small burst instead of none) and adds a 2-step white heart disc. flee-snap sets hes = 0 and bolts at full speed, slowing down. gust skips its since-penalty and lockout under x.onPicks(). pointillism-snap has no 40 ms stagger.",
+   "whyBest": "These are the concrete places where today's code low-passes picked notes (fireworks' gap ≥ 0.16 s drops attacks outright). New ids leave both scenes untouched.",
+   "risk": "Copying a scene widget doubles maintenance. Fireworks' and flee's Math.random means even the variants aren't reproducible, so before/after videos must be cut from one render each, not compared by hash."
+  },
+  {
+   "name": "Intensity above 1 spills into the flash",
+   "from": "music",
+   "what": "For widgets that opt in, velocity × amount above 127 becomes extra flash/crack (the 'over' term), and amount below about 0.6 gives no flash at all ('bloom'). The stored intensity keeps its meaning: louder or softer.",
+   "whyBest": "It fixes a real loss in the user's hand work: their '2' marks on v100+ notes in concerto p1/p8 clip to 127 and do nothing today. It also gives the picker bar a visible job.",
+   "risk": "Only for widgets that read amount. Mixing it with a separate per-note 'snapHit' (the knobs essay) would mean two bars doing one thing; pick one."
+  },
+  {
+   "name": "Snap meter plus a brightness trace under the before/after video",
+   "from": "perception (architecture and curves want the same videos)",
+   "what": "scripts/snap-meter.mjs drives render.html (renderSeek/renderStep/renderPixels) and records mean luminance per frame, time-to-peak, flash half-life and distinct peaks on dense runs. The trace, with onset ticks, is drawn under each hstack half.",
+   "whyBest": "The user judges by eye, but a spike-on-tick trace next to the picture makes 'snappier' undeniable in 10 s and keeps the night's tuning honest.",
+   "risk": "Needs a single-clip render path from a show, which may cost hours. A meter on Math.random widgets measures noise, so use squares/ivory/tunnel-type deterministic widgets."
+  },
+  {
+   "name": "Blade: a note's own decay drawn as geometry",
+   "from": "wild",
+   "what": "A note is a wedge whose left edge is the attack cliff and whose slope is the exponential ring for its register (τ(m), not the unreliable n.d). The playhead eats it from the left. It is stateless from CHORDS.",
+   "whyBest": "Original and piano-true. Bass is long, treble is a stub. The attack is literally the tallest edge and the decay is visible geometry, not fog.",
+   "risk": "It can read as a diagram (an envelope plot) rather than art. Its x placement by index (i·97 % 1040) has no musical meaning; tie x to pitch or time. It needs the 2-step white strike to feel like a hit."
+  },
+  {
+   "name": "Musician's words for presets",
+   "from": "knobs (curves' presets blink/pluck/stab/strike/bell are the same idea)",
+   "what": "Name envelope presets as articulations (secco, staccato, marcato, martellato, bell) with a one-line hint and an icon drawn from the real curve. Each preset stores fixed numbers, so its meaning never changes.",
+   "whyBest": "Matches the user's taste for plain, musical words and gives a per-note articulation chip a future in the picker.",
+   "risk": "Tonight it should label the one envelope helper's presets in the mock-up, not ship a host-side Snap strip, picker lanes or a show field. That is the knobs essay's 10-hour plan."
+  }
+ ],
+ "conflicts": "1) Where snap lives. The knobs essay puts it in the host (dt warp plus paste duck plus a touch curve). Architecture puts it in ctx (x.env/x.recent via lab/layers/snap.js). Curves wants a global lab/env.js, perception wants a helper inlined per variant, and music wants lab/layers/strike.js. RULING: one pure helper file, lab/layers/snap.js, which reaches the lab, the studio and Node for free per the architecture essay. It holds the closed-form envelope, settles(), the overshoot and roles(). New variant widgets may inline it if ctx binding slips. No host dt warp tonight: it misses Ivory and Gliss, speeds up motion, is capped at 3x, and costs a full-frame copy per slot. Keep 'gear' only as a one-off video experiment.\n\n2) Knobs on scene widgets. Architecture and music both propose adding a 'snap' knob to Squares. Squares already has size, life, blur, split, shake + presence (I checked lab/tools/squares.js), so that would be a sixth knob and breaks the lab/README rule. RULING: squares-snap is a new widget id (as in curves and perception). A snap knob is allowed only where there is room: gust has 4+presence and ivory 4+presence. Its default must reproduce today's constants exactly, and the x.rnd call count must not change.\n\n3) The hit pulse's numbers. Half-lives of 0.06, 0.07 and 0.12 s were proposed, with kicks by sum-capped, screen-sum or 0.5·hit+0.3+0.7v. RULING: half-life 0.09 s with a screen-sum kick of (v/127)^1.4. Put it after the existing statements in all three copies and in every pulse swap, and extend layers-pulse.test.ts to cover it.\n\n4) Anticipation and wind-up against the peak-in-frame-0 rule. Curves (a 33 ms pre-brightening) and wild (a 120 ms convergence) against perception's rule 1 and the user's 'no fake attacks'. RULING: off by default everywhere and absent from the shared helper. At most one labelled A/B clip on the Strike widget for the user's ear.\n\n5) Note length. Architecture uses n.d for release, curves blends it at r = 0 by default, and music trusts only d < 0.15. RULING: music's rule. Short d means staccato and gets the damper cut. Ignore longer d. Separately, cap the 'hold until n.d' in any variant: mandala, mclaren, ikeda, strings, lenlye and tunnel all hold marks for pedalled lengths.\n\n6) Retrigger. Dip-then-strike with a black over-paint (curves), re-kicking the same object (music), and screen-sum build-up were all proposed. RULING: re-kick the same object in geometry and restart its flash. Use a black dip only in widgets that own their pixels. Never let a soft repeat dim the mark (that reads as a mistake).\n\n7) Wild's Wipe. It sounds snappy, but with rest at 0.04 tails between notes last about three times longer than today. On sparse picks that is a pedal look, the opposite of 'dies off quickly', and it changes the shared canvas for every widget at once. RULING: lab-only experiment, not a show field tonight. Reject Prism, Punch and Cut: they are the generic visualiser moves the user called abominations in Codex's work.\n\n8) Passages. Every essay picks its own. RULING: one standard set for every before/after: Rach opening bells (5–37 s), Rach arrival/G restrikes (41–50 s), Liebesleid sighs (10.7–25.7 s), Liebesleid rolls (174.9–186.2 s). All rendered at 60 Hz; never judge in the live lab, where the fade is per rAF frame.",
+ "missing": "- **The pixel-identical proof is shakier than every essay assumes.** The sweep shows these scene widgets use Math.random: fireworks (indirectly), fischinger, flee, duet, fields, kandinsky, kline, miro, pointillism. renderFrameHash() at defaults may differ between two runs even with no change. Someone has to establish tonight what scripts/checks/snap-scenes-check.mjs and docs/mockups/snap/baseline.json actually prove before any runtime change lands: same hash on two untouched runs, or Math.random seeded in render.html.\n- **Picks in the lab.** The user's 'individual notes' are picked sets, but the lab has no picks. Wild fakes it with a velocity gate; knobs uses a show copy. Needed: copies of both shows (shows/liebesleid-snap.json, shows/rach-concerto-2-snap.json) that put the new widgets on existing pick sets (Liebesleid p1–p3, p5–p8, p11–p15; Rach p1, p7, p15), so the user judges on their own notes in the studio.\n- **A zero-code baseline.** Nobody proposed a 'snap via existing knobs only' show copy. Squares life 0.3 and blur 0, stella and mclaren life low, tunnel trail 0.08, contours decay 0.6, halftone life 0.4, rorschach fade 1. It costs nothing, and it tells the user how much of 'snappy' needs new code at all.\n- **Density and photosensitivity budget.** At 12–14 notes/s (Rach p15/p16), per-note flashes become strobing. Only wild caps full-frame flashes, at 3/s. A shared limit is needed: flash budget per second, run-head-only flashes, and duck older marks.\n- **A single morning index page.** One page in docs/mockups/snap/ that lists every mock-up, widget and video with the same passages, labelled before/after, and with what to listen for. Otherwise six essays' outputs arrive as scattered files.\n- **Brightness after the attack.** No essay checks that settles()-corrected variants don't simply look dimmer overall. Sharper decay means less integrated light, and the scenes' widgets are tuned against each other (fields under squares, casket melting what's below). A variant swapped into a scene copy may look weak rather than snappy, so peak gain needs a compensating knob.\n- **Live audio latency.** Browser output latency (about 20–50 ms) puts the live lab's picture ahead of its sound. Only renders with muxed audio are a fair test of 'tight'."
+}

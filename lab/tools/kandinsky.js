@@ -11,7 +11,13 @@
   const lerp = (a, b, k) => a + (b - a) * k;
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const SPLIT = 58;                                   // the register split: below 48 weights, 48..67 circles, above triangles
-  const MID = [40, 86, 214], HIGH = [250, 210, 40];   // Kandinsky's blue and yellow
+  // the two colours you can choose, along a painter's palette (the knob slides between neighbours);
+  // the defaults are Kandinsky's blue for the circles and yellow for the triangles
+  const PAINTS = [[250, 210, 40], [236, 128, 32], [196, 36, 44], [214, 72, 138], [110, 60, 170], [40, 86, 214], [24, 156, 176], [52, 148, 74]];
+  const PAINT_NAMES = 'yellow, orange, red, rose, violet, blue, turquoise, green';
+  const paintAt = (v) => { const u = Math.max(0, Math.min(PAINTS.length - 1, v)), i = Math.min(PAINTS.length - 2, Math.floor(u)), k = u - i;
+    return PAINTS[i].map((c, j) => lerp(c, PAINTS[i + 1][j], k)); };
+  let MID = PAINTS[5], HIGH = PAINTS[0];              // this frame's chosen colours (set in frame from the two knobs)
   // a black bar's coloured shadow: deep red, ochre, indigo (chosen by the note, so a bass line keeps its colours)
   const WEIGHT = [[150, 30, 42], [184, 128, 40], [78, 58, 150]];
   const CORONA = [[52, 70, 190], [110, 60, 170]];
@@ -105,6 +111,12 @@
       { key: 'paint', label: 'how much paint', min: 0, max: 1, value: 0.45, less: 0.1,
         hint: 'How bold the painting gets. Left: small, faint shapes that leave soon. Right: big, saturated shapes that stay for many seconds.',
         icon: ICONS.paint },
+      { key: 'midColour', label: 'colour of the circles', min: 0, max: PAINTS.length - 1, step: 0.01, value: 5,
+        hint: `The colour of the middle notes' circles (and of the faint fields behind). From left: ${PAINT_NAMES}, blending between them. Kandinsky's own is blue.`,
+        icon: (g, v, w, h) => ICON.dot(g, w / 2, h / 2, 9, `rgb(${rgb(paintAt(v * (PAINTS.length - 1)))})`) },
+      { key: 'highColour', label: 'colour of the triangles', min: 0, max: PAINTS.length - 1, step: 0.01, value: 0,
+        hint: `The colour of the high notes' triangles. From left: ${PAINT_NAMES}, blending between them. Kandinsky's own is yellow.`,
+        icon: (g, v, w, h) => ICON.shape(g, 'triangle', w / 2, h / 2, 16, `rgb(${rgb(paintAt(v * (PAINTS.length - 1)))})`) },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much painting it makes: how big the shapes get and how long they stay, and how many lines join them. Left: small shapes that leave soon, almost no lines. Right: big shapes that stay for seconds in a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
@@ -125,7 +137,7 @@
       if (ch.lo < SPLIT - 6 && ch.vel >= 84 && planeCool <= 0 && Math.random() < 0.3 + 0.6 * paint) {
         planeCool = 2.5;
         planes.push({ x: fx + R(-1, 1) * 120 * (1 - order), y: fy + R(-1, 1) * 70, r: (120 + (ch.vel - 84) * 5) * lerp(0.75, 1.2, paint), age: 0, life: life * 1.2,
-          col: Math.random() < 0.65 ? MID : HIGH, a: 0.025 + 0.03 * paint, sq: Math.random() < 0.35, rot: lerp(R(-0.6, 0.6), 0, order) });
+          high: Math.random() >= 0.65, a: 0.025 + 0.03 * paint, sq: Math.random() < 0.35, rot: lerp(R(-0.6, 0.6), 0, order) });
         if (planes.length > 2) planes.shift();
       }
       const spread = 1.15;
@@ -158,7 +170,7 @@
         } else {
           const reg = lerp(150, 44, clamp01((n.m - 30) / 55));
           e.s = Math.min(190, reg * scale * (0.55 + 0.75 * vk * vk));
-          e.col = cls === 1 ? MID : HIGH;
+          e.col = null;                               // circles and triangles take the chosen colour as they are drawn
           e.rot = cls === 2 ? lerp(R(0, TAU), a, order) : lerp(R(-0.8, 0.8), 0, order);
           // Kandinsky's directions: yellow pushes out, blue pulls in
           const ox = ex - x.W / 2, oy = ey - x.H / 2, od = Math.hypot(ox, oy) || 1;
@@ -193,6 +205,7 @@
       const { sharp, hollow, drift, paint } = knobs(x);
       const stageAlpha = g.globalAlpha;
       const fillA = lerp(0.5, 0.9, paint);
+      MID = paintAt(x.p('midColour') ?? 5); HIGH = paintAt(x.p('highColour') ?? 0);
       crossCool -= dt; planeCool -= dt;
       // the painting slowly turns about the centre: each living form orbits by this frame's step
       // (new forms are always born upright, so nothing turns upside down over a long piece)
@@ -212,7 +225,7 @@
       for (const p of planes) {
         p.age += dt; const f = Math.pow(Math.max(0, 1 - p.age / p.life), 1.5) * Math.min(1, p.age / 0.4);
         const r = p.r * (1 + 0.08 * Math.min(1, p.age / 2));
-        g.fillStyle = `rgba(${rgb(p.col)},${p.a * f})`;
+        g.fillStyle = `rgba(${rgb(p.high ? HIGH : MID)},${p.a * f})`;
         g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.beginPath();
         if (p.sq) g.rect(-r, -r * 0.7, r * 2, r * 1.4); else g.arc(0, 0, r, 0, TAU);
         g.fill(); g.restore();
@@ -245,7 +258,7 @@
         const al = fade(e); if (al < 0.01) continue;
         const land = Math.max(0, 1 - e.age / 0.5), kk = 1 + 0.35 * land * land * land;
         const flash = Math.pow(Math.max(0, 1 - e.age / 0.3), 2) * 0.5 * Math.min(1, e.v / 100);
-        const c = rgb(e.col.map((v) => lerp(v, 255, flash)));
+        const c = rgb((e.col ?? (e.cls === 1 ? MID : HIGH)).map((v) => lerp(v, 255, flash)));
         const hol = e.open < hollow;                   // 'rings' = the share of shapes drawn as outlines
         g.save(); g.translate(e.x, e.y); g.rotate(e.rot);
         if (e.kind === 'sun') {                        // a black sun with a thin coloured corona

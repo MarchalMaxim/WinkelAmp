@@ -86,7 +86,7 @@ export class WidgetRuntime implements RuntimeLike {
       g: hdContext(g, S, () => ctx.tool?.id ?? 'a widget'), W, H, canvas,
       t: 0, dt: 0, now: 0,
       moment: LAB_FIRST_MOMENT,   // as the lab before its first step; reset() keeps the last stepped moment, as the lab's
-      level: 0, rate: 0,
+      level: 0, rate: 0, hit: 0,
       feat: newFeatures(),
       tool: undefined,
       get picked() { return onPicks.has(cur.key); },
@@ -170,7 +170,7 @@ export class WidgetRuntime implements RuntimeLike {
         this.knobs[key] = knobs ?? resolveKnobs(Array.isArray(tool.params) ? tool.params : []);
         const inst: InstanceState = {
           key, widget: spec.widget, salt: L ? L.fnv32(key) : 0, notes, chords, ci: 0,
-          pulse: { level: 0, rate: 0 }, feat: newFeatures(),
+          pulse: { level: 0, rate: 0, hit: 0 }, feat: newFeatures(),
           own: !!L && (!!spec.own || routed), routed, persist: L?.PERSIST[spec.widget] ?? 'redraw', win: null,
         };
         this.insts.set(key, inst);
@@ -205,7 +205,7 @@ export class WidgetRuntime implements RuntimeLike {
       instance starts cold at t too. */
   reset(t: number): void {
     const { ctx, g } = this;
-    this.lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
+    this.lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0; ctx.hit = 0;
     this.ci = this.chords.findIndex((ch) => ch.t > t); if (this.ci < 0) this.ci = this.chords.length;
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000';
     if (this.S > 1) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillRect(0, 0, W * this.S, H * this.S); } else g.fillRect(0, 0, W, H);
@@ -277,7 +277,7 @@ export class WidgetRuntime implements RuntimeLike {
   private setOwn(inst: InstanceState, own: boolean): void {
     if (own && !inst.own) {
       const { ctx } = this;
-      inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; Object.assign(inst.feat, ctx.feat);
+      inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; inst.pulse.hit = ctx.hit; Object.assign(inst.feat, ctx.feat);
     }
     inst.own = own;
   }
@@ -290,14 +290,14 @@ export class WidgetRuntime implements RuntimeLike {
     ctx.tool = tool; cur.key = key;
     if (this.S > 1) real.setTransform(this.S, 0, 0, this.S, 0, 0);   // the base transform: 1280×720 units
     const swap = inst !== undefined && inst.own;
-    const level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = cur.notes;
-    if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes; }
+    const level = ctx.level, rate = ctx.rate, hit = ctx.hit, feat = ctx.feat, notes = cur.notes;
+    if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.hit = inst.pulse.hit; ctx.feat = inst.feat; cur.notes = inst.notes; }
     const G = globalThis, q0 = G.queueMicrotask, picks = swap && this.onPicks.has(key) && typeof q0 === 'function';
     if (picks) G.queueMicrotask = this.picksQueue(key, inst, q0);
     try { const f = tool[fn] as ((...x: unknown[]) => void) | undefined; if (f != null) f.apply(tool, a); }   // tool[fn]?.(…a): `this` is the tool
     catch (e) { if (!this.errors[key]) { this.errors[key] = String(e); console.error(key, e); } }
     if (picks) G.queueMicrotask = q0;
-    if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; cur.notes = notes; }
+    if (swap) { ctx.level = level; ctx.rate = rate; ctx.hit = hit; ctx.feat = feat; cur.notes = notes; }
   }
 
   /** queueMicrotask while an instance on a set of picks runs: a pass it queues ("after the others": timeslice's threads
@@ -308,13 +308,13 @@ export class WidgetRuntime implements RuntimeLike {
   private picksQueue(key: string, inst: InstanceState, prev: typeof queueMicrotask): typeof queueMicrotask {
     const { ctx, cur } = this, G = globalThis, tool = this.tools.get(key)!;
     const queue = (f: () => void) => prev.call(G, () => {
-      const was = { tool: ctx.tool, key: cur.key, level: ctx.level, rate: ctx.rate, feat: ctx.feat, notes: cur.notes }, q0 = G.queueMicrotask;
-      ctx.tool = tool; cur.key = key; ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; cur.notes = inst.notes;
+      const was = { tool: ctx.tool, key: cur.key, level: ctx.level, rate: ctx.rate, hit: ctx.hit, feat: ctx.feat, notes: cur.notes }, q0 = G.queueMicrotask;
+      ctx.tool = tool; cur.key = key; ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.hit = inst.pulse.hit; ctx.feat = inst.feat; cur.notes = inst.notes;
       G.queueMicrotask = queue;
       try { f(); }
       finally {
         G.queueMicrotask = q0;
-        ctx.tool = was.tool; cur.key = was.key; ctx.level = was.level; ctx.rate = was.rate; ctx.feat = was.feat; cur.notes = was.notes;
+        ctx.tool = was.tool; cur.key = was.key; ctx.level = was.level; ctx.rate = was.rate; ctx.hit = was.hit; ctx.feat = was.feat; cur.notes = was.notes;
       }
     });
     return queue;

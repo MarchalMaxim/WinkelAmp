@@ -412,7 +412,11 @@ const TOOL_IDS = ['perlin', 'gliss', 'ivory', 'johansson', 'tree', 'fireworks', 
   'matisse', 'kusama', 'ikeda', 'horizon',
   'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
-  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket'];
+  'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket',
+  // Tonight's snap candidates (docs/mockups/snap/DESIGN.md), registered up front so builders never edit this line.
+  'squares-snap', 'fireworks-snap', 'hammer', 'handover',
+  'prickle', 'nap', 'crimp', 'interlock', 'pluck', 'film', 'mica', 'urchin', 'cut',
+  'leidenfrost'];
 const LOAD_NOTES = { missing: [], broken: [] };
 const TOOL_SRC = {};   // id → the widget file's text: a layer instance that listens to a part runs its own copy
 async function loadTools() {
@@ -484,6 +488,7 @@ const ctx = {
   moment: 'dread',
   level: 0,      // 0..1 smoothed loudness from recent attack velocities
   rate: 0,       // attacks per second, smoothed
+  hit: 0,        // 0..1 each attack's jump, half gone in 0.08 s (the '+hit' drive: each note → jump)
   picked: false, // on a set of picks (the studio only): the composer chose the notes, answer every one
   rnd: (a = 0, b = 1) => a + Math.random() * (b - a),
   /** Notes sounding at song time t: [{ m, v, start, end }]. While a layer instance that hears a part is called, its
@@ -559,7 +564,7 @@ const sortKey = (tool) => (!VERDICTS[tool.id] && !RATED.has(tool.id) ? 0 : isRev
 // Stored values stay '+level' etc. so saved settings keep loading; only the words shown changed.
 const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
   ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
-  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less']];
+  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less'], ['+hit', 'each note → jump'], ['-hit', 'each note → dip']];
 let PST = {}; try { if (!RENDER) PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
 const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
 // Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
@@ -585,7 +590,7 @@ const RENDER_LAYERS = (() => {
 /** The layer entries as the show's list: [{ widget, listen?, region?, intensity? }], in TOOL_IDS order. */
 const layerList = () => RENDER_LAYERS ?? TOOL_IDS.filter((id) => LAYERS[id] && typeof LAYERS[id] === 'object').map((id) => ({ widget: id, ...LAYERS[id] }));
 const saveL = () => { if (RENDER) return; try { localStorage.setItem('wa-layers', JSON.stringify(LAYERS)); } catch {} sync(); };
-ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 };
+ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 };
 ctx.p = (key) => {
   const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
   const s = pst(tool, q); let v = s.base;
@@ -885,21 +890,21 @@ function applyLayers(list) {
   return made;
 }
 function newInst(key, widget, notes, chords, own, routed) {
-  return { key, widget, salt: WA_LAYERS.fnv32(key), notes, chords, ci: 0, pulse: { level: 0, rate: 0 }, feat: WA_LAYERS.newFeatures(),
+  return { key, widget, salt: WA_LAYERS.fnv32(key), notes, chords, ci: 0, pulse: { level: 0, rate: 0, hit: 0 }, feat: WA_LAYERS.newFeatures(),
     own, routed, persist: WA_LAYERS.PERSIST[widget] ?? 'redraw', win: null };
 }
 /** An instance that starts keeping its own pulse takes the global one as it is now (WidgetRuntime.setOwn). */
 function setOwn(inst, own) {
-  if (own && !inst.own) { inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; Object.assign(inst.feat, ctx.feat); }
+  if (own && !inst.own) { inst.pulse.level = ctx.level; inst.pulse.rate = ctx.rate; inst.pulse.hit = ctx.hit; Object.assign(inst.feat, ctx.feat); }
   inst.own = own;
 }
 /** safe() for an instance: an own one's pulse, features and notes are in ctx for the call, the global ones back after.
     x: the ctx the widget gets (the shared one, or a windowed instance's view of it). */
 function callInst(it, fn, x, ch) {
-  const inst = it.inst, swap = inst.own, level = ctx.level, rate = ctx.rate, feat = ctx.feat, notes = SND.notes;
-  if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.feat = inst.feat; SND.notes = inst.notes; }
+  const inst = it.inst, swap = inst.own, level = ctx.level, rate = ctx.rate, hit = ctx.hit, feat = ctx.feat, notes = SND.notes;
+  if (swap) { ctx.level = inst.pulse.level; ctx.rate = inst.pulse.rate; ctx.hit = inst.pulse.hit; ctx.feat = inst.feat; SND.notes = inst.notes; }
   try { if (fn === 'onChord') safe(it.tool, 'onChord', ch, x); else safe(it.tool, fn, x); }
-  finally { if (swap) { ctx.level = level; ctx.rate = rate; ctx.feat = feat; SND.notes = notes; } }
+  finally { if (swap) { ctx.level = level; ctx.rate = rate; ctx.hit = hit; ctx.feat = feat; SND.notes = notes; } }
 }
 /** What lab/layers/slot.js's drawLayered draws through (src/widgets/layers.ts LayerHost), at 1280×720. */
 const makeCanvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
@@ -953,7 +958,7 @@ window.labLayers = {
 
 let ci = 0, lastT = 0, liveT = 0;
 function reset(t) {
-  lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0;
+  lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0; ctx.hit = 0;
   ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   // Every layer instance starts cold at t, its window black (WidgetRuntime.reset).
@@ -984,12 +989,15 @@ function step(t, dt) {
   ctx.t = t; ctx.dt = dt;
   let m = MOMENTS[0][1]; for (const [s, n] of MOMENTS) if (t >= s) m = n; ctx.moment = m;
   ctx.level *= Math.pow(0.5, ctx.dt / 0.8); ctx.rate *= Math.pow(0.5, ctx.dt / 1.0);
+  ctx.hit *= Math.pow(0.5, ctx.dt / 0.08);   // each note → jump: half gone in 0.08 s, kicked by every attack (a soft one too)
   const fired = [];
   while (ci < CHORDS.length && CHORDS[ci].t <= t) { const ch = CHORDS[ci++]; fired.push(ch); ctx.level = Math.max(ctx.level, ch.vel / 115); ctx.rate += 1 / 1.44; }
+  for (const ch of fired) ctx.hit = 1 - (1 - ctx.hit) * (1 - Math.pow(ch.vel / 127, 1.4));
   { const snd = ctx.sounding(), f = ctx.feat, k = 1 - Math.pow(0.5, ctx.dt / 0.25);
     let top = null, bass = 0; for (const n of snd) { if (!top || n.m > top.m) top = n; if (n.m < 50) bass += n.v / 127; }
     f.level = ctx.level; f.rate = Math.min(1, ctx.rate / 8);
-    f.pitch += ((top ? ctx.pitch01(top.m) : f.pitch) - f.pitch) * k; f.bass += (Math.min(1, bass / 2) - f.bass) * k; f.density += (Math.min(1, snd.length / 10) - f.density) * k; }
+    f.pitch += ((top ? ctx.pitch01(top.m) : f.pitch) - f.pitch) * k; f.bass += (Math.min(1, bass / 2) - f.bass) * k; f.density += (Math.min(1, snd.length / 10) - f.density) * k;
+    f.hit = ctx.hit; }
   // Shared background: fade toward black. A tool may paint its own on top.
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, W, H);
@@ -1015,7 +1023,7 @@ function step(t, dt) {
 // whose time was crossed fires. Returns the song time reached.
 if (RENDER) {
   window.renderSeek = (t, seed = 1) => {
-    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0 });
+    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 });
     ctx.now = 0; reset(t); return t;
   };
   window.renderStep = (dt) => {
@@ -1025,6 +1033,8 @@ if (RENDER) {
   };
   /** How present, as the slider sets it, for a render at another value. */
   window.renderPresent = (id, s) => setPresent(toolOf(id), s);
+  /** Knob bases for a render (snap-compare): renderKnobs('squares', { life: 0.5 }) sets those knobs' bases, nothing else. */
+  window.renderKnobs = (id, vals) => { const t = toolOf(id); for (const q of t?.params ?? []) if (q.key in vals) pst(t, q).base = Number(vals[q.key]); };
   /** Steps to song time t (the renderer computes every target from a frame index, so steps never accumulate error). */
   window.renderTo = (t) => window.renderStep(t - lastT);
 }

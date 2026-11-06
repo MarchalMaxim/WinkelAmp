@@ -68,6 +68,15 @@
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
+    // The huddle knob's other end, also worked out here: the same keys upright, alike, close together in an even row left to
+    // right by pitch (twins in order of arrival), centred where the phrase stood; the staircase kept at 60 % of its height range.
+    const n = keys.length, sp = Math.min(wide * 1.1, across * 0.7 / Math.max(1, n - 1)), uw = sp / 1.1, half = (n - 1) / 2 * sp;
+    const mid = clamp(keys.reduce((a, k) => a + k.foot, 0) / n, half + uw / 2, W - half - uw / 2), mean = 0.2 + 0.78 * 0.5;
+    [...keys].sort((a, b) => a.m - b.m || a.t - b.t).forEach((k, i) => {
+      const f = 0.2 + 0.78 * (k.m - lo) / span;
+      k.base = { w: k.w, h: k.h, full: k.full, foot: k.foot, angle: k.angle };
+      k.tidy = { w: uw * (0.7 + 0.3 * k.i), h: Math.min(TOP * (mean + (f - mean) * 0.6) * (0.65 + 0.35 * k.i), BASE * 0.97), foot: mid + (i - (n - 1) / 2) * sp };
+    });
     // The way back: one key per note, away from the stomp. A whole song thinned to a few keys has no way back to show.
     const away = [...keys].sort((a, b) => (end === hi ? b.m - a.m : a.m - b.m)), back = picked ? hits.filter((h) => h.t > stomp).slice(0, keys.length) : [];
     back.forEach((h, i) => { away[i].press = h.t; away[i].sink = SINK / hardness(h.i ?? 1); });
@@ -142,7 +151,7 @@
   // alpha builds up. This is the alpha that settles at `want` over black.
   const settles = (want) => { const f = 0.12; want = clamp(want, 0, 1); return want >= 1 ? 1 : want * f / (1 - want * (1 - f)); };
 
-  let plan = null, sheets = null, sheetsFor = -1;
+  let plan = null, sheets = null, sheetsFor = '';
   const planNow = () => plan || (plan = planOf(typeof CHORDS !== 'undefined' ? CHORDS : []));
   const seen = (t) => ({ keys: planNow().keys.filter((k) => k.t <= t), stomp: plan.stomp });
 
@@ -182,6 +191,14 @@
       { key: 'cracks', label: 'how many cracks', min: 0, max: 8, value: 1.5,
         hint: 'Hairline cracks on each key. Left: spotless. Right: well worn.',
         icon: (g, v, w, h) => ICON.lines(g, Math.round(v * 6), w, h, { dir: 'v' }) },
+      { key: 'strike', label: 'how hard the keys strike', min: 0, max: 1, value: 0,
+        hint: 'Left: keys rise as they always have, over a fifth of a second. Right: a key is up in two frames, jumps past its height and settles, its top edge lit for an instant.',
+        // A key on the right; the line it rises along gets steeper as the strike gets harder.
+        icon: (g, v, w, h) => { ICON.rect(g, w * 0.62, 5, w * 0.2, h - 9, ICON.ink); ICON.line(g, 3, h - 3, w * (0.56 - 0.42 * v), 5, ICON.dim, 1.5); ICON.line(g, 2, h - 3, w - 2, h - 3, ICON.dim, 1); } },
+      { key: 'huddle', label: 'how huddled the keys stand', min: 0, max: 1, value: 0,
+        hint: 'Left: the keys stand where their pitch puts them, leaning and differing a little, as they always have. Right: they stand close together in a tidy parallel row, evenly spaced and upright, the row centred where the phrase sits.',
+        // Four bars: scattered and leaning on the left, a tight upright row on the right.
+        icon: (g, v, w, h) => { [[0.14, 0.3, 0.9, 0.4], [0.36, 0.2, 0.43, -0.3], [0.62, 0.38, 0.57, 0.35], [0.86, 0.25, 0.71, -0.4]].forEach(([x0, hh, x1, a]) => { g.save(); g.translate(w * (x0 + (x1 - x0) * v), h - 3); g.rotate(a * 0.35 * (1 - v)); ICON.rect(g, -2.5, -(h - 8) * (hh + (0.3 + 0.12 * (x1 - 0.4)) * v), 5, (h - 8) * (hh + (0.3 + 0.12 * (x1 - 0.4)) * v), ICON.ink); g.restore(); }); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
         hint: 'How strongly it all shows. Left: not at all. Right: fully.',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + v * 0.85, () => ICON.rect(g, w * 0.3, 4, w * 0.4, h - 8, ICON.ink)) },
@@ -193,9 +210,14 @@
       if (!keys.length || pres <= 0) return;
       const after = (x.t - plan.last - HOLD) / AGE;
       if (after >= 1) return;
+      const hud = Math.round(x.p('huddle') * 20) / 20;   // in steps: every step redraws the keys' pictures
+      for (const k of plan.keys) {
+        const b = k.base, t = k.tidy, m = (a, c) => a + (c - a) * hud;
+        k.w = m(b.w, t.w); k.h = m(b.h, t.h); k.full = k.h + 30; k.foot = m(b.foot, t.foot); k.angle = b.angle * (1 - hud);
+      }
       const g = x.g, rs = x.canvas.width / W, cracks = Math.round(x.p('cracks') * 2) / 2, sh = x.t - stomp - 0.06, floor = x.p('floor') >= 0.5 ? 1 : 0;
       const gone = 1 - smooth((after - 0.8) / 0.2), where = craterAt(plan.keys, plan.end, floor);
-      if (sheetsFor !== floor) { sheets = relief(where); sheetsFor = floor; }
+      if (sheetsFor !== `${floor}:${hud}`) { sheets = relief(where); sheetsFor = `${floor}:${hud}`; }
       // The shared canvas fades instead of clearing, so a key going down would leave ghosts of itself: wipe where it stood.
       g.globalAlpha = 1; g.fillStyle = '#000';
       for (const k of keys) {
@@ -212,15 +234,39 @@
       }
       const jolt = sh > 0 ? 2.4 * plan.strike * Math.exp(-sh / 0.08) * Math.cos(sh * 55) : 0, amp = x.p('ripple') * plan.strike;
       g.globalAlpha = settles(pres * gone);
+      const s = x.p('strike'), BONE = 'rgb(236,226,208)';   // how hard the keys strike; 0 is Ivory exactly as it always was
       g.save(); g.beginPath(); g.rect(0, 0, W, BASE + jolt); g.clip();   // they stand in the ground
       for (const k of keys) {
-        if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; }
-        const a = (x.t - k.t) / k.rise, risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
+        if (!k.img || k.imgRs !== rs || k.imgCracks !== cracks || k.imgFull !== k.full || k.imgW !== k.w) { k.img = texture(k, rs, cracks); k.imgRs = rs; k.imgCracks = cracks; k.imgFull = k.full; k.imgW = k.w; }
+        let risen, over = 1;
+        if (s > 0) {
+          // A hammer, not a bow: up in a fraction of the time, at full speed from the first frame, then a short bounce
+          // past its height that dies in a few tenths. Age from the key's own note, so a seek lands on the same frame.
+          const u = x.t - k.t, a = u / (k.rise * (1 - 0.7 * s));
+          risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3 + 3 * s);
+          if (u >= 0 && u <= 0.4) over = 1 + 0.12 * s * Math.exp(-u / 0.07) * Math.cos(2 * Math.PI * 9 * u);
+        } else {
+          const a = (x.t - k.t) / k.rise;
+          risen = a >= 1 ? 1 : 1 - Math.pow(1 - a, 3);
+        }
         const sunk = k.press !== undefined ? smooth((x.t - k.press) / k.sink) : 0;
         if (sunk >= 1) continue;
         const keyTop = -k.h + (1 - risen) * k.full + sunk * (k.h + 8);
         g.save(); g.translate(k.foot, BASE + jolt); g.rotate(k.angle);
+        // The bounce stretches the key about its foot, so the part in the ground stays in the ground (it is only 30 px deep).
+        if (s > 0 && over !== 1) g.scale(1, over);
         drawKey(g, where, k, keyTop, sh, amp, rs);
+        if (s > 0) {
+          // The struck edge: lit for two steps. The first is drawn at full; the second at the alpha that holds it there
+          // over the canvas's fade, so it shows as one even flash and then the canvas takes it away.
+          const u = x.t - k.t, lit = 0.6 * s;
+          if (u >= 0 && u < 0.033) {
+            const was = g.globalAlpha;
+            g.globalAlpha = pres * (u < x.dt ? lit : 0.12 * lit / (1 - 0.88 * lit));
+            g.fillStyle = BONE; g.fillRect(-k.w / 2 + 1, keyTop, k.w - 2, 2 / over);
+            g.globalAlpha = was;
+          }
+        }
         if (after > 0) { g.globalCompositeOperation = 'multiply'; g.fillStyle = aged(after); g.beginPath(); g.roundRect(-k.w / 2, keyTop, k.w, k.full, Math.min(k.w * 0.1, 6)); g.fill(); g.globalCompositeOperation = 'source-over'; }
         g.restore();
       }

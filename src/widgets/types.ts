@@ -9,7 +9,7 @@ export type Note = [start: number, end: number, midi: number, vel: number, amoun
 /** One attack: notes whose onsets fall within 40 ms of the first one (the lab's CHORDS entry). */
 export interface Chord { t: number; notes: { m: number; v: number; d: number; amount?: number }[]; vel: number; lo: number; hi: number }
 export interface SoundingNote { m: number; v: number; start: number; end: number }
-export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density';
+export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density' | '+hit' | '-hit';
 export interface Param {
   key: string; label?: string; min: number; max: number; step?: number; value: number; drive?: Drive;
   hint?: string; icon?: (g: CanvasRenderingContext2D, v: number, w: number, h: number) => void;
@@ -22,7 +22,8 @@ export interface ToolDef {
   id: string; name: string; blurb?: string; tag?: string; on?: boolean; params?: Param[];
   reset?(x: WidgetCtx): void; onChord?(ch: Chord, x: WidgetCtx): void; frame?(x: WidgetCtx): void;
 }
-export interface Features { level: number; rate: number; pitch: number; bass: number; density: number }
+/** hit: 1 on a loud attack, a soft one adds its share, and half of it is gone 0.08 s later (each note → jump). */
+export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number }
 /** The lab's PST entry for one knob. */
 export interface KnobState { base: number; drive: Drive; depth: number }
 export type KnobMap = Record<string, KnobState>;
@@ -35,7 +36,7 @@ export interface WidgetCtx {
   /** the section's mood name ('dread', 'agitato', 'casket', 'return'): lewitt starts a new wall when it changes */
   moment: string;
   /** raw pulse (§2 arithmetic) */
-  level: number; rate: number;
+  level: number; rate: number; hit: number;
   feat: Features;
   /** set before every call; ctx.p reads its knobs */
   tool: ToolDef | undefined;

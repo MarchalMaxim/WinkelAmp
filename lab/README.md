@@ -13,7 +13,7 @@ to see and snap to, and own no clips. See [the studio show format](../docs/COMPO
   plain stack, so stills there come out as wide as before.
 - `tools/<id>.js`: one widget each (`TOOLS.push({ id, name, blurb, tag, params, reset, onChord, frame })`). The page loads
   the ids listed in `TOOL_IDS` in `index.html` (add yours there); a missing or broken file only shows a note above the cards.
-  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers), kept for reference.
+  `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers, hilma, tack), kept for reference.
 - `combos.js`: widget combinations that do more together than side by side (`window.COMBOS = [{ ids, blurb, knobs?, tip?,
   at?, when? }]`), each shot together and alone first. A member's card shows a "combines with N" pill (hover, or tap
   on a phone) with a "try together" button: just those widgets on, the listed knob values set, from the best moment
@@ -59,6 +59,9 @@ measure screen presentation. Use `-- --ids squares,fireworks --json renders/spee
 ## Knobs (from the 2026-10-31 round on)
 
 The user found knob names hard to grasp, so a widget has **at most 5 knobs**, each with a plain sentence and a small picture.
+`tools/flee.js` also has a sixth knob, `snap`, a 0/1 switch the user asked for (2026-11-05) to keep the snap version behind.
+`tools/squares-snap.js` likewise has `milk`, a 0/1 switch for milky white squares instead of dark red (asked for 2026-11-06; the user then wanted the squares red and the handover milky). `tools/handover.js` has a `milk` switch too, on by default: every handover is milky white unless it is set to 0.
+`tools/leidenfrost.js` has `plate`, how much the ember plate under the drops glows (asked for 2026-11-06).
 `tools/squares.js` is the reference.
 
 ```js

@@ -1,0 +1,907 @@
+{
+  "lens": "builder",
+  "measurements": "Taken in headless Chromium (software canvas, 1280x720) with the runtime's exact fade: rgba(0,0,0,0.12), then color-burn 252. GPU output may differ by a few levels. A mark held through settles(T) for 240 steps really shows: bone T 0.22 = 17 (ideal 52), bone 0.3 = 42, bone 0.4 = 80; oxblood (122,16,20) T 0.25 = 5, 0.3 = 9, 0.35 = 17, 0.4 = 25, 0.5 = 42; ash (66,64,66) T 0.22 = 2; dry olive (170,170,120) T 0.22 = 5; straw T 0.2 = 4; #5a1616 T 0.3 = 4; red-brown (90,40,30) T 0.25 = 4; violet (120,112,140) T 0.3 = 9/5/17; rose (255,180,180) T 0.32 = 65/34/34; 'lighter' at T 0.22 with colour 255 = 34. The burn takes about 3 levels every step and settles() does not know it. 'lighten' at alpha 1 in the target colour held exactly 52/48/44. Unredrawn bone decays 236 206 180 157 136 117 100 85 72 61 51 41 33 26 19 13 8 4 0 (0 by 0.3 s); oxblood reaches 0 by 0.23 s. Flash over a 40 % body (half-life 0.25 s) through SNAP.alpha: bone 132 at 0.1 s, 61 at 0.2, 27 at 0.3, 6 at 0.4; oxblood 61, 17, 2. Fresh pixels drawn through settles(0.38) swell 16 26 33 40 45 49 ... and reach 71 only after 15 steps. Cost per frame including the 1.06 ms fade: 5600 2x2 rects in one path 3.8 ms; 2000 triangles in one path 9.9 ms; 600 triangles in 6 fills 2.0 ms; 2500 short segments in 12 strokes 3.6 ms; 2400 long dashes in one stroke 14.75 ms; 400 arcs in 4 fills 2.2 ms; one fullscreen drawImage 1.4 to 1.8 ms; 6 clips with a fullscreen drawImage 1.75 ms; 7 big evenodd pattern bands 2.2 ms. Baking 40,000 hairs: 74 ms.",
+  "scores": [
+    {
+      "essay": 1,
+      "id": "sublimate",
+      "specificity": 9,
+      "musicality": 6,
+      "snap": 6,
+      "feasibility": 7,
+      "texture": 7,
+      "filters": [],
+      "why": "Corner radius as the decay is a real decision, and it does show: the oxblood body reads 73 at 0.2 s and 24 at 0.5 s, while R has reached about 0.32r by then. But it reads 4 at 0.7 s, so the 'dim round pebble at 1.4 s' is not on screen and a repeat after about 0.6 s has nothing to re-sharpen. The 306 px needle's retraction (41 px left at 0.1 s) is hidden under its own bone ghost, 72 levels at 0.13 s, so 'thinnest goes first' is at most a 60 ms difference. Chords merge into one mass, which costs counting.",
+      "builder_note": "Draw the body with 'lighten' in a colour scaled by E(t), not through alpha, or the pebble and the re-sharpening repeat do not exist past 0.6 s."
+    },
+    {
+      "essay": 1,
+      "id": "needleice",
+      "specificity": 9,
+      "musicality": 9,
+      "snap": 9,
+      "feasibility": 6,
+      "texture": 6,
+      "filters": [],
+      "why": "Growing from the foot so the whole past jumps on each note is the most countable idea in this essay: tiers are literally a tally, with zero easing. As written it fails on the canvas: a jumped column lands on fresh pixels, and settles(0.38) swells there 16, 26, 33 over steps, which is the opposite of rigid. The standing bars at T 0.22 show at 17 even in full bone. A rising column with a wider cap needs an eye check for 'too suggestive', though it never swells.",
+      "builder_note": "Blit the bar sprites with 'lighten' in their dim tone at alpha 1: the jump is then complete on its own step and the history holds at any level. Do not use settles here."
+    },
+    {
+      "essay": 1,
+      "id": "rime",
+      "specificity": 7,
+      "musicality": 4,
+      "snap": 8,
+      "feasibility": 5,
+      "texture": 8,
+      "filters": [
+        "canvas_false"
+      ],
+      "why": "Filter: the default cut = 1 paints black to erase, which erases other clips and was explicitly not adopted. The comb itself is good: 120 parallel triangles in one fill cost under 1 ms, and heavy-tailed length is what the real thing looks like. Long spines at T 0.2 to 0.4 show at 17 to 80 at best, so it is really a 0.25 s comb, which suits snap. Its 'best moment', black bodies occluding the chord, is the part that has to go.",
+      "builder_note": "Ship with cut removed, not default 1. The straight row of roots draws the absent edge on its own."
+    },
+    {
+      "essay": 1,
+      "id": "stopdead",
+      "specificity": 8,
+      "musicality": 6,
+      "snap": 8,
+      "feasibility": 6,
+      "texture": 7,
+      "filters": [],
+      "why": "A note's length decided by what is already there is a real structural idea, and a plan of 300,000 segment tests once is cheap. A blunt end versus a hair point at 3 to 10 px root gives two visible kinds of stop. But the body at oxblood T 0.25 to 0.4 shows at 5 to 25 levels, so the essay's own rule, that a line must never stop a needle unless the eye can see it, fails at its stated values.",
+      "builder_note": "Hold live needles with 'lighten' at about (96,16,18), one fill per bucket. Otherwise stops look arbitrary because the blockers are invisible."
+    },
+    {
+      "essay": 1,
+      "id": "cleave",
+      "specificity": 7,
+      "musicality": 7,
+      "snap": 7,
+      "feasibility": 6,
+      "texture": 5,
+      "filters": [],
+      "why": "One direction and a fixed line per note name is learnable, and 'never goes back' is a strong rule. The stone at oxblood T 0.35 measures 17/1/1, so the silhouette that holds the whole record is nearly black on black, and a 1.5 px scar has no contrast against it. The text also conflicts with itself: every sheet is inset by 0.75 px, yet planes are 'never shown until used', which would show 12 scars from the first frame.",
+      "builder_note": "Inset only across planes already struck, and draw the stone with 'lighten' in a colour bright enough to carry a black scar."
+    },
+    {
+      "essay": 1,
+      "id": "glint",
+      "specificity": 8,
+      "musicality": 8,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 5,
+      "filters": [],
+      "why": "An interval seen as an angle between hatchings works better here than in Mica, because 18 by 1.5 px dashes have a 12:1 aspect and their direction reads at a 15 degree step. It costs about 1 ms and the fade does the envelope. The texture is thin: 150 dashes are about 0.3 % of the frame, so it reads as sparse parallel flecks rather than 'fuzz at a distance', and the 6 px dashes taper to near nothing.",
+      "builder_note": "Keep the minimum dash length at about 12 px; a double taper below that is a dot and loses its angle."
+    },
+    {
+      "essay": 2,
+      "id": "nap",
+      "specificity": 9,
+      "musicality": 8,
+      "snap": 7,
+      "feasibility": 7,
+      "texture": 8,
+      "filters": [],
+      "why": "The black is the velvet, and a second touch turns it off: that gives a parity you can read and a picture that changes only on notes. Seven evenodd pattern bands measured 2.2 ms. The stated field at settles(0.32) is the weak part: oxblood fibres go to about 9 and only rose tips reach 65/34/34 at full coverage, so most of the pile vanishes. With the field fixed, this is a real fuzz with a cut edge.",
+      "builder_note": "Fill the field through a tile baked in its dim tones with 'lighten' at alpha 1; settles() will lose the fibres. The silence fade needs tone steps of the tile, because low alpha fails the same way."
+    },
+    {
+      "essay": 2,
+      "id": "twitch",
+      "specificity": 9,
+      "musicality": 6,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 8,
+      "filters": [],
+      "why": "A hard-edged local jolt with no ripple is the surprising observation, and it is cheap: six clips with a fullscreen drawImage measured 1.75 ms. The 14 Hz ring with tau 0.05 s gives about one visible cycle at 60 Hz, which reads as a jolt rather than a tremble. The hide at 'lighter' T 0.22 peaks at 34 for colour 255 and drops to nothing below about 90, so most fibres would not show. The 'seam with no line' is mostly carried by the brightness step of the hot copy.",
+      "builder_note": "Use 'lighten' with the hide baked in dim tones. Bake once outside reset(), since 40,000 hairs cost 74 ms and reset runs on every seek."
+    },
+    {
+      "essay": 2,
+      "id": "furred",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 6,
+      "feasibility": 5,
+      "texture": 7,
+      "filters": [
+        "canvas_false"
+      ],
+      "why": "Filter: the near-black fill at alpha 0.9 is black over-paint that hides other clips, and the essay admits it. Lit at the silhouette and dark inside is the one fact that says fur without showing fibres, and a repeat bristling the same form is very countable. Three stances, six outlines and 512 px sprites are about 18 MB, which is acceptable. The rim at about 0.25 must not go through settles.",
+      "builder_note": "Drop the fill; the rim alone makes the reversal, and the interior stays whatever is under it. Test that first, not 'fill at 0.5'."
+    },
+    {
+      "essay": 2,
+      "id": "hackles",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 6,
+      "feasibility": 6,
+      "texture": 7,
+      "filters": [],
+      "why": "Clumping into shared tips and rotation at fixed length are observed, and they give hard teeth rather than a meter. 1200 live triangles at about 6 ms is the heaviest thing in the essay, for the 0.6 s the hair is falling. That 0.6 s fall is the danger: tips sweeping continuously between notes is a visible motion after the note, kept quiet only by the dim colour. Its 3 px base line at T 0.22 shows at 17 at best.",
+      "builder_note": "Shorten lie to about 0.3 s by default, and hold the base line with 'lighten'."
+    },
+    {
+      "essay": 2,
+      "id": "setae",
+      "specificity": 8,
+      "musicality": 8,
+      "snap": 6,
+      "feasibility": 7,
+      "texture": 4,
+      "filters": [],
+      "why": "Fan width from the melody's curvature is a real musical decision, and a planned row is simple to build at about 660 triangles. On screen, bodies at settles(0.35) with tapered needles lose their outer half within about 0.3 s, and the neighbours' 14 degree wag happens on dim marks that barely show. So 'rigid hairs on an elastic line' reduces to a row of bursts, and the elastic half is hardly seen.",
+      "builder_note": "Body needles need 'lighten' with a real tone, or the wag and the row do not exist."
+    },
+    {
+      "essay": 2,
+      "id": "cushion",
+      "specificity": 5,
+      "musicality": 5,
+      "snap": 6,
+      "feasibility": 4,
+      "texture": 4,
+      "filters": [
+        "too_suggestive"
+      ],
+      "why": "Filter: a soft lobed dome with a dark dent and a bright lip is what the essay itself names as the risk. Dry ticks of value 90 to 170 at T 0.22 measured 3 to 5 levels, so the dry cushion does not exist on screen and the slow wet memory only shows wet. A wet-to-dry crossfade cannot use 'lighten' without tone steps, so the cheap fix is awkward here.",
+      "builder_note": "Bake about 6 tone steps per cushion and step between them with 'lighten'; a low-alpha crossfade will lose the dry state."
+    },
+    {
+      "essay": 2,
+      "id": "lichen",
+      "specificity": 6,
+      "musicality": 6,
+      "snap": 5,
+      "feasibility": 5,
+      "texture": 3,
+      "filters": [],
+      "why": "A pitch as an address on a rim and repeats building a finger are real ideas, with growth safely on the note. The texture is the problem: 1.5 px cracks in 8 to 14 px tiles at T 0.32 sit at low contrast, and a 640x360 mask softens the rim that should look cut. A lobe's flash is at most about 13,000 px, so it is a small event. It is also close to a picture of map lichen and to Klee.",
+      "builder_note": "Run the masks at full resolution, or the hard gutter and rim are lost to upscaling."
+    },
+    {
+      "essay": 3,
+      "id": "mica",
+      "specificity": 8,
+      "musicality": 8,
+      "snap": 10,
+      "feasibility": 9,
+      "texture": 7,
+      "filters": [],
+      "why": "Nothing moves, and it needs nothing from the tail: filled shards at full alpha carry it, and the 'gone by 0.8 s' is really about 0.35 s on screen, which is better for snap. A power law from 10 to 56 px gives a dozen shards that read from across the room. At 192 flecks and up to 12 fills it stays under 5 ms. The weak point is a 3:1 rhombus, too fat to show a 15 degree step on anything but the largest shards.",
+      "builder_note": "Make flecks at least 6:1 so the angle reads; keep the clumps and the biggest-first prefix. An identical redraw still dips only to 158 at 12 notes a second, so repeats count."
+    },
+    {
+      "essay": 3,
+      "id": "beds",
+      "specificity": 9,
+      "musicality": 8,
+      "snap": 5,
+      "feasibility": 6,
+      "texture": 4,
+      "filters": [],
+      "why": "The unconformity, a visible mark for a silence that lands on the note ending it, comes only from this idea. Thickness from the gap ahead is a clean use of CHORDS. Grain inside dark earth tones at settles(0.45) mostly dies, and a 2 px shale line is not visible there, so the 'grain' is largely unseen and it reads as stripes. The attack in a fast run is a thin line, so the snap is modest, and earth tones lean toward a picture of rock.",
+      "builder_note": "Blit the kept offscreen with 'lighten' and bake grain in bright enough tones; hold the rebuild to the one tilt step, drawing whole-pixel strips for non-tilted beds."
+    },
+    {
+      "essay": 3,
+      "id": "knap",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 7,
+      "feasibility": 6,
+      "texture": 5,
+      "filters": [],
+      "why": "Subtraction as the only verb is a good decision, but both its stated supports are off. The mass (40,34,44) at T 0.3 measures about 2 levels, so the silhouette that holds the record is invisible. The 'needle cusp' at spacing 1.2R is a 106 degree tooth by geometry; a 52 degree point needs spacing 1.8R and a depth over 0.56R, more than the stated depths give.",
+      "builder_note": "Set tooth default about 1.8 with bite depth at least 0.6R, and draw the mass with 'lighten' at about (70,58,76). Otherwise repeats make blunt scallops, not sharpness."
+    },
+    {
+      "essay": 3,
+      "id": "cleave",
+      "specificity": 8,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 6,
+      "filters": [],
+      "why": "This essay alone reasons from the canvas: a flat shape moved along its own edge changes pixels only at its ends, and a bone line not redrawn decays in place into a black gap, so flash and crack are one mark. The first claim is true, the second true only if the body is visible: settles(0.3) in slate shows at about 9. Then new end pixels swell over 15 steps, which softens the very stop it wants.",
+      "builder_note": "Draw all leaves in one path with 'lighten' at alpha 1 in a colour around 70: the slide lands whole on its step, and the 1 px gap reads. A 9 degree line cannot land on one pixel, so make the gap 1.5 px."
+    },
+    {
+      "essay": 3,
+      "id": "causeway",
+      "specificity": 7,
+      "musicality": 8,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 4,
+      "filters": [],
+      "why": "The refusal to affect a neighbour, and the fifths map making a key into a dug region, are real and need no animation. Only two things carry 'rigid': a stop and depth. A floor at T 0.3 and a wall of (28,24,30) are dim or invisible, so depth, the record, depends on a repair. A 6 to 22 px drop in a 96 px cell may read as a tile flashing rather than a column driven down.",
+      "builder_note": "Hold floors and rims with 'lighten', and make the wall tone at least 60 or there is no wall to count."
+    },
+    {
+      "essay": 3,
+      "id": "tjoints",
+      "specificity": 6,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 4,
+      "filters": [],
+      "why": "A flash that is an area, and a repeat that narrows as a ladder, are strong and very cheap at about 10 draws. Settled lines going to 'ash at T 0.25' measure about 2 to 10 levels, so the record of collisions, the point of the idea, disappears within 0.25 s unless repaired. With `square` at 0.7 by default it sits close to Mondrian and Boogie, and plain strokes are rigid but not much else.",
+      "builder_note": "Keep settled lines with 'lighten' in about (80,76,72) and lower the default of `square`, or this becomes a grid."
+    },
+    {
+      "essay": 3,
+      "id": "underbark",
+      "specificity": 6,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 6,
+      "texture": 3,
+      "filters": [
+        "too_physical"
+      ],
+      "why": "Filter: jigsaw plates with black furrows and orange beneath are a drawing of pine bark, as the essay half admits. The ground of ash (66,64,66) at T 0.22 measured 2/2/2, so the plates and furrows that give the texture are not on screen. Nested terraces per repeat and a 3 % orange flash do land on the step.",
+      "builder_note": "If kept, remove the ground and keep only the orange islands; that also removes the literal picture."
+    },
+    {
+      "essay": 3,
+      "id": "peel",
+      "specificity": 5,
+      "musicality": 5,
+      "snap": 6,
+      "feasibility": 7,
+      "texture": 3,
+      "filters": [],
+      "why": "The level tear with a swash at one end is a pleasant shape and costs about 36 draws. A 14 px scroll at the end of a 700 px strip is too small to carry the word elastic, and the strip's bright ghost along its own line hides the roll for 0.2 s. So what reaches the screen is mostly a cream dash that shortens.",
+      "builder_note": "Scale the scroll radius with strip length (about 4 %), or the elastic part is invisible."
+    },
+    {
+      "essay": 4,
+      "id": "neck",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 5,
+      "feasibility": 7,
+      "texture": 5,
+      "filters": [
+        "fake_attack",
+        "too_suggestive"
+      ],
+      "why": "Filters: a bud growing and a bridge thinning between notes on a deadline is wind-up, declined last night, and two round masses with a shaft is the essay's own listed risk. The physics is honest: at the last step the bridge is 10 % of w0, about 1.9 px, and it does go to zero on the attack. It is caught either way: at oxblood T 0.4 the bridge shows at 25 and nobody sees the tension; made visible, it is a staged lead-up.",
+      "builder_note": "Keep the cones and ring on the attack and try `reach` at zero first; the idea has to survive with no bridge at all."
+    },
+    {
+      "essay": 4,
+      "id": "beading",
+      "specificity": 6,
+      "musicality": 6,
+      "snap": 6,
+      "feasibility": 6,
+      "texture": 4,
+      "filters": [],
+      "why": "'Loud means fewer' is a good inversion, but it misses a canvas fact. Through alpha, measured bead pixels and gap pixels read 140 and 117 at 0.1 s and 76 and 41 at 0.2 s, so beads separate at 0.2 s rather than 0.1 s and only as the gaps die. Beads of radius 0.95h bulge outside a bar of half-thickness 0.5h, and those fresh pixels start at about 16 levels, so they look like cut dashes, not round beads. The whole necking outline is under the ghost.",
+      "builder_note": "Skip the necking morph; draw round beads directly at E(t), as the other Beading says, on the step they appear."
+    },
+    {
+      "essay": 4,
+      "id": "tack",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 8,
+      "filters": [],
+      "why": "Regular spacing with random failure is exactly right, and the canvas helps: each fibre's ghost lasts 0.25 s, so a comb that snaps by 0.14 s still reads as a pelt in the gap until about 0.3 s. That makes it the rare fuzz that comes from tension, with sharp polygons only. Six points per fibre at 650 fibres is a few ms for 0.35 s. The 0.7 px waist will vanish on the strike, which is acceptable.",
+      "builder_note": "Set the waist to at least 1 px, and draw moved fibres at E(t) directly, not through alpha, because the slab is opening on fresh pixels."
+    },
+    {
+      "essay": 4,
+      "id": "film",
+      "specificity": 7,
+      "musicality": 4,
+      "snap": 7,
+      "feasibility": 6,
+      "texture": 7,
+      "filters": [],
+      "why": "The same-radius rule gives scooped edges and needle corners from one law at 3 fills. A corner jumping to new pixels is the issue: a sail body redrawn at low alpha swells in on them over 15 steps, so the note's own corner region would arrive late, except for the bone wedge. Pitch only sets x, with y chosen for area, so contour is not readable. A deep ink blue has a single live channel at about 25 levels when held.",
+      "builder_note": "Draw the body with 'lighten' at alpha 1 so the jump is whole, and give y to pitch in part."
+    },
+    {
+      "essay": 4,
+      "id": "pancake",
+      "specificity": 4,
+      "musicality": 4,
+      "snap": 6,
+      "feasibility": 6,
+      "texture": 3,
+      "filters": [
+        "duplicate"
+      ],
+      "why": "Filter: a bright rim contracting from a point leaves its own ghost ring behind it for 0.25 s, so on screen it is the dropped ripples running inward. The cap at R 320 gives a 6.6 % rim, over P12, not 'at or below 6 %'. Contact time independent of velocity is a nice law, but no viewer will see it.",
+      "builder_note": "Drop the bone rim for a coloured one, or drop this idea."
+    },
+    {
+      "essay": 4,
+      "id": "snapback",
+      "specificity": 6,
+      "musicality": 5,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 5,
+      "filters": [],
+      "why": "Straight to scribble in 150 ms is a clear event, and 1100 segments is about 3 ms. The formula gives something else than 'smooth sines': a 48 px length with 10 half-waves and 20 px amplitude has 2.8 samples per half-wave at 28 points, which is a jagged zigzag, close to the bolt the essay promises to avoid. Settled squiggles at 'at least 0.25' show at about 30.",
+      "builder_note": "Use about 96 points or limit n to 6, and give settled squiggles a 'lighten' tone."
+    },
+    {
+      "essay": 4,
+      "id": "flinch",
+      "specificity": 7,
+      "musicality": 5,
+      "snap": 6,
+      "feasibility": 4,
+      "texture": 6,
+      "filters": [
+        "canvas_false"
+      ],
+      "why": "Filter: 'seeks replay from CHORDS through the host, like Honey' is false, since a seek calls reset(t) and only later chords fire. A repaint 'every 8 frames' depends on frame count, and grains from x.rnd differ after a reseed, so this breaks P8 three ways. The essay correctly refuses black over-paint and lets the hole fall at canvas speed. The picture of a lane through a pelt is worth keeping.",
+      "builder_note": "Rebuild the layer per frame: one base drawImage plus destination-out holes from CHORDS, with alpha by age, on a local seeded generator. It is stateless and cheap at under 40 holes."
+    },
+    {
+      "essay": 4,
+      "id": "dimple",
+      "specificity": 8,
+      "musicality": 5,
+      "snap": 7,
+      "feasibility": 5,
+      "texture": 5,
+      "filters": [],
+      "why": "A surface visible only where it bends and a width that ignores velocity are specific and strange. Mid-lines move up to 50 px in the first step with 16 px spacing, so the bone ghosts of nested lines overlap and can beat, which is the dropped moire; the essay only says to check it. 2000 segments is affordable at 4 strokes, but thin alpha-by-slope marks are the weakest strokes on this canvas.",
+      "builder_note": "Render this first on the 60 Hz video before anything else; if ghost lines beat, increase spacing to about 24 px and use 2 px strokes."
+    },
+    {
+      "essay": 5,
+      "id": "quill",
+      "specificity": 10,
+      "musicality": 8,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 8,
+      "filters": [],
+      "why": "Register as leverage could only come from a real quill: bass throws the picture, treble flicks the tip. The drawing is the most canvas-literate in the set: an offscreen rebuilt only on an attack, blitted with 'lighten', so it holds exactly, jumps whole and costs about 2 ms. Nothing moves between notes, and old kinks wear out only on notes (0.8^15 = 0.035). One correction: 22 degrees at a low note moves the end up to 637 px, not 300.",
+      "builder_note": "Cap the end's travel at about 300 px per note in the plan. Compute barbs per straight length, and do not resample the sprite."
+    },
+    {
+      "essay": 5,
+      "id": "unzip",
+      "specificity": 6,
+      "musicality": 5,
+      "snap": 6,
+      "feasibility": 7,
+      "texture": 7,
+      "filters": [
+        "too_suggestive"
+      ],
+      "why": "Filter: a V-shaped opening in an oxblood hair band with crowded flanks, closing again, is the 'parting' that the fur essay threw out as too suggestive; slate or bone should be the default colour. Technically it is right: 'lighten', a clip, and 480 moved segments at about 2 ms, and it correctly refuses black over-paint. Crowded flanks are a real texture change rather than a brightness effect.",
+      "builder_note": "Default to slate, and test the V at both tilts before anything else. Keep the white and black key rule only if it reads."
+    },
+    {
+      "essay": 5,
+      "id": "snapweed",
+      "specificity": 7,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 8,
+      "texture": 6,
+      "filters": [],
+      "why": "Conserved length gives low notes big loose scrolls and high ones tight ones without any styling, and there are no wait states. By step 3 it is mostly coil, while the straight strip's bone ghost stays visible for 0.25 s, so needle and coil stand together, which helps. Oxblood at 35 % reads 17, so the spent coil lasts about 0.3 s, not 1.1 s.",
+      "builder_note": "Hold spent coils with 'lighten' in a real tone or `stay` does nothing; draw a moving strip at E(t) directly."
+    },
+    {
+      "essay": 5,
+      "id": "awn",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 4,
+      "filters": [],
+      "why": "A ratchet of exact teeth and a chevron ladder are countable, and the periodic sprite makes it bit-exact on seek. But its 'best moment' depends on ghosts: dim hatch at about level 50 decays 41 33 26 19 13 8 4, so an interleave is gone in about 5 steps and a column at 8 notes a second clears between notes. Hatch-into-fur needs 12 or more notes a second in one column, which is rare at 5 columns.",
+      "builder_note": "Do not build around the fur effect. Judge it on chevrons, and bake the sprite in a brighter tone than 'T about 0.2' to give ghosts more life."
+    },
+    {
+      "essay": 5,
+      "id": "suture",
+      "specificity": 6,
+      "musicality": 5,
+      "snap": 6,
+      "feasibility": 5,
+      "texture": 6,
+      "filters": [],
+      "why": "Two opposite textures in one instant is a good aim, and it uses 'lighten'. The loft is mostly lost, as it happens by 0.25 s under a bright ghost of the bar. 6 stages, 3 lengths and 3 densities at 512x160 is 17.7 MB, and about 60 draws, for an effect visible around 0.2 s. A slit with white fibres needs the essay's care with the parallel sides.",
+      "builder_note": "Cut the atlas to 3 loft stages; the extra ones fall under the ghost anyway."
+    },
+    {
+      "essay": 5,
+      "id": "sheen",
+      "specificity": 6,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 6,
+      "filters": [],
+      "why": "Thread to sheet by velocity is a true texture axis, and stepping a colour series on opaque sprites avoids all the alpha trouble: it is physically correct. 90 small sprites are 4.3 MB and at most 40 blits. At 30 degrees a measured row is a clean 5 px cycle from 0 to 195, but other angles give a slow beat with the pixel grid and 2.5 px hairs suffer under video compression. Mint to violet also leaves the collection's palette.",
+      "builder_note": "Choose the six angles for whole-pixel horizontal spacing, then look at the 60 Hz video before anything else; the hairs must not be resampled at S above 1."
+    },
+    {
+      "essay": 5,
+      "id": "clock",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 6,
+      "feasibility": 6,
+      "texture": 5,
+      "filters": [
+        "too_physical"
+      ],
+      "why": "Filter: a dome of spokes with star tips is a dandelion, as the essay says, even cropped. Spending a finite stock is a lovely structure, but the number breaks at scale: 480 hairs over 140 notes is 3.4 hairs per wedge, about 11 px of arc, so most wedges are barely visible. It works only for small sets of picks.",
+      "builder_note": "Tie hair count to note count (at least 12 per wedge) and start with `near` at 0.7."
+    },
+    {
+      "essay": 6,
+      "id": "pluck",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 8,
+      "filters": [],
+      "why": "The rejected sine is a real look at the thing, and the canvas does the rest: a 3 to 1.5 px bone line moved per step stacks a fan of straight hairlines from the ghosts it leaves for 0.25 s, for free. A period of 6 to 12 frames samples the trapezoid well. Motion is at 6 % by 0.25 s, so elastic stays inside trap 2, at about 120 segments. The 'still line' at red T 0.4 or less is not seen, which only means the note ends sooner.",
+      "builder_note": "Draw the moving strand at E(t) directly and never through alpha, since the fan is the texture. Give the resting line a 'lighten' tone or drop the `ring` knob."
+    },
+    {
+      "essay": 6,
+      "id": "tensile",
+      "specificity": 10,
+      "musicality": 6,
+      "snap": 7,
+      "feasibility": 5,
+      "texture": 6,
+      "filters": [],
+      "why": "Load as brightness and the true sag law are the most specific physics in the set, with whole-body response in one step and about 45 segments. The formula is wrong as written: on a test net of 26 junctions u_i = (G[i][a] - G[i][b])·e·D with D 50 gave a median of 1566 px, because the struck thread's stiffness 1/len is missing; with it the median is 14 px. The composition then depends on the seeded net, which needs choosing by eye.",
+      "builder_note": "Multiply by 1/length of the struck thread, then pick a seed by eye and freeze it; do not expect any random net to look good."
+    },
+    {
+      "essay": 6,
+      "id": "glint",
+      "specificity": 7,
+      "musicality": 5,
+      "snap": 8,
+      "feasibility": 5,
+      "texture": 6,
+      "filters": [],
+      "why": "The bow-tie is a true optical fact, and glitter through other dashes during the swing is a lovely detail. It is the most costly stroke here: 2400 long dashes in one stroke measured 14.75 ms, so 'up to 1500 segments' is about 9 ms beside other widgets. Over a wide range a semitone is about 3 degrees against hw of 3 to 14, so neighbours light nearly the same dashes. A point-centred pattern is also near the ban on rings.",
+      "builder_note": "Split a frame into several short strokes, thin to 1200 dashes, and take the angle over the picked range only."
+    },
+    {
+      "essay": 6,
+      "id": "beading",
+      "specificity": 8,
+      "musicality": 8,
+      "snap": 7,
+      "feasibility": 7,
+      "texture": 5,
+      "filters": [],
+      "why": "This one knows the canvas: it cannot erase the bar, so it draws beads directly at E(t), brighter than the ghost, and calls the dying bar a thread that the beads hang on. That matches the measured ghost, 117 at 0.1 s. Register sets spacing, so a chord is a readable ratio of grains. Six 76 px discs per low note plus crescents stay under about 150 sprites. It reads as 'dots' more than 'elastic', since the ring is 25 % for 0.2 s.",
+      "builder_note": "On step 3 use direct E(t) for discs, then switch to 'lighten' for the hold; drop crescents below 16 px."
+    },
+    {
+      "essay": 6,
+      "id": "urchin",
+      "specificity": 7,
+      "musicality": 7,
+      "snap": 8,
+      "feasibility": 8,
+      "texture": 7,
+      "filters": [],
+      "why": "Points turning on you around an empty spot is a picture of threat that needs no drawing of anything, at 240 triangles in 6 fills, about 2 ms. Chord borders between fists are hard lines from pure geometry. The rest nap in dark red at 0.24 measures about 5 levels, so at default the ground that makes the turn visible is invisible.",
+      "builder_note": "Draw the rest nap as 'lighten' triangles around (70,14,16). Without a visible ground the turn looks like needles spawning, which is the recipe it is trying to avoid."
+    },
+    {
+      "essay": 6,
+      "id": "bristle",
+      "specificity": 7,
+      "musicality": 5,
+      "snap": 8,
+      "feasibility": 7,
+      "texture": 7,
+      "filters": [],
+      "why": "The event is purely a change of texture with no motion, and 5 sheets at 18.4 MB cost little per frame. Its claim that a colour of 50/255 stays above the limit at settles(0.25) is false: red-brown (90,40,30) measured 4/2/1, so the combed ground is black at the stated values. The strike and crossed hairs land at full, with a bone budget that matters since 22 % coverage is real.",
+      "builder_note": "Hold sheet A with 'lighten' in baked tones. Without it the contrast combed against crossed, the whole idea, never appears."
+    },
+    {
+      "essay": 6,
+      "id": "areole",
+      "specificity": 6,
+      "musicality": 9,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 6,
+      "filters": [],
+      "why": "A fingerprint per pitch class on a 12 by 7 lattice is an actual notation: octaves stack and the eye learns C. It is 600 triangles at most, about 2 ms, with no motion to go wrong. The cut of radials at 0.35 s falls after they have already faded on screen, so it adds nothing. It risks looking like decoration or asterisks, which is why specificity is not higher.",
+      "builder_note": "Move the radial cut to about 0.15 s or remove it, and keep the central spine alive with 'lighten'."
+    },
+    {
+      "essay": 6,
+      "id": "prickle",
+      "specificity": 7,
+      "musicality": 7,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 9,
+      "filters": [],
+      "why": "Its numbers are exactly right: for 900 px the quadratic measures 92.0 px at 61 %, 15.8 at 87 % and 1.6 over the last 30 px, so a flat mass the size of the screen really ends in a hairline with no help. Sharpness here is geometry at full area, so it survives anything the fade does, at 1 to 8 fills. It keeps handover's liked rhythm. The 40 % body measures 25 levels on oxblood, the same dimness that sank blade.",
+      "builder_note": "Hold the body with 'lighten' around (92,14,16), not 40 % of oxblood. Use the same quadratic for the hook so the tip stays a hairline."
+    },
+    {
+      "essay": 7,
+      "id": "crimp",
+      "specificity": 10,
+      "musicality": 8,
+      "snap": 9,
+      "feasibility": 6,
+      "texture": 9,
+      "filters": [],
+      "why": "The note is the texture change: razor on the step, wool as it slackens, and a repeat yanks it straight in place. The bone straight lines fade to 85 by 0.12 s and 33 by 0.2 s, so the wave becomes visible from about 0.15 s, in just the right order. But 1.25 px EMBER sprites through alpha correction measure 25 at T 0.4 and 5 at T 0.25, contradicting the essay's own 'hairlines are drawn opaque' rule, and the wool would vanish. Amplitude must not grow much past 5 px, since lines are only 3 px apart and would merge.",
+      "builder_note": "Bake the wool in brick around (200,60,40) and step tone sprites with 'lighten'; budget 6 amplitudes by 3 seeds by 3 tones at about 18 MB."
+    },
+    {
+      "essay": 7,
+      "id": "interlock",
+      "specificity": 7,
+      "musicality": 8,
+      "snap": 9,
+      "feasibility": 9,
+      "texture": 8,
+      "filters": [],
+      "why": "Two rows that pass rather than meet make the black zigzag the actual picture, and a ratchet repeat that widens a wedge is mechanical and countable. It is at most 60 triangles a path with nothing to fail on the strike. EMBER body at 0.4 shows at 25, so the mesh is on screen for only 0.25 s and the slow withdrawal is mostly unseen, which removes its risk but also the memory of a seam.",
+      "builder_note": "Hold needles with 'lighten' at about (90,16,18) so the mesh stays, then watch whether the slow pull-out reads as an event without a note."
+    },
+    {
+      "essay": 7,
+      "id": "striation",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 7,
+      "feasibility": 8,
+      "texture": 7,
+      "filters": [],
+      "why": "Brightness from density, with the same bars at rest and on strike, is the cleanest answer to 'not particles', and neighbours paying with wider gaps makes it one tissue. 97 rects in 3 paths is trivial. A comb at 25 % EMBER is about 5 levels, so rest bars cannot be seen and the paying gaps with them. The release at 0.7 s moves through several notes, and the essay rightly keeps it brightness-monotone.",
+      "builder_note": "Rest comb through 'lighten' at about (70,14,16). Moving bars must draw at E(t) directly, and BONE stays on 21 bars at 4.9 %, as stated."
+    },
+    {
+      "essay": 7,
+      "id": "buckle",
+      "specificity": 8,
+      "musicality": 9,
+      "snap": 9,
+      "feasibility": 7,
+      "texture": 6,
+      "filters": [],
+      "why": "No midpoint in the code, and a state that is parity from CHORDS, is the most rigid thing in the set: click, clack. Stateless and trivial. Rest at 30 % EMBER measures about 9, so the permanent chevrons, which are the memory, are not there at stated values. A loud full-width bone stretch of 1280 by 40 px is 5.6 %, so two notes together exceed P12 without the essay's fallback.",
+      "builder_note": "Rest bands in 'lighten' with a real tone, and apply the 6 % bone rule per step across all bands."
+    },
+    {
+      "essay": 7,
+      "id": "latch",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 5,
+      "feasibility": 8,
+      "texture": 3,
+      "filters": [
+        "fake_attack"
+      ],
+      "why": "Filter: the lean-back before each note is a visible motion with no note, declined last night, and the essay calls it an exception. The gap setting the throw is a musical idea that survives with `load` at 0, but what is left is a wedge flash of up to 12.8 % of the frame, close to gust and blade. A needle at 25 % dark red is 5 levels, so the wind-up is unseen anyway.",
+      "builder_note": "Build with load = 0 and no lean; if it is then only a flashing wedge, drop it."
+    },
+    {
+      "essay": 7,
+      "id": "sinew",
+      "specificity": 6,
+      "musicality": 4,
+      "snap": 7,
+      "feasibility": 7,
+      "texture": 4,
+      "filters": [],
+      "why": "Width from perimeter is a fine rule, and it costs almost nothing. Its hum at f = 7000/length is 35 Hz at 200 px and 70 Hz at 100 px, above the 30 Hz a 60 Hz canvas can show, so short segments alias into noise. Ordering pegs by angle makes the outline jump unpredictably, so a note's own place is hard to find inside it. It overlaps with Film, which has the better edge.",
+      "builder_note": "Clamp f to 20 Hz, and draw the band with full-colour stroke, never via alpha."
+    },
+    {
+      "essay": 7,
+      "id": "louvre",
+      "specificity": 7,
+      "musicality": 6,
+      "snap": 8,
+      "feasibility": 8,
+      "texture": 7,
+      "filters": [],
+      "why": "A slab that dies by turning edge-on arrives at hairlines without being a dim slab, and using opaque, darkening colours is the only reasoning in this essay that truly matches the fade. Under 6 fills. The full sheet is 6.8 % of the frame in BONE at loud, above P12, so its size must be limited. The bone ghost of the sheet lasts 0.25 s, so the comb shows through from about 0.1 s, as intended.",
+      "builder_note": "Use 'lighten' rather than opaque for darkening colours so no other clip is erased, and cap BONE sheets at 5.5 % of the frame."
+    },
+    {
+      "essay": 7,
+      "id": "hop",
+      "specificity": 3,
+      "musicality": 5,
+      "snap": 3,
+      "feasibility": 8,
+      "texture": 1,
+      "filters": [
+        "fake_attack"
+      ],
+      "why": "Filter: a body visibly falling into the next note is a moving event without a note, the anticipation Latch avoids, as the essay says. Height from gap is a tidy law but there is no texture at all: swap 'elastic on rigid' for anything and it is unchanged. It is a karaoke ball, and the author offers it for the first cut.",
+      "builder_note": "Do not build."
+    },
+    {
+      "essay": 8,
+      "id": "mica",
+      "specificity": 8,
+      "musicality": 6,
+      "snap": 8,
+      "feasibility": 6,
+      "texture": 4,
+      "filters": [],
+      "why": "Selecting a contour from a fixed tilt field gives each note a place on a learnable map, and a repeat is that note's own constellation. Up to 2500 short segments is 3.6 ms, as measured. Texture is thin: 2 by 1.2 px specks are glitter rather than a named surface. Narrowing w along with a dim body cannot be seen: sub-2 px needles at T 0.35 are gone within 0.25 s, so it is really just the first 0.25 s.",
+      "builder_note": "Drop the narrowing and let the fade end it. Raise treble needles to at least 3 px long, or the ribbon reads as noise."
+    },
+    {
+      "essay": 8,
+      "id": "handlens",
+      "specificity": 5,
+      "musicality": 4,
+      "snap": 5,
+      "feasibility": 5,
+      "texture": 2,
+      "filters": [],
+      "why": "'Fuzz is hard grains from further off' is a real thought, but the screen does not deliver it. Grains shrinking toward a centre leave ghosts on a converging path for 0.25 s, so it reads as a zoom smear or suction, and the final tuft of dark tints at T 0.4 shows at 25 or less, so it never hangs until 1.2 s. It takes 420 sprites a frame for a six-note chord.",
+      "builder_note": "Test only the tuft in bright tones with 'lighten' first; if a tuft does not read as fuzz, nothing else here will."
+    },
+    {
+      "essay": 8,
+      "id": "repose",
+      "specificity": 7,
+      "musicality": 7,
+      "snap": 6,
+      "feasibility": 5,
+      "texture": 5,
+      "filters": [],
+      "why": "A slope that never changes and a soft note that can bring down a lot are true, and resolving the sandpile fully in the plan solves seek. Band polygons that run until they meet a neighbour, plus drop geometry, are the fiddliest here, and a 1 px stipple tile at body 40 % or less will mostly go. The sawtooth silhouette leans toward mountains.",
+      "builder_note": "Compute polygons in the plan, not per frame, and use 'lighten' with the stipple baked in tone."
+    },
+    {
+      "essay": 8,
+      "id": "cut",
+      "specificity": 9,
+      "musicality": 7,
+      "snap": 7,
+      "feasibility": 8,
+      "texture": 6,
+      "filters": [],
+      "why": "A clock counted in attacks removes the fake attack from a crumble, which is exactly the Ivory complaint, and it is stateless at about 16 sprites. A slab's edge tells how many notes ago it was. Removed grains fade at canvas speed, so a crumble is a quick, quiet loss on the step. Flat dark body at 40 % measures 25 on oxblood, so the sprites must carry their tone themselves.",
+      "builder_note": "Bake stages in real dim tones and blit with 'lighten' at alpha 1; grain edges stay exact and there is nothing else to tune."
+    },
+    {
+      "essay": 8,
+      "id": "forks",
+      "specificity": 8,
+      "musicality": 5,
+      "snap": 5,
+      "feasibility": 3,
+      "texture": 3,
+      "filters": [
+        "canvas_false"
+      ],
+      "why": "Filter: 'the far ones by less' is false. An atan2 phase has no decay, so each note moves lines by up to half a wavelength (11 px) at every distance, rewriting the whole frame, and two line sets 22 px apart under a 0.25 s ghost are the dropped moire. A count of tines is a beautiful idea and only readable inside a 70 to 180 px patch for about 0.1 s. The 2x upscale softens the crest that should cut.",
+      "builder_note": "Pair each charge with an opposite one off-frame so the far field cancels, and check for beating first; otherwise drop."
+    },
+    {
+      "essay": 8,
+      "id": "load",
+      "specificity": 5,
+      "musicality": 6,
+      "snap": 9,
+      "feasibility": 8,
+      "texture": 6,
+      "filters": [
+        "duplicate"
+      ],
+      "why": "Filter: a bright branching path from the top edge at a 25 % split is the dropped chord lightning on a lattice, whatever the width; set branch to 0 and it passes. Thick struts of 3 to 27 px at full alpha are among the most solid marks here, and they survive the fade easily at about 480 segments. Two hands pressing toward each other is a fine musical touch.",
+      "builder_note": "Default branch to 0.05 at most, and hold the idle grains with 'lighten' if they stay at all."
+    },
+    {
+      "essay": 8,
+      "id": "stillness",
+      "specificity": 4,
+      "musicality": 3,
+      "snap": 5,
+      "feasibility": 6,
+      "texture": 3,
+      "filters": [
+        "duplicate"
+      ],
+      "why": "Filter: mathematical figures of dots sit next to dropped whitney, as the essay admits. Its cost fear is overstated: 5600 2x2 rects measured 3.8 ms. But loosening happens while it dies: bone body reads 61 at 0.2 s and 27 at 0.3 s, when spread is only about 13 to 18 px, so the 'fuzz' is barely on screen. A whole new figure per note is busy past about 4 notes a second.",
+      "builder_note": "If tried, shorten loosen to 0.15 s so the spread happens while it is still bright."
+    },
+    {
+      "essay": 8,
+      "id": "catkin",
+      "specificity": 8,
+      "musicality": 8,
+      "snap": 7,
+      "feasibility": 6,
+      "texture": 6,
+      "filters": [],
+      "why": "The cloud marks where the tip was, so velocity becomes a distance between two textures, and an upward run gives a staircase of clouds. It is the only 'sharp leaving fuzz' idea where the fuzz is at a distance from the sharp thing, so neither hides the other. Sprites at 6 px a second would resample at 0.1 px a frame and blur, and idle tines 1.5 px at 35 % will not show as stated.",
+      "builder_note": "Move clouds in whole pixels, or drop the sink entirely. Draw idle tines with 'lighten'."
+    }
+  ],
+  "clusters": [
+    {
+      "ids": [
+        "3:mica",
+        "1:glint",
+        "8:mica"
+      ],
+      "better": "3:mica",
+      "why": "Same claim: a fixed scatter lights by an angle. 3:mica has shards that survive the fade and a dozen pieces seen across a room; 1:glint has the better aspect (12:1) for reading the angle, so take that aspect into 3:mica. 8:mica has the most original map but its 2 px specks are glitter, not a surface. 1:glint's position subsets count better above 12 notes a second; 3:mica's identical redraw still dips to 158 at that rate, which is enough."
+    },
+    {
+      "ids": [
+        "6:glint",
+        "1:glint"
+      ],
+      "better": "1:glint",
+      "why": "Same name, different idea: a lit fan around one point against a parallel hatch. 6:glint is the more original optical fact but measured 9 ms on busy frames and sits close to the ring ban; 1:glint costs about 1 ms."
+    },
+    {
+      "ids": [
+        "3:cleave",
+        "1:cleave"
+      ],
+      "better": "3:cleave",
+      "why": "Both are sliding sheets on one dip. 3:cleave creates a cut only when struck, so its scars have a clear meaning, and it reasons from what the fade does at the ends of a sliding shape. 1:cleave has the simpler stateless math and the learnable fixed line per note name, but its inset rule shows 12 scars from the start."
+    },
+    {
+      "ids": [
+        "6:beading",
+        "4:beading"
+      ],
+      "better": "6:beading",
+      "why": "Same law and same bar-to-beads event. 6:beading knows the canvas cannot erase the bar and draws beads directly at E(t). 4:beading goes through alpha and spends its detail on a necking outline hidden by the ghost: measured bead and gap pixels are 140 and 117 at 0.1 s. 4:beading's 'loud means fewer' is a good mapping to borrow."
+    },
+    {
+      "ids": [
+        "1:stopdead",
+        "3:tjoints"
+      ],
+      "better": "1:stopdead",
+      "why": "Both are lines that stop dead on older lines and appear whole. 1:stopdead's tapered wedges with two kinds of end have an actual texture, while 3:tjoints has plain strokes, though its cell flash and narrowing repeat count better. Borrow the flash if a second pass is made."
+    },
+    {
+      "ids": [
+        "4:tack",
+        "5:suture"
+      ],
+      "better": "4:tack",
+      "why": "Both split a slab and put fibres in the gap. 4:tack's fibres are the tension itself, drawn cheaply as polygons, with ghosts extending the pelt for free. 5:suture needs a 17.7 MB atlas for a loft that falls under its own ghost."
+    },
+    {
+      "ids": [
+        "5:snapweed",
+        "3:peel",
+        "4:snapback"
+      ],
+      "better": "5:snapweed",
+      "why": "All three go from a straight line to a curl in about 0.2 s. 5:snapweed's conserved arc length makes register decide the drawing and its coil is large enough to see. 3:peel's scroll is 14 px at the end of 700 px, and 4:snapback at 10 half-waves becomes a jagged zigzag."
+    },
+    {
+      "ids": [
+        "2:twitch",
+        "6:bristle"
+      ],
+      "better": "2:twitch",
+      "why": "Both reveal a baked hair sheet through an irregular clipped patch. 6:bristle is the purer texture swap, but 2:twitch adds the elastic body and a hard boundary with no ripple, which is rarer in this set. Both need the 'lighten' ground. Both are costed the same: 6 clips with a fullscreen drawImage is 1.75 ms."
+    },
+    {
+      "ids": [
+        "1:sublimate",
+        "8:cut"
+      ],
+      "better": "8:cut",
+      "why": "Both write age into the edge. 8:cut counts in attacks and bakes in sprites, so it survives all canvas limits and cannot be a fake attack; 1:sublimate is more dramatic in its first 0.15 s but its slow rounding dies with the body at about 0.6 s."
+    },
+    {
+      "ids": [
+        "4:film",
+        "7:sinew"
+      ],
+      "better": "4:film",
+      "why": "Both show one shape made from the last few notes. 4:film's same-radius scoop gives needles and a texture; 7:sinew's width-from-perimeter is smart but its hum aliases above 233 px and its outline is hard to follow."
+    },
+    {
+      "ids": [
+        "6:tensile",
+        "8:load"
+      ],
+      "better": "6:tensile",
+      "why": "Both light a path of force through a fixed structure. 6:tensile has straight against slack as a true texture contrast, and needs only a formula fix. 8:load is simpler and heavier but reads as the dropped lightning unless branching is off."
+    },
+    {
+      "ids": [
+        "6:urchin",
+        "2:hackles",
+        "6:bristle"
+      ],
+      "better": "6:urchin",
+      "why": "Hair or spines that respond by rotating. 6:urchin is cheapest and has a real image, the empty spot. 2:hackles costs 6 ms and moves for 0.6 s after the note. 6:bristle has no motion, which is a different virtue."
+    },
+    {
+      "ids": [
+        "4:neck",
+        "7:latch",
+        "7:hop"
+      ],
+      "better": "7:latch",
+      "why": "All three use CHORDS to show what is coming, and all break no-fake-attacks as written. 7:latch has the only form that survives removing the lead-up, with `load` at 0. 4:neck is the most beautiful law but needs its bridge."
+    },
+    {
+      "ids": [
+        "1:needleice",
+        "8:repose",
+        "3:beds"
+      ],
+      "better": "1:needleice",
+      "why": "Stacks that count notes. 1:needleice has the strongest single decision, growing from the foot so the past moves. 3:beds has the best extra idea, the silence mark. 8:repose has the fiddliest geometry."
+    },
+    {
+      "ids": [
+        "2:nap",
+        "3:knap",
+        "4:flinch",
+        "5:clock"
+      ],
+      "better": "2:nap",
+      "why": "A note takes away from a surface. 2:nap has a clean parity, no state to break on seek, and real fuzz. 3:knap's stated cusp is 106 degrees. 4:flinch relies on a replay that does not exist. 5:clock is a picture of a dandelion."
+    },
+    {
+      "ids": [
+        "6:prickle",
+        "7:interlock"
+      ],
+      "better": "6:prickle",
+      "why": "Both are huge needles from the frame edge, cheap and whole on the step. 6:prickle's concave profile gives more texture from one curve; 7:interlock's zigzag and ratchet are the better music, and a chord there reads more clearly."
+    }
+  ],
+  "top12": [
+    "5:quill",
+    "6:pluck",
+    "7:crimp",
+    "6:prickle",
+    "3:mica",
+    "7:interlock",
+    "4:tack",
+    "2:nap",
+    "7:striation",
+    "2:twitch",
+    "8:cut",
+    "7:louvre"
+  ],
+  "overall": "The set is right about the hard part: almost every idea peaks whole on the attack, moves nothing between notes, uses CHORDS or planned tables so seek is exact, and batches its drawing, so draw counts are nearly all real (only 6:glint at about 9 ms and 2:hackles at about 6 ms are costly). What it keeps getting wrong is the low end of the canvas. Nearly every essay relies on a held ground or body at T 0.2 to 0.4 through settles or alpha, and those formulas ignore the color-burn, which removes about 3 levels a step: oxblood at T 0.25 measures 5 of 255, ash at T 0.22 measures 2, and a flash over a 40 % body in bone is 6 by 0.4 s. So grounds, scars, embers, 'pebbles' and 'gone by 1.2 s' are mostly not on screen, and many ideas whose memory lives in that layer (stones, comb rests, chevrons, silhouettes) are invisible as specified, although each can be repaired. The repair is one sentence and only essay 5 found it: draw dim things with 'lighten' at alpha 1 in a colour already at the target, which held exactly in my test, needs no correction, lands whole on fresh pixels after a jump, and cannot erase another clip. The second repeated error is ghosts: only 3:cleave, 6:beading, 6:pluck and the elastic rule in essay 6's preamble reason from what stays on screen for 0.25 s after an unredrawn bright mark, while others stage detail in the first 0.2 s under that ghost. The ideas that hold up best are those whose texture is geometry at full alpha (prickle, quill, pluck, tack), not a dim surface that the fade must preserve."
+}

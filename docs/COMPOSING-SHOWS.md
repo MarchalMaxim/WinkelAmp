@@ -50,7 +50,8 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
 - `knobs` (optional) maps a knob key to its base value (a number), or to the lab's full setting
   `{ "base": 96, "drive": "-level", "depth": 0.4 }` (what the lab's "Copy settings" gives). A drive moves the knob with
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
-  `bass` (more bass) and `density` (fuller chords); `""` holds it fixed. `depth` 0..1 is how far. Leave out a knob to keep
+  `bass` (more bass), `density` (fuller chords) and `hit` (new: a fast per-attack pulse that jumps on every note
+  and is back below half in about 80 ms, for snappy drives; harder notes jump it higher); `""` holds it fixed. `depth` 0..1 is how far. Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
 - `fade` (optional, seconds, default 1, at most half the clip, 0 = a hard cut): how long the clip takes to come in and go
   out, at both edges, inside the clip.
@@ -260,6 +261,8 @@ song"), and the auto-composer reads the description's feel words and routes an a
 
 ## The user's taste
 
+- **Theme combos** (widgets tied to pick sets): [compositions/STYLE.md](compositions/STYLE.md) says which work and the
+  rules behind them.
 - **Abstract, never literal.** Shatter, lightning, ripples, moire, whitney and albers were dropped (too physical, or not
   right); they are not in the collection (`lab/tools/dropped/`).
 - **Loved:** casket (its slashing cuts: "insanely good"), dread squares, rorschach ("parametrize the hell out of it",

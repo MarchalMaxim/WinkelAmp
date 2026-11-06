@@ -4,6 +4,11 @@
 // bottom at the bass note's x, a loud chord bursts in the middle of the flock, a melody leap blows up the old spot.
 // A sixth knob, how present (the user, 2026-11-01: the sliders only boost): turned down, the shapes and streaks fade and
 // cool, flight slows, they barely tremble, and only the hardest notes and attacks of the song call them up or scatter them.
+// A slider, snap (the user, 2026-11-05: first "behind a switch", then after the morning reel "let's make it a slider
+// perhaps?"): at 0 (the default) every line below runs exactly as before; above 0, the chords and frames go to snapMode,
+// candidate C10 of docs/mockups/snap/DESIGN.md (formerly lab/tools/flee-snap.js), with its own flock, and the slider sets
+// how snappy it is: at 1 exactly the old switch-on look, below that a longer freeze, a later bolt, a weaker flash and a
+// longer ember, towards the old flee. Crossing 0 either way starts both afresh.
 (() => {
   const TYPES = ['dot', 'oval', 'ring', 'crescent', 'tear', 'comma', 'chevron', 'needle']; // round → sharp
   // Palettes: heat 0..1 ramps through four [hue, sat, light] stops.
@@ -147,11 +152,324 @@
     }
   }
 
-  TOOLS.push({
+  // ---- The snap switch on (formerly lab/tools/flee-snap.js, ported as it was; only reached with snap on) ----
+  // The bow taken out and the hammer put in. Off, a new shape freezes, trembles, creeps and only then bolts, so the eye sees
+  // the note half a second late and a speed that grows. On, a shape is lit and already at full speed in the step of its
+  // note (P1, P10): the position is D(1 - e^(-t/tau)), so the speed is highest at once and falls, and the trail and the
+  // heat follow the current speed. It is hottest on the attack, flash half-life 0.05 s with a two-step hold, and cools as
+  // the note dies away. Brightness and heat come from one envelope of the age since the note (a flash over a dim body that
+  // lasts the whole life), never from the speed, so a threat can kick a shape without lighting it a second time. A shape
+  // that stays put is drawn through the exact one-step alpha (DESIGN section 1, P5); a moving one at plain alpha, since
+  // nothing is under it. The shared canvas fade would turn a raw alpha on a held mark into a hold and a cliff. Jerks are
+  // seeded at birth. A shape lives 2 s, the last 0.3 s fading. Ages are measured from the chord (ch.t), never accumulated
+  // (P8), and every draw is x.rnd, so a live run, a render and a seek agree. Its state shadows the names above on purpose:
+  // the two flocks never mix.
+  // The slider k (0..1], read at each shape's birth and kept on it (so a moving or driven slider never relights a shape),
+  // sets the parameters, never a mix of pictures. At k = 1 every number below is the switch-on value and every line runs as
+  // it did then (a stored snap of 1 keeps its meaning). Below 1, towards the old flee:
+  //   freeze before the bolt   (0.06 s + the hesitation) times (1 - k), trembling in place (a pure function of time)
+  //   bolt                     speed ~ t^(a-1) e^(-t/tau'): a from the 'how sudden' exponent (creep, then shoot) at 0 to 1
+  //                            (full speed at once) at 1; tau' from the old bolt time / exponent to 0.1 s, geometrically
+  //   flash on the note        strength k, half-life 0.08 s (the old flee's) to 0.05 s
+  //   ember body               0.6 of the peak, not sinking, 7 s long with a 1 s fade, to 0.45 sinking to half, 2 s, 0.3 s
+  //   colour heat floor        0.2 to 0.42 of the ramp
+  //   thinning of fast runs    a note after a gap of 0.25 / k s always lands, so near 0 only the old panic thinning is left
+  // The light still comes from the envelope alone, so the note's own step stays the brightest at every k > 0; only the
+  // streak, which is motion, lengthens as a late bolt speeds up.
+  const mix = (a, b, k) => a * (1 - k) + b * k; // exact at both ends
+  const kOf = (x) => Math.max(0, Math.min(1, x.p('snap')));
+  const paramsOf = (k) => ({ fs: k, hl: mix(0.08, 0.05, k), body: mix(0.6, 0.45, k), bodyEnd: mix(1, 0.5, k), life: mix(7, 2, k),
+    fade: mix(1, 0.3, k), h0: mix(0.2, 0.42, k), hs: mix(0.8, 0.58, k), cap: mix(3200, 9000, k) });
+  // The gamma function (Lanczos, g = 7), for the bolt's distance below k = 1; only reached for a in (1, 5].
+  const LZ = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  const gammaFn = (z) => { z -= 1; let a = LZ[0]; const t = z + 7.5; for (let i = 1; i < 9; i++) a += LZ[i] / (z + i); return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * a; };
+  const snapMode = (() => {
+    let lastSpawn = -9, shapes = [], threats = [], chain = null, idleT = -9, panic = 0, avgVel = 75, prevHi = -1, prevHiT = -9;
+    let cool = { bass: 0, loud: 0, leap: 0 }, last = { x: 640, y: 760 }, burst = null;
+    const sgn = (x) => (x.rnd(0, 1) < 0.5 ? -1 : 1);
+    const TAU = (x) => 0.1 * Math.pow(3 / x.p('exp'), 0.5); // bolt time constant (s): 0.1 at the default, longer for a glide, shorter for a shot
+    const HOLD = 0.033; // the life, fade, flash half-life and body are per shape now (paramsOf); at k = 1 2 s, 0.3 s, 0.05 s, 0.45
+    // The note's own light at k = 1, 0..1 of its peak: a flash (two steps from the attack, then half-life 0.05 s) over a dim
+    // body that lives the whole 2 s (P.body = 0.45 of the peak at the start, sinking linearly to P.bodyEnd = half of that at
+    // the end of the life; age is real time since the note), the last 0.3 s fading out. So the strike is the brightest frame, a body of about
+    // a third of the peak stays a second later, and the light never rises again (P3, P4). The colour heat has a floor so the
+    // body is a dim ember, not black.
+    // Below k = 1 the flash is k of its full strength over the body, so the body is the larger part, but nothing rises: the
+    // note's own step is still the peak. tb here is the light's clock, from the note, even while a shape is still frozen.
+    const flashOf = (tb, P) => (tb < HOLD ? 1 : Math.pow(0.5, (tb - HOLD) / P.hl));
+    const bodyOf = (age, P) => P.body * (1 - (1 - P.bodyEnd) * Math.max(0, Math.min(1, age / P.life)));
+    const envOf = (tb, age, P) => (tb < 0 || age < 0 ? 0 : ((1 - P.body) * P.fs * flashOf(tb, P) + bodyOf(age, P)) * Math.max(0, Math.min(1, (P.life - age) / P.fade)));
+    // Twitch: a shape's jerks are fixed at its birth from a seed (the chord time and its number in the chord), so a live run, a
+    // render and a seek see the same ones whatever the step size (P8). Candidate times at the highest rate, each with a draw
+    // that the knob thins against at play time.
+    const TW_MAX = 9.5, NEV = 24;
+    function seedRng(a) { return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    let evKey = -1, evN = 0, evSeed = 0;
+    function twitchEvents(born, life) { // life: 2 s at k = 1, longer below, with as many more candidates
+      const k = Math.round(born * 1000); evN = k === evKey ? evN + 1 : 0; evKey = k;
+      evSeed = Math.imul(k, 2654435761) ^ Math.imul(evN + 1, 40503);
+      const r = seedRng(evSeed), ev = [];
+      let t = 0;
+      for (let i = 0; i < NEV * life / 2; i++) { t += -Math.log(1 - r()) / TW_MAX; if (t > life) break; ev.push({ t, u: r(), m: r(), sg: r() < 0.5 ? -1 : 1 }); }
+      return ev;
+    }
+    // DESIGN section 1: the alpha that takes a screen showing Tprev (after the 0.12 fade) to T. lab/snap/envelope.js has the
+    // same formula as SNAP.alpha; this file does not wait for that script to be loaded.
+    const snapAlpha = (T, Tp) => Math.max(0, Math.min(1, (T - 0.88 * Tp) / (1 - 0.88 * Tp)));
+    // What the slider adds to a newborn shape, called right after its twitchEvents and drawn from that seed, so no x.rnd is
+    // used and nothing shifts at k = 1: the freeze before the bolt, its own bolt time T as the old flee had it, a tremble seed.
+    function slowStart(s, x, k, P, hes) {
+      const r = seedRng(evSeed ^ 0x5bd1e995), u = r();
+      s.k = k; s.P = P; s.sd = (r() * 4294967296) | 0; s.jx = 0; s.jy = 0;
+      s.bolt = s.born + (hes ? (0.06 + hesOf(x) * (0.5 + u)) * (1 - k) : 0);
+      s.T = hes ? 1.15 - 0.45 * panic : 0.65;
+      return s;
+    }
+
+    function addThreat(x, kind, tx, ty, R, str, vy = 0) {
+      threats.push({ x: tx, y: ty, R, str, vy, age: 0, life: kind === 'loud' ? 0.9 : 0.7, kind });
+      last = { x: tx, y: ty };
+      const resp = threatOf(x);
+      for (const s of shapes) {
+        const dx = s.x - tx, dy = s.y - ty, d = Math.hypot(dx, dy);
+        if (d > R * (0.6 + 0.4 * Math.min(1, resp))) continue;
+        const away = Math.atan2(dy, dx);
+        if (resp < 0.05) continue;
+        // A threat kicks the shape: a second bolt from full speed (further the nearer it was), in a new direction. It moves,
+        // it does not relight: born, flash and heat stay the note's own, so the light only ever falls (no fake attacks).
+        if (x.t < s.bolt) s.bolt = x.t; // a frozen one (below k = 1) goes now
+        s.kt = x.t; s.offFrom = x.t; s.kD = (260 + 420 * x.rnd(0.3, 1)) * 0.6 * Math.min(2, resp) * (1.2 - d / R);
+        s.h = away + x.rnd(-0.4, 0.4) / Math.max(0.5, resp);
+      }
+    }
+
+    return {
+      reset() {
+        shapes = []; threats = []; chain = null; idleT = -9; panic = 0; avgVel = 75; prevHi = -1; prevHiT = -9; lastSpawn = -9;
+        cool = { bass: 0, loud: 0, leap: 0 }; last = { x: 640, y: 760 }; burst = null;
+        evKey = -1; evN = 0; // a seek re-seeds the same twitch events (flee-snap.js kept counting here)
+      },
+      onChord(ch, x) {
+        const reg = REG, resp = threatOf(x), k = kOf(x), P0 = paramsOf(k); // the slider's parameters for the shapes born now
+        const loudCut = avgVel + 12;
+        avgVel += (ch.vel - avgVel) * 0.04;
+        // how present: a soft attack is still heard (the averages above, the melody below) but does nothing visible.
+        const pres = x.p('presence'), cut = cutOf(pres), hard = hardChord(ch.vel, cut);
+
+        // Flock centre (or the spawn cluster) for the burst.
+        let cx = 0, cy = 0; for (const s of shapes) { cx += s.x; cy += s.y; }
+        if (shapes.length) { cx /= shapes.length; cy /= shapes.length; } else if (chain) { cx = chain.x; cy = chain.y; } else { cx = x.W / 2; cy = x.H / 2; }
+
+        // Threats, each with its own place so you can read the cause.
+        if (ch.vel >= loudCut && ch.notes.length >= 3 && ch.t - cool.loud > 0.25) {
+          cool.loud = ch.t; const bx = cx + x.rnd(-30, 30), by = cy + x.rnd(-30, 30);
+          if (hard) {
+            addThreat(x, 'loud', bx, by, 300 + 200 * resp, 2);
+            burst = { x: bx, y: by, n: Math.max(1, Math.round(Math.min(9, 2 + ch.notes.length) * pres)) };
+          }
+        } else if (ch.lo < 50 && ch.vel >= avgVel - 4 && ch.t - cool.bass > 0.2) {
+          cool.bass = ch.t;
+          const bx = x.W * (0.1 + 0.8 * Math.max(0, Math.min(1, (ch.lo - 24) / 26)));
+          if (hard) addThreat(x, 'bass', bx, x.H + 60, 340, 1.2, -520);
+        }
+        const hiNote = ch.hi >= reg ? ch.hi : -1;
+        if (hiNote > 0 && prevHi > 0 && Math.abs(hiNote - prevHi) >= 7 && ch.t - prevHiT < 1.5 && ch.t - cool.leap > 0.3 && chain) {
+          cool.leap = ch.t; if (hard) addThreat(x, 'leap', chain.x, chain.y, 240, 1.2);
+          // The melody jumps: the next cluster starts far away, up or down with the leap.
+          const p = Math.max(0, Math.min(1, (hiNote - reg) / 30));
+          let nx = x.rnd(x.W * 0.15, x.W * 0.85); if (Math.abs(nx - chain.x) < 300) nx = chain.x < x.W / 2 ? chain.x + 380 : chain.x - 380;
+          chain = { x: nx, y: x.H * (0.82 - 0.64 * p), dir: x.rnd(0, Math.PI * 2), size: 20 };
+        }
+        if (hiNote > 0) { prevHi = hiNote; prevHiT = ch.t; }
+
+        // A loud chord throws out a ring of shapes already running.
+        if (burst) {
+          const mix0 = x.p('mix');
+          for (let i = 0; i < burst.n && shapes.length < 120; i++) {
+            const a0 = (i / burst.n) * Math.PI * 2 + x.rnd(-0.3, 0.3), size = x.rnd(18, 34);
+            const ti = Math.max(0, Math.min(7, Math.round(mix0 * 7 + x.rnd(-1.5, 1.5))));
+            shapes.push(slowStart({ x: burst.x + Math.cos(a0) * 14, y: burst.y + Math.sin(a0) * 14, size, type: TYPES[ti], aspect: x.rnd(0.9, 1.3), flip: sgn(x),
+              al: 0.85, t0: ch.t, born: ch.t, D: x.rnd(400, 700), h: a0, off: 0, speed: 0, flash: 1, kD: 0, kt: 0, age: 0, tb: 0, ev: twitchEvents(ch.t, P0.life), offFrom: 0, px: NaN, py: NaN }, x, k, P0, false));
+          }
+          burst = null;
+        }
+        // Spawn.
+        // Every note that reaches us is heard: picked notes (P6), and the accents part, which only ever sends rare ones, so a
+        // note after a quiet gap always lands. Only a busy run on all notes is thinned, as at snap 0. The gap that counts as
+        // quiet is 0.25 s at k = 1 and grows as the slider comes down, so the thinning moves towards the old flee's.
+        // STAND-IN, not the real thing: a part signal for the accents does not exist yet, so picks is false in the lab and the
+        // gap since the last visible shape stands in for it. It is kept as is until such a signal exists. x.onPicks() is what
+        // DESIGN names, but no context has it (the lab and the studio give x.picked), and calling it threw on every chord, so
+        // the snap side never drew a shape outside the unit test; x.picked is read when it is missing.
+        const picks = typeof x.onPicks === 'function' ? x.onPicks() : !!x.picked;
+        const pSpawn = (picks || ch.t - lastSpawn > 0.25 / k) ? 1 : 0.4 + 0.6 * panic;
+        const highs = ch.notes.filter((n) => n.m >= reg).sort((a, b) => a.m - b.m).slice(panic > 0.5 ? -6 : -4);
+        const mix = x.p('mix');
+        for (const n of highs) {
+          if (shapes.length >= 110 || x.rnd(0, 1) > pSpawn || !hardNote(n.v, cut)) continue;
+          lastSpawn = ch.t; // measured from the last shape that really appeared, not from the last chord
+          const p = Math.max(0, Math.min(1, (n.m - reg) / 30));
+          const size = (16 + 26 * n.v / 110) * (1.25 - 0.5 * p) * x.rnd(0.7, 1.4);
+          const pitchY = x.H * (0.82 - 0.64 * p);
+          if (!chain || ch.t - idleT > 0.8 || chain.x < 80 || chain.x > x.W - 80 || chain.y < 60 || chain.y > x.H - 60) {
+            chain = { x: x.rnd(x.W * 0.15, x.W * 0.85), y: pitchY, dir: x.rnd(0, Math.PI * 2), size };
+          } else {
+            chain.dir += x.rnd(-1, 1);
+            const step = (chain.size + size) * x.rnd(0.45, 0.8);
+            chain.x += Math.cos(chain.dir) * step; chain.y += Math.sin(chain.dir) * step * 0.7 + (pitchY - chain.y) * 0.3;
+            chain.size = size;
+          }
+          idleT = ch.t;
+          // Shape: a spread around the mix centre, round → sharp.
+          const ti = Math.max(0, Math.min(7, Math.round(mix * 7 + (x.rnd(0, 1) + x.rnd(0, 1) + x.rnd(0, 1) - 1.5) * 2.4)));
+          const type = TYPES[ti];
+          const aspect = type === 'needle' ? x.rnd(1, 1.6) : type === 'oval' ? x.rnd(0.9, 1.7) : x.rnd(0.85, 1.25);
+          const away = Math.atan2(chain.y - last.y, chain.x - last.x) + x.rnd(-0.9, 0.9);
+          shapes.push(slowStart({
+            x: chain.x + x.rnd(-5, 5), y: chain.y + x.rnd(-5, 5), size, type, aspect, flip: sgn(x),
+            al: Math.max(0.35 * k, (0.55 + 0.45 * panic) * (0.6 + 0.4 * n.v / 110)), // P6: at k = 1 a picked note is never fainter than 0.35
+            t0: ch.t, born: ch.t, age: 0, tb: 0,
+            D: x.rnd(0.8, 1.2) * (260 + 420 * panic),
+            h: away, off: 0, speed: 0, flash: 1, kD: 0, kt: 0, ev: twitchEvents(ch.t, P0.life), offFrom: 0, px: NaN, py: NaN,
+          }, x, k, P0, true));
+        }
+      },
+      frame(x) {
+        const g = x.g, dt = x.dt;
+        budget = 4;
+        panic += (smooth(0.12, 0.6, x.feat.rate) - panic) * (1 - Math.pow(0.5, dt / 0.4));
+        const pres = x.p('presence'), fade = 1 - 0.84 * (1 - Math.pow(pres, 1.5)), slow = 1 - 0.8 * (1 - pres); // both exactly 1 at the default
+        const tau = TAU(x), tw = x.p('twitch') * pres, streak = x.p('streak'), resp = threatOf(x), flock = FLOCK, ex = x.p('exp');
+        const pal = Math.round(x.p('pal'));
+
+        // Threats: move (bass ones rise), age, push.
+        for (const t of threats) { t.age += dt; t.y += t.vy * dt; t.vy *= Math.pow(0.5, dt / 0.5); }
+        threats = threats.filter((t) => t.age < t.life);
+
+        const n = shapes.length;
+        for (let i = 0; i < n; i++) {
+          const s = shapes[i];
+          // Age and bolt time are read off the chord's time, not summed (P8). The flash holds two steps, then halves every 0.05 s
+          // (at k = 1). The bolt's clock starts after the freeze (none at k = 1); tb is -1 while frozen.
+          const P = s.P;
+          s.age = x.t - s.t0; s.tb = x.t < s.bolt ? -1 : Math.max(0, (x.t - s.bolt) * slow); // how present: the bolt's clock slows too
+          s.flash = P.fs * flashOf(Math.max(0, (x.t - s.born) * slow), P);
+          // Desired direction: away from threats, plus the panicked school.
+          let fx = 0, fy = 0;
+          for (const t of threats) {
+            const dx = s.x - t.x, dy = s.y - t.y, d = Math.hypot(dx, dy) + 1, w = t.str * resp * Math.exp(-(d * d) / (t.R * t.R)) * (1 - t.age / t.life);
+            fx += dx / d * w * 3; fy += dy / d * w * 3;
+          }
+          if (flock > 0 && s.tb >= 0) { // a frozen shape does not school yet
+            let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, k = 0;
+            for (let j = 0; j < n; j++) {
+              if (j === i) continue; const o = shapes[j];
+              const dx = o.x - s.x, dy = o.y - s.y, d2 = dx * dx + dy * dy;
+              if (d2 > 160 * 160) continue;
+              k++; ax += Math.cos(o.h); ay += Math.sin(o.h); cx += dx; cy += dy;
+              if (d2 < 40 * 40) { sx -= dx / (d2 + 30); sy -= dy / (d2 + 30); }
+            }
+            if (k) { fx += (ax / k * 1.2 + cx / k * 0.006) * flock + sx * 30; fy += (ay / k * 1.2 + cy / k * 0.006) * flock + sy * 30; }
+          }
+          if (fx || fy) {
+            const want = Math.atan2(fy, fx), mag = Math.min(1, Math.hypot(fx, fy));
+            s.h += wrap(want - s.h) * Math.min(1, dt * (2 + 8 * tw) * mag);
+          }
+          // Twitch: sudden jerks of heading that snap back.
+          // A pure function of time: the latest jerk (of the seeded list, thinned by the knob) at or before now, decayed.
+          // A threat's kick wipes the jerks before it (offFrom).
+          s.off = 0;
+          const rate = (0.5 + 9 * tw) / TW_MAX;
+          for (let k = s.ev.length - 1; k >= 0; k--) {
+            const e = s.ev[k], te = s.born + e.t;
+            if (te > x.t) continue;
+            if (te < s.offFrom || te < s.bolt) break; // nor does it twitch before it bolts
+            if (e.u >= rate) continue;
+            s.off = (0.3 + e.m * (0.1 + 1.1 * tw)) * e.sg * pres * Math.pow(0.5, (x.t - te) / (0.06 + 0.1 * (1 - tw)));
+            break;
+          }
+          // Speed: pos = D (1 - e^(-t/tau)), so the speed D/tau * e^(-t/tau) is greatest at the note and falls at once (P10).
+          // A threat's kick is a second bolt of the same kind, from its own moment.
+          // Below k = 1 a little more than D is run along t^(a-1) e^(-t/tau') (D's share of a gamma curve): a creep that grows
+          // into a bolt and then slows, the later and gentler the lower k.
+          const kick = s.kD ? s.kD / tau * Math.exp(-Math.max(0, x.t - s.kt) * slow / tau) : 0;
+          let v;
+          if (s.k >= 1) v = Math.min(9000, s.D / tau * Math.exp(-s.tb / tau) + kick) * slow;
+          else {
+            const a = mix(ex, 1, s.k), tk = Math.pow(s.T / ex, 1 - s.k) * Math.pow(tau, s.k);
+            const run = s.tb < 0 ? 0 : (2 - s.k) * s.D / (gammaFn(a) * tk) * Math.pow(s.tb / tk, a - 1) * Math.exp(-s.tb / tk);
+            v = Math.min(P.cap, run + kick) * slow;
+          }
+          s.speed = v;
+          const head = s.h + s.off; s.head = head;
+          s.x += Math.cos(head) * v * dt; s.y += Math.sin(head) * v * dt;
+          // Frozen, it trembles in place: a drawn offset only, a pure function of the 60 Hz step since the note, so the exact
+          // alpha below still sees a still mark.
+          if (s.tb < 0) {
+            const r = seedRng(s.sd ^ Math.imul(Math.floor((x.t - s.born) * 60) + 1, 0x27d4eb2d)), j = (0.6 + 3 * tw) * pres;
+            s.jx = (r() * 2 - 1) * j; s.jy = (r() * 2 - 1) * j;
+          } else { s.jx = 0; s.jy = 0; }
+        }
+        shapes = shapes.filter((s) => s.age < s.P.life && s.x > -260 && s.x < x.W + 260 && s.y > -260 && s.y < x.H + 260);
+
+        // Threat marks: a dark void that pushes the trails away, and a thin ring for the loud ones.
+        for (const t of threats) {
+          const k = t.age / t.life, r = t.R * (0.25 + 0.75 * (1 - Math.pow(1 - Math.min(1, k * 2.2), 3))), a = (1 - k) * Math.min(1, resp + 0.2) * fade;
+          const gr = g.createRadialGradient(t.x, t.y, 0, t.x, t.y, r * 0.8);
+          gr.addColorStop(0, `rgba(0,0,0,${0.55 * a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+          g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = gr;
+          g.beginPath(); g.arc(t.x, t.y, r * 0.8, 0, Math.PI * 2); g.fill();
+          if (t.kind === 'loud' && t.age < 0.12) { // one crisp hairline on the attack, gone before it can ripple
+            g.strokeStyle = ramp(pal, 0.8, 0.7 * (1 - t.age / 0.12) * fade); g.lineWidth = 1.5;
+            g.beginPath(); g.arc(t.x, t.y, 30 + t.age * 1400, 0, Math.PI * 2); g.stroke();
+          }
+        }
+
+        // Shapes: streak behind, stretched body, a little additive glow when hot.
+        for (const s of shapes) {
+          const fin = 1; // no fade-in: the peak is in the note's own step (P1)
+          // One envelope for the light and the heat: it only falls after the hold, wherever a threat has thrown the shape.
+          const P = s.P, e = envOf(Math.max(0, (x.t - s.born) * slow), s.age, P), ePrev = x.t - x.dt >= s.born ? envOf((x.t - x.dt - s.born) * slow, s.age - x.dt, P) : 0;
+          const heat = P.h0 + P.hs * e, hb = Math.round(heat * (HB - 1));
+          // The exact one-step alpha assumes the mark is repainted where it stood; a shape that has moved has nothing under it,
+          // so a moving mark gets its plain alpha, and only one that stayed within 3 px gets the exact one.
+          const T = Math.min(0.98, s.al * e * fade);
+          const still = ePrev > 0 && Math.hypot(s.x - s.px, s.y - s.py) < 3;
+          const a = still ? snapAlpha(T, Math.min(0.98, s.al * ePrev * fade)) : T;
+          s.px = s.x; s.py = s.y;
+          if (a <= 0.01) continue;
+          const c = Math.cos(s.head), sn = Math.sin(s.head), X = s.x + s.jx, Y = s.y + s.jy;
+          const L = Math.min(420, streak * s.speed * 0.09);
+          if (L > s.size * 0.4) {
+            const w = s.size / 22 * (0.6 + 0.4 * heat);
+            g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, a * 0.75);
+            g.setTransform(c * L / SW, sn * L / SW, -sn * w, c * w, X + c * s.size * 0.3, Y + sn * s.size * 0.3);
+            g.drawImage(get('streak', pal, hb), -SW, -SH / 2);
+          }
+          const stretch = 1 + Math.min(1.8, streak * s.speed / 2200);
+          const grow = 0.75 + 0.25 * fin + 0.35 * s.flash;
+          const sx = s.size / 32 * s.aspect * stretch * grow, sy = s.size / 32 * grow * s.flip / Math.sqrt(stretch);
+          g.setTransform(c * sx, sn * sx, -sn * sy, c * sy, X, Y);
+          const spr = get(s.type, pal, hb);
+          g.globalCompositeOperation = 'source-over'; g.globalAlpha = a;
+          g.drawImage(spr, -HALF, -HALF);
+          if (heat > 0.35) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = a * 0.35 * heat; g.drawImage(spr, -HALF, -HALF); }
+        }
+        g.setTransform(1, 0, 0, 1, 0, 0);
+      },
+    };
+  })();
+  // The slider, read once per chord and per frame: 0 is the old flee, anything above it snapMode. It starts at 0, so with
+  // snap at 0 nothing here ever resets anything; moving it within (0, 1] resets nothing either.
+  let snapOn = 0;
+  const snapped = (x) => { const s = x.p('snap') > 0 ? 1 : 0; if (s !== snapOn) { snapOn = s; tool.reset(); } return s; };
+
+  const tool = {
     id: 'flee', name: 'Skittish shapes', tag: 'v3',
-    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers. Turn <b>how present</b> down to tone it right down: faint, slow shapes that only the hardest notes call up.',
+    blurb: 'High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers. Turn <b>how present</b> down to tone it right down: faint, slow shapes that only the hardest notes call up. Slide <b>how snappy</b> up and the freeze shortens and the bolt comes sooner; all the way up, each shape bolts at once, brightest on its own note, and is gone two seconds later.',
     params: [
-      // Six knobs: the five of v3 (keys, ranges, defaults and drives unchanged, so saved settings still apply) and how present.
+      // Seven knobs: the five of v3 (keys, ranges, defaults and drives unchanged, so saved settings still apply), the snap
+      // slider and how present.
       { key: 'mix', label: 'round or sharp shapes', min: 0, max: 1, value: 0.45,
         hint: 'Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles.',
         icon: (g, v, w, h) => { const c = Math.round(v * 7), col = EMB(0.62);
@@ -179,6 +497,15 @@
         hint: 'The colours, from cool and dark when still to hot and bright when fleeing. Left: ember (red to yellow). Then ice (blue), bone (pale), and right: venom (violet to pink).',
         icon: (g, v, w, h) => { const pal = Math.round(v * 3), n = 10, sw = (w - 6) / n;
           for (let i = 0; i < n; i++) ICON.rect(g, 3 + i * sw, 5, Math.ceil(sw), h - 10, ramp(pal, i / (n - 1))); } },
+      // A sixth knob besides how present (2026-11-05): first an on/off switch, now a slider (a stored 0 or 1 still means what
+      // it did), so the old look stays the default and the user can dial how snappy flee is.
+      { key: 'snap', label: 'how snappy', min: 0, max: 1, value: 0,
+        hint: 'How hard each note hits. Left: as flee always was, a new shape freezes, trembles, then bolts faster and faster. Right: every note bolts at once, brightest on its own note, and burns out in two seconds. In between, the further right, the shorter the freeze, the sooner the bolt and the stronger the flash.',
+        icon: (g, v, w, h) => { const x0 = 4, y0 = h - 4, W = w - 9, Hh = h - 8, sat = (t) => (1 - Math.exp(-6 * t)) / (1 - Math.exp(-6));
+          ICON.line(g, x0, y0, x0 + W, y0, ICON.dim, 1);
+          g.strokeStyle = EMB(0.45 + 0.3 * v); g.lineWidth = 1.6; g.beginPath();
+          for (let i = 0; i <= 24; i++) { const t = i / 24, y = (1 - v) * Math.pow(t, 3) + v * sat(t); i ? g.lineTo(x0 + t * W, y0 - y * Hh) : g.moveTo(x0, y0); }
+          g.stroke(); if (v > 0.02) ICON.dot(g, x0 + 1, y0 - 1, 1.5 + 1.5 * v, EMB(0.6 + 0.4 * v)); if (v < 0.98) ICON.dot(g, x0 + W, y0 - Hh, 2.2, EMB(0.7, 1 - v)); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1,
         hint: 'How much of the picture it takes. Left: a few faint shapes that hardly move, called up only by the hardest notes. Right: every high note at full strength (as before).',
         icon: (g, v, w, h) => ICON.alpha(g, 0.15 + 0.85 * v, () => { const hx = w / 2 + 4 + 8 * v, y = h / 2, L = v * (w - 16);
@@ -189,8 +516,10 @@
     reset() {
       shapes = []; threats = []; chain = null; idle = 9; panic = 0; avgVel = 75; prevHi = -1; prevHiT = -9; hiVels = null; chordVels = null;
       cool = { bass: 0, loud: 0, leap: 0 }; last = { x: 640, y: 760 }; burst = null;
+      snapMode.reset();
     },
     onChord(ch, x) {
+      if (snapped(x)) { snapMode.onChord(ch, x); return; }
       const reg = REG, resp = threatOf(x);
       const loudCut = avgVel + 12;
       avgVel += (ch.vel - avgVel) * 0.04;
@@ -275,6 +604,7 @@
       }
     },
     frame(x) {
+      if (snapped(x)) { snapMode.frame(x); return; }
       const g = x.g, dt = x.dt;
       time += dt; idle += dt; budget = 4;
       panic += (smooth(0.12, 0.6, x.feat.rate) - panic) * (1 - Math.pow(0.5, dt / 0.4));
@@ -366,5 +696,6 @@
       }
       g.setTransform(1, 0, 0, 1, 0, 0);
     },
-  });
+  };
+  TOOLS.push(tool);
 })();

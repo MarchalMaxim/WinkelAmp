@@ -8,7 +8,7 @@ export interface Span { start: number; end: number }
 export interface InstanceState {
   key: string; widget: string; salt: number;            // salt = fnv32(key)
   notes: Note[]; chords: Chord[]; ci: number;           // the part it hears; next chord index
-  pulse: { level: number; rate: number }; feat: Features;
+  pulse: { level: number; rate: number; hit: number }; feat: Features;
   own: boolean; routed: boolean; persist: Persist; win: HTMLCanvasElement | null;
 }
 
@@ -51,7 +51,7 @@ export interface WaLayers {
   groupChords(notes: readonly Note[]): Chord[]; soundingAt(notes: readonly Note[], t: number): SoundingNote[];
   lineNotes(notes: readonly Note[], line: Line): Note[];
   listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back; picks:<id> never falls back: a missing set hears nothing
-  advancePulse(p: { level: number; rate: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
+  advancePulse(p: { level: number; rate: number; hit: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
   // present.js
   presentValues(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less'>[] | undefined, s: number): Record<string, number>;
   presentAt(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less' | 'leads'>[] | undefined, now: Readonly<Record<string, number>> | undefined, g: number): Record<string, number>;

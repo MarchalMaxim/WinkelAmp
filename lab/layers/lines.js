@@ -44,7 +44,9 @@
   /** One step of a pulse and its features: advanceFeatures, statement for statement. */
   WA.advancePulse = function (p, f, fired, snd, dt) {
     p.level *= Math.pow(0.5, dt / 0.8); p.rate *= Math.pow(0.5, dt / 1.0);
+    p.hit *= Math.pow(0.5, dt / 0.08);
     for (var i = 0; i < fired.length; i++) { var ch = fired[i]; p.level = Math.max(p.level, ch.vel / 115); p.rate += 1 / 1.44; }
+    for (var h = 0; h < fired.length; h++) p.hit = 1 - (1 - p.hit) * (1 - Math.pow(fired[h].vel / 127, 1.4));
     var k = 1 - Math.pow(0.5, dt / 0.25);
     var top = null, bass = 0;
     for (var j = 0; j < snd.length; j++) { var n = snd[j]; if (!top || n.m > top.m) top = n; if (n.m < 50) bass += n.v / 127; }
@@ -52,6 +54,7 @@
     f.pitch += ((top ? pitch01(top.m) : f.pitch) - f.pitch) * k;
     f.bass += (Math.min(1, bass / 2) - f.bass) * k;
     f.density += (Math.min(1, snd.length / 10) - f.density) * k;
+    f.hit = p.hit;
   };
 
   /** MIDI → 0..1 over the piano (21..108). */

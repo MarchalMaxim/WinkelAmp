@@ -56,5 +56,19 @@
   "ivory": {"feel":["elegant","royal","pale","precise","serene"],"instruments":["piano"],"role":"lead"},
   "tree": {"feel":["withering","glowing","vivid","swelling","precise","warm"],"instruments":["piano","strings","tutti"],"role":"standalone"},
   "tunnel": {"feel":["whirling","flowing","glowing","burning","panic"],"instruments":["tutti","strings"],"role":"base"},
-  "vine": {"feel":["viney","withering","fibrous","alien"],"instruments":["strings","cello","viola"],"role":"base"}
+  "vine": {"feel":["viney","withering","fibrous","alien"],"instruments":["strings","cello","viola"],"role":"base"},
+  "squares-snap": {"feel":["heavy","dark","dread","stabbing"],"instruments":["piano","contrabass","timpani"],"role":"accent"},
+  "fireworks-snap": {"feel":["glowing","vivid","triumphant","whirling"],"instruments":["tutti","timpani","trumpet","piano"],"role":"top"},
+  "hammer": {"feel":["stabbing","glowing","vivid"],"instruments":["piano"],"role":"lead"},
+  "handover": {"feel":["heavy","dark","stabbing"],"instruments":["piano"],"role":"accent"},
+  "prickle": {"feel":["stabbing","brittle","dark"],"instruments":["piano"],"role":"accent"},
+  "nap": {"feel":["silky","dark","still"],"instruments":["piano"],"role":"accent"},
+  "crimp": {"feel":["brittle","silky","skittish"],"instruments":["piano"],"role":"accent"},
+  "interlock": {"feel":["stabbing","brittle","dark"],"instruments":["piano"],"role":"accent"},
+  "pluck": {"feel":["brittle","skittish","airy"],"instruments":["piano"],"role":"accent"},
+  "film": {"feel":["cool","silky","still"],"instruments":["piano"],"role":"accent"},
+  "mica": {"feel":["brittle","cool","grainy"],"instruments":["piano"],"role":"accent"},
+  "urchin": {"feel":["stabbing","cool","still"],"instruments":["piano"],"role":"accent"},
+  "cut": {"feel":["grainy","warm","still"],"instruments":["piano"],"role":"accent"},
+  "leidenfrost": {"feel":["liquid","skittish","gusty"],"instruments":["piano"],"role":"texture"}
 }

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snap, the morning index</title>
+<style>
+  :root { --bg:#111214; --card:#1a1c1f; --line:#2b2e33; --ink:#e6e2d8; --dim:#9a968c; --hot:#e8c48a; --keep:#7fbf8a; --rej:#d0746a; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 6px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  p, li { max-width: 70ch; }
+  a { color: var(--hot); }
+  code { background:#23262b; padding: 1px 5px; border-radius: 3px; font-size: .9em; }
+  .lede { color: var(--dim); }
+  .read { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; margin: 16px 0; }
+  .read li { margin: 4px 0; }
+  .item { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 18px 0; }
+  .item.keep { border-left-color: var(--keep); }
+  .item.reject { border-left-color: var(--rej); }
+  .item h3 { margin: 0 0 2px; font-size: 17px; }
+  .when { color: var(--dim); font-size: 14px; margin: 0 0 8px; }
+  .listen { margin: 8px 0; }
+  video { width: 100%; max-width: 940px; background:#000; border-radius: 4px; display:block; margin: 8px 0; }
+  .sheet { color: var(--dim); font-size: 14px; }
+  .links { margin: 6px 0; padding-left: 18px; }
+  .links li { margin: 3px 0; }
+  .miss { color: var(--rej); font-size: 14px; display: none; }
+  .verdict { display:flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; margin-top: 10px; }
+  .verdict label { cursor: pointer; }
+  .verdict textarea { flex: 1 1 260px; min-height: 44px; background:#0e0f11; color:var(--ink); border:1px solid var(--line); border-radius: 4px; padding: 6px 8px; font: inherit; font-size: 14px; }
+  .verdict input[type=radio] { accent-color: var(--hot); }
+  .tally { color: var(--dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Snap, the morning index</h1>
+  <p class="lede">Ten comparison videos, four new widgets, a snap switch on flee, four versions of each show and one mock-up. Your keep / reject marks and notes are kept in this browser only. <span class="tally" id="tally"></span></p>
+
+  <div class="read">
+    <strong>How to read the videos.</strong> Each is left | right, with the recording's sound and a brightness trace under each half.
+    <ul>
+      <li>A spike that stands on each note, with a trough between notes, is snap.</li>
+      <li>Rounded hills that drift on after the notes are mush.</li>
+      <li>A second brightening after a peak is a fake attack, and a reason to reject.</li>
+    </ul>
+    Judge on these 60 Hz videos, never in the live lab (the lab fades per screen refresh, so on a fast monitor trails are half as long). The order below is the judging order: V1, V2a, V2b, V6, V9, V4, V7, then the rest.
+  </div>
+
+  <h2>1. The videos</h2>
+  <p class="lede">Showcase reels, 960 px per side with sound: <a href="/renders/snap/showcase/00-showcase.mp4">the whole showcase</a> (about 3 min), or one experiment at a time: <a href="/renders/snap/showcase/01-squares.mp4">snap squares</a>, <a href="/renders/snap/showcase/02-ivory-strike.mp4">ivory strike</a>, <a href="/renders/snap/showcase/03-hammer.mp4">hammer</a>, <a href="/renders/snap/showcase/04-handover.mp4">handover</a>, <a href="/renders/snap/showcase/06-flee.mp4">flee snap</a>, <a href="/renders/snap/showcase/07-fireworks.mp4">fireworks snap</a>. Each starts with a title card saying what to watch for.</p>
+  <div id="videos"></div>
+
+  <h2>2. In the lab</h2>
+  <p class="lede">Open a link, then switch the widgets on or off with their cards and compare with the original.</p>
+  <div id="labs"></div>
+
+  <h2>3. The show copies</h2>
+  <p>Each show exists in four forms in <code>shows/</code>: the original (your edits, untouched), <code>-knobs</code> (the same widgets with only knobs turned: does code beat a knob?), <code>-snap</code> (the snap versions of the widgets you already use) and <code>-new</code> (the new widgets: hammer and handover). The studio opens a show only by its song, so to play a copy: back up <code>shows/&lt;song&gt;.json</code>; copy <code>shows/&lt;song&gt;-snap.json</code> (or <code>-knobs</code> / <code>-new</code>) over it; set the copy's <code>"id"</code> back to the song id (the copies carry <code>"id": "&lt;song&gt;-snap"</code> and so on, while <code>"song"</code> is already the song id); open <a href="http://localhost:5300/?song=liebesleid">/?song=&lt;song&gt;</a> (liebesleid or rach-concerto-2); and restore your backup afterwards. Or step it frame by frame at <code>render.html?show=&lt;id&gt;&amp;hz=60&amp;scale=1</code> (the page the videos were made from). The scene check (<code>scripts/checks/snap-scenes-check.mjs</code>) runs Chrome with the software 2D canvas and software WebGL (SwiftShader), because the GPU canvas is not bit-stable on blurred fills and GPU WebGL (the gliss fluid) is not bit-stable at all, a flake that predates tonight; its baseline was taken from the commit before tonight's work.</p>
+  <div id="shows"></div>
+
+  <h2>4. The mock-up</h2>
+  <div id="mock"></div>
+</main>
+
+<script>
+(() => {
+  const V = '/renders/snap/';
+  const L = (song, only) => '/lab/index.html?song=' + song + '&only=' + only;
+  const R = (id) => '/render.html?show=' + id + '&hz=60&scale=1';
+
+  const videos = [
+    { id:'V1', file:'V1-bells-squares', when:'5 to 37 s of Rachmaninoff 2, the bells rising over a low F (lab, all notes)', sides:'Left squares, right squares-snap.', listen:'The old hold-then-cliff against a crack that sinks at once.' },
+    { id:'V2a', file:'V2a-arrival-original-vs-snap', when:'41 to 50 s of Rachmaninoff 2, the arrival and the pulsing G', sides:'Left your show, right rach-concerto-2-snap.', listen:'The orchestra sustains, only the squares\' decay differs. Each pulse should have its own trough.' },
+    { id:'V2b', file:'V2b-arrival-knobs-vs-snap', when:'41 to 50 s of Rachmaninoff 2, same passage', sides:'Left rach-concerto-2-knobs, right rach-concerto-2-snap.', listen:'Whether code beats a knob turn.' },
+    { id:'V6', file:'V6-sighs-ivory-vs-new', when:'10.7 to 28.5 s of Liebesleid, the three sighs and the staccato', sides:'Left liebesleid, right liebesleid-new.', listen:'Ivory against hammer and handover on the sighs.' },
+    { id:'V9', file:'V9-rolls-p5-p8', when:'174.9 to 186.2 s of Liebesleid, the rolls p5 to p8', sides:'Left liebesleid, right liebesleid-new (hammer, roll 1).', listen:'Four strikes, not eighteen flashes.' },
+    { id:'V4', file:'V4-ivory-p14', when:'115 to 125 s of Rachmaninoff 2, ivory p14', sides:'Left your show, right -snap (strike 1).', listen:'The same keys, a sharper strike and a quicker release.' },
+    { id:'V7', file:'V7-sighs-knobs-vs-snap', when:'10.7 to 28.5 s of Liebesleid, same passage as V6', sides:'Left liebesleid-knobs, right liebesleid-snap (ivory strike 1).', listen:'Does code beat a knob turn?' },
+    { id:'V3', file:'V3-squares-p9', when:'79 to 84 s of Rachmaninoff 2, squares p9 (shake 2, size 2)', sides:'Left your show, right -snap.', listen:'Seven hard notes at the largest size, each clearly hit and gone.' },
+    { id:'V5', file:'V5-the-run-hammer', when:'126 to 135 s of Rachmaninoff 2, the run (halftone p15, 95 attacks, 12 to 14 notes a second)', sides:'Left your show, right -new (hammer, staccato).', listen:'A density and strobe test: each note distinct, without a flicker.' },
+    { id:'V8', file:'V8-flee-accents', when:'30 to 45 s of Liebesleid, the flee accents', sides:'Left liebesleid, right liebesleid-snap.', listen:'The bow against the hammer.' },
+  ];
+
+  const labs = [
+    { id:'lab-squares', title:'squares-snap against squares', song:'rach-concerto-2', only:'squares,squares-snap', listen:'Switch one on, then the other. Same places, but the new one cracks on and sinks within a fifth of a second. Notes you picked by hand always land.' },
+    { id:'lab-flee', title:'flee with the snap slider', song:'liebesleid', only:'flee', listen:'Slide "how snappy" from 0 to 1. At 1, shapes are lit and already at full speed on the note, with no tremble and no creep; at 0 it is the old flee, which shows the note late. In between, the freeze shortens and the flash grows as you go right.' },
+    { id:'lab-hammer', title:'hammer', song:'liebesleid', only:'hammer', listen:'A bar of light per note at the height of its pitch, struck, then a thin ringing line. Try the roll knob and the articulation knob.' },
+    { id:'lab-handover', title:'handover', song:'liebesleid', only:'handover', listen:'One slab per note, gone exactly as the next one lands. Try "gone by".' },
+    { id:'lab-fireworks', title:'fireworks-snap against fireworks', song:'rach-concerto-2', only:'fireworks,fireworks-snap', listen:'On picked notes none is dropped; each burst has a bright heart for two steps. Judged properly in rach-concerto-2-snap at 136 to 144.6 s.' },
+  ];
+
+  const shows = [
+    { id:'show-rach', title:'Rachmaninoff 2', ids:['rach-concerto-2','rach-concerto-2-knobs','rach-concerto-2-snap','rach-concerto-2-new'], listen:'Put -snap next to your original at 41 to 50 s (the arrival), 79 to 84 s (squares p9), 115 to 125 s (ivory p14) and 136 to 144.6 s (fireworks).' },
+    { id:'show-lieb', title:'Liebesleid', ids:['liebesleid','liebesleid-knobs','liebesleid-snap','liebesleid-new'], listen:'Play -new at 10.7 to 28.5 s (sighs), 174.9 to 186.2 s (rolls) and 230 to 242 s (glass).' },
+  ];
+
+  const mock = [
+    { id:'mock-envelope', title:'The envelope mock-up', href:'/docs/mockups/snap/envelope/index.html', listen:'The one interactive page: move the preset and knobs and read the lanes as on-screen brightness over time. A preset should show a spike on the attack, a fast fall, then the tail.' },
+  ];
+
+  // Marks live in this browser only. Every access is guarded: storage can be blocked or empty.
+  const KEY = 'snap-index-v1';
+  let marks = {};
+  try { marks = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { marks = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) { /* not remembered, still works */ } };
+
+  const el = (tag, attrs, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+    for (const k of kids) e.append(k);
+    return e;
+  };
+  const link = (href, text) => el('a', { href, target: '_blank', rel: 'noopener' }, text);
+  const listen = (text) => el('p', { class: 'listen' }, el('strong', {}, 'Listen for: '), text);
+
+  const tally = () => {
+    const all = Object.values(marks);
+    const k = all.filter((m) => m.v === 'keep').length, r = all.filter((m) => m.v === 'reject').length;
+    document.getElementById('tally').textContent = 'Marked so far: ' + k + ' keep, ' + r + ' reject.';
+  };
+
+  const verdictBox = (card, id) => {
+    const m = marks[id] || (marks[id] = {});
+    const paint = () => { card.classList.toggle('keep', m.v === 'keep'); card.classList.toggle('reject', m.v === 'reject'); };
+    const box = el('div', { class: 'verdict' });
+    for (const [val, text] of [['keep', 'Keep'], ['reject', 'Reject'], ['', 'Undecided']]) {
+      const r = el('input', { type: 'radio', name: 'v-' + id, value: val });
+      if ((m.v || '') === val) r.checked = true;
+      r.addEventListener('change', () => { m.v = val; paint(); tally(); save(); });
+      box.append(el('label', {}, r, ' ' + text));
+    }
+    const ta = el('textarea', { placeholder: 'Notes', 'aria-label': 'Notes for ' + id });
+    ta.value = m.n || '';
+    ta.addEventListener('input', () => { m.n = ta.value; save(); });
+    box.append(ta);
+    paint();
+    return box;
+  };
+
+  const videoHost = document.getElementById('videos');
+  for (const v of videos) {
+    const card = el('div', { class: 'item', id: v.id });
+    card.append(el('h3', {}, v.id));
+    card.append(el('p', { class: 'when' }, v.when + '. ' + v.sides));
+    const vid = el('video', { controls: '', preload: 'metadata', src: V + v.file + '.mp4' });
+    const miss = el('p', { class: 'miss' }, 'This video file was not found in renders/snap/.');
+    vid.addEventListener('error', () => { miss.style.display = 'block'; });
+    card.append(vid, listen(v.listen));
+    card.append(el('p', { class: 'sheet' }, link(V + v.file + '-sheet.png', 'Contact sheet'), ' (one frame per half second, top row left, bottom row right)'));
+    card.append(miss, verdictBox(card, v.id));
+    videoHost.append(card);
+  }
+
+  const labHost = document.getElementById('labs');
+  for (const l of labs) {
+    const card = el('div', { class: 'item', id: l.id });
+    card.append(el('h3', {}, l.title), el('p', { class: 'when' }, 'Song: ' + l.song));
+    card.append(el('p', {}, link(L(l.song, l.only), 'Open in the lab'), ' ', el('code', {}, L(l.song, l.only))));
+    card.append(el('p', { class: 'listen' }, l.listen), verdictBox(card, l.id));
+    labHost.append(card);
+  }
+
+  const showHost = document.getElementById('shows');
+  for (const s of shows) {
+    const card = el('div', { class: 'item', id: s.id });
+    card.append(el('h3', {}, s.title));
+    const ul = el('ul', { class: 'links' });
+    for (const id of s.ids) ul.append(el('li', {}, el('code', {}, 'shows/' + id + '.json'), ' ', link(R(id), 'frame-stepped render')));
+    card.append(ul, el('p', { class: 'listen' }, s.listen), verdictBox(card, s.id));
+    showHost.append(card);
+  }
+
+  const mockHost = document.getElementById('mock');
+  for (const m of mock) {
+    const card = el('div', { class: 'item', id: m.id });
+    card.append(el('h3', {}, m.title), el('p', {}, link(m.href, 'Open the mock-up')), el('p', { class: 'listen' }, m.listen), verdictBox(card, m.id));
+    mockHost.append(card);
+  }
+  tally();
+})();
+</script>
+</body>
+</html>
