@@ -5,7 +5,7 @@
   "title": "Micro 06b · Fire: Fireworks on the chord storm, gold spark bursts on the high line between the chords, Gliss heat rising on the strings' line, Hammer coals on the deep strokes, an oxblood field underneath",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:47:55.157Z"
+    "at": "2026-11-06T02:52:41.893Z"
   },
   "clips": [
     {
@@ -54,7 +54,7 @@
       "listen": "picks:fire-chords",
       "knobs": {
         "hue": 0.02,
-        "range": 0.25,
+        "range": 0.1,
         "size": 1.5,
         "swirl": 0.8,
         "linger": 0.5
