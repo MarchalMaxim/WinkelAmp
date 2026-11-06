@@ -5,7 +5,7 @@
   "title": "Chopin Nocturne Op. 48/1 · micro a3 · Ivory peak: Ivory climbing to C6 and falling back, Fireworks on the beat chords, Hammer on the line picking up again, Snap squares on the bass, fields underneath",
   "composer": {
     "by": "claude",
-    "at": "2026-11-06T02:06:41.981Z"
+    "at": "2026-11-06T02:09:54.421Z"
   },
   "clips": [
     {
@@ -103,9 +103,9 @@
       "listen": "picks:a3-after",
       "knobs": {
         "touch": 2,
-        "ring": 1,
-        "size": 1.1,
-        "presence": 0.7
+        "ring": 1.4,
+        "size": 1.5,
+        "presence": 0.85
       }
     }
   ],
