@@ -83,6 +83,15 @@
   details.combos .cmbrow:first-child { border-top: 1px solid #2e2538; }
   .onnow button.undo { border-color: #6a5390; background: #2a2038; padding-right: 9px; }
   .tool.hl { box-shadow: 0 0 0 2px #e9e2da55; transition: box-shadow 0.2s; }
+  .finder { position: fixed; inset: 0; z-index: 50; background: #0008; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 0; }
+  .finder[hidden] { display: none; }
+  .finder > div { width: min(440px, 100%); background: #141114; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px #000a; overflow: hidden; }
+  .finder input { width: 100%; padding: 10px 12px; background: transparent; color: var(--fg); border: 0; border-bottom: 1px solid var(--line); font: inherit; font-size: 15px; outline: none; }
+  .finder ul { list-style: none; margin: 0; padding: 4px 0; max-height: 50vh; overflow-y: auto; }
+  .finder li { padding: 6px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+  .finder li.sel { background: #2a2228; }
+  .finder li small { color: var(--dim); }
+  .finder li.on small { color: #e07a68; }
   /* The widgets now playing, under the track: click one to jump to its card, × to switch it off. */
   .onnow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--dim); margin: -6px 0 10px; min-height: 24px; }
   .onnow button { padding: 2px 4px 2px 9px; font-size: 12px; border-color: var(--on); background: #1d1013; display: inline-flex; gap: 4px; align-items: center; }
@@ -164,7 +173,7 @@
 <main>
   <header>
   <h1>Widget lab: switch widgets on and off, mix them, judge them</h1>
-  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that widget. Throwaway sketches, not app code.</p>
+  <p class="sub">Your recording, with every shape set off by a note the GPU heard. Click a card to toggle that widget. Space plays and pauses; Ctrl+P finds a widget. Throwaway sketches, not app code.</p>
   </header>
   <div class="deck" id="deck">
   <div class="stage"><canvas id="c" width="1280" height="720"></canvas></div>
@@ -1023,6 +1032,58 @@ const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(
 document.getElementById('play').onclick = () => (audio.paused ? audio.play() : audio.pause());
 audio.onplay = () => (document.getElementById('play').textContent = '❚❚ Pause');
 audio.onpause = () => (document.getElementById('play').textContent = '▶ Play');
+
+/* Keys, as in the studio: Space plays and pauses (not while typing in a field), Ctrl+P finds a widget. */
+const typingIn = (el) => !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
+  || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(el.type)));
+document.addEventListener('keydown', (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey && ev.key.toLowerCase() === 'p') { ev.preventDefault(); openFinder(); return; }
+  if (ev.code !== 'Space' || ev.ctrlKey || ev.metaKey || ev.altKey || typingIn(ev.target) || !FINDER.hidden) return;
+  ev.preventDefault();   // no page scroll, and a focused button (Play, a card's) is not pressed as well
+  if (!ev.repeat) audio.paused ? audio.play() : audio.pause();
+});
+document.addEventListener('keyup', (ev) => { if (ev.code === 'Space' && !typingIn(ev.target) && FINDER.hidden) ev.preventDefault(); });
+
+/* The finder: type part of a widget's name, ↑/↓ to choose, Enter switches it on (if it was off) and jumps to its card. */
+const FINDER = document.createElement('div');
+FINDER.className = 'finder'; FINDER.hidden = true;
+FINDER.innerHTML = '<div role="dialog" aria-label="Find a widget"><input type="text" placeholder="Find a widget…" aria-label="Find a widget" autocomplete="off" spellcheck="false"><ul role="listbox"></ul></div>';
+document.body.append(FINDER);
+const finderIn = FINDER.querySelector('input'), finderList = FINDER.querySelector('ul');
+let finderHits = [], finderSel = 0;
+function finderMatches(q) {
+  q = q.trim().toLowerCase();
+  const all = [...TOOLS].sort((a, b) => sortKey(a) - sortKey(b));
+  if (!q) return all;
+  const score = (t) => { const n = t.name.toLowerCase(), id = t.id.toLowerCase();
+    return n.startsWith(q) || id.startsWith(q) ? 0 : n.split(/[\s-]+/).some((w) => w.startsWith(q)) ? 1 : n.includes(q) || id.includes(q) ? 2 : -1; };
+  return all.map((t) => [t, score(t)]).filter(([, s]) => s >= 0).sort((a, b) => a[1] - b[1]).map(([t]) => t);
+}
+function drawFinder() {
+  finderHits = finderMatches(finderIn.value); finderSel = Math.min(finderSel, Math.max(0, finderHits.length - 1));
+  finderList.innerHTML = finderHits.length ? finderHits.map((t, i) => `<li role="option" data-i="${i}" class="${i === finderSel ? 'sel' : ''}${active.has(t.id) ? ' on' : ''}">${esc(t.name)}<small>${active.has(t.id) ? 'on' : ''}</small></li>`).join('')
+    : '<li><small>No widget by that name</small></li>';
+  finderList.querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
+}
+function openFinder() { FINDER.hidden = false; finderIn.value = ''; finderSel = 0; drawFinder(); finderIn.focus(); }
+function closeFinder() { FINDER.hidden = true; finderIn.blur(); }
+function pickFinder(i) {
+  const tool = finderHits[i]; if (!tool) return;
+  closeFinder();
+  if (!active.has(tool.id)) { active.add(tool.id); resetWidget(tool); render(); }
+  const card = document.querySelector(`.tool[data-id="${CSS.escape(tool.id)}"]`); if (!card) return;
+  if (card.hidden) { FILTER.feel.length = 0; FILTER.inst.length = 0; applyFilter(); }   // the filter had hidden it
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  card.classList.add('hl'); setTimeout(() => card.classList.remove('hl'), 1200);
+}
+finderIn.oninput = () => { finderSel = 0; drawFinder(); };
+finderIn.onkeydown = (ev) => {
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); finderSel = (finderSel + (ev.key === 'ArrowDown' ? 1 : -1) + finderHits.length) % Math.max(1, finderHits.length); drawFinder(); }
+  else if (ev.key === 'Enter') { ev.preventDefault(); pickFinder(finderSel); }
+  else if (ev.key === 'Escape') { ev.preventDefault(); closeFinder(); }
+};
+finderList.onclick = (ev) => { const li = ev.target.closest('[data-i]'); if (li) pickFinder(Number(li.dataset.i)); };
+FINDER.onclick = (ev) => { if (ev.target === FINDER) closeFinder(); };
 document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Number(b.dataset.t))));
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
