@@ -1,0 +1,640 @@
+{
+  "shows": [
+    {
+      "song": "liszt-hungarian-2",
+      "pack": "liszt-hungarian-2",
+      "letter": "A",
+      "show_id": "liszt-hungarian-2-a-bandleaders-octaves",
+      "title": "Bandleader's octaves",
+      "concept": "Proven family, pushed further. The loved Octave storm stack is grown into a 10-minute orchestral rhapsody, to test whether it carries a whole arc. The brooding lassan is needles and struck bars: interlock drives in on the heavy C#-minor octaves, and hammer strikes the proud recitative phrases. The cimbalom flourishes pluck their hairline threads, the friska's rising sequences stand up as short Ivory rows (one per phrase), and gliss curls warm fluid on the virtuoso runs and hand-crossings. Fireworks-snap is saved for the stomping csardas blows and the crashing close; fields glow dim only under the full tutti and drop out for the cadenza pause. Keywords: brooding lassan, cimbalom tremolo, virtuoso fireworks, csardas dance.",
+      "palette": "bone needles and milk-white keys, ember-gold sparks and oxblood bursts on black over a dim violet field",
+      "family": [
+        "interlock",
+        "hammer",
+        "pluck",
+        "ivory",
+        "gliss",
+        "fireworks-snap",
+        "fields"
+      ],
+      "leitmotifs": "Lassan octaves (cello and strings tracks, octave pairs below C4) go to interlock. The recitative (violin, held voiced-out notes of at least 0.28 s) goes to hammer, marcato touch. The cimbalom flourishes and tremolos (plucked and piano tracks, fast ornament figures) go to pluck. The friska's rising sequences (violin, one set per phrase) go to short Ivory rows. Runs and hand-crossings (runs on violin and viola) go to gliss. The ff csardas chords and the final crash (chords inside the loudest windows) go to fireworks-snap. Fields plays on all notes with an intensity curve: out for the lassan solos and the cadenza.",
+      "trials": "Gliss seen in motion on real runs (so far only in stills). Pluck as a cimbalom. Ivory on violin sequences instead of a piano line. Whether the Octave storm stack holds 10 minutes."
+    },
+    {
+      "song": "liszt-hungarian-2",
+      "pack": "liszt-hungarian-2",
+      "letter": "B",
+      "show_id": "liszt-hungarian-2-b-hot-plate",
+      "title": "Hot plate",
+      "concept": "New family: heat and liquid. The lassan is a slow molten surface: perlin's lumps swell on the bass octaves and twist with loudness, and their churn follows tempo, so the friska's acceleration brings the surface to a boil. The friska's staccato repeated notes are Leidenfrost drops skating on that plate. They burst in two on loud hits and boil away as the prestissimo heats up. Flee takes only the unorganised mass of the prestissimo. The original fluid fireworks go off only on the real ff tutti blows and the final crash. Keywords: accelerating frenzy, whirling friska, tavern stomping, virtuoso fireworks.",
+      "palette": "amber molten surface (perlin colour 2, a knob the concept needs), white steam over an ember plate, ember-red smoke",
+      "family": [
+        "perlin",
+        "leidenfrost",
+        "flee",
+        "fireworks"
+      ],
+      "leitmotifs": "The lassan's low octaves (low line plus cello picks) go to perlin: full through the lassan, a low-presence ground under the friska. The friska's high staccato repeated notes (repeats on violin) go to leidenfrost, small beads. The csardas stomps in the low strings (cello and viola accents) go to a second leidenfrost with big drops. The prestissimo (all notes in the densest stretches, never picks) goes to flee. The real ff blows (accents in the loudest 10 s windows: 0:10, 1:20, 4:00, 6:50, 8:10, the close) go to fireworks.",
+      "trials": "Perlin and leidenfrost in a show for the first time, and as a pair. The original fireworks on an orchestra. Flee on a dance's frenzy."
+    },
+    {
+      "song": "liszt-hungarian-2",
+      "pack": "liszt-hungarian-2",
+      "letter": "C",
+      "show_id": "liszt-hungarian-2-c-optical-poem",
+      "title": "Optical poem",
+      "concept": "Radical single hero. Oskar Fischinger's 'An Optical Poem' (1938) was cut to this very rhapsody, and the show answers it with Fischinger alone, as a polyptych of window panels. The lassan is one full deep-blue panel, where the low octaves sink their figures. At the friska the screen splits into three panels: the low strings, the violins' gypsy fiddle line and the winds' flourishes. Each panel listens to its own strand, so the tune jumps from panel to panel like a cat-and-mouse chase. It goes back to one panel for the cadenza pause, and to one full screen on every strand for the prestissimo and the close. Keywords: gypsy fiddle, csardas dance, cat and mouse chase, accelerating frenzy.",
+      "palette": "Fischinger's deep blue ground with primary discs, rings and bars, in solid blue panels",
+      "family": [
+        "fischinger"
+      ],
+      "leitmotifs": "Low octaves and bass (cello plus low strings picks) go to panel 1. The gypsy fiddle melody (violin, held voiced-out notes) goes to panel 2. The flourishes (clarinet, plucked and piano tracks) go to panel 3. The prestissimo and the close go to one full-screen instance on all notes. The panels are windows: fischinger paints its own ground, so each one is a solid blue panel by design. Instances of a ground cannot overlay.",
+      "trials": "Fischinger as the sole hero for 10 minutes. A polyptych of windows of one widget, one strand per panel, entering as the strands enter."
+    },
+    {
+      "song": "bald-mountain",
+      "pack": "bald-mountain",
+      "letter": "A",
+      "show_id": "bald-mountain-a-black-mass",
+      "title": "Black mass",
+      "concept": "Proven family, pushed further: the Prelude's ink, dread and panic stack on the piece it seems written for. Chernabog's heavy brass soaks into rorschach's oxblood ink, with dread squares on the low blows. Woven threads whirl with the strings, and flee takes only the densest shrieking masses. The sabbath dance is a murmuration of spirits. At its repeated climaxes the casket goes over the flock (murmuration + casket) and blocks tear the squares and threads (squares + strings + blocks). At the church bell everything but the flock stops, and the bell's chord re-forms it into its figure. Daybreak is horizon's grey sea, with the current's lone thread on the clarinet and flute. Keywords: Chernabog, black mass, shrieking strings, church bell, daybreak.",
+      "palette": "oxblood ink and dread red on soot black, then a grey-gold dawn sea with a white-gold thread",
+      "family": [
+        "rorschach",
+        "squares",
+        "strings",
+        "flee",
+        "murmuration",
+        "casket",
+        "blocks",
+        "horizon",
+        "current"
+      ],
+      "leitmotifs": "Chernabog's brass goes to rorschach and squares. There is no brass track, so the picks are low-line notes below G3 in the brass passages, checked against audio onsets. The whirling string figures (runs on violin and viola) go to strings. The densest shrieking stretches (all notes, never picks) go to flee. The sabbath dance theme (melody picks) goes to murmuration. The climax chords (accents and chords) go to the casket and blocks. The church bell has no track: picks come from audio onsets plus chroma, and they re-form murmuration. At daybreak the clarinet track and the flute (melody above C5, from the notes) go to the current over horizon.",
+      "trials": "The untested combos murmuration + casket and squares + strings + blocks, on loud chords. The dread family on an orchestra with 56% coverage. Horizon and the current cover the quiet daybreak (7:22-9:40)."
+    },
+    {
+      "song": "bald-mountain",
+      "pack": "bald-mountain",
+      "letter": "B",
+      "show_id": "bald-mountain-b-spines-and-bell",
+      "title": "Spines and the bell",
+      "concept": "New family: the nature widgets on a contour map. The mountain is a topographic map: contours raises warm hills on the loud blows and sinks cool pits where the music falls back. A field of urchin spines is the gathered spirits. The whole field turns and stabs toward each of Chernabog's blows, and at the church bell it turns one last time and lies down. Crimp's ribbons go straight then woolly on the whirling tremolo strings, and mica flashes silver on the brittle ff shrieks high in the strings. Cut stands a knife-sharp slab on each hammered sabbath chord, and the chords after it crumble it step by step. At daybreak the map gives way to Martin's pale washed bands, with pluck's threads on the harp. Keywords: witches' sabbath, demons and ghosts, church bell, daybreak.",
+      "palette": "warm and cool contour lines on black, dark-teal spines, brick-red woolly strips, silver-violet shards and sugar slabs, then Martin's pale dawn bands",
+      "family": [
+        "contours",
+        "urchin",
+        "crimp",
+        "mica",
+        "cut",
+        "pluck",
+        "martin"
+      ],
+      "leitmotifs": "The mountain (all notes, presence curve) goes to contours. Chernabog's blows and the church bell strokes go to urchin: low accents, plus bell picks from audio onsets and chroma (there is no bell track). The tremolo strings (repeats on viola and violin) go to crimp. The ff shrieks (violin above C6, loudest 15%) go to mica. The hammered sabbath chords (chords) go to cut. The daybreak harp (plucked track) goes to pluck. The daybreak clarinet and flute held notes (clarinet track plus long notes) go to martin.",
+      "trials": "Urchin, crimp, mica, cut, contours and martin, all untested in shows. Mica gets loud brittle shrieks, not a soft left hand. Crimp gets fast strings, not a chorale. Urchin gets sparse tolls. Contours is costly: check render speed."
+    },
+    {
+      "song": "bald-mountain",
+      "pack": "bald-mountain",
+      "letter": "C",
+      "show_id": "bald-mountain-c-op-art-sabbath",
+      "title": "Op-art sabbath",
+      "concept": "Radical single hero: one Bridget Riley stripe field carries the whole night, tested with all three of its untested partners. The gathering of the spirits is Riley alone, with the bass swelling lenses into the stripes. Time slice goes over the whirling sabbath, so the stripes break into staircases of cut time. Chernabog's chords glow through the black bands as fifths' chord stencil, and the repeated climaxes tear the field into grey and white bars with pixel sort. At the bell the partners leave. At daybreak Riley's presence is turned down to a few broad, clean bands that barely bend. Keywords: witches' sabbath, Chernabog, church bell, daybreak.",
+      "palette": "black-and-white op-art stripes, lit only by a gold-violet chord stencil",
+      "family": [
+        "riley",
+        "timeslice",
+        "fifths",
+        "pixelsort"
+      ],
+      "leitmotifs": "All notes go to riley, one clip with a presence curve. The sabbath dance (melody picks) goes to timeslice, whose 'now' line follows them. Chernabog's chords (chords in the brass passages) go to fifths. The climax chords (loudest chords) go to pixelsort. The bell and the daybreak are Riley alone.",
+      "trials": "Riley + time slice, Riley + fifths and Riley + pixel sort: all three untested combos in one show. Time slice's first show."
+    },
+    {
+      "song": "danse-macabre",
+      "pack": "danse-macabre",
+      "letter": "A",
+      "show_id": "danse-macabre-a-midnight-on-black",
+      "title": "Midnight on black",
+      "concept": "Proven family, pushed further: STYLE's 'Bells, a flare and a sinking voice', on pure black, on a piece that has all three. The harp's twelve strokes are small, calm red squares. Death's detuned fiddle is a film sail whose corners whip to the tritone and ring back. The sly waltz stands up as short Ivory rows, one per phrase, and the xylophone's bones flash mica's silver shards. The pizzicato is pluck's hairline threads, and fireworks-snap waits for the frenzy's real ff blows. At dawn the oboe rooster gets the sail, and the dead slip back on pluck alone. Keywords: midnight bells, Death's fiddle, rattling bones xylophone, ghostly waltz.",
+      "palette": "milk-white keys and an ink-blue sail on pure black, with small red bells and silver-violet shards",
+      "family": [
+        "squares-snap",
+        "film",
+        "ivory",
+        "mica",
+        "pluck",
+        "fireworks-snap"
+      ],
+      "leitmotifs": "The twelve strokes (plucked track plus audio onsets, 0-26 s) go to squares-snap. Death's fiddle (violin: the held tritone double-stops and the leaping solos) and the rooster (oboe track) go to film. The waltz theme (melody picks on violin and clarinet; there is no flute track) goes to Ivory. The xylophone has no track: picks come from the piano track's high repeated notes, checked by ear and against audio onsets, and go to mica. The pizzicato (short notes on cello and strings, and the final pizzicato) goes to pluck. The frenzy's ff (accents at 4:57-6:58) goes to fireworks-snap.",
+      "trials": "Film retried on a leaping violin after its horn-call rejection. Mica on a xylophone. Ivory on a waltz. The 0-26 s opening is spare by design (bells on black)."
+    },
+    {
+      "song": "danse-macabre",
+      "pack": "danse-macabre",
+      "letter": "B",
+      "show_id": "danse-macabre-b-miro-graveyard",
+      "title": "Miro graveyard",
+      "concept": "New family: Miró and Rorschach, folded on the tritone. The danse is a Miró constellation on a cream sheet: the waltz is its one black line wandering through, held notes swelling into red, blue and yellow blobs. Rorschach turns the pizzicato bass into a sepia inkblot under the stars. Death's fiddle is a nervous scribble pen that scratches back in red on every chord. In the Dies irae and the frenzy, fold mirrors the whole sheet on a line that turns with the bass, and chords flip the mirror, the way the devil's tritone splits the octave. At dawn the mirror fades and the sky clears to a few marks. Keywords: ghostly waltz, Death's fiddle, devil's tritone, Dies irae.",
+      "palette": "cream sheet with a black line, primary blobs, sepia ink and red pen scratches",
+      "family": [
+        "miro",
+        "rorschach",
+        "scribble",
+        "fold"
+      ],
+      "leitmotifs": "The waltz (melody picks) goes to miro. The pizzicato bass (cello plus low line) goes to rorschach. Death's fiddle (violin solos) goes to scribble. The Dies irae and the frenzy (all notes) go to fold.",
+      "trials": "The untested combo Miró + Rorschach. Scribble and fold on a cream ground. The quiet 0-26 s opening is covered by Miró's sheet."
+    },
+    {
+      "song": "danse-macabre",
+      "pack": "danse-macabre",
+      "letter": "C",
+      "show_id": "danse-macabre-c-night-page",
+      "title": "Night page",
+      "concept": "Radical single idea: the dance writes its own score on a night page. Every note is written in chalk notation, Death's fiddle as a bone brushstroke and the bass as red slabs (score + squares + brush). In the fugal swirl, Stella frames pile inward, one per attack, and invert the page (score + squares + stella). The mocking Dies irae and the frenzy's heavy chords drag the stems into rust-and-black melts with pixel sort, and the page heals after. The rooster and the final pizzicato write one last sparse line. Keywords: Dies irae, Death's fiddle, graveyard, skeletons dancing.",
+      "palette": "chalk white on night black with red slabs, bone strokes and rust melts",
+      "family": [
+        "score",
+        "squares",
+        "brush",
+        "stella",
+        "pixelsort"
+      ],
+      "leitmotifs": "All notes go to score (paper 0, the combo's required night page). The bass (low line plus cello) goes to squares. Death's fiddle (violin) goes to brush. The fugal passages (repeats and runs on the string tracks) go to stella. The Dies irae and frenzy chords (chords) go to pixelsort.",
+      "trials": "The untested combos score + squares + brush, score + squares + stella and score + pixel sort. Stella's first show."
+    },
+    {
+      "song": "holst-mars",
+      "pack": "holst-mars",
+      "letter": "A",
+      "show_id": "holst-mars-a-kandinsky-campaign",
+      "title": "Kandinsky campaign",
+      "concept": "Proven family, pushed further: the Beethoven kandinsky stack, armoured. Kandinsky's plane of heavy black bars, blue circles and flying yellow triangles is the army on the march. Dread squares hammer the 5/4 ostinato of timpani and col legno, and brass gust wedges burst on the tuba and trumpet fanfares. At the dissonant climaxes the casket melts everything and pixel sort pulls the melt into sheets (kandinsky + casket + pixelsort). The final blows on one note are squares alone, then black. Keywords: brass onslaught, marching army, menace, dissonant climax.",
+      "palette": "Kandinsky's primaries and black bars over dread red, torn into blue, gold and red melt sheets",
+      "family": [
+        "kandinsky",
+        "squares",
+        "gust",
+        "casket",
+        "pixelsort"
+      ],
+      "leitmotifs": "The 5/4 ostinato (0-54 s col legno) has no timpani track, so its picks come from audio onsets in the low band, cut to the 5/4 pattern. They go to squares, which also cover the quiet start. The army (all notes) goes to kandinsky, with presence rising from low. The fanfares have no brass track: picks are the notes in the brass passages (voice or strings labels), confirmed by audio onsets, and they go to gust. The climaxes (loudest chords, 6:34-6:56) go to the casket and pixel sort.",
+      "trials": "The untested combo kandinsky + casket + pixel sort. Gust's first show. Kandinsky at 24% coverage."
+    },
+    {
+      "song": "holst-mars",
+      "pack": "holst-mars",
+      "letter": "B",
+      "show_id": "holst-mars-b-constructivist-machine",
+      "title": "Constructivist machine",
+      "concept": "New family: war as a hard-edged machine. Suprematism's flat planes drift apart in the quiet opening, then pile into each other and tilt in the brass onslaught. Stella frames step in from the edge on every beat of the 5/4 ostinato, so the relentless rhythm stacks up stripes. McLaren's cards stream down through the dragging middle march, and cut stands a knife-sharp slab on each brass blow, which every later attack chips away. Keywords: relentless 5/4, war machine, mechanised warfare, pounding ostinato.",
+      "palette": "Malevich red, ochre and cream planes on a dark field, inverted Stella frames, McLaren's cards and sugar-white slabs",
+      "family": [
+        "suprematism",
+        "stella",
+        "mclaren",
+        "cut"
+      ],
+      "leitmotifs": "All notes go to suprematism, the ground. The ostinato (audio-onset 5/4 picks, which also fill the quiet 0-54 s) goes to stella. The middle march (cello, viola and strings) goes to mclaren, in a full-frame window with clear blend so its black ground turns see-through over the planes. The brass blows (accents) go to cut.",
+      "trials": "Suprematism, stella, cut and mclaren on an orchestra. A black-ground widget laid in a clear window over another ground."
+    },
+    {
+      "song": "holst-mars",
+      "pack": "holst-mars",
+      "letter": "C",
+      "show_id": "holst-mars-c-black-film",
+      "title": "Black film",
+      "concept": "Radical near-monochrome: the war in black and silver. Ridges is the front: every slice of the music a ridgeline, soft passages packed into dim hairlines, the onslaught spreading into bold bright lines. The col legno taps scratch the film with Len Lye's boiling white marks. The brass speaks in Ikeda barcodes, the same note always the same code, and the armoured return tears the codes with glitch blocks (ikeda + blocks). The final hammer blows on one note strike one code again and again, then the film runs out. Keywords: col legno strings, mechanised warfare, war machine, dissonant climax.",
+      "palette": "black and silver film grain: ridgelines, white scratches and barcodes, a few red glitch bars",
+      "family": [
+        "ridges",
+        "lenlye",
+        "ikeda",
+        "blocks"
+      ],
+      "leitmotifs": "All notes go to ridges, the ground, which also draws the near-empty opening. The col legno ostinato (plucked track plus audio onsets) goes to lenlye, in a full-frame clear window. The brass has no track: its picks are accents and loud notes in the brass passages, and they go to ikeda, also in a clear window. The armoured return and the pile-up (chords, 3:52 to the end) go to blocks.",
+      "trials": "Ridges and Len Lye in a show. The untested combo ikeda + blocks. Several black-ground widgets layered through clear windows."
+    },
+    {
+      "song": "mountain-king",
+      "pack": "mountain-king",
+      "letter": "A",
+      "show_id": "mountain-king-a-threads-and-dread",
+      "title": "Threads and dread",
+      "concept": "Proven family, pushed further: woven threads and dread squares, run as one accelerating machine. Woven threads are the pizzicato footsteps, twitching on every pluck. Dread squares are the tiptoeing bassoons, low in the cave. As the theme climbs and the orchestra joins, blocks tear the threads and squares into sliding slabs (squares + strings + blocks). The frenzy's mass of notes belongs to flee, and the final hammer-blow chords get the casket's single slash before the cut to black. Keywords: tiptoeing bassoons, pizzicato footsteps, accelerando, frenzy.",
+      "palette": "ember threads and dread red on black, with white-hot flee streaks",
+      "family": [
+        "strings",
+        "squares",
+        "blocks",
+        "flee",
+        "casket"
+      ],
+      "leitmotifs": "The pizzicato (short notes on cello, contrabass and strings) goes to strings. The bassoon theme (bassoon track plus low line) goes to squares. The crescendo's chords (chords from about 70 s) go to blocks. The frenzy (all notes, last 40 s, never picks) goes to flee. The final blows (the last chords before 2:32) go to the casket.",
+      "trials": "Squares + strings + blocks (untested) on an accelerando. The dread family at a fast tempo."
+    },
+    {
+      "song": "mountain-king",
+      "pack": "mountain-king",
+      "letter": "B",
+      "show_id": "mountain-king-b-troll-traffic",
+      "title": "Troll traffic",
+      "concept": "New family: the round-9 characters on Mondrian's Broadway. Boogie's cream lanes are the hall: every attack makes all the blocks hop, so the tiptoeing opening is a near-still street and the frenzy a traffic jam. On it the bassoons are Clumsy's mismatched shapes hopping toward their line, knocked over by every note, and in the frenzy they never get there. Royal's tall stroke is the king, ignoring a court that darts in on every note; the brass enters as gusts. On the final hammer blows Royal's tip flicks everyone off the page. Keywords: trolls, mischievous, tiptoeing bassoons, chase.",
+      "palette": "cream and yellow lanes with red, blue and grey blocks, mismatched clumsy shapes, one brushed black stroke and brass gusts",
+      "family": [
+        "boogie",
+        "clumsy",
+        "royal",
+        "gust"
+      ],
+      "leitmotifs": "All notes go to boogie, the ground. The bassoon theme (bassoon and clarinet tracks) goes to clumsy. A second clumsy takes the strings' statements (violin). The horn pedal and low chords (horn, brass and cello; horn has only 13 notes, so add audio onsets) go to royal. The brass (brass and trumpet tracks) goes to gust.",
+      "trials": "Clumsy, royal and gust in a show. Boogie as the ground under character widgets. Royal's flick timed to the last chords."
+    },
+    {
+      "song": "mountain-king",
+      "pack": "mountain-king",
+      "letter": "C",
+      "show_id": "mountain-king-c-infinity-hall",
+      "title": "Infinity hall",
+      "concept": "Radical single hero: the hall is one Kusama room. Every note starts a colony of dots, and the infinity net tightens as the music speeds up, so the accelerando is the net closing in. In the frenzy, fold makes it a twin colony that folds fourfold on the loud chords (kusama + fold). The final hammer blows tear the print into strips of the old colours (kusama + pixel sort), then cut to black. Keywords: accelerando, frenzy, mountain cave, goblins and gnomes.",
+      "palette": "Kusama's flat colour and partner dots (yellow on black, red on white), flooding with the harmony",
+      "family": [
+        "kusama",
+        "fold",
+        "pixelsort"
+      ],
+      "leitmotifs": "All notes go to kusama, one long clip. The frenzy (all notes, the last 40 s) goes to fold. The final chords go to pixel sort.",
+      "trials": "The untested combos kusama + fold and kusama + pixel sort. Kusama as the sole hero."
+    },
+    {
+      "song": "firebird-berceuse-finale",
+      "pack": "firebird-berceuse-finale",
+      "letter": "A",
+      "show_id": "firebird-berceuse-finale-a-lantern-to-hymn",
+      "title": "Lantern to hymn",
+      "concept": "Proven family, pushed further: STYLE's 'lone light, then keys' across a whole spell. The hypnotic bassoon lullaby is the current's lone light. It must not die through the frozen tremolo, and Comfort's big soft fields breathe under it there, so that near-silent stretch is never black. The solo horn's hymn stands up as huddled Ivory (strike 0, keys that swell like a horn). As the hymn passes into the strings, woven threads braid with it. Fireworks-snap waits for the stamping 7/4 brass chords. Keywords: lullaby spell, hypnotic bassoon, noble horn melody, triumphant sunrise.",
+      "palette": "a white-gold thread over Comfort's dusky rose and blue fields, then milky keys, ember threads and gold bursts",
+      "family": [
+        "current",
+        "comfort",
+        "ivory",
+        "strings",
+        "fireworks-snap"
+      ],
+      "leitmotifs": "The bassoon lullaby (bassoon track, with audio onsets where it is missing) goes to the current. All notes plus the quiet stretches go to comfort. The horn hymn (horn track plus melody picks at 4:27-5:21) goes to huddled Ivory. The hymn in the strings (violin) goes to strings. The 7/4 chords (chords at 5:21-6:54) go to fireworks-snap.",
+      "trials": "Comfort, untested, as the ground that covers the 34%-coverage holes. Ivory on a horn hymn. Ivory and woven threads together."
+    },
+    {
+      "song": "firebird-berceuse-finale",
+      "pack": "firebird-berceuse-finale",
+      "letter": "B",
+      "show_id": "firebird-berceuse-finale-b-orphic-fall",
+      "title": "Orphic fall",
+      "concept": "New family: the spell as radial grains. Nebula's grains stream between the notes of the bassoon lullaby. Mandala blooms its lace on the harp and the magic feather, and both slow almost to stillness in the frozen tremolo. The hymn's long crescendo becomes a fall through Tunnel's nested outlines, and busier playing speeds it on a steep curve. The original fluid fireworks go off only on the stamping 7/4 brass chords. Keywords: lullaby spell, magic feather, rebirth, volcano fire.",
+      "palette": "violet and white nebula grains, gold mandala lace, the tunnel's glowing outlines and red-orange smoke",
+      "family": [
+        "nebula",
+        "mandala",
+        "tunnel",
+        "fireworks"
+      ],
+      "leitmotifs": "The bassoon and the oboe answers go to nebula. Bassoon and clarinet are tracked; the oboe is not, so its answers are melody picks. The harp has no track: it is likely in the piano track (check by ear), else audio onsets, and it goes to mandala. The crescendo (all notes, 4:27-5:21) goes to tunnel. The 7/4 chords go to fireworks.",
+      "trials": "Tunnel and the original fireworks in a show. Nebula and mandala as a pair."
+    },
+    {
+      "song": "firebird-berceuse-finale",
+      "pack": "firebird-berceuse-finale",
+      "letter": "C",
+      "show_id": "firebird-berceuse-finale-c-simultaneous-sunrise",
+      "title": "Simultaneous sunrise",
+      "concept": "Radical single hero. Delaunay painted the sun and moon as turning discs of simultaneous colour, and here those three discs (bass, middle, treble) are the whole Firebird. Through the berceuse they barely turn, and only the lullaby lights a few segments; in the frozen tremolo they sink to a dark glaze. The horn hymn lights them one note at a time, the crescendo sets ring against ring, and the stamping 7/4 chords throb every ring outward. The clip ends on the last chord, before the silence. Keywords: triumphant sunrise, rebirth, lullaby spell.",
+      "palette": "Delaunay's simultaneous contrasts: complementary rings around the circle of fifths",
+      "family": [
+        "delaunay"
+      ],
+      "leitmotifs": "One delaunay instance on all notes. Audio-onset picks fill the berceuse and tremolo holes, so the lullaby still lights segments.",
+      "trials": "Delaunay as the sole hero for 7 minutes. Whether its glaze carries the frozen tremolo."
+    },
+    {
+      "song": "barber-adagio",
+      "pack": "barber-adagio",
+      "letter": "A",
+      "show_id": "barber-adagio-a-milk-and-sea",
+      "title": "Milk and sea",
+      "concept": "Proven family, pushed further: milky handover and huddled Ivory over a still sea. Barber's chant is all long, slow notes, which is the material handover was made for: one milky slab per violin note, each gone as the next lands. Horizon's still sea lies under it from the first bar, so the 19% transcription never leaves black. Each ascent climbs as a huddled Ivory row, and a murmuration ribbon traces the violas and cellos as they take the theme. At the searing climax, loud chords sort the sea itself (horizon + murmuration + pixelsort). The silence is black on purpose, and the hymn returns with handover alone. Keywords: slow ascent, searing climax, silence, hymn-like.",
+      "palette": "milky slabs and keys on a grey long-exposure sea, a dark flock, grey and ember sorting at the climax",
+      "family": [
+        "handover",
+        "ivory",
+        "murmuration",
+        "horizon",
+        "pixelsort"
+      ],
+      "leitmotifs": "The violin chant (violin long notes plus audio-onset picks) goes to handover. The ascents (rising violin lines, one set per wave) go to huddled Ivory. The theme in the low strings (viola and cello) goes to murmuration. The ground is horizon. The climax chords (5:01-5:59) go to pixel sort.",
+      "trials": "Horizon + murmuration + pixel sort (untested) on a real climax. Handover on its ideal material. Horizon covering the coverage holes."
+    },
+    {
+      "song": "barber-adagio",
+      "pack": "barber-adagio",
+      "letter": "B",
+      "show_id": "barber-adagio-b-marbled-elegy",
+      "title": "Marbled elegy",
+      "concept": "New family: a liquid mirror. Every note is a drop of ink on a still bath, pushing the older ink outward into bands. Fold mirrors the bath on a line that turns with the bass, so the elegy becomes a symmetrical marbled endpaper (marbling + fold), its mirror fading in the quiet bars. A vine creeps along the cello line, forking on its notes and withering when the music thins. The searing climax tears the marble sideways into its own reds and bone (marbling + pixelsort, at the climax only). After the silence the vine grows back from what is left. Keywords: mourning, elegy, slow ascent, silence.",
+      "palette": "marbled oxblood, bone and slate ink, mirrored, with dark green stems",
+      "family": [
+        "marbling",
+        "fold",
+        "vine",
+        "pixelsort"
+      ],
+      "leitmotifs": "The chant and its ascents (violin and viola, plus audio-onset picks) go to marbling. All notes go to fold, which turns with the bass. The cello line (cello track) goes to vine, with intensityMoves set to present. The climax chords go to pixel sort.",
+      "trials": "The untested combos marbling + fold and marbling + pixel sort. Vine's first show. Marbling at 19% coverage."
+    },
+    {
+      "song": "barber-adagio",
+      "pack": "barber-adagio",
+      "letter": "C",
+      "show_id": "barber-adagio-c-one-tree",
+      "title": "One tree",
+      "concept": "Radical single hero: Tree's built-in arc is the Adagio's own. One tree against a pale sky grows a step on each note of the three voices, and the slow ascents build its boughs and crown. The searing climax sprays the crown with lit leaves. After it the blight runs through limb by limb: leaves turn and fall on the hymn's last attacks, the sky goes to dusk, and the tree ends as a black drawing. Keywords: slow ascent, searing climax, grief, silence.",
+      "palette": "ginkgo-gold leaves under a grey-blue sky that goes to violet dusk",
+      "family": [
+        "tree"
+      ],
+      "leitmotifs": "One tree on a pick set of the held notes of all three voices (violin, viola, cello), plus audio onsets where the 19% transcription is silent.",
+      "trials": "Tree as the sole hero. Whether its climax detection lands on Barber's climax at about 5:01-5:59."
+    },
+    {
+      "song": "gymnopedie-jazz",
+      "pack": "gymnopedie-jazz",
+      "letter": "A",
+      "show_id": "gymnopedie-jazz-a-ink-on-dusk",
+      "title": "Ink on dusk",
+      "concept": "Proven family, pushed further: the loved painterly widgets, not the snap family, in a jazz room at dusk. Rothko fields stay violet and blue, and the melody is a bone calligraphy stroke over them, one per phrase, with red slashes on the strong chords (fields + brush). The current braids the walking bass and the inner voices. The comping chords re-form a murmuration into each chord's own figure, so the changes become shapes: the same chord always gives the same figure. The sparse intro is the current alone. The drums' entry, the lift and the climax bring the full braid. Keywords: dusk light, slow dance, melancholy, smoky late-night.",
+      "palette": "violet-blue Rothko fields, bone ink with red slashes, white-gold threads and a dark flock",
+      "family": [
+        "fields",
+        "brush",
+        "current",
+        "murmuration"
+      ],
+      "leitmotifs": "The melody (melody picks, held notes) goes to brush. The bass and inner voices (bassline plus inner) go to the current. The comping chords (chords) go to murmuration. Fields plays on all notes (home -0.6, chords 0.5, the combo's values).",
+      "trials": "Fields + brush (untested). Murmuration on jazz changes. A favourites stack on a groove instead of a classical piece."
+    },
+    {
+      "song": "gymnopedie-jazz",
+      "pack": "gymnopedie-jazz",
+      "letter": "B",
+      "show_id": "gymnopedie-jazz-b-grain-and-ennui",
+      "title": "Grain and ennui",
+      "concept": "New family: dots and stains. Ennui is huge green stains that can't be bothered: Lazy slumps across the picture, ignores the groove and swells only slowly toward the climax. Over it the comping chords dab pointillist bursts that settle into soft dusk fields. Halftone's red screen swells on the walking bass, and its pale screen ripples with the brushes and hi-hat. Cells lights a cell for each melody note, coloured by how far it strays from home. Gliss curls smoky warm fluid on the piano's runs and fills. Keywords: ennui, soft mist, Sunday afternoon, smoky late-night.",
+      "palette": "sour moss-green stains, pointillist dusk dots, red and pale halftone screens, amber smoke",
+      "family": [
+        "lazy",
+        "pointillism",
+        "halftone",
+        "cells",
+        "gliss"
+      ],
+      "leitmotifs": "All notes go to lazy, the ground. The comping (chords) goes to pointillism. The bassline plus hi-hat and brush picks from audio onsets in the high band (from 0:30) go to halftone. The melody goes to cells. The runs and fills go to gliss.",
+      "trials": "Lazy, pointillism and cells in a show. Halftone driven by drum onsets taken from the audio. Gliss on jazz fills."
+    },
+    {
+      "song": "gymnopedie-jazz",
+      "pack": "gymnopedie-jazz",
+      "letter": "C",
+      "show_id": "gymnopedie-jazz-c-empty-walls",
+      "title": "Empty walls",
+      "concept": "Radical single hero: a white gallery, an empty room. Each section of the arrangement starts a fresh LeWitt wall with the next rule. The sparse intro draws a few lines from the corners, and the groove fills a wall with arcs and squares of parallel lines. The lift brings a denser rule, and each break leaves a wall unfinished. The climax piles fine coloured-pencil lines into the densest wall, and the abrupt end stops mid-rule. Keywords: empty rooms, drifting stillness, slow dance, Sunday afternoon.",
+      "palette": "a pale gallery wall with fine coloured-pencil lines and pencilled rule text",
+      "family": [
+        "lewitt"
+      ],
+      "leitmotifs": "Lewitt on all notes. Clips are cut at the arrangement's turns (0, 15, 70, 130, 135, 202, 210, 290 s) so that each section starts a new wall.",
+      "trials": "LeWitt as the sole hero. Whether its section walls read the arrangement's form."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-1-friar",
+      "letter": "A",
+      "show_id": "romeo-juliet-1-friar-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn': the story told in piano-true marks on black, one sharp mark per note. The Friar's archaic chorale opens alone as milky handover slabs on black, a deliberate spare entrance. As the strings grow anguished, crimp's ribbons go from straight to woolly, but only on the agitated string passage, never on the chorale. The harp's chords are pluck's hairline threads. The build to the first climax brings in the fate strand, small red snap squares on the timpani, and a dim field. Keywords: Friar Lawrence chorale, fate, foreboding.",
+      "palette": "milk-white slabs and harp hairlines on near-black over a dim slate field, the first red bells",
+      "family": [
+        "handover",
+        "crimp",
+        "pluck",
+        "squares-snap",
+        "interlock",
+        "prickle",
+        "ivory",
+        "nap",
+        "fields"
+      ],
+      "leitmotifs": "The same mapping across the whole cycle. The Friar chorale (clarinet and bassoon held top-voice notes; brass in piece 4) goes to handover. The anguished strings (agitated violin and viola figures) go to crimp. The harp goes to pluck; pack 1 has no plucked track, so its picks are audio onsets plus the piano track. The feud's off-beat syncopated accents go to prickle. The cymbal clashes, which have no percussion track, are high-band audio onset peaks and go to interlock. The love theme (viola plus clarinet or oboe; there is no English horn track) goes to short, huddled Ivory rows. The muted sighs go to nap (slate cloth). The fate and funeral timpani are low-band audio onsets and go to squares-snap. Fields is the ground. This piece uses handover, crimp, pluck, squares-snap and fields.",
+      "trials": "Crimp on agitated strings, kept off the chorale. Handover on a wind chorale. 38% coverage: fields and the chorale slabs must cover the quiet stretches."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-2-feud",
+      "letter": "A",
+      "show_id": "romeo-juliet-2-feud-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn'. The feud bursts in as thorns from alternating edges: prickle drives one huge red thorn from the left, then the right, on each syncopated off-beat accent, two houses thrusting at each other. Each cymbal clash is interlock's pair of needles crossing the middle line. Crimp's ribbons carry the running string figures, and a rust field heats under the tutti. In the hushed transition only crimp and a faint field remain. Keywords: feuding families, clashing swords, syncopated strings.",
+      "palette": "red thorns and bone needles on black over a rust field",
+      "family": [
+        "prickle",
+        "interlock",
+        "crimp",
+        "fields"
+      ],
+      "leitmotifs": "The same cycle mapping. The syncopated off-beat accents only (about 1-2 per second, not every fast note, so prickle does not flash) go to prickle. The cymbal clashes (high-band audio onsets) go to interlock. The running string figures (violin and viola runs) go to crimp. Fields is the ground.",
+      "trials": "Prickle's first show, kept to the slower off-beat accents because of the handover-agitato risk. Interlock on cymbal clashes from audio onsets."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-3-love",
+      "letter": "A",
+      "show_id": "romeo-juliet-3-love-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn'. The love theme rises as huddled Ivory, one short row per phrase of the English horn and violas, each row ending as the next begins. Nap's velvet bands answer as the muted-string sighs: each sigh strokes the pile, and the same note again turns its band off. Pluck's threads carry the harp. At the full-string climax the Ivory rows grow tall and stomp, and the balcony night is a dim violet field. Keywords: love theme, sighing strings, balcony night, star-crossed lovers.",
+      "palette": "milk-white keys and slate velvet over a dim violet field",
+      "family": [
+        "ivory",
+        "nap",
+        "pluck",
+        "fields"
+      ],
+      "leitmotifs": "The same cycle mapping. The love theme goes to Ivory: viola plus clarinet or oboe held notes, as there is no English horn track, then violin at the full-string climax. The muted sighs (soft falling pairs on violin and viola) go to nap. The harp (plucked track) goes to pluck. Fields is the ground.",
+      "trials": "Nap's first show, on muted sighs. Ivory on an orchestral love theme."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-4-clash",
+      "letter": "A",
+      "show_id": "romeo-juliet-4-clash-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn'. The development pits two strands against each other: prickle's thorns and interlock's crossing needles (the feud) cut through handover's milky slabs, as the Friar chorale blares in the brass. Crimp carries the driving strings. At the loud climax fate's snap squares arrive and an ember field rises. Keywords: feuding families, Friar Lawrence chorale, fate, clashing swords.",
+      "palette": "milk slabs pierced by red thorns and bone needles, red bells over an ember field",
+      "family": [
+        "prickle",
+        "interlock",
+        "handover",
+        "crimp",
+        "squares-snap",
+        "fields"
+      ],
+      "leitmotifs": "The same cycle mapping. The Friar chorale in the brass (long held notes, low register; check by ear) goes to handover. The feud's off-beat accents go to prickle. The clashes (audio onsets) go to interlock. The driving strings go to crimp. The climax timpani (low-band audio onsets) go to squares-snap. Fields is the ground.",
+      "trials": "Handover on a ff brass chorale against prickle. 24% coverage: the audio-onset picks matter here."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-5-return",
+      "letter": "A",
+      "show_id": "romeo-juliet-5-return-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn'. The feud returns as thorns and needles. Then the love theme comes back ecstatic: Ivory rows at full height, nap's sighs answering, a rose field under them. The feud's thorns and fate's red bells cut it down, so the last Ivory row is pressed back into the ground key by key. Keywords: love theme, feuding families, fate, tragic ending.",
+      "palette": "white keys at full height, red thorns and red bells over a rose field",
+      "family": [
+        "prickle",
+        "interlock",
+        "crimp",
+        "ivory",
+        "nap",
+        "squares-snap",
+        "fields"
+      ],
+      "leitmotifs": "The same cycle mapping: prickle (feud accents), interlock (clashes), crimp (string runs), Ivory (love theme, now on the violins), nap (sighs), squares-snap (timpani), fields (ground).",
+      "trials": "This pack is not ingested yet: only notes.gpu.json exists. Run describe-song before generating picks, and set the section times by ear."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-6-coda",
+      "letter": "A",
+      "show_id": "romeo-juliet-6-coda-a-milk-and-thorn",
+      "title": "Milk and thorn",
+      "concept": "Cycle A, 'Milk and thorn'. The funeral march is fate's snap squares, slow and heavy, on near-black. The love theme returns broken, as short Ivory rows that age away. The consoling chorale brings handover's milky slabs back as at the very start, closing the cycle's frame. On the hammered closing chords fate's squares strike at full size, and then black. Keywords: funeral march timpani, love theme broken, Friar Lawrence chorale, tragic ending.",
+      "palette": "heavy red bells and greying keys on black, the last milk slabs, the field gone dark",
+      "family": [
+        "squares-snap",
+        "ivory",
+        "handover",
+        "fields"
+      ],
+      "leitmotifs": "The same cycle mapping. The funeral timpani and the hammered closing chords (low-band audio onsets) go to squares-snap. The broken love theme (violin) goes to Ivory. The consoling chorale (winds) goes to handover. A dark field is the ground.",
+      "trials": "This pack is not in songs/ yet: wait for ingest, then describe-song. Avoid the rejected 'hammer, mica and squares on pp final chords': the squares go only on the hammered ff chords."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-1-friar",
+      "letter": "B",
+      "show_id": "romeo-juliet-1-friar-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash': the story painted in continuous strokes, liquids and inks, not single marks, so it differs in kind from cycle A. The Friar's chorale is fifths' glowing web of chord polygons, its harmony made visible. The dark string murmurs write along Klee's rows of warm glaze, one row per voice. The harp blooms as mandala's lace. The build to the first climax brings fate in as rorschach's ink soaking into mirrored blots. Keywords: Friar Lawrence chorale, foreboding, fate.",
+      "palette": "a gold harmonic web over Klee's umber mosaic, gold lace and the first sepia blots",
+      "family": [
+        "fifths",
+        "klee",
+        "mandala",
+        "rorschach",
+        "scribble",
+        "kline",
+        "duet",
+        "brush",
+        "horizon"
+      ],
+      "leitmotifs": "The same mapping across the whole cycle. The Friar chorale (clarinet and bassoon chords; brass in piece 4) goes to fifths. The string murmurs and polyphony (cello and viola) go to klee, the ground in the friar and feud scenes. The harp goes to mandala; pack 1 has no plucked track, so its picks are audio onsets. The feud's syncopated strings go to scribble. The cymbal clashes (audio onsets) go to kline, in a full-frame clear window: bone bars on its night ground, which turns see-through. The love theme, melody against bass (viola plus clarinet or oboe, then violin), goes to duet. The sighs go to brush. The fate and funeral timpani (low-band audio onsets) go to rorschach. Horizon is the night ground in the love scenes. This piece uses fifths, klee, mandala and rorschach.",
+      "trials": "Klee and fifths as a chorale pair. Mandala on a harp."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-2-feud",
+      "letter": "B",
+      "show_id": "romeo-juliet-2-feud-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash'. The feud is scribble's nervous pens, coiling tight in the syncopated strings and scratching back in red on each accent. Klee's mosaic rows behind them crowd and mix. Each cymbal clash strikes one of Kline's huge bone bars across the page, soaking back between clashes. In the hushed transition the pens loosen into long arcs over a fading mosaic. Keywords: feuding families, clashing swords, syncopated strings.",
+      "palette": "graphite pens with red scratches and bone Kline bars over an ochre mosaic",
+      "family": [
+        "scribble",
+        "kline",
+        "klee"
+      ],
+      "leitmotifs": "The same cycle mapping. The syncopated strings (violin and viola) go to scribble. The clashes (high-band audio onsets) go to kline in a clear window. All notes go to klee, the ground.",
+      "trials": "Kline as a recurring accent in a clear window. Scribble on fast orchestral strings."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-3-love",
+      "letter": "B",
+      "show_id": "romeo-juliet-3-love-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash'. The lovers are Duet's two liquids: the love theme moves the quick one, the bass under it the thick one. On consonant chords they lean together along a soft seam; on dissonant ones they are thrown apart. Brush writes the muted sighs as one calligraphic stroke per phrase, and mandala blooms on the harp. The balcony night is horizon's grey sea. At the full-string climax the two liquids lie together. Keywords: star-crossed lovers, love theme, sighing strings, balcony night.",
+      "palette": "vermilion and cobalt liquids over a grey night sea, bone brush and gold lace",
+      "family": [
+        "duet",
+        "brush",
+        "mandala",
+        "horizon"
+      ],
+      "leitmotifs": "The same cycle mapping. The love theme, melody and bass (viola plus clarinet or oboe, as there is no English horn track; then violin, with the cello for the bass), goes to duet. The sighs (violin and viola falling pairs) go to brush. The harp (plucked track) goes to mandala. Horizon is the ground.",
+      "trials": "Duet's first show: two lovers judged by the harmony."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-4-clash",
+      "letter": "B",
+      "show_id": "romeo-juliet-4-clash-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash'. The development sets two strands against each other. Fifths' gold web glows as the Friar chorale blares in the brass, and scribble's pens and Kline's bars (the feud) cross it, over Klee's mosaic. At the loud climax rorschach's fate ink spreads under everything. Keywords: feuding families, Friar Lawrence chorale, fate, clashing swords.",
+      "palette": "a gold web cut by bone bars and red-scratched pens over umber glaze, sepia ink rising",
+      "family": [
+        "fifths",
+        "scribble",
+        "kline",
+        "klee",
+        "rorschach"
+      ],
+      "leitmotifs": "The same cycle mapping: fifths (brass chorale), scribble (feud strings), kline (clashes from audio onsets), klee (ground), rorschach (climax timpani, low-band audio onsets).",
+      "trials": "Fifths and scribble crossing at ff. 24% coverage: audio-onset picks are essential."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-5-return",
+      "letter": "B",
+      "show_id": "romeo-juliet-5-return-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash'. The feud returns as pens and bars. Then the lovers' liquids come back ecstatic over the night sea, lying together on every consonant chord, with brush's sighs answering. The feud's dissonance throws them apart and spatters them, and fate's ink soaks through. Keywords: love theme, feuding families, fate, tragic ending.",
+      "palette": "vermilion-cobalt liquids flung apart over sepia ink, graphite and bone",
+      "family": [
+        "scribble",
+        "kline",
+        "duet",
+        "brush",
+        "horizon",
+        "rorschach"
+      ],
+      "leitmotifs": "The same cycle mapping: scribble (feud), kline (clashes), duet (love), brush (sighs), horizon (night ground in the love section), rorschach (timpani).",
+      "trials": "This pack is not ingested yet (only notes.gpu.json): run describe-song, then picks. Duet torn apart by dissonance."
+    },
+    {
+      "song": "romeo-juliet",
+      "pack": "romeo-juliet-6-coda",
+      "letter": "B",
+      "show_id": "romeo-juliet-6-coda-b-ink-and-wash",
+      "title": "Ink and wash",
+      "concept": "Cycle B, 'Ink and wash'. The funeral march is rorschach's ink, a blot on each timpani stroke. The love theme returns broken: duet's two liquids reach for each other and are thrown apart. The consoling chorale lights fifths' web once more, dimmer, over a grey dawn sea. The hammered closing chords splatter the ink, and then black. Keywords: funeral march timpani, love theme broken, Friar Lawrence chorale, tragic ending.",
+      "palette": "sepia ink blots, a dimming gold web and a grey dawn sea",
+      "family": [
+        "rorschach",
+        "duet",
+        "fifths",
+        "horizon"
+      ],
+      "leitmotifs": "The same cycle mapping. The funeral timpani and the closing chords (low-band audio onsets) go to rorschach. The broken love theme goes to duet. The chorale goes to fifths. Horizon is the ground.",
+      "trials": "This pack is not in songs/ yet: wait for ingest. Rorschach as a recurring fate motif."
+    }
+  ],
+  "rationale": "How the cast spreads the catalogue:\n\n**Kinds of show.**\n- Every song has three kinds of show:\n  - A: a proven family pushed further.\n  - B: a new family.\n  - C: a radical single idea, either one hero widget (fischinger, Riley, kusama, delaunay, tree, lewitt) or a near-monochrome (Mars black film, the Danse night page).\n- The Romeo and Juliet cycles also differ in kind. Cycle A is single marks on black, one per note. Cycle B is continuous ink, liquid and painted strokes.\n\n**Proven families.** There are four, used where the music suits each:\n- Prelude dread (Bald A, MK A)\n- Beethoven kandinsky (Mars A)\n- Painterly favourites (Gymno A)\n- Snap and STYLE themes (Liszt A, Danse A, Firebird A, Barber A, R&J A)\n\nEvery re-run names what is new in it.\n\n**Catalogue coverage.**\n- Every Loved and Kept widget appears.\n- Every nature widget gets a trial on fitting material:\n  - prickle on feud off-beats\n  - nap on muted sighs\n  - crimp on tremolo and agitated strings (never a chorale)\n  - interlock on octaves and clashes\n  - pluck on cimbalom, harp and pizzicato\n  - film on a leaping violin\n  - mica on xylophone and loud shrieks\n  - urchin on Chernabog and the bell\n  - cut on hammered brass\n- Every not-judged widget gets a trial: gliss, tree, fireworks, clumsy, gust, duet, vine, royal, comfort, lazy, timeslice, fold, stella, martin, suprematism, contours, tunnel, scribble, pointillism, plus perlin and leidenfrost.\n\n**Combinations table.** 16 of the 18 untested combos are placed on loud chordal passages:\n- kusama + fold, kusama + pixelsort\n- score + pixelsort, score + squares + brush, score + squares + stella\n- ikeda + blocks\n- squares + strings + blocks\n- marbling + fold, marbling + pixelsort\n- murmuration + casket\n- kandinsky + casket + pixelsort\n- the three Riley pairs\n- miro + rorschach\n- horizon + murmuration + pixelsort\n- fields + brush\n\nTwo are left out: strings + brush + casket and marbling + blocks. There was no uncrowded, fitting place for them.\n\n**Favourites spread.** No favourite is in more than about a third of the 36 shows:\n\n| widget | shows |\n|---|---|\n| murmuration | 3 |\n| casket | 3 |\n| kandinsky | 1 |\n| current | 3 |\n| Ivory | about 7 |\n| fields | about 8 |\n| pixelsort | 6 |\n\n**Every palette string is distinct**, including all 12 R&J pieces.\n\n**Craft rules.**\n- Ground widgets never stack. Black-ground widgets (lenlye, ikeda, mclaren, kline) go in full-frame clear windows, and single-hero grounds are a polyptych or carry top-layer partners only.\n- Flee hears only masses of unorganised notes, never picks.\n- Fireworks go only on real ff blows.\n- Handover goes only on long slow notes.\n- Every untracked instrument has its own pick source: timpani, cymbals, the bell, the xylophone, brass in Mars and Bald Mountain, the English horn and the harp. Most come from audio onsets.\n- Low-coverage holes are covered by widgets that draw without attacks: horizon, comfort, contours, ridges, suprematism, the current, tree.\n- R&J packs 5 and 6 are not ingested yet. Pack 5 has only notes.gpu.json, and pack 6 is missing from songs/."
+}
