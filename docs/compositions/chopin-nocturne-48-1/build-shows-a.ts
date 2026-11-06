@@ -45,11 +45,11 @@ const scenes: Scene[] = [
       { widget: 'current', set: 'a1-melody-head', role: 'counter', knobs: { threads: 1, width: 1, flow: 0.6, hue: 215, presence: 0.7 }, end: 12.2 },
       { widget: 'ivory', set: 'a1-melody-rise', role: 'lead', knobs: { strike: 0.6, crater: 0.3, ripple: 2, cracks: 1, presence: 1 } },
     ] },
-  { n: 2, slug: 'slabs-and-threads', title: 'Slabs and threads: Handover on the melody\'s long notes, Pluck on the turn, Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath',
+  { n: 2, slug: 'slabs-and-threads', title: 'Slabs and threads: Handover on the melody\'s long notes, Pluck on the turn, milky Snap squares on the off-beat chords, Hammer ringing on the bass, fields underneath',
     from: 23, to: 34, layers: [
       { widget: 'fields', role: 'ground', knobs: FIELDS(0.1), intensity: [[23, 0.6], [28.7, 0.75], [32.3, 0.9], [34, 0.8]] },
       { widget: 'hammer', set: 'a2-bass', role: 'bass', knobs: { touch: 3, ring: 1.6, size: 1.8, presence: 0.85 } },
-      { widget: 'squares-snap', set: 'a2-chords', role: 'pulse', knobs: { size: 0.9, life: 1, blur: 0.6, shake: 0, presence: 0.85 } },
+      { widget: 'squares-snap', set: 'a2-chords', role: 'pulse', knobs: { size: 0.9, life: 1, blur: 0.6, shake: 0, milk: 1, presence: 0.85 } },
       { widget: 'pluck', set: 'a2-turn', role: 'sparkle', knobs: { pull: 1.1, corner: 1, ring: 1, touch: 2, presence: 0.85 } },
       { widget: 'handover', set: 'a2-melody', role: 'lead', knobs: { goneBy: 1.6, ring: 1.3, size: 0.8, presence: 1 } },
     ] },
