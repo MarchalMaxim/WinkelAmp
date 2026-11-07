@@ -1,6 +1,6 @@
 # Classical, 2026-11-06
 
-36 WinkelAmp shows on 9 pieces, made to judge widget themes and combinations. 720p, 30 fps, with sound.
+36 WinkelAmp shows on 9 pieces, plus one built from chapters (folder 10), made to judge widget themes and combinations. 720p, 30 fps, with sound.
 
 **How to watch.** Each video has a legend (.md) beside it. The legend gives the concept and the widgets per scene, and what to judge. Its **Serendipity** line names the surprises the composer tried; judge those especially.
 
@@ -284,3 +284,48 @@ To open a show in the studio, use `/?show=<id>` on branch `claude/classical-widg
 - **Show:** `gymnopedie-jazz-c-empty-walls`
 - **Widgets:** lewitt
 - **Watch for:** Watch the groove (3:27-3:55): the drums become a LeWitt step grid of hatched squares that darken where the beat insists; judge whether five minutes of LeWitt alone, with each wall on its own strand and each section on a new rule, reads the form.
+
+## 10 Chapters - Saint-Saens Danse Macabre
+
+The first show built from chapters: each theme is a visual room that leaves and comes back the same, and the developments are made from the rooms you already know.
+
+### Six Rooms at Midnight (7:10)
+
+- **File:** Danse Macabre - Chapters - Six Rooms at Midnight - 720p.mp4
+- **Show:** `danse-macabre-d-chapters`
+- **Watch for:** Six visual rooms (grey sea, oxblood velvet, Delaunay ballroom, indigo sigh, pale chapel, cyan X-ray stripes) that leave and come back identical. Watch the developments cut them into staves, moons, a frieze, strips and a four-room grid.
+
+The six worlds:
+- **M, Midnight**: grey photographic sea, amber bell pillars, pizzicato threads (spare)
+- **D, Death's fiddle**: oxblood velvet bands and red thorns on black
+- **A, the Waltz**: multicoloured Delaunay ring discs on black
+- **B, the Sigh**: indigo-violet field, gold thread, woven band, huddled ivory keys
+- **C, the Chorale**: pale ruled Martin page, LeWitt pencil rays, Stella frames (the only light room)
+- **X, the Bones**: black and cold-cyan Riley stripes, an X-ray, first glimpsed through a keyhole at the upper left
+
+The order:
+- 0:00-0:19 M (bookend, statement)
+- 0:19-0:26 D (statement)
+- 0:26-0:42 A (statement)
+- 0:42-0:56 B (statement)
+- 0:56-1:09 A (RETURN, in D)
+- 1:09-1:12 D (RETURN)
+- 1:12-1:26 A (RETURN, tutti, X keyhole at 1:20)
+- 1:26-1:41 B (RETURN, tutti)
+- 1:41-2:00 A (RETURN, keyholes at 1:45 and 1:52)
+- 2:00-2:30 B (DEVELOPMENT: fugato staves)
+- 2:30-2:56 M (DEVELOPMENT: tolls with A moons)
+- 2:56-3:33 C (statement)
+- 3:33-3:42 X (transition: keyhole over the chapel)
+- 3:42-4:08 X (statement, torn at 4:04)
+- 4:08-4:33 M A B C + X (DEVELOPMENT: the frieze)
+- 4:33-4:58 A (DEVELOPMENT: in pieces)
+- 4:58-5:20 A (DEVELOPMENT: reassembled)
+- 5:20-5:23 B (transition: gold thread)
+- 5:23-5:38 A + B (RETURN: the recap, split screen)
+- 5:38-6:01 A / B (DEVELOPMENT: strips)
+- 6:01-6:15 A X D B (DEVELOPMENT: the frenzy grid)
+- 6:15-6:24 M (RETURN: the nine blows, the cock-crow)
+- 6:24-6:36 M (bookend: dawn)
+- 6:36-7:04 D (RETURN: the farewell)
+- 7:04-7:10 M (bookend: the end)
