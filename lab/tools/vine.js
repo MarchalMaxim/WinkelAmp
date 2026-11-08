@@ -359,7 +359,10 @@
         for (const q of buds) q.a += dt;
         if (buds.some((q) => q.a > 0.5)) buds = buds.filter((q) => q.a <= 0.5);
       }
-      g.globalAlpha = 1; g.fillStyle = '#14100f'; g.fillRect(0, 0, x.W, x.H);
+      // No ground of its own (the user, 2026-11-08: it "hogs up the entire screen"): the vine draws straight onto the
+      // shared picture, so the widgets under it stay in view. Settled lines are pasted solid every frame; whatever
+      // moved or died fades with the shared picture.
+      g.globalAlpha = 1;
       g.drawImage(settled, 0, 0);
       // Live: everything the offscreen canvas left out, that is the dying stretches and the newest growth.
       const paths = [], weight = x.p('weight');
