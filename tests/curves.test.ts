@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { loadLayers } from '../scripts/node/layers';
 import { DRIVES, repairShow, validateShow, type Show } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
-import { makeLoudAt, paceAt } from '../src/widgets/curves';
+import { energyCurve, makeLoudAt, paceAt } from '../src/widgets/curves';
 import { knobValue, newFeatures } from '../src/widgets/features';
 import { readLabHarness } from '../src/widgets/lab-harness';
 import { WidgetRuntime } from '../src/widgets/runtime';
@@ -77,6 +77,36 @@ describe('loud', () => {
   });
 });
 
+describe('loud from the energy lane', () => {
+  // dB, 0.1 s samples: -45 for 2 s, then -15 for 2 s, then -30 for 1 s. The lane that runs late (pack.loudness) says
+  // something else entirely, so a reading of it shows.
+  const db = [...Array(20).fill(-45), ...Array(20).fill(-15), ...Array(10).fill(-30)];
+  const energy = { hop: 0.1, momentary: db, shortTerm: db.map(() => -20) };
+  const late = { hop: 0.1, values: Array.from({ length: 50 }, (_, i) => i / 50) };
+
+  it('reads the momentary curve as it is, with no lead, whatever lead and lane the host passes', () => {
+    const loud = makeLoudAt(late, LEAD, energy), plain = makeLoudAt(energyCurve({ energy }), 0);
+    for (let t = -1; t < 7; t += 0.037) expect(loud(t)).toBe(plain(t));
+    // The rise sits between the samples' centres 1.95 s and 2.05 s, where it is in the sound.
+    expect(loud(1.95)).toBe(0);
+    expect(loud(2)).toBeCloseTo(0.5, 9);
+    expect(loud(2.05)).toBeCloseTo(1, 9);
+    expect(loud(4.5)).toBeCloseTo(0.5, 9);   // -30 dB is halfway between -45 and -15
+  });
+  it('without energy (absent, null or empty), exactly the old lane read LOUDNESS_LAG.open ahead', () => {
+    const old = makeLoudAt(late, LEAD);
+    for (const e of [undefined, null, { hop: 0.1, momentary: [], shortTerm: [] }]) {
+      const f = makeLoudAt(late, LEAD, e);
+      for (let t = -1; t < 7; t += 0.037) expect(f(t)).toBe(old(t));
+    }
+  });
+  it('without a lead (no layer code), 0 even with energy; energy alone, without a loudness lane, is enough', () => {
+    const f = makeLoudAt(late, undefined, energy);
+    expect([f(0), f(3), f(NaN)]).toEqual([0, 0, 0]);
+    expect(makeLoudAt(undefined, LEAD, energy)(3)).toBe(1);
+  });
+});
+
 describe('pace', () => {
   // Calm: an attack every second for 20 s. Busy: eight a second for the next 20 s.
   const notes = notesAt([...range(0, 20, 1), ...range(20, 40, 0.125)]);
@@ -121,6 +151,15 @@ describe('lab/layers/lines.js has the same curves', () => {
         expect(b(at)).toBe(a(at));
         expect(WA.paceAt(chordsWa, at)).toBe(paceAt(chordsTs, at));
       }
+    }
+  });
+  it('loudCurve with an energy lane gives the same bits as makeLoudAt', () => {
+    const r = rng(11);
+    for (let k = 0; k < 20; k++) {
+      const n = 1 + Math.floor(r() * 400), lane = { hop: 0.1, values: Array.from({ length: n }, () => r()) };
+      const m = Array.from({ length: n }, () => (r() < 0.05 ? -90 : -60 + r() * 55)), energy = { hop: 0.1, momentary: m, shortTerm: m.map((v) => v + 1) };
+      const a = makeLoudAt(lane, LEAD, energy), b = WA.loudCurve(lane, LEAD, energy);
+      for (let i = 0; i < 400; i++) { const at = -3 + r() * (n * 0.1 + 6); expect(b(at)).toBe(a(at)); }
     }
   });
   it('curveFeatures sets loud and pace, and coldInstance starts them at t', () => {
@@ -182,8 +221,12 @@ const SONG: Note[] = notesAt([...range(0.1, 10, 0.2), ...range(10, 20, 1)]);
 const PICKS: Note[] = notesAt([...range(0.3, 10, 2), ...range(10, 20, 0.25)]);
 const LANE = { hop: 0.1, values: Array.from({ length: 200 }, (_, i) => (i < 100 ? 0.3 : 0.9)) };
 
-function run(loudness?: typeof LANE, layers: typeof WA | null = WA) {
-  const rt = new WidgetRuntime(fakeCanvas(), { notes: SONG, ...(loudness ? { loudness } : {}) }, { sources: { probe: PROBE }, harness: HARNESS, ...(layers ? { layers } : {}) });
+/** The energy lane of a song that is loud from 10 s, where LATE_LANE (which runs late) is quiet till 14 s. */
+const ENERGY = { hop: 0.1, momentary: Array.from({ length: 200 }, (_, i) => (i < 100 ? -45 : -15)), shortTerm: Array.from({ length: 200 }, () => -20) };
+const LATE_LANE = { hop: 0.1, values: Array.from({ length: 200 }, (_, i) => (i < 140 ? 0.3 : 0.9)) };
+
+function run(loudness?: typeof LANE, layers: typeof WA | null = WA, energy?: typeof ENERGY) {
+  const rt = new WidgetRuntime(fakeCanvas(), { notes: SONG, ...(loudness ? { loudness } : {}), ...(energy ? { energy } : {}) }, { sources: { probe: PROBE }, harness: HARNESS, ...(layers ? { layers } : {}) });
   rt.load(['probe']);
   if (layers) rt.load([{ key: 'probe@picks:p', widget: 'probe', listen: 'picks:p', notes: PICKS }]);
   rt.reset(0);
@@ -211,6 +254,17 @@ describe('every Features object the runtime makes or swaps has loud and pace', (
     expect(at(all, 15).size).toBe(2);               // loud: 1, the knob at its top
     expect(at(all, 10 - LEAD + 0.1).size).toBe(2);  // already up, LOUDNESS_LAG.open before the lane rises
     expect(at(all, 5).edge).toBeGreaterThan(at(all, 15).edge);   // the song is busy first
+    expect(rt.ctx.feat.loud).toBe(rt.loudAt(20));
+  });
+  it('with an energy lane: +loud follows it, with no lead, not the loudness lane', () => {
+    const rt = run(LATE_LANE, WA, ENERGY);
+    expect(rt.errors).toEqual({});
+    const all = seen().all;
+    expect(at(all, 9.5).size).toBe(1);    // quiet till the energy rises at 10 s (no lead)
+    expect(at(all, 10.2).size).toBe(2);   // up at once, though the loudness lane stays low till 14 s
+    expect(at(all, 12).size).toBe(2);
+    const fromEnergy = makeLoudAt(undefined, LEAD, ENERGY);
+    for (const t of [3, 9.95, 10, 10.05, 15]) expect(rt.loudAt(t)).toBe(fromEnergy(t));
     expect(rt.ctx.feat.loud).toBe(rt.loudAt(20));
   });
   it('an instance on its own notes (a set of picks) gets their pace, the song\'s loud', () => {

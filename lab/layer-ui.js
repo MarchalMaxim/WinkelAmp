@@ -2,7 +2,7 @@
 // and goes, under its knobs; and the tag chips and filter over the cards. Plain words, as the studio's layer panel.
 //
 //   WA_LAYER_UI.mount(el, toolId, {
-//     song: { id, notes, tracks, beats, loudness, moments: [[t, mood, label?]], dur },   // tracks/beats/loudness: window.PACK
+//     song: { id, notes, tracks, beats, loudness, energy?, moments: [[t, mood, label?]], dur },   // tracks/beats/loudness/energy: window.PACK
 //     get: function () { return the entry { listen?, region?, intensity? } or undefined },
 //     set: function (entry or null) { … },          // the lab's labLayers.set: stores it, loads what it needs
 //     onChange: function (entry or null) { … },     // optional, after every set
@@ -75,11 +75,12 @@
   }
 
   /** A loudness threshold for the gate (the studio's gateDefault): the span's 60th percentile, to 0.05, in 0.1..0.9.
-      The curve runs late (WA.LOUDNESS_LAG.mean, 1.7 s), so it is read that much later than the span: the music inside
-      the span, as the curve shows it. */
-  function gateDefault(loud, span) {
+      The curve is read `lag` s later than the span: the music inside the span, as the curve shows it. lag: 0 for the
+      energy lane (WA.loudSource gives it); absent, WA.LOUDNESS_LAG.mean (1.7 s), as pack.loudness runs late. */
+  function gateDefault(loud, span, lag) {
     if (!loud || !loud.values || !(loud.hop > 0)) return 0.5;
-    var W = root.WA_LAYERS, lag = W && W.LOUDNESS_LAG ? W.LOUDNESS_LAG.mean : 1.7, n = loud.values.length;
+    var W = root.WA_LAYERS, n = loud.values.length;
+    if (!Number.isFinite(lag)) lag = W && W.LOUDNESS_LAG ? W.LOUDNESS_LAG.mean : 1.7;
     var a = Math.min(Math.max(0, Math.floor((span.start + lag) / loud.hop)), n - 1), b = Math.min(n, Math.ceil((span.end + lag) / loud.hop));
     var v = loud.values.slice(a, b).filter(Number.isFinite).sort(function (x, y) { return x - y; });
     var q = v.length ? v[Math.floor(0.6 * (v.length - 1))] : 0.5;
@@ -135,14 +136,15 @@
 
   /** The pivots of a preset over `span` (a moment's, or the whole song's): the shared presets (lab/layers/automation.js),
       as the studio writes them. 'fade': each moment inside the span fades in over `amount` seconds from its start and
-      out over the same before its end (at most half the moment each). 'follow': the amount is its floor. Empty for
-      'always', and for a gate or follow with no loudness curve. */
+      out over the same before its end (at most half the moment each). 'follow': the amount is its floor. Gate and
+      follow read WA.loudSource: the energy lane with no lag when the pack has it (the gate its 3 s curve, follow its
+      0.4 s one), else pack.loudness with WA.LOUDNESS_LAG. Empty for 'always', and for a gate or follow with neither. */
   function presetPivots(L, kind, amount, span, song, listen) {
     var P = L.presets, dur = song.dur, p = [];
     var room = L.MAX_PIVOTS - padCount(span, dur);   // the padded curve stays within MAX_PIVOTS, its closing pivots kept
     if (kind === 'pulse') p = P.pulse(span, song.beats || [], { every: Math.max(1, Math.round(amount)) });
-    else if (kind === 'gate') p = song.loudness && song.loudness.values ? P.gate(span, song.loudness, { above: amount }) : [];
-    else if (kind === 'follow') p = song.loudness && song.loudness.values ? P.follow(span, song.loudness, { floor: amount }) : [];
+    else if (kind === 'gate') { var gs = L.loudSource(song, 'shortTerm'); p = gs ? P.gate(span, gs.curve, { above: amount, lag: gs.lag }) : []; }
+    else if (kind === 'follow') { var fs = L.loudSource(song); p = fs ? P.follow(span, fs.curve, { floor: amount, lead: fs.lag.open }) : []; }
     else if (kind === 'plays') p = P.plays(span, L.listenNotes({ notes: song.notes, tracks: song.tracks }, listen).notes, { floor: amount });
     else if (kind === 'fade') {
       var cut = false;
@@ -276,7 +278,7 @@
     det.addEventListener('toggle', function () { if (det.open) B.open[toolId] = true; else delete B.open[toolId]; saveBook(); });
 
     preset.innerHTML = Object.keys(PRESETS).map(function (k) {
-      var off = (k === 'gate' || k === 'follow') && !(song.loudness && song.loudness.values);
+      var off = (k === 'gate' || k === 'follow') && !L.loudSource(song);
       return '<option value="' + k + '"' + (off ? ' disabled' : '') + '>' + esc(PRESETS[k].label) + (off ? ' (no loudness curve for this song)' : '') + '</option>';
     }).join('') + '<option value="custom" hidden>a curve from elsewhere</option>';
 
@@ -321,7 +323,8 @@
       var old = B.curve[toolId], sc = old ? old.scope : 'moment';
       var span = sc === 'song' ? { start: 0, end: song.dur } : m;
       var P = PRESETS[kind];
-      var amt = kind === 'gate' ? gateDefault(song.loudness, span) : P.value;
+      var gs = kind === 'gate' ? L.loudSource(song, 'shortTerm') : null;
+      var amt = kind === 'gate' ? gateDefault(gs && gs.curve, span, gs ? gs.lag.mean : undefined) : P.value;
       return { kind: kind, amount: amt, scope: sc, start: m.start, end: m.end, label: m.label, song: song.id };
     }
 

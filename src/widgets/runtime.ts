@@ -42,8 +42,8 @@ export class WidgetRuntime implements RuntimeLike {
   readonly S: number;
   /** A debug hook (checks): when an array, every attack a layered instance is given is pushed as [key, chord time]. */
   deliveredLog: [string, number][] | null = null;
-  /** The song's loud at song time t (curves.ts), led by the layer code's LOUDNESS_LAG.open: 0 without a loudness lane or
-      without layer code. */
+  /** The song's loud at song time t (curves.ts makeLoudAt): the energy lane as it is when the song has one, else the
+      loudness lane led by the layer code's LOUDNESS_LAG.open; 0 without either lane or without layer code. */
   readonly loudAt: (t: number) => number;
   private readonly g: CanvasRenderingContext2D;
   private readonly icon: IconLib;
@@ -83,7 +83,7 @@ export class WidgetRuntime implements RuntimeLike {
     this.g = g;
     this.song = song;
     this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js (T15)
-    this.loudAt = makeLoudAt(song.loudness, lib.layers?.LOUDNESS_LAG.open);
+    this.loudAt = makeLoudAt(song.loudness, lib.layers?.LOUDNESS_LAG.open, song.energy);
     this.chords = groupChords(song.notes);
     this.icon = makeIcon(lib.harness.iconSource);
     const knobs = this.knobs, onPicks = this.onPicks, cur = (this.cur = { key: '', notes: song.notes });

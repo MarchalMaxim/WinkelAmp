@@ -3,14 +3,17 @@
 import { decodeToMono } from '../studio/ingest/fallback';
 import type { Note } from '../widgets/types';
 import {
-  bestLag, blockPower, centredDb, climaxes, followPreset, pivotAt, relative, resample, todayLevel, unitOfDb, type Pivot,
+  bestLag, blockPower, centredDb, climaxes, followPreset, LOUD_LO, pivotAt, relative, resample, todayLevel, unitOfDb, type Pivot,
 } from './energy';
 
 interface Pack { id: string; title: string; audio: string; duration: number; notes: Note[]; sections: { start: number; end: number }[];
-  loudness: { hop: number; values: number[] } }
+  loudness: { hop: number; values: number[] }; energy?: { hop: number; momentary: number[]; shortTerm: number[] } }
 interface Lanes {
   pack: Pack; hop: number; n: number;
   today: Float32Array; energy: Float32Array; momentary: Float32Array; lane: Float32Array; rel: Float32Array;
+  /** The pack's stored momentary lane (pack.energy, src/audio/energy.ts) on this page's grid, or null without one;
+      agree: the median difference in dB from this page's own 0.4 s measurement, where both are above −50. */
+  stored: Float32Array | null; agree: number | null;
   follow: Pivot[]; peaks: { t: number; v: number }[]; lag: { lag: number; r: number }; dark: number;
 }
 
@@ -19,6 +22,19 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const status = (s: string) => { $('status').textContent = s; };
+
+/** A lane whose sample i is centred on (i + 0.5)·from, on a grid whose sample j is centred on (j + 0.5)·to: linear,
+    held at its ends. */
+function centredResample(x: ArrayLike<number>, from: number, to: number, count: number): Float32Array {
+  const out = new Float32Array(count), last = x.length - 1;
+  for (let j = 0; j < count && last >= 0; j++) {
+    const u = ((j + 0.5) * to) / from - 0.5;
+    if (!(u > 0)) out[j] = x[0];
+    else if (u >= last) out[j] = x[last];
+    else { const a = Math.floor(u); out[j] = x[a] + (x[a + 1] - x[a]) * (u - a); }
+  }
+  return out;
+}
 
 /** The mono mix through BS.1770's K-weighting (a high shelf near 1.7 kHz, then a high-pass at 38 Hz), rendered natively. */
 async function kWeighted(pcm: Float32Array, sr: number): Promise<Float32Array> {
@@ -42,7 +58,17 @@ async function analyse(id: string): Promise<Lanes> {
   const power = blockPower(await kWeighted(pcm, sr), sr, HOP);
   const n = power.length;
   const energy = unitOfDb(centredDb(power, HOP, 3));
-  const momentary = unitOfDb(centredDb(power, HOP, 0.4));
+  const momentaryDb = centredDb(power, HOP, 0.4), momentary = unitOfDb(momentaryDb);
+  // The stored zero-lag lane, measured the same way at ingest (exact BS.1770 filters there; WebAudio's biquads here).
+  let stored: Float32Array | null = null, agree: number | null = null;
+  if (pack.energy && pack.energy.momentary.length) {
+    const storedDb = centredResample(pack.energy.momentary, pack.energy.hop, HOP, n);
+    stored = unitOfDb(storedDb);
+    const d: number[] = [];
+    for (let i = 0; i < n; i++) if (storedDb[i] > LOUD_LO && momentaryDb[i] > LOUD_LO) d.push(Math.abs(storedDb[i] - momentaryDb[i]));
+    d.sort((a, b) => a - b);
+    agree = d.length ? d[Math.floor(d.length / 2)] : null;
+  }
   const today = todayLevel(pack.notes, n * HOP, HOP).level;
   const lane = resample(pack.loudness.values, pack.loudness.hop, HOP, n);
   // The lag: today's lane against the centred energy, both on the lane's own 0.1 s grid.
@@ -55,7 +81,7 @@ async function analyse(id: string): Promise<Lanes> {
   const med = Array.from(energy).sort((a, b) => a - b)[Math.floor(n / 2)];
   let loud = 0, dark = 0;
   for (let i = 0; i < n; i++) if (energy[i] > med) { loud++; if (today[i] < 0.1) dark++; }
-  return { pack, hop: HOP, n, today, energy, momentary, lane, rel, follow, peaks, lag, dark: loud ? dark / loud : 0 };
+  return { pack, hop: HOP, n, today, energy, momentary, lane, rel, stored, agree, follow, peaks, lag, dark: loud ? dark / loud : 0 };
 }
 
 // ---------- drawing ----------
@@ -97,6 +123,8 @@ function plot(c: HTMLCanvasElement, L: Lanes, t0: number, t1: number, close: boo
     g.strokeStyle = css('--today'); g.lineWidth = 1;
     for (const [s, , , vel] of L.pack.notes) if (s >= t0 && s <= t1) { g.beginPath(); g.moveTo(X(v, s), v.h); g.lineTo(X(v, s), v.h - 4 - (vel / 127) * 22); g.stroke(); }
     g.globalAlpha = 0.45; line(g, v, L.momentary, L.hop, css('--energy'), 1); g.globalAlpha = 1;
+    // the stored no-lag lane: it should lie on the thin blue line just drawn
+    if (L.stored) line(g, v, L.stored, L.hop, css('--stored'), 1.2, [3, 3]);
   }
   line(g, v, L.lane, L.hop, css('--lane'), 1.6, [5, 4]);
   if (showRel) line(g, v, L.rel, L.hop, css('--rel'), 1.2, [2, 3]);
@@ -157,6 +185,9 @@ async function main() {
   const peakLinks = L.peaks.map((p, i) => `<a data-t="${p.t}">${i + 1}: ${fmt(p.t)}</a>`).join('');
   facts.innerHTML = `
     <div class="fact"><b>${L.lag.lag.toFixed(1)} s</b><span>how far today's loudness lane runs behind the sound (best match r = ${L.lag.r.toFixed(2)})</span></div>
+    <div class="fact"><b>${L.agree === null ? '–' : `${L.agree.toFixed(1)} dB`}</b><span>${L.stored
+      ? "median difference between the stored no-lag lane (made at ingest) and this page's own 0.4 s measurement"
+      : 'this pack has no stored no-lag lane yet (<code>npm run augment-pack</code> adds it)'}</span></div>
     <div class="fact"><b>${Math.round(L.dark * 100)} %</b><span>of the time the music is louder than its own median, a widget's <code>level</code> is below 0.1</span></div>
     <div class="fact"><b>${(L.pack.notes.length / (L.pack.duration / 60)).toFixed(0)}</b><span>transcribed notes a minute, the only thing <code>level</code> is made of</span></div>
     <div class="fact"><span>The loudest moments, as a composer's suggestions:</span><div style="margin-top:6px">${peakLinks || '–'}</div></div>`;

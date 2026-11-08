@@ -12,6 +12,7 @@
     "scripts/setup-ymt3.ts",
     "scripts/setup-muscriptor.ts",
     "scripts/lab-notes.ts",
+    "scripts/augment-pack.ts",
     "scripts/ears/**/*.ts",
     "scripts/node/**/*.ts"
   ]

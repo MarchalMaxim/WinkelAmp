@@ -230,7 +230,8 @@
     },
     /** Open where the curve (sample i covers [i·hop, (i+1)·hop)) is ≥ above, closed below above − 0.05. In this
         order: runs under 0.25 s dropped and gaps under 0.5 s bridged, both on the lane, where its own wobble is;
-        then each run moved back to the sound, opening LOUDNESS_LAG.open and closing LOUDNESS_LAG.close earlier
+        then each run moved back to the sound, opening o.lag.open and closing o.lag.close earlier (default
+        LOUDNESS_LAG, for pack.loudness, which runs late; the zero-lag energy lane passes { open: 0, close: 0 })
         (a run still open where the lane ends keeps its end); its start held at 0 or later; a run left shorter than
         0.25 s keeps 0.25 s from its start, so a short burst still shows. Then it opens 0.15 s early with 0.1 s
         ramps; clipped to the span. */
@@ -242,7 +243,7 @@
         if (!open && v >= above) { open = true; a = i * hop; }
         else if (open && v < above - 0.05) { open = false; runs.push([a, i * hop]); }
       }
-      var end = vals.length * hop, lag = WA.LOUDNESS_LAG;
+      var end = vals.length * hop, lag = o.lag || WA.LOUDNESS_LAG;
       if (open) runs.push([a, end]);
       runs = runs.filter(function (r) { return r[1] - r[0] >= 0.25; });
       runs = bridge(runs, 0.5).map(function (r) {

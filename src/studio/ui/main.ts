@@ -257,7 +257,7 @@ async function boot(): Promise<void> {
 
   // The picture and the clock.
   const canvas = document.getElementById('c') as HTMLCanvasElement;
-  const runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness }, { sources, harness, layers: studioLayers() });
+  const runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, { sources, harness, layers: studioLayers() });
   const structure = structureTimes(pack.sections);
   const conductor = new Conductor(runtime, show, (id) => metas.get(id) ?? (runtime.tool(id) ? toMeta(runtime.tool(id)!, null) : undefined), structure);
   const audio = new Audio();

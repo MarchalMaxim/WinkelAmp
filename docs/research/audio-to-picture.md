@@ -4,7 +4,7 @@
 
 Our widgets only ever see transcribed notes: chords, the notes that are sounding, and six features computed from attacks. They never see the sound itself. Two things follow from that, and the demo (section 8) measured both on five pieces.
 
-**1. Our one loudness signal runs about 1.7 s late.** `pack.loudness` is smoothed twice, looking only backwards. It runs 1.6 to 1.8 s behind the sound on every piece measured, with a match of r ≥ 0.94. The "Loud parts" gate preset reads it and corrects only 0.15 s ([automation.js](lab/layers/automation.js:209)), so a gated layer opens and closes about 1.5 s after the music does. The faint loudness picture behind the intensity lane is just as late.
+**1. Our one loudness signal runs about 1.7 s late.** `pack.loudness` is smoothed twice, looking only backwards. It runs 1.6 to 1.8 s behind the sound on every piece measured, with a match of r ≥ 0.94. The "Loud parts" gate preset reads it and corrects only 0.15 s ([automation.js](lab/layers/automation.js:209)), so a gated layer opens and closes about 1.5 s after the music does. The faint loudness picture behind the intensity lane is just as late. (Since 2026-11-08 the gate, "Follows the sound", the `loud` drive and that picture read the zero-lag energy lane instead: item 4.)
 
 **2. In sustained music, energy without attacks never reaches a widget.** The signal called `level` is not loudness. It jumps when a note starts and halves every 0.8 s, so a held swell or a long chord reads as energy draining away. This matters on strings and slow chorales. In Barber's Adagio and the Firebird, `level` is near zero 15 % and 21 % of the time the music is louder than its median. In busy pieces it hardly matters, because the attacks already carry the energy: Mars 2 %, Danse macabre and the Nocturne 0 %.
 
@@ -142,7 +142,7 @@ What a widget can feel, per frame:
 | 1 | **Built 2026-11-08.** "Follows the sound" intensity preset | hours | partly | nothing (works on pack.loudness today) |
 | 2 | **Built 2026-11-08.** Depth control on each knob | hours | partly (data side done) | nothing |
 | 3 | `+loud` and `+pace` knob drives | a day | no | better with #4 |
-| 4 | Zero-lag energy lanes (step A) | a day | partly | the augment-pack script, shared with #5 |
+| 4 | **Built 2026-11-08.** Zero-lag energy lanes (step A), and every loudness reader switched to them | a day | partly | the augment-pack script, shared with #5 |
 | 5 | Onsets and melody in the pack, plus a 4 s describe-song table | a day | partly | the augment-pack script |
 | 6 | "Keep the strongest" thinning | a day | partly | nothing |
 | 7 | "Build to the climax" preset | a day | no | nothing (better with #4) |
@@ -231,7 +231,19 @@ Items 4 and 5 share one script, `scripts/augment-pack.ts`. It decodes `songs/<id
   - With `pack.loudness` the drive lags by about 1.5 s. It is on time once #4 exists.
   - `+swell` and `+tension` are dropped. They need data the pack does not have.
 
-### 4. Zero-lag energy lanes, step A (partly exists)
+### 4. Zero-lag energy lanes, step A (built 2026-11-08)
+
+- **Built.** `pack.energy = { hop: 0.1, momentary, shortTerm }` in dB ([energy.ts](src/audio/energy.ts): exact BS.1770 K-weighting of the mono mix, centred 0.4 s and 3 s windows, sample i centred on (i + 0.5)·0.1 s, as long as `pack.loudness`, which stays byte-identical). `ingest` writes it; `npm run augment-pack` backfilled all 30 packs, adding only that key, each original kept as `songs/<id>/pack.before-energy.json`.
+- **Scale.** The stored dB are uncorrected. The readers turn them into 0..1 with `energyCurve` ([curves.ts](src/widgets/curves.ts), lab copy `WA.energyCurve`): the descriptor's master correction first, half the way from the piece's level to −20 dB, at most 6 dB. The level is the gated mean of the whole momentary lane (silence below −55 and passages 15 dB under it left out), not the descriptor's running 40 s reference. Then the same −50..−12 dB map as `pack.loudness`. Without the correction, loud masters sat at 1 for much of the piece: momentary 19 % on chopin-winter-wind, 14 % on chopin-nocturne-48-1 and liszt-hungarian-2. With it, 1 %, 5 % and 9 %, against 0 %, 2 % and 8 % for the old lane. Quiet recordings come up too: romeo-juliet-3-love's 95th percentile goes from 0.66 to 0.79 (old lane 0.76). The two lanes share the momentary lane's correction.
+- **Readers.** All with no lag when the pack has the lane, and exactly as before (`pack.loudness` with `WA.LOUDNESS_LAG`) when it has not:
+  - the `loud` drive: the momentary (0.4 s) lane ([curves.ts](src/widgets/curves.ts) `makeLoudAt`, lab copy `WA.loudCurve`);
+  - "Loud parts": the short-term (3 s) lane. On all 385 analysis sections of 8 s or more in the 30 packs, at the studio's default threshold, the momentary lane opened the gate 1978 times, 1039 of its shut gaps under 1.5 s (it chatters); the 3 s lane 802 times (58 such gaps), against 681 for the old lane (0). No lag on average, but the 3 s window blurs a sudden start or stop by up to about 1.5 s either way, depending on where the threshold sits;
+  - "Follows the sound" and the faint picture behind the intensity lane: the momentary lane (the preset has its own 0.2 s up, 0.8 s down follower).
+  - `WA.loudSource` ([lines.js](lab/layers/lines.js)) picks the lane for the presets and the picture, in the studio and the lab.
+  - the timeline's overview strip ([timeline.ts](src/studio/ui/timeline.ts) `activity`, 30 % loudness): the momentary lane.
+- **Not switched.** describe-song still reads `pack.loudness`: it averages over 10 s and prints words, so 1.7 s barely moves it. The energy page's "today's loudness lane" is the old lane on purpose.
+
+The plan, as written before building:
 
 - **What.** [descriptors.ts](src/audio/descriptors.ts:306) already computes the per-hop K-weighted power (loudness weighted the way the ear hears it).
   1. Expose it as a debug value. The outputs do not change.
@@ -393,6 +405,7 @@ Then open `http://localhost:5203/lab/energy.html` (`?song=<id>`, `?t=<seconds>`)
 - **What widgets feel today.** This is `level`, made by the real `advanceFeatures` stepped at 60 Hz over the pack's chords.
 - **Today's loudness lane** (`pack.loudness`).
 - **The sound's energy.** A centred 3 s window, so it has no lag.
+- **The stored no-lag lane** (`pack.energy`'s momentary lane, item 4), in the close-up over the page's own 0.4 s measurement: the two should nearly coincide, and a fact box gives their median difference in dB.
 - **The "follows the sound" pivots.** These climb fast (0.2 s), fall slowly (1.5 s), are stretched to the piece's own 5th–95th percentile, and never drop below 0.35.
 - **Loudness judged against its surroundings.** 0.5 means "normal for the ±8 s around here", blended 50/50 with the whole piece.
 - **The three loudest moments, as suggestions.**
@@ -412,4 +425,4 @@ What it measured (2026-11-08):
 So the lag of today's loudness lane is real and the same everywhere, about 1.7 s. "Energy without attacks" is a problem of the sustained pieces (strings, slow chorales), not of busy ones: in Mars, Danse macabre and the piano pieces the attacks already carry the energy. In Barber at 5:18 (`?song=barber-adagio&t=318`) the close-up shows it plainly. The sound climbs steadily toward the climax, while what a widget feels drains to almost nothing in every gap between attacks.
 ### The loud and pace drives
 
-[lab/drives.html](lab/drives.html) shows item 3 at work: one widget three times over the same recording, the same knob on `+level`, `+loud` and `+pace`, its base at the knob's lowest value and depth 1, so each picture's knob goes from lowest to highest as its drive goes from 0 to 1. A bar and a number under each picture give the knob's value now, and a plot of the whole piece shows what each drive reads (click it to jump). Run vite as above and open `http://localhost:5203/lab/drives.html` (`?song=<id>&widget=<id>&knob=<key>&t=<seconds>`; it opens on Barber, Brass gust, "how much air there is to push"; In the Hall of the Mountain King shows pace best). The runtimes are the studio's own (`WidgetRuntime` with the layer code), so what you see is what a show with those knobs draws. The code is [drives-page.ts](src/research/drives-page.ts); it writes nothing.
+[lab/drives.html](lab/drives.html) shows items 3 and 4 at work: one widget four times over the same recording, the same knob on `+level`, `+loud` (the zero-lag energy lane), `+loud` again from the old lane read 1.1 s ahead (as before item 4, for comparison) and `+pace`, its base at the knob's lowest value and depth 1, so each picture's knob goes from lowest to highest as its drive goes from 0 to 1. A bar and a number under each picture give the knob's value now, and a plot of the whole piece shows what each drive reads (click it to jump). Run vite as above and open `http://localhost:5203/lab/drives.html` (`?song=<id>&widget=<id>&knob=<key>&t=<seconds>`; it opens on Barber, Brass gust, "how much air there is to push"; In the Hall of the Mountain King shows pace best). The runtimes are the studio's own (`WidgetRuntime` with the layer code), so what you see is what a show with those knobs draws. The code is [drives-page.ts](src/research/drives-page.ts); it writes nothing.

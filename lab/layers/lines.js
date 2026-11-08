@@ -3,8 +3,8 @@
 // (a line, a note type, a track, a family), and the per-instance pulse.
 //
 // groupChords, soundingAt and advancePulse are copies of src/widgets/chords.ts and features.ts (advanceFeatures), the
-// same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data. loudCurve and
-// paceAt are copies of src/widgets/curves.ts, proved the same way by tests/curves.test.ts.
+// same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data. loudCurve,
+// paceAt and energyCurve are copies of src/widgets/curves.ts, proved the same way by tests/curves.test.ts.
 //
 // One implementation: the lab loads this file as a classic <script>; the studio and Node evaluate the same text with
 // new Function('WA', src) (src/widgets/layers.ts).
@@ -58,10 +58,13 @@
     f.hit = p.hit;
   };
 
-  /** loud at song time t (src/widgets/curves.ts makeLoudAt, the same statements): the loudness lane read lead s ahead,
-      linear between its samples' centres, held past its ends, its 5th to 95th percentile stretched to 0..1. No lane, an
-      empty or flat one, or no lead: always 0. The hosts pass WA.LOUDNESS_LAG.open as lead. */
-  WA.loudCurve = function (lane, lead) {
+  /** loud at song time t (src/widgets/curves.ts makeLoudAt, the same statements): with the pack's energy lane, its
+      momentary curve (WA.energyCurve) read as it is; without, the loudness lane read lead s ahead. Linear between its
+      samples' centres, held past its ends, its 5th to 95th percentile stretched to 0..1. No lane (and no energy), an
+      empty or flat one, or no lead: always 0. The hosts pass WA.LOUDNESS_LAG.open as lead and pack.energy as energy. */
+  WA.loudCurve = function (lane, lead, energy) {
+    var e = WA.energyCurve({ energy: energy }, 'momentary');
+    if (e && Number.isFinite(lead)) { lane = e; lead = 0; }
     var hop = lane && lane.hop, vals = lane && lane.values;
     if (!vals || !vals.length || !(hop > 0) || !Number.isFinite(lead)) return function () { return 0; };
     var n = vals.length, sorted = vals.map(function (v) { return Number.isFinite(v) ? v : 0; }).sort(function (a, b) { return a - b; });
@@ -75,6 +78,56 @@
       var u = (v - lo) / (hi - lo);
       return u > 0 ? (u < 1 ? u : 1) : 0;   // NaN → 0
     };
+  };
+
+  /** The loudness lane's dB → 0..1 map and the master correction's constants (src/audio/descriptors.ts LOUD_LO,
+      LOUD_HI, REF_LOUDNESS; src/widgets/curves.ts ENERGY_GATE; tests/energy-lane.test.ts checks they agree). */
+  WA.LOUD_DB = { lo: -50, hi: -12, ref: -20, gate: -55 };
+
+  /** The master correction for a pack's energy lane, in dB (src/widgets/curves.ts energyCorrection, the same
+      statements): half of how far the piece's gated mean level sits from −20, clamped to ±6. Kept per lane object. */
+  var levelCache = new WeakMap();
+  WA.energyCorrection = function (e) {
+    var hit = levelCache.get(e);
+    if (hit !== undefined) return hit;
+    var db = e.momentary || [], G = WA.LOUD_DB.gate;
+    var s = 0, n = 0, i;
+    for (i = 0; i < db.length; i++) if (db[i] > G) { s += Math.pow(10, db[i] / 10); n++; }
+    var c = 0;
+    if (n > 0) {
+      var gate = 10 * Math.log10(s / n) - 15;
+      s = 0; n = 0;
+      for (i = 0; i < db.length; i++) if (db[i] > G && db[i] > gate) { s += Math.pow(10, db[i] / 10); n++; }
+      var level = 10 * Math.log10(s / n), d = (WA.LOUD_DB.ref - level) * 0.5;
+      c = d > -6 ? (d < 6 ? d : 6) : -6;
+    }
+    levelCache.set(e, c);
+    return c;
+  };
+
+  /** A pack's zero-lag energy lane (pack.energy, dB) as a 0..1 lane like pack.loudness (src/widgets/curves.ts
+      energyCurve, the same statements): same hop and indexing, the master correction (WA.energyCorrection) then the
+      loudness lane's dB map, clamped. which: 'momentary' (default) or 'shortTerm'. null when the pack has none: read
+      pack.loudness instead. */
+  WA.energyCurve = function (pack, which) {
+    var e = pack && pack.energy, db = e && e[which || 'momentary'];
+    if (!e || !db || !db.length || !(e.hop > 0)) return null;
+    var c = WA.energyCorrection(e), values = [], LO = WA.LOUD_DB.lo, HI = WA.LOUD_DB.hi;
+    for (var i = 0; i < db.length; i++) {
+      var u = (db[i] + c - LO) / (HI - LO);
+      values.push(u > 0 ? (u < 1 ? u : 1) : 0);   // NaN → 0
+    }
+    return { hop: e.hop, values: values };
+  };
+
+  /** Where the gate and follow presets and the studio's faint picture read loudness: the energy curve (which, default
+      'momentary') with no lag when the pack has one; else pack.loudness with WA.LOUDNESS_LAG (it runs late). null
+      with neither. { curve, lag: { open, close, mean }, energy: whether it is the energy lane }. */
+  WA.loudSource = function (song, which) {
+    var e = WA.energyCurve(song, which);
+    if (e) return { curve: e, lag: { open: 0, close: 0, mean: 0 }, energy: true };
+    var lo = song && song.loudness;
+    return lo && lo.values ? { curve: lo, lag: WA.LOUDNESS_LAG, energy: false } : null;
   };
 
   /** pace at song time t (src/widgets/curves.ts paceAt, the same statements): attacks per second in a centred 4 s

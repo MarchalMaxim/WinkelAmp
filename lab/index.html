@@ -594,8 +594,8 @@ const RENDER_LAYERS = (() => {
 const layerList = () => RENDER_LAYERS ?? TOOL_IDS.filter((id) => LAYERS[id] && typeof LAYERS[id] === 'object').map((id) => ({ widget: id, ...LAYERS[id] }));
 const saveL = () => { if (RENDER) return; try { localStorage.setItem('wa-layers', JSON.stringify(LAYERS)); } catch {} sync(); };
 ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0 };
-/** loud at song time t (lines.js loudCurve over PACK.loudness, read LOUDNESS_LAG.open ahead): 0 until the pack has
-    loaded (the start below sets it), and without one. */
+/** loud at song time t (lines.js loudCurve: PACK.energy's momentary curve as it is when the pack has it, else
+    PACK.loudness read LOUDNESS_LAG.open ahead): 0 until the pack has loaded (the start below sets it), and without one. */
 let LOUD_AT = () => 0;
 const loudAt = (t) => LOUD_AT(t);
 ctx.p = (key) => {
@@ -696,8 +696,8 @@ function render() {
   renderFilter();
 }
 
-/** What a card's layer controls know of the song: its notes, the pack's tracks, beats and loudness, its moments. */
-const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, moments: SONG.moments, dur: DUR });
+/** What a card's layer controls know of the song: its notes, the pack's tracks, beats, loudness and energy, its moments. */
+const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, energy: window.PACK?.energy, moments: SONG.moments, dur: DUR });
 
 /* The filter bar over the cards: feel words by axis and instruments by family (lab/tag-words.json). A card shows when
    its tags have every word picked (AND). Kept in the URL: ?feel=dark,liquid&inst=cello. It only hides cards: what is
@@ -1108,7 +1108,7 @@ document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Num
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
 Promise.all([loadTools(), loadPack(), loadTags(), loadRated()]).then(() => {
-  LOUD_AT = WA_LAYERS.loudCurve(window.PACK?.loudness, WA_LAYERS.LOUDNESS_LAG.open);
+  LOUD_AT = WA_LAYERS.loudCurve(window.PACK?.loudness, WA_LAYERS.LOUDNESS_LAG.open, window.PACK?.energy);
   applyLayers(layerList());
   if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
   let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}

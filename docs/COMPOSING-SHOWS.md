@@ -53,7 +53,9 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
   between them), and the same for `rate` (faster), `pitch` (higher notes),
   `bass` (more bass), `density` (fuller chords) and `hit` (a fast per-attack pulse that jumps on every note
   and is back below half in about 80 ms, for snappy drives; harder notes jump it higher); `loud` (louder sound: the
-  recording's own loudness, the piece's quiet end to its loud end, held between notes) and `pace` (busier: attacks per
+  recording's own loudness, the piece's quiet end to its loud end, held between notes; read from the pack's energy
+  lane over 0.4 s centred on now, so it has no lag; a pack without that lane falls back to the older loudness lane,
+  read 1.1 s ahead because it runs late, until `npm run augment-pack` adds it) and `pace` (busier: attacks per
   second in the 4 s around now, against the piece's busiest parts); `""` holds it fixed. `depth` 0..1 is how far (default 0.5; the studio's small "how strongly" slider at the
   end of a driven knob's row). Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
@@ -242,13 +244,17 @@ The presets (in the studio's panel and the lab's cards; they write ordinary pivo
 - **Pulse** every N beats or 4-beat bars: full on the beat, falling away over half the period (made coarser if it
   would need more than 256 pivots).
 - **Gate on loudness** ("Loud parts" in the studio): open where the recording is louder than a threshold (default:
-  its 60th percentile there in the lab, its median in the studio), shut between, with short ramps. The song's
-  loudness lane runs late (it averages backwards), so the gate opens 1.1 s and closes 2.4 s before the lane crosses
-  the threshold: measured on six pieces (`WA.LOUDNESS_LAG`, [the research](research/audio-to-picture.md)).
+  its 60th percentile there in the lab, its median in the studio), shut between, with short ramps. It reads the
+  pack's energy lane over 3 s centred on each moment (the 0.4 s one makes it flicker open and shut), which has no lag
+  on average; the 3 s window blurs a sudden start or stop by up to about 1.5 s either way. A pack without that lane falls back
+  to the older loudness lane, which runs late (it averages backwards), so the gate then opens 1.1 s and closes 2.4 s
+  before that lane crosses the threshold: measured on six pieces (`WA.LOUDNESS_LAG`,
+  [the research](research/audio-to-picture.md)). Curves already in a show keep their pivots.
 - **Follow the loudness** ("Follows the sound" in the studio): the layer rises and falls with how loud the recording
-  is, including swells and held chords that start no new notes. The loudness climbs fast (0.2 s) and falls slowly
-  (0.8 s), and the clip's own quietest and loudest parts are stretched to "never below" (35 % unless the studio's
-  "Lowest" is set) and full. A calm clip stays near full instead of pumping.
+  is, including swells and held chords that start no new notes. It reads the energy lane over 0.4 s centred on now,
+  with no lag (without that lane, the older loudness lane read 1.1 s ahead). The loudness climbs fast (0.2 s) and
+  falls slowly (0.8 s), and the clip's own quietest and loudest parts are stretched to "never below" (35 % unless the
+  studio's "Lowest" is set) and full. A calm clip stays near full instead of pumping.
 - **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
 
 In the studio the selected clip's curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),

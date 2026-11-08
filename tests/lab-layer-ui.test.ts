@@ -14,11 +14,12 @@ import type { TagWords } from '../src/widgets/tags';
 import type { Note, Pivot, Region, WidgetMeta, WidgetTags } from '../src/widgets/types';
 
 interface Opt { group: string; value: string; label: string }
-interface Song { id?: string; notes: Note[]; tracks?: unknown; beats?: number[]; loudness?: { hop: number; values: number[] }; moments: (number | string)[][]; dur: number }
+interface Song { id?: string; notes: Note[]; tracks?: unknown; beats?: number[]; loudness?: { hop: number; values: number[] };
+  energy?: { hop: number; momentary: number[]; shortTerm: number[] }; moments: (number | string)[][]; dur: number }
 interface Filter { feel: string[]; inst: string[] }
 interface LabLayerUi {
   listenOptions(tracks: unknown): Opt[]; listenLabel(l: string | undefined): string;
-  defaultRegion(widget: string, mode?: string): Region; gateDefault(loud: unknown, span: { start: number; end: number }): number;
+  defaultRegion(widget: string, mode?: string): Region; gateDefault(loud: unknown, span: { start: number; end: number }, lag?: number): number;
   momentSpans(m: Song['moments'], dur: number): { start: number; end: number; label: string }[];
   presetPivots(L: unknown, kind: string, amount: number, span: { start: number; end: number }, song: Song, listen?: string): Pivot[];
   tidyEntry(e: unknown): unknown; parseFilter(s: string): Filter; filterSearch(s: string, f: Filter): string;
@@ -94,6 +95,26 @@ describe('intensity presets', () => {
   });
   it('the gate\'s default threshold is 0.5 without a loudness', () => {
     expect(U.gateDefault(undefined, whole)).toBe(0.5);
+  });
+  it('with an energy lane, gate (its 3 s curve) and follow (its 0.4 s one) read it with no lag', () => {
+    const db = Array.from({ length: 1200 }, (_, i) => -40 + 20 * Math.sin(i / 23));
+    const energy = { hop: 0.1, momentary: db, shortTerm: db.map((v) => v / 2) };
+    const se: Song = { ...song, energy }, none = { open: 0, close: 0 };
+    expect(U.presetPivots(L, 'gate', 0.6, whole, se)).toEqual(L.presets.gate(whole, L.energyCurve(se, 'shortTerm')!, { above: 0.6, lag: none }));
+    expect(U.presetPivots(L, 'follow', 0.3, whole, se)).toEqual(L.presets.follow(whole, L.energyCurve(se)!, { floor: 0.3, lead: 0 }));
+    expect(U.presetPivots(L, 'gate', 0.6, whole, se)).not.toEqual(U.presetPivots(L, 'gate', 0.6, whole, song));
+    // energy alone, without a loudness lane, is enough
+    expect(U.presetPivots(L, 'follow', 0.3, whole, { ...se, loudness: undefined }).length).toBeGreaterThan(2);
+  });
+  it('without one, exactly as before: pack.loudness with the measured lag', () => {
+    expect(U.presetPivots(L, 'follow', 0.3, whole, song)).toEqual(L.presets.follow(whole, loudness, { floor: 0.3 }));
+    expect(U.presetPivots(L, 'gate', 0.6, whole, song)).toEqual(L.presets.gate(whole, loudness, { above: 0.6 }));
+    expect(U.presetPivots(L, 'gate', 0.6, whole, { ...song, loudness: undefined })).toEqual([]);
+  });
+  it("the gate's default threshold reads the span itself with lag 0, 1.7 s later without", () => {
+    const step = { hop: 0.1, values: Array.from({ length: 1200 }, (_, i) => (i < 400 ? 0.2 : 0.9)) }, span = { start: 38, end: 40 };
+    expect(U.gateDefault(step, span, 0)).toBe(0.2);
+    expect(U.gateDefault(step, span)).toBe(0.9);
   });
   it('over one moment: the preset inside it, full before and after', () => {
     const span = { start: 40, end: 90 };

@@ -1,6 +1,8 @@
-// lab/drives.html: the loud and pace drives demo (docs/research/audio-to-picture.md, item 3). One widget in three
-// runtimes over a song's pack and recording, the same knob on +level, +loud and +pace, base at its lowest and depth 1,
-// so the knob reads min..max as the drive reads 0..1. Writes nothing.
+// lab/drives.html: the loud and pace drives demo (docs/research/audio-to-picture.md, items 3 and 4). One widget in four
+// runtimes over a song's pack and recording, the same knob on +level, +loud, +loud again and +pace, base at its lowest
+// and depth 1, so the knob reads min..max as the drive reads 0..1. The first +loud reads the zero-lag energy lane (what
+// the studio does now); the second is given the pack without it, so it reads the old pack.loudness lane 1.1 s ahead, as
+// the studio did before. Writes nothing.
 import type { SongPack } from '../studio/pack/pack';
 import { groupChords, soundingAt } from '../widgets/chords';
 import { paceAt } from '../widgets/curves';
@@ -11,10 +13,12 @@ import { WidgetRuntime } from '../widgets/runtime';
 import { labHarness, labWidgetSources } from '../widgets/sources';
 import type { Chord, Drive, Features, KnobMap, Note, Param } from '../widgets/types';
 
-const DRIVES: { drive: Drive; feat: keyof Features; col: string }[] = [
-  { drive: '+level', feat: 'level', col: '--level' },
-  { drive: '+loud', feat: 'loud', col: '--loud' },
-  { drive: '+pace', feat: 'pace', col: '--pace' },
+type Lane = 'level' | 'loud' | 'loudOld' | 'pace';
+const DRIVES: { drive: Drive; feat: keyof Features; lane: Lane; col: string; old?: boolean }[] = [
+  { drive: '+level', feat: 'level', lane: 'level', col: '--level' },
+  { drive: '+loud', feat: 'loud', lane: 'loud', col: '--loud' },
+  { drive: '+loud', feat: 'loud', lane: 'loudOld', col: '--loud-old', old: true },
+  { drive: '+pace', feat: 'pace', lane: 'pace', col: '--pace' },
 ];
 const HOP = 0.05;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,19 +26,19 @@ const css = (name: string) => getComputedStyle(document.documentElement).getProp
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const status = (s: string) => { $('status').textContent = s; };
 
-/** level, loud and pace over the whole piece, every HOP s, as an unrouted instance would read them. */
-function curves(pack: SongPack, loudAt: (t: number) => number): Record<'level' | 'loud' | 'pace', Float32Array> {
+/** level, loud (both lanes) and pace over the whole piece, every HOP s, as an unrouted instance would read them. */
+function curves(pack: SongPack, loudAt: (t: number) => number, loudOldAt: (t: number) => number): Record<Lane, Float32Array> {
   const chords = groupChords(pack.notes), n = Math.ceil(pack.duration / HOP) + 1;
-  const level = new Float32Array(n), loud = new Float32Array(n), pace = new Float32Array(n);
+  const level = new Float32Array(n), loud = new Float32Array(n), loudOld = new Float32Array(n), pace = new Float32Array(n);
   const p = { level: 0, rate: 0, hit: 0 }, f = newFeatures();
   let ci = 0;
   for (let i = 0; i < n; i++) {
     const t = i * HOP, fired: Chord[] = [];
     while (ci < chords.length && chords[ci].t <= t) fired.push(chords[ci++]);
     advanceFeatures(p, f, fired, soundingAt(pack.notes, t), i ? HOP : 0);
-    level[i] = p.level; loud[i] = loudAt(t); pace[i] = paceAt(chords, t);
+    level[i] = p.level; loud[i] = loudAt(t); loudOld[i] = loudOldAt(t); pace[i] = paceAt(chords, t);
   }
-  return { level, loud, pace };
+  return { level, loud, loudOld, pace };
 }
 
 function fit(c: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -49,8 +53,8 @@ function plot(c: HTMLCanvasElement, lanes: Record<string, Float32Array>, dur: nu
   g.clearRect(0, 0, w, h);
   g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = 1;
   for (const u of [0, 0.5, 1]) { g.beginPath(); g.moveTo(0, Y(u)); g.lineTo(w, Y(u)); g.stroke(); }
-  for (const { feat, col } of DRIVES) {
-    const x = lanes[feat], stride = Math.max(1, Math.floor(x.length / (w * 2)));
+  for (const { lane, col, old } of DRIVES) {
+    const x = lanes[lane], stride = Math.max(1, Math.floor(x.length / (w * 2)));
     g.beginPath();
     for (let i = 0; i < x.length; i += stride) {
       // Over a stride, the mean: what the picture gets on average there, not its brightest blink.
@@ -58,7 +62,8 @@ function plot(c: HTMLCanvasElement, lanes: Record<string, Float32Array>, dur: nu
       const px = (i * HOP / dur) * w;
       if (i) g.lineTo(px, Y(m)); else g.moveTo(px, Y(m));
     }
-    g.strokeStyle = css(col); g.lineWidth = feat === 'level' ? 1 : 2; g.globalAlpha = feat === 'level' ? 0.7 : 1; g.stroke(); g.globalAlpha = 1;
+    g.strokeStyle = css(col); g.lineWidth = lane === 'level' ? 1 : 2; g.globalAlpha = lane === 'level' ? 0.7 : 1;
+    g.setLineDash(old ? [5, 4] : []); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
   }
   g.fillStyle = '#fff'; g.fillRect((now / dur) * w - 0.5, 0, 1, h);
 }
@@ -85,21 +90,23 @@ async function main() {
   status('Reading the pack…');
   const pack = (await (await fetch(`/songs/${id}/pack.json`, { cache: 'no-store' })).json()) as SongPack;
   (window as { NOTES?: Note[] }).NOTES = pack.notes;   // before any widget file runs: several read it when they load
-  const song = { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness };
+  // The old copy is given the pack without its energy lane: the runtime then reads pack.loudness, 1.1 s ahead.
+  const song = { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy };
+  const oldSong = { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness };
 
-  // Three runtimes, each loaded from the same seed so they start alike.
+  // Four runtimes, each loaded from the same seed so they start alike.
   const reseed = installSeededRandom(1), stages = $('stages');
-  const runs = DRIVES.map(({ drive, col }) => {
+  const runs = DRIVES.map(({ drive, col, old }) => {
     const box = document.createElement('div'); box.className = 'stage';
-    const word = harness.drives.find(([d]) => d === drive)?.[1] ?? drive;
+    const word = (harness.drives.find(([d]) => d === drive)?.[1] ?? drive) + (old ? ', old lane' : '');
     box.innerHTML = `<h2>${drive} <span>${word}</span></h2><canvas width="1280" height="720"></canvas>
       <div class="meter"><i style="background:var(${col})"></i></div><h2><span class="val"></span></h2>`;
     stages.append(box);
     const canvas = box.querySelector('canvas')!;
     reseed(1);
-    const rt = new WidgetRuntime(canvas, song, { sources, harness, layers: studioLayers() });
+    const rt = new WidgetRuntime(canvas, old ? oldSong : song, { sources, harness, layers: studioLayers() });
     rt.load([widget]);
-    return { drive, rt, bar: box.querySelector<HTMLElement>('.meter i')!, val: box.querySelector<HTMLElement>('.val')! };
+    return { drive, old, rt, bar: box.querySelector<HTMLElement>('.meter i')!, val: box.querySelector<HTMLElement>('.val')! };
   });
   const tool = runs[0].rt.tool(widget), knobs: Param[] = (tool?.params ?? []).filter((q) => q.max > q.min);
   if (!tool || !knobs.length) { status(runs[0].rt.errors[widget] ?? `${widget} has no knob`); return; }
@@ -115,11 +122,13 @@ async function main() {
   }
 
   status('Working out the curves…');
-  const lanes = curves(pack, runs[0].rt.loudAt);
+  const lanes = curves(pack, runs.find((r) => r.drive === '+loud' && !r.old)!.rt.loudAt, runs.find((r) => r.old)!.rt.loudAt);
   const audio = new Audio(`/songs/${id}/${pack.audio}`);
   audio.preload = 'auto';
   const dur = pack.duration;
   status(pack.loudness ? `${pack.notes.length} notes, knob "${knob.label ?? knob.key}" ${knob.min}..${knob.max}` : 'This pack has no loudness lane: loud stays 0');
+  // Without the energy lane both loud copies read the old lane: say so where it shows.
+  $('noEnergy').hidden = !!pack.energy;
 
   const play = $('play') as HTMLButtonElement, cv = $('curves') as HTMLCanvasElement;
   const toggle = () => { if (audio.paused) void audio.play(); else audio.pause(); };

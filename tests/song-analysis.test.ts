@@ -65,6 +65,10 @@ describe('analyzeSong', () => {
     });
     expect(validatePack(p)).toEqual([]);
     expect(p.quality.warnings.join()).toMatch(/no notes found/);
+    // The energy lane comes along, silent, as long as loudness, and is the pack's last key (where augment-pack puts it).
+    expect(s.energy!.momentary).toEqual(new Array(50).fill(-90));
+    expect(p.energy!.shortTerm).toEqual(new Array(50).fill(-90));
+    expect(Object.keys(p).at(-1)).toBe('energy');
   });
 
   it('reports progress up to 1, never backwards', () => {

@@ -157,5 +157,7 @@ export function buildPack(i: BuildInput): SongPack {
     pianoShare: share === null ? null : r4(share),
     ...(tracks ? { tracks } : {}),
     transcribers,
+    // Last, where the backfill (scripts/augment-pack.ts) appends it to older packs.
+    ...(a.energy ? { energy: { hop: 0.1 as const, momentary: [...a.energy.momentary], shortTerm: [...a.energy.shortTerm] } } : {}),
   };
 }

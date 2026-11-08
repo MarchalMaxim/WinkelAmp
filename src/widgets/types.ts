@@ -82,8 +82,12 @@ export interface Region { mode: 'spot' | 'window'; shape: 'rect' | 'ellipse'; x:
 export type Persist = 'redraw' | 'strokes';
 export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>>;
   picks?: Record<string, { notes: Note[] }>;
-  /** pack.loudness, for the loud drive. Absent: loud stays 0. */
-  loudness?: { hop: number; values: readonly number[] } }
+  /** pack.loudness, for the loud drive when there is no energy. Absent (and no energy): loud stays 0. */
+  loudness?: { hop: number; values: readonly number[] };
+  /** pack.energy, the zero-lag lane (dB): the loud drive reads its momentary curve when it is here. */
+  energy?: EnergyLanesLike | null }
+/** A pack's zero-lag energy lane (pack.energy, src/audio/energy.ts): dB, sample i centred on (i + 0.5)·hop. */
+export interface EnergyLanesLike { hop: number; momentary: readonly number[]; shortTerm: readonly number[] }
 /** key = widget, or widget@listen; own = keeps its own pulse (listen set, or any intensity in the show). */
 export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean;
   /** A set of picks: the notes this instance hears. A loaded key whose notes change is evaluated again. */
