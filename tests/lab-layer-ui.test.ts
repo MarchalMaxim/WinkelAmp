@@ -109,7 +109,7 @@ describe('intensity presets', () => {
   it('over one moment, plays and gate: the bare preset inside it even before its first run, full outside', () => {
     const span = { start: 40, end: 90 };
     const late = notesOf(30, 60);   // the part's first note at 60, well after the moment starts
-    const quiet = { hop: 0.1, values: Array.from({ length: 1200 }, (_, i) => (i >= 600 && i < 800 ? 0.9 : 0.1)) };   // loud from 60 to 80
+    const quiet = { hop: 0.1, values: Array.from({ length: 1200 }, (_, i) => (i >= 620 && i < 820 ? 0.9 : 0.1)) };   // loud from 62 to 82 on the lane: open from about 60.75
     const s2: Song = { ...song, notes: late, tracks: undefined, loudness: quiet };
     const cases: [Pivot[], Pivot[]][] = [
       [U.presetPivots(L, 'plays', 0, span, s2), L.presets.plays(span, late, { floor: 0 })],
@@ -155,8 +155,22 @@ describe('intensity presets', () => {
     expect(L.automationAt(short, 20)).toBe(1);
     expect(L.automationAt(short, 10)).toBeCloseTo(0.5, 6);
   });
-  it('no loudness curve: the gate writes nothing', () => {
+  it('no loudness curve: the gate and follow write nothing', () => {
     expect(U.presetPivots(L, 'gate', 0.5, whole, { ...song, loudness: undefined })).toEqual([]);
+    expect(U.presetPivots(L, 'follow', 0.35, whole, { ...song, loudness: undefined })).toEqual([]);
+  });
+  it('follow writes the shared preset with the amount as its floor, full outside its moment', () => {
+    expect(U.presetPivots(L, 'follow', 0.35, whole, song)).toEqual(L.presets.follow(whole, loudness, { floor: 0.35 }));
+    const span = { start: 40, end: 90 }, inner = L.presets.follow(span, loudness, { floor: 0.2 });
+    const p = U.presetPivots(L, 'follow', 0.2, span, song);
+    for (let t = 0; t <= dur; t += 0.37) expect(L.automationAt(p, t)).toBeCloseTo(t < span.start || t > span.end ? 1 : L.automationAt(inner, t), 12);
+    expect(p.length).toBeLessThanOrEqual(L.MAX_PIVOTS);
+  });
+  it('the default gate threshold reads the lane 1.7 s later, where the music of the span shows on it', () => {
+    const step = { hop: 0.1, values: Array.from({ length: 400 }, (_, i) => (i < 150 ? 0.2 : 0.8)) };   // loud on the lane from 15 s
+    expect(U.gateDefault(step, { start: 12, end: 16 })).toBe(0.8);    // read over 13.7 .. 17.7, mostly loud
+    expect(U.gateDefault(step, { start: 0, end: 9 })).toBe(0.2);      // read over 1.7 .. 10.7
+    expect(U.gateDefault(step, { start: 39, end: 40 })).toBe(0.8);    // past the lane's end: its last value, not 0.5
   });
   it('moments are named by their label, else their mood', () => {
     expect(U.momentSpans(song.moments, dur).map((m) => [m.start, m.end, m.label])).toEqual([[0, 40, 'One'], [40, 90, 'Agitato'], [90, 120, 'Three']]);

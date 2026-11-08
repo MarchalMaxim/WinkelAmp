@@ -35,7 +35,7 @@
       "end": 536.2,
       "track": 1,
       "fade": 0.5,
-      "widget": "urchin",
+      "widget": "fist",
       "listen": "picks:horn-pedal",
       "knobs": {
         "reach": 1.2,

@@ -74,10 +74,13 @@
     return { mode: mode || 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.4, h: 0.4, feather: 0.2, fit: 'contain' };
   }
 
-  /** A loudness threshold for the gate (the studio's gateDefault): the span's 60th percentile, to 0.05, in 0.1..0.9. */
+  /** A loudness threshold for the gate (the studio's gateDefault): the span's 60th percentile, to 0.05, in 0.1..0.9.
+      The curve runs late (WA.LOUDNESS_LAG.mean, 1.7 s), so it is read that much later than the span: the music inside
+      the span, as the curve shows it. */
   function gateDefault(loud, span) {
     if (!loud || !loud.values || !(loud.hop > 0)) return 0.5;
-    var a = Math.max(0, Math.floor(span.start / loud.hop)), b = Math.min(loud.values.length, Math.ceil(span.end / loud.hop));
+    var W = root.WA_LAYERS, lag = W && W.LOUDNESS_LAG ? W.LOUDNESS_LAG.mean : 1.7, n = loud.values.length;
+    var a = Math.min(Math.max(0, Math.floor((span.start + lag) / loud.hop)), n - 1), b = Math.min(n, Math.ceil((span.end + lag) / loud.hop));
     var v = loud.values.slice(a, b).filter(Number.isFinite).sort(function (x, y) { return x - y; });
     var q = v.length ? v[Math.floor(0.6 * (v.length - 1))] : 0.5;
     return Math.min(0.9, Math.max(0.1, Math.round(q * 20) / 20));
@@ -104,6 +107,7 @@
     pulse: { label: 'Pulse on the beats', min: 1, max: 16, step: 1, value: 2, say: function (v, song) {
       return 'every ' + (v === 1 ? 'beat' : v + ' beats') + (song.beats && song.beats.length ? '' : ' (no beats in this song: half a second each)'); } },
     gate: { label: 'Gate on loudness', min: 0.05, max: 0.95, step: 0.05, value: null, say: function (v) { return 'seen when louder than ' + Math.round(v * 100) + ' %'; } },
+    follow: { label: 'Follow the loudness', min: 0, max: 0.8, step: 0.05, value: 0.35, say: function (v) { return 'never below ' + Math.round(v * 100) + ' %'; } },
     plays: { label: 'While its part plays', min: 0, max: 0.5, step: 0.05, value: 0, say: function (v) { return v > 0 ? 'between notes it stays at ' + Math.round(v * 100) + ' %' : 'gone between notes'; } },
     fade: { label: 'Fade at moments', min: 0.5, max: 20, step: 0.5, value: 4, say: function (v) { return 'fades in and out over ' + v + ' s at each moment'; } },
   };
@@ -131,13 +135,14 @@
 
   /** The pivots of a preset over `span` (a moment's, or the whole song's): the shared presets (lab/layers/automation.js),
       as the studio writes them. 'fade': each moment inside the span fades in over `amount` seconds from its start and
-      out over the same before its end (at most half the moment each). Empty for 'always' and for a gate with no
-      loudness curve. */
+      out over the same before its end (at most half the moment each). 'follow': the amount is its floor. Empty for
+      'always', and for a gate or follow with no loudness curve. */
   function presetPivots(L, kind, amount, span, song, listen) {
     var P = L.presets, dur = song.dur, p = [];
     var room = L.MAX_PIVOTS - padCount(span, dur);   // the padded curve stays within MAX_PIVOTS, its closing pivots kept
     if (kind === 'pulse') p = P.pulse(span, song.beats || [], { every: Math.max(1, Math.round(amount)) });
     else if (kind === 'gate') p = song.loudness && song.loudness.values ? P.gate(span, song.loudness, { above: amount }) : [];
+    else if (kind === 'follow') p = song.loudness && song.loudness.values ? P.follow(span, song.loudness, { floor: amount }) : [];
     else if (kind === 'plays') p = P.plays(span, L.listenNotes({ notes: song.notes, tracks: song.tracks }, listen).notes, { floor: amount });
     else if (kind === 'fade') {
       var cut = false;
@@ -271,7 +276,7 @@
     det.addEventListener('toggle', function () { if (det.open) B.open[toolId] = true; else delete B.open[toolId]; saveBook(); });
 
     preset.innerHTML = Object.keys(PRESETS).map(function (k) {
-      var off = k === 'gate' && !(song.loudness && song.loudness.values);
+      var off = (k === 'gate' || k === 'follow') && !(song.loudness && song.loudness.values);
       return '<option value="' + k + '"' + (off ? ' disabled' : '') + '>' + esc(PRESETS[k].label) + (off ? ' (no loudness curve for this song)' : '') + '</option>';
     }).join('') + '<option value="custom" hidden>a curve from elsewhere</option>';
 

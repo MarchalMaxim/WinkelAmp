@@ -51,7 +51,7 @@ To open a show in the studio, use `/?show=<id>` on branch `claude/classical-widg
 
 - **File:** Bald Mountain - B Spines and the bell - 720p.mp4
 - **Show:** `bald-mountain-b-spines-and-bell`
-- **Widgets:** contours, urchin, crimp, mica, cut, pluck, martin
+- **Widgets:** contours, fist (was urchin), crimp, mica, cut, pluck, martin
 - **Watch for:** Watch the copper contours mask under a slanted gale of two crimp whirls (violins and violas), the spine field stabbing at the blows and lying down over the 11 strokes of the church bell, and the dawn as a chain of Agnes Martin pages from black through rose and blue to day paper.
 
 ### C · Op-art sabbath (9:40)

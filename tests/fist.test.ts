@@ -1,4 +1,4 @@
-// Fist of spines (lab/tools/urchin.js, docs/mockups/nature/plans/urchin.md): the entry and its knobs, the SNAP copy, the attack
+// Fist of spines (lab/tools/fist.js, once urchin.js; docs/mockups/nature/plans/urchin.md): the entry and its knobs, the SNAP copy, the attack
 // in a bone bucket, the black spot, the rest field, a field that does not move between notes, determinism, a stateless seek,
 // velocity normalisation, and a repeat that clenches again.
 /// <reference types="node" />
@@ -8,7 +8,7 @@ import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
-const SRC = readFileSync(new URL('../lab/tools/urchin.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../lab/tools/fist.js', import.meta.url), 'utf8');
 const ENV = readFileSync(new URL('../lab/snap/envelope.js', import.meta.url), 'utf8');
 
 function recorder(log: string[]) {
@@ -34,12 +34,12 @@ interface Opts { knobs?: Record<string, number>; seed?: number; throws?: boolean
 /** Plays `chords` at 60 Hz and returns the draw log of every step (index = step number). */
 function play(chords: Chord[], secs: number, o: Opts = {}) {
   const log: string[] = [], rec = recorder(log);
-  const tool = instantiate('urchin', SRC, { icon: ICON, chords }) as ToolDef;
+  const tool = instantiate('fist', SRC, { icon: ICON, chords }) as ToolDef;
   const vals: Record<string, number> = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...(o.knobs ?? {}) };
   const rnd = rngFn(o.seed ?? 7);
   const x = { g: rec, t: 0, dt: 1 / 60, W: 1280, H: 720, rnd: (a: number, b: number) => a + (b - a) * rnd(), p: (k: string) => vals[k], picked: !!o.picked, level: 0.5, rate: 0.3, hit: 0 } as unknown as WidgetCtx & { t: number };
   const random = Math.random;
-  if (o.throws !== false) Math.random = () => { throw new Error('Math.random in urchin'); };
+  if (o.throws !== false) Math.random = () => { throw new Error('Math.random in fist'); };
   const steps: string[][] = [];
   try {
     tool.reset!(x);
@@ -60,10 +60,10 @@ const reds = (l: string[]) => l.filter((s) => s.startsWith('fillStyle=rgb(')).ma
 const count = (l: string[], name: string) => l.filter((s) => s.startsWith(name + '(')).length;
 const joined = (steps: string[][]) => steps.map((s) => (s ?? []).join('|')).join('\n');
 
-describe('urchin: the entry', () => {
-  const tool = instantiate('urchin', SRC, { icon: ICON, chords: [] }) as ToolDef;
+describe('fist: the entry', () => {
+  const tool = instantiate('fist', SRC, { icon: ICON, chords: [] }) as ToolDef;
   it('is Fist of spines, new, with the planned knobs', () => {
-    expect(tool.id).toBe('urchin'); expect(tool.name).toBe('Fist of spines'); expect(tool.tag).toBe('new');
+    expect(tool.id).toBe('fist'); expect(tool.name).toBe('Fist of spines'); expect(tool.tag).toBe('new');
     const keys = tool.params!.map((p) => p.key);
     expect(keys).toEqual(['reach', 'spines', 'stab', 'ring', 'ground', 'presence']);
     expect(keys.filter((k) => k !== 'presence')).toHaveLength(5);
@@ -78,7 +78,7 @@ describe('urchin: the entry', () => {
   });
 });
 
-describe('urchin: the SNAP copy', () => {
+describe('fist: the SNAP copy', () => {
   it('holds the envelope block byte for byte and has no CR', () => {
     const a = ENV.indexOf('// SNAP v1 begin'), b = ENV.indexOf('// SNAP v1 end') + '// SNAP v1 end'.length;
     expect(SRC).toContain(ENV.slice(a, b));
@@ -86,7 +86,7 @@ describe('urchin: the SNAP copy', () => {
   });
 });
 
-describe('urchin: the picture', () => {
+describe('fist: the picture', () => {
   const CH = mk(SPREAD as unknown as number[][]);
   it('the attack step of a hard note is lighten, with at least two fills and a bone bucket', () => {
     const f = 180;   // 3.0 s

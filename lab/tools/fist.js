@@ -1,5 +1,6 @@
 // Fist of spines: a flat field of short dark-teal needles lies along a slow nap. On a note every needle within reach turns at
 // once to aim at the note's spot and stabs, stopping short, so the spot stays black; then they lie back together.
+// Fist of spines, id 'fist' (it was 'urchin' until 2026-11-08: ad blockers block any file named urchin.js).
 // Stateless from CHORDS (docs/mockups/nature/plans/urchin.md): the owner of a needle and its age come from x.t - ch.t.
 (() => {
 // SNAP v1 begin
@@ -223,7 +224,7 @@ var SNAP = SNAP || {};
   };
 
   TOOLS.push({
-    id: 'urchin', name: 'Fist of spines', tag: 'new', on: false,
+    id: 'fist', name: 'Fist of spines', tag: 'new', on: false,
     blurb: "A field of dark-teal needles lies along a slow nap. On each note every needle within reach turns at once to aim at the note's spot and stabs, stopping short, so the spot stays black; then they lie back together. Pitch places the spot, loudness sets how far the call reaches.",
     params: [
       { key: 'reach', label: 'how far the call reaches', min: 0.3, max: 2, value: 1,

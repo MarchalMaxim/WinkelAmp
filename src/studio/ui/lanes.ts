@@ -181,7 +181,7 @@ const ICONS = {
   swell: 'M1 11 C6 11 8 1 12 1 S18 11 23 11', dip: 'M1 1 C6 1 8 11 12 11 S18 1 23 1',
   breathe: 'M1 11 C3 11 3 1 6 1 S9 11 12 11 S15 1 18 1 S21 11 23 11', steps: 'M1 11 H6 V8 H12 V5 H18 V1 H23',
   beat: 'M1 1 L3 11 H5 V1 L7 11 H9 V1 L11 11 H13 V1 L15 11 H17 V1 L19 11 H21 V1 L23 11', bar: 'M1 1 L6 11 H12 V1 L17 11 H23',
-  gate: 'M1 11 H5 V1 H10 V11 H14 V1 H23', plays: 'M1 11 H3 V1 H16 V11 H23', half: 'M1 6 H23', clear: 'M1 1 H23',
+  gate: 'M1 11 H5 V1 H10 V11 H14 V1 H23', follow: 'M1 9 L4 6 L6 8 L9 2 L12 4 L14 3 L17 8 L20 7 L23 9', plays: 'M1 11 H3 V1 H16 V11 H23', half: 'M1 6 H23', clear: 'M1 1 H23',
 };
 const LISTEN_WORDS: Record<string, string> = {
   melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents',
@@ -299,6 +299,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const openKey = () => selectedClip()?.id ?? '';
   const curveKey = () => JSON.stringify(selectedClip()?.intensity ?? []);
 
+  const followFloor = (): number => (prefs.floor > 0 ? prefs.floor : 0.35);
   const shapes = (): ShapeChip[] => {
     const P = L.presets, l = selectedClip(), beats = d.song.beats, gap = beatGap();
     const fade = (span: Span) => Math.min(span.end - span.start, 4 * gap);
@@ -314,9 +315,14 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       { id: 'beat', label: 'Each beat', menu: 'Pulse every beat', icon: ICONS.beat, make: (sp, floor) => P.pulse(sp, beats, { every: 1, floor }) },
       { id: 'bar', label: 'Each bar', menu: 'Pulse every bar', note: '4 beats', icon: ICONS.bar, make: (sp, floor) => P.pulse(sp, beats, { every: 4, floor }) },
       { id: 'gate', label: 'Loud parts', menu: 'Gate on loudness', note: 'open in the louder half', icon: ICONS.gate, make: (sp, floor) => {
-        const hop = d.song.loudness.hop, inSpan = d.song.loudness.values.slice(Math.floor(sp.start / hop), Math.ceil(sp.end / hop));
-        return P.gate(sp, d.song.loudness, { above: Math.min(0.95, Math.max(0.05, median(inSpan) || 0.5)), floor });
+        // The lane runs late: read it that much later, so the threshold is the music inside the span.
+        const lo = d.song.loudness, hop = lo.hop, lag = L.LOUDNESS_LAG.mean, n = lo.values.length;
+        const inSpan = lo.values.slice(Math.min(Math.floor((sp.start + lag) / hop), n - 1), Math.ceil((sp.end + lag) / hop));
+        return P.gate(sp, lo, { above: Math.min(0.95, Math.max(0.05, median(inSpan) || 0.5)), floor });
       } },
+      // Quiet passages must not empty the screen: with "Lowest" at 0 it stays above 35 %.
+      { id: 'follow', label: 'Follows the sound', menu: 'Follow the loudness', note: `rises and falls with the music, never below ${pct(followFloor())}`,
+        icon: ICONS.follow, make: (sp, floor) => P.follow(sp, d.song.loudness, { floor: floor > 0 ? floor : 0.35 }) },
     ];
     if (l?.listen && l.listen !== 'all') {
       const listen = l.listen;
@@ -341,7 +347,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   };
 
   const drawShapes = (on: boolean) => {
-    const chips = shapes(), key = JSON.stringify([chips.map((c) => c.id), on]);
+    const chips = shapes(), key = JSON.stringify([chips.map((c) => [c.id, c.note]), on]);
     if (key !== chipsKey) {
       chipsKey = key;
       strip.innerHTML = chips.map((c) => `<button type="button" class="lanes-shape" data-shape="${c.id}" title="${c.menu}${c.note ? `: ${c.note}` : ''}" ${on ? '' : 'disabled'}>
@@ -408,12 +414,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     if (!pc) return;
     const px0 = Math.max(0, Math.floor(G.x(pc.span.start))), px1 = Math.min(w, Math.ceil(G.x(pc.span.end)));
 
-    // The loudness, faint, from the bottom.
-    const lo = d.song.loudness, hop = lo.hop;
+    // The loudness, faint, from the bottom; drawn earlier by the time it runs late, so it lines up with the attacks.
+    const lo = d.song.loudness, hop = lo.hop, lag = L.LOUDNESS_LAG.mean;
     g.fillStyle = '#e9e2da12';
     g.beginPath(); g.moveTo(0, h);
     for (let x = 0; x <= w; x++) {
-      const t0 = G.t(x), t1 = G.t(x + 1);
+      const t0 = G.t(x) + lag, t1 = G.t(x + 1) + lag;
       let m = 0;
       for (let i = Math.max(0, Math.floor(t0 / hop)); i <= Math.min(lo.values.length - 1, Math.floor(t1 / hop)); i++) m = Math.max(m, lo.values[i]);
       g.lineTo(x, h - m * (h - G.pad) * 0.9);

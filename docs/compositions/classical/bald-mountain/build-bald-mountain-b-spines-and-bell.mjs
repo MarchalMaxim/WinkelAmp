@@ -139,11 +139,11 @@ clip('contours', T.CONTOURS, 2.0, 440.35, { fade: 0.3, intensity: squash([
 ]) });
 // The spirits: born on the first blow, in the field until the bell. Butts the bell clip at 440.35 with fade 0 (same seed:
 // the same field, no blink).
-clip('urchin', T.URCHIN, 16.3, 440.35, { fade: 0, listen: 'picks:blows', knobs: { ground: 0.18, ring: 1.4, spines: 380 }, intensity: [
+clip('fist', T.URCHIN, 16.3, 440.35, { fade: 0, listen: 'picks:blows', knobs: { ground: 0.18, ring: 1.4, spines: 380 }, intensity: [
   [16.3, 1], [42.4, 1, 'hold'], [42.45, 0, 'hold'], [46.9, 0], [48.5, 1, 'ease'], [161.4, 1], [163.5, 0.55, 'ease'], [172, 0.55],
   [175, 1, 'ease'], [208.3, 1], [209.5, 0.55, 'ease'], [213, 0.55], [220, 1, 'ease'],
 ] });
-clip('urchin', T.URCHIN, 440.35, 462.0, { fade: 0, listen: 'picks:bell', knobs: { ground: 0.35, ring: 2.6, stab: 0.4, reach: 2, spines: 380 } });
+clip('fist', T.URCHIN, 440.35, 462.0, { fade: 0, listen: 'picks:bell', knobs: { ground: 0.35, ring: 2.6, stab: 0.4, reach: 2, spines: 380 } });
 // The bell's rings on the map: bone, drifting outward.
 clip('contours', T.CONTOURS, 440.35, 462.6, { fade: 0.5, listen: 'picks:bell-rings', knobs: { tint: 0.5, flow: 2, decay: 5 } });
 // The tremolo whirl: crimp, from the first trill out of the silence to the last whirl. Both crimps (violins, violas)

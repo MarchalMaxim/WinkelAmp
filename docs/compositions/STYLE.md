@@ -39,7 +39,7 @@ All nocturne shows are on `claude/nocturne-micro-b-2c2dec` (micro-a merged into 
 
 ## Rejected: don't repeat
 
-- **Concerto:** Tack ("gluey"); Mica on a soft left hand; film, urchin and mica on a horn call; an Ivory ladder that
+- **Concerto:** Tack ("gluey"); Mica on a soft left hand; film, fist (Fist of spines, once urchin) and mica on a horn call; an Ivory ladder that
   misses notes; a crowded coda (interlock, Ivory, fireworks and squares); snap squares in an agitato.
 - **Nocturne a:** fireworks on the beat chords under Ivory; crimp's red mesh on a slow chorale.
 - **Nocturne b:**

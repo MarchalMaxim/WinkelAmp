@@ -40,6 +40,11 @@ export function settingOf(q: Param, s: KnobState): KnobSetting | null {
   return out;
 }
 
+/** The 'how strongly' slider moves in steps of 0.05; rounding keeps 0.5 exactly 0.5, so settingOf drops it again. */
+export const roundDepth = (v: number): number => Math.min(1, Math.max(0, Math.round(v * 20) / 20));
+
+const DEPTH_TITLE = 'How strongly it follows the music. Left: hardly. Right: across its whole range.';
+
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
 export interface KnobRow { el: HTMLElement; q: Param; live: HTMLCanvasElement | null; sync(s: KnobState): void; drawLive(f: Features): void }
@@ -56,15 +61,17 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
   const el = document.createElement('div');
   // How present only moves the other knobs: there is nothing for the music to drive.
   const select = q.leads ? '<span></span>' : `<select data-k aria-label="${label}: what it follows">${drives.map(([d, word]) => `<option value="${d}">${esc(word)}</option>`).join('')}</select>`;
+  // How strongly: only while the knob follows something (hidden when fixed), and never for how present.
+  const depth = q.leads ? '' : `<input type="range" class="depth" data-k aria-label="${label}: how strongly" title="${DEPTH_TITLE}" min="0" max="1" step="0.05">`;
   const slider = `<input type="range" data-k aria-label="${label}" min="${q.min}" max="${q.max}" step="${q.step ?? (q.max - q.min) / 100}">`;
   const rich = !!(q.icon || q.hint);
   el.className = rich ? 'prm' : 'prm plain';
   el.dataset.p = q.key;
   el.innerHTML = rich
     ? `<div class="top"><canvas class="live" data-i="live"></canvas><span class="name">${label}</span>${q.hint ? '<button type="button" class="info" data-info aria-label="what is this?">i</button>' : '<span></span>'}${select}</div>
-       <div class="row"><canvas data-i="0"></canvas>${slider}<canvas data-i="1"></canvas></div>${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}`
-    : `<span class="name">${label}</span>${slider}${select}`;
-  const input = el.querySelector('input')!, sel = el.querySelector('select');
+       <div class="row"><canvas data-i="0"></canvas>${slider}<canvas data-i="1"></canvas>${depth}</div>${q.hint ? `<div class="hint">${esc(q.hint)}</div>` : ''}`
+    : `<span class="name">${label}</span>${slider}${depth}${select}`;
+  const input = el.querySelector<HTMLInputElement>('input:not(.depth)')!, sel = el.querySelector('select'), dep = el.querySelector<HTMLInputElement>('input.depth');
   const [live, i0, i1] = ['live', '0', '1'].map((k) => el.querySelector<HTMLCanvasElement>(`canvas[data-i="${k}"]`));
   let cur = { ...state };
   if (live && i0 && i1) { drawIcon(i0, q, 0, icon); drawIcon(i1, q, 1, icon); }
@@ -75,6 +82,7 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
       cur = { ...s };
       if (Number(input.value) !== s.base) input.value = String(s.base);   // a drag already shows its value; an undo moves it back
       if (sel) sel.value = s.drive;
+      if (dep) { if (Number(dep.value) !== s.depth) dep.value = String(s.depth); dep.hidden = !s.drive; }
       if (live) drawIcon(live, q, norm(q, s.base), icon);
     },
     drawLive(f) { if (live) drawIcon(live, q, norm(q, knobValue(q, cur, f)), icon); },
@@ -88,7 +96,23 @@ export function knobRow(q: Param, state: KnobState, drives: [Drive, string][], i
     onChange(cur, pointer ? 'move' : 'step');
   });
   input.addEventListener('change', () => { if (pointer) onChange({ ...cur, base: Number(input.value) }, 'end'); });
-  sel?.addEventListener('change', () => { cur = { ...cur, drive: sel.value as Drive }; onChange(cur, 'end'); });
+  sel?.addEventListener('change', () => {
+    // A knob stored fixed with depth 0 would not move with its new drive: picking one (an edit) starts it at the middle.
+    cur = { ...cur, drive: sel.value as Drive, ...(sel.value && !cur.depth ? { depth: 0.5 } : {}) };
+    if (dep) { dep.hidden = !cur.drive; dep.value = String(cur.depth); }
+    onChange(cur, 'end');
+  });
+  // The 'how strongly' slider: pointer and keys as with the knob's own slider.
+  if (dep) {
+    let depPointer = false;
+    dep.addEventListener('pointerdown', () => { depPointer = true; });
+    dep.addEventListener('keydown', () => { depPointer = false; });
+    dep.addEventListener('input', () => {
+      cur = { ...cur, depth: roundDepth(Number(dep.value)) };
+      onChange(cur, depPointer ? 'move' : 'step');
+    });
+    dep.addEventListener('change', () => { if (depPointer) onChange({ ...cur, depth: roundDepth(Number(dep.value)) }, 'end'); });
+  }
   input.value = String(state.base); if (sel) sel.value = state.drive;
   row.sync(state);
   return row;
