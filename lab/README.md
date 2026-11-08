@@ -14,6 +14,8 @@ to see and snap to, and own no clips. See [the studio show format](../docs/COMPO
 - `tools/<id>.js`: one widget each (`TOOLS.push({ id, name, blurb, tag, params, reset, onChord, frame })`). The page loads
   the ids listed in `TOOL_IDS` in `index.html` (add yours there); a missing or broken file only shows a note above the cards.
   `tools/dropped/`: widgets the user dropped (ripples, moire, shatter, lightning, whitney, albers, hilma, tack), kept for reference.
+  Widgets rated drop on 2026-11-08 (royal, honey, lazy, martin, nap, delaunay) stay in `tools/` for now: the drop is
+  recorded only (`VERDICTS`; issues [#8](https://github.com/MarchalMaxim/WinkelAmp/issues/8)-[#13](https://github.com/MarchalMaxim/WinkelAmp/issues/13)).
 - `combos.js`: widget combinations that do more together than side by side (`window.COMBOS = [{ ids, blurb, knobs?, tip?,
   at?, when? }]`), each shot together and alone first. A member's card shows a "combines with N" pill (hover, or tap
   on a phone) with a "try together" button: just those widgets on, the listed knob values set, from the best moment
@@ -86,7 +88,7 @@ params: [
   knob's range changes its swing and the default look: add a new plain knob instead. Compare seeded `?render=1` frames.
 - Drives (stored as `+level` etc.) show as words: louder / faster / higher notes / more bass / fuller chords → more / less.
 - `tag`: `'new'` for a new widget, `'v2'`, `'v3'`… for a rework. A tag that differs from the version the user judged
-  (`VERDICTS` in `index.html`, from `ratings.md`) marks the card "reworked" and sorts it to the top.
+  (`VERDICTS` in `index.html`, from `ratings.json` (2026-11-08) and `ratings.md`) marks the card "reworked" and sorts it to the top.
 
 `ICON` helpers (all take the context `g` first; colours default to `ICON.ink`; colours `ICON.ink, dim, red, gold, blue,
 green, violet`):

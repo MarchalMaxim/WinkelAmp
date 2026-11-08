@@ -271,30 +271,50 @@ song"), and the auto-composer reads the description's feel words and routes an a
 - **Theme combos** (widgets tied to pick sets): [compositions/STYLE.md](compositions/STYLE.md) says which work and the
   rules behind them.
 - **Abstract, never literal.** Shatter, lightning, ripples, moire, whitney and albers were dropped (too physical, or not
-  right); they are not in the collection (`lab/tools/dropped/`).
-- **Loved:** casket (its slashing cuts: "insanely good"), dread squares, rorschach ("parametrize the hell out of it",
-  but keep our defaults), kandinsky ("a complete visualization by itself"), flee, the current, woven threads (strings),
-  murmuration (the user's favourite), marbling, miró, delaunay, lewitt, kusama, ikeda, horizon, graphic score, boogie
-  woogie, op art (riley), glitch blocks, calligraphy (brush), halftone. **Kept:** colour fields ("a good building
-  block"), fischinger, mclaren, len lye, klee, ridges, kline, cells, nebula, pixel sort (it combines with other
-  widgets "in a very cool way": it smears what is under it), mandala, harmonic web (fifths). **Needs work:** matisse,
-  harmonograph, hilma af klint: use them only when the words ask.
+  right). They are not in the collection (`lab/tools/dropped/`), and neither are hilma af klint and tack, dropped later.
+- **Rated drop, still in the collection.** On 2026-11-08 the user rated royal ([#8](https://github.com/MarchalMaxim/WinkelAmp/issues/8)),
+  honey ([#9](https://github.com/MarchalMaxim/WinkelAmp/issues/9)), lazy ([#10](https://github.com/MarchalMaxim/WinkelAmp/issues/10)),
+  agnes martin ([#11](https://github.com/MarchalMaxim/WinkelAmp/issues/11)), nap ([#12](https://github.com/MarchalMaxim/WinkelAmp/issues/12))
+  and delaunay ([#13](https://github.com/MarchalMaxim/WinkelAmp/issues/13)) drop. He asked that this only be recorded, so
+  they stay in the lab and the studio, under "Rated drop" in the catalogue below. Do not use them.
+- **The user's lab ratings, 2026-11-08.** The catalogue below groups the widgets by verdict.
+  - **Loved:** casket (its slashing cuts: "insanely good"), dread squares, snap squares, rorschach ("parametrize the hell
+    out of it", but keep our defaults), kandinsky ("a complete visualization by itself"), flee, marbling ("extremely high
+    potential"), colour fields ("a good building block"), miró, ridges, kline, graphic score, boogie woogie, cells,
+    mandala, harmonic web (fifths), suprematism, contours, tunnel, time slice, ivory, gliss, fireworks, brass gust, duet,
+    vine, hammer, prickle, interlock, plucked corner, film.
+  - **Kept:** fischinger, len lye, lewitt, ikeda, horizon, nebula, pixel sort (it combines with other widgets "in a very
+    cool way": it smears what is under it), calligraphy (brush), glitch blocks, scribble, pointillism, fold, stella, tree,
+    johansson, fireworks every note, handover, crimp.
+  - **Needs work** (use them only when the words ask): murmuration ([#26](https://github.com/MarchalMaxim/WinkelAmp/issues/26),
+    once the user's favourite), the current ([#27](https://github.com/MarchalMaxim/WinkelAmp/issues/27)), woven threads
+    (strings, [#28](https://github.com/MarchalMaxim/WinkelAmp/issues/28)), op art (riley, [#29](https://github.com/MarchalMaxim/WinkelAmp/issues/29)),
+    halftone ([#30](https://github.com/MarchalMaxim/WinkelAmp/issues/30)), kusama ([#25](https://github.com/MarchalMaxim/WinkelAmp/issues/25)),
+    mclaren ([#21](https://github.com/MarchalMaxim/WinkelAmp/issues/21)), klee ([#22](https://github.com/MarchalMaxim/WinkelAmp/issues/22)),
+    matisse ([#23](https://github.com/MarchalMaxim/WinkelAmp/issues/23)), harmonograph ([#24](https://github.com/MarchalMaxim/WinkelAmp/issues/24)),
+    perlin ([#14](https://github.com/MarchalMaxim/WinkelAmp/issues/14)), clumsy ([#15](https://github.com/MarchalMaxim/WinkelAmp/issues/15)),
+    comfort ([#16](https://github.com/MarchalMaxim/WinkelAmp/issues/16)), mica ([#17](https://github.com/MarchalMaxim/WinkelAmp/issues/17)),
+    fist of spines ([#18](https://github.com/MarchalMaxim/WinkelAmp/issues/18)), cut ([#19](https://github.com/MarchalMaxim/WinkelAmp/issues/19)),
+    leidenfrost ([#20](https://github.com/MarchalMaxim/WinkelAmp/issues/20)).
+  - Nothing was removed or reworked after these ratings: the user asked that they be recorded only.
 - **Keep OUR defaults.** The user touched knobs in the lab and asked for our defaults back. Write knobs only when the
   description asks for something a knob does ("sharper", "calmer cuts"), and say which in the commit.
 - Kandinsky v2 no longer lays down red squares (they overlapped with dread squares), but the two together can still be
   busy. The casket goes on top: it cuts whatever is below, so give it something to cut.
-- The widgets marked "not judged yet" are new: try them where the description invites it, and mention it.
+- A widget added after 2026-11-08 has no verdict yet: try it where the description invites it, and mention it.
 
 ## What the auto-composer does
 
 A song without a show opens with an empty timeline. Its "Compose a show for me" button (`src/studio/compose/`, one undo)
-places clips by the music's character: a base (a widget that fills the picture: for example the current, woven threads
-or horizon when quiet, rorschach or riley when low, kandinsky, cells or klee when dense, boogie, ikeda or miró when fast,
-kusama or kline when loud), an accent over it when one fits well (squares for loud bass, flee or calligraphy for fast,
-murmuration for loud chords, pixel sort or glitch blocks to smear and tear the base), and the casket on top where it is
-loud and full. Every loved or kept widget has a place in `src/studio/compose/taste.ts`, used at its defaults; a widget
-that paints its own ground is only ever a base. It is a starting point: a composed show should follow the music's form
-(and the user's words) more closely than that.
+places clips by the music's character: a base (a widget that fills the picture: for example horizon or colour fields
+when quiet (horizon is also what a silent recording gets), rorschach when low, kandinsky or cells when dense, boogie,
+ikeda or miró when fast, kline when loud), an accent over it when one fits well (squares for loud bass, flee or
+calligraphy for fast, pixel sort or glitch blocks to smear and tear the base), and the casket on top where it is loud
+and full. Only widgets the user loved or kept are placed; each needs a place in `src/studio/compose/taste.ts`, used at
+its defaults. Entries for widgets now rated needs work or drop stay in the file but are skipped, and 25 newly loved or
+kept widgets have no place yet ([#31](https://github.com/MarchalMaxim/WinkelAmp/issues/31)). A widget that paints its
+own ground is only ever a base. It is a starting point: a composed show should follow the music's form (and the user's
+words) more closely than that.
 
 ## Composing as a composer: how the two first shows were made
 
@@ -434,7 +454,7 @@ not over a quiet stretch, where they look like their base widget alone.
 | `kusama`, `fold` | a twin colony; loud chords fold it fourfold for a moment | defaults | everywhere (the gold seam vanishes on the yellow ground) |
 | `score`, `squares`, `stella` | concentric stripes frame the page, one more per attack, dark on paper | defaults | busy passages pile up stripes |
 
-The last four use this round's new widgets (time slice, fold, stella), which the user has not judged yet.
+The last four use this round's new widgets: time slice (loved), fold and stella (kept, 2026-11-08).
 
 ## The widgets
 
