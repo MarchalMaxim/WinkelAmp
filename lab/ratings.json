@@ -1237,13 +1237,13 @@
   }
  },
  "chrome": {
-  "at": "2026-11-01T17:28:30.486Z",
+  "at": "2026-11-08T21:29:12.271Z",
   "ratings": {
    "squares": "love it",
    "flee": "love it",
-   "current": "love it",
+   "current": "needs work",
    "strings": "needs work",
-   "murmuration": "love it",
+   "murmuration": "needs work",
    "shatter": "needs work",
    "ripples": "drop",
    "lightning": "needs work",
@@ -1251,75 +1251,116 @@
    "casket": "love it",
    "kandinsky": "love it",
    "moire": "drop",
-   "fields": "keep",
+   "fields": "love it",
    "marbling": "love it",
    "fischinger": "keep",
-   "mclaren": "keep",
+   "mclaren": "needs work",
    "lenlye": "keep",
    "whitney": "drop",
-   "klee": "keep",
+   "klee": "needs work",
    "miro": "love it",
-   "delaunay": "love it",
+   "delaunay": "drop",
    "albers": "drop",
-   "lewitt": "love it",
-   "ridges": "keep",
+   "lewitt": "keep",
+   "ridges": "love it",
    "matisse": "needs work",
-   "kusama": "love it",
-   "ikeda": "love it",
-   "horizon": "love it",
+   "kusama": "needs work",
+   "ikeda": "keep",
+   "horizon": "keep",
    "harmonograph": "needs work",
    "hilma": "needs work",
-   "kline": "keep",
+   "kline": "love it",
    "score": "love it",
    "boogie": "love it",
-   "cells": "keep",
+   "cells": "love it",
    "nebula": "keep",
    "pixelsort": "keep",
-   "mandala": "keep",
-   "riley": "love it",
-   "blocks": "love it",
-   "brush": "love it",
-   "halftone": "love it",
-   "fifths": "keep",
-   "suprematism": "love it"
+   "mandala": "love it",
+   "riley": "needs work",
+   "blocks": "keep",
+   "brush": "keep",
+   "halftone": "needs work",
+   "fifths": "love it",
+   "suprematism": "love it",
+   "perlin": "needs work",
+   "ivory": "love it",
+   "johansson": "keep",
+   "tree": "keep",
+   "clumsy": "needs work",
+   "gust": "love it",
+   "duet": "love it",
+   "vine": "love it",
+   "fireworks": "love it",
+   "royal": "drop",
+   "comfort": "needs work",
+   "honey": "drop",
+   "lazy": "drop",
+   "timeslice": "love it",
+   "fold": "keep",
+   "stella": "keep",
+   "martin": "drop",
+   "contours": "love it",
+   "tunnel": "love it",
+   "scribble": "keep",
+   "pointillism": "keep",
+   "squares-snap": "love it",
+   "fireworks-snap": "keep",
+   "hammer": "love it",
+   "handover": "keep",
+   "prickle": "love it",
+   "nap": "drop",
+   "gliss": "love it",
+   "interlock": "love it",
+   "crimp": "keep",
+   "pluck": "love it",
+   "film": "love it",
+   "mica": "needs work",
+   "fist": "needs work",
+   "cut": "needs work",
+   "leidenfrost": "needs work"
   },
   "params": {
    "squares": {
     "size": {
-     "base": 1.507,
-     "drive": "+density",
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     },
     "life": {
-     "base": 1.817,
-     "drive": "-rate",
+     "base": 1.4,
+     "drive": "",
      "depth": 0.5
     },
     "blur": {
-     "base": 1.29,
+     "base": 1,
      "drive": "",
      "depth": 0.5
     },
     "split": {
-     "base": 46,
+     "base": 50,
      "drive": "",
      "depth": 0.5
     },
     "shake": {
-     "base": 1.08,
+     "base": 1,
      "drive": "+level",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
    "flee": {
-    "exp": {
-     "base": 4,
-     "drive": "+pitch",
+    "mix": {
+     "base": 0.45,
+     "drive": "",
      "depth": 0.5
     },
-    "hes": {
-     "base": 0.6,
-     "drive": "-rate",
+    "exp": {
+     "base": 3,
+     "drive": "",
      "depth": 0.5
     },
     "twitch": {
@@ -1327,84 +1368,54 @@
      "drive": "+rate",
      "depth": 0.5
     },
-    "mix": {
-     "base": 0.45,
-     "drive": "",
-     "depth": 0.5
-    },
     "streak": {
-     "base": 1.53,
+     "base": 0.8,
      "drive": "+rate",
      "depth": 0.5
     },
-    "reg": {
-     "base": 59,
+    "pal": {
+     "base": 0,
      "drive": "",
      "depth": 0.5
     },
-    "threat": {
-     "base": 0.8,
-     "drive": "+bass",
+    "snap": {
+     "base": 0,
+     "drive": "",
      "depth": 0.5
     },
-    "flock": {
+    "presence": {
      "base": 1,
-     "drive": "+density",
-     "depth": 0.5
-    },
-    "pal": {
-     "base": 2,
      "drive": "",
      "depth": 0.5
     }
    },
    "current": {
     "threads": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "width": {
-     "base": 2.478,
+     "base": 3,
      "drive": "",
      "depth": 0.5
     },
     "braid": {
-     "base": 38,
+     "base": 70,
      "drive": "",
      "depth": 0.5
     },
-    "steer": {
-     "base": 1,
-     "drive": "",
+    "width": {
+     "base": 0.9,
+     "drive": "+level",
      "depth": 0.5
     },
     "flow": {
-     "base": 1.824,
+     "base": 1,
      "drive": "+rate",
      "depth": 0.5
     },
-    "curl": {
-     "base": 3.5,
-     "drive": "+density",
-     "depth": 0.5
-    },
-    "visc": {
-     "base": 0.45,
-     "drive": "",
-     "depth": 0.5
-    },
     "hue": {
-     "base": 123,
+     "base": 350,
      "drive": "",
      "depth": 0.5
     },
-    "swirl": {
-     "base": 0.72,
-     "drive": "+bass",
-     "depth": 0.5
-    },
-    "persist": {
+    "presence": {
      "base": 1,
      "drive": "",
      "depth": 0.5
@@ -1416,61 +1427,46 @@
      "drive": "",
      "depth": 0.5
     },
-    "spread": {
-     "base": 0.7,
-     "drive": "",
-     "depth": 0.5
-    },
     "weave": {
-     "base": 4,
+     "base": 3,
      "drive": "",
      "depth": 0.5
     },
     "sway": {
-     "base": 160,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "flow": {
-     "base": 0.45,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "pull": {
-     "base": 0.4,
+     "base": 46,
      "drive": "+level",
      "depth": 0.5
     },
     "tangle": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "weight": {
-     "base": 1.1,
-     "drive": "",
+     "base": 0.45,
+     "drive": "+density",
      "depth": 0.5
     },
     "heat": {
-     "base": 1,
-     "drive": "+rate",
+     "base": 0.5,
+     "drive": "",
      "depth": 0.5
     },
-    "snap": {
-     "base": 0.5,
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "murmuration": {
-    "coh": {
+    "strike": {
      "base": 0.6,
      "drive": "",
      "depth": 0.5
     },
-    "panic": {
-     "base": 1,
-     "drive": "+rate",
+    "hold": {
+     "base": 2.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tight": {
+     "base": 0.6,
+     "drive": "",
      "depth": 0.5
     },
     "trail": {
@@ -1478,54 +1474,14 @@
      "drive": "-rate",
      "depth": 0.5
     },
-    "form": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "colour": {
-     "base": 0.3,
-     "drive": "",
-     "depth": 0.5
-    },
     "bleed": {
      "base": 0.6,
      "drive": "+level",
      "depth": 0.5
     },
-    "melody": {
-     "base": 1.41,
-     "drive": "",
-     "depth": 0.5
-    },
-    "spread": {
+    "presence": {
      "base": 1,
      "drive": "",
-     "depth": 0.5
-    },
-    "shards": {
-     "base": 5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "burst": {
-     "base": 125,
-     "drive": "-rate",
-     "depth": 0.5
-    },
-    "strike": {
-     "base": 0.04,
-     "drive": "",
-     "depth": 0.5
-    },
-    "hold": {
-     "base": 0.904,
-     "drive": "",
-     "depth": 0.5
-    },
-    "tight": {
-     "base": 1,
-     "drive": "-level",
      "depth": 0.5
     }
    },
@@ -1588,68 +1544,23 @@
      "depth": 0.5
     },
     "ink": {
-     "base": 2.27,
+     "base": 0,
      "drive": "",
      "depth": 0.5
     },
     "size": {
-     "base": 0.652,
+     "base": 1,
      "drive": "",
-     "depth": 0.5
-    },
-    "sizeBy": {
-     "base": 0.5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "split": {
-     "base": 50,
-     "drive": "",
-     "depth": 0.5
-    },
-    "origin": {
-     "base": 0.45,
-     "drive": "",
-     "depth": 0.5
-    },
-    "soak": {
-     "base": 3,
-     "drive": "+density",
-     "depth": 0.5
-    },
-    "bleed": {
-     "base": 0.8,
-     "drive": "+density",
      "depth": 0.5
     },
     "spatter": {
-     "base": 1.08,
+     "base": 1,
      "drive": "+level",
      "depth": 0.5
     },
-    "drift": {
-     "base": 0.2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "breathe": {
-     "base": 0.7,
-     "drive": "",
-     "depth": 0.5
-    },
     "fade": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "rim": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "paper": {
-     "base": 0,
-     "drive": "",
+     "base": 9,
+     "drive": "-level",
      "depth": 0.5
     },
     "presence": {
@@ -1659,59 +1570,9 @@
     }
    },
    "kandinsky": {
-    "sharp": {
-     "base": 0.48,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "hollow": {
-     "base": 0.6,
-     "drive": "-level",
-     "depth": 0.5
-    },
-    "warmth": {
-     "base": 0.5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "centre": {
-     "base": 58,
-     "drive": "",
-     "depth": 0.5
-    },
-    "blend": {
-     "base": 0,
-     "drive": "",
-     "depth": 0.5
-    },
-    "lines": {
-     "base": 0.55,
-     "drive": "",
-     "depth": 0.5
-    },
-    "gravity": {
-     "base": 0,
-     "drive": "-rate",
-     "depth": 0.5
-    },
-    "order": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "drift": {
-     "base": 0.25,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "decay": {
-     "base": 6,
-     "drive": "-density",
-     "depth": 0.5
-    },
     "edges": {
-     "base": 0.3,
-     "drive": "+level",
+     "base": 0,
+     "drive": "",
      "depth": 0.5
     },
     "rings": {
@@ -1731,6 +1592,21 @@
     },
     "paint": {
      "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "midColour": {
+     "base": 2.08,
+     "drive": "",
+     "depth": 0.5
+    },
+    "highColour": {
+     "base": 1.77,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -1788,68 +1664,18 @@
     }
    },
    "fields": {
-    "count": {
-     "base": 4,
-     "drive": "",
-     "depth": 0.5
-    },
-    "cols": {
-     "base": 0,
-     "drive": "",
-     "depth": 0.5
-    },
-    "feather": {
-     "base": 0.75,
-     "drive": "-level",
-     "depth": 0.5
-    },
-    "harmony": {
-     "base": 0.35,
-     "drive": "",
-     "depth": 0.5
-    },
-    "warmth": {
-     "base": -0.2,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "sat": {
-     "base": 0.6,
-     "drive": "",
-     "depth": 0.5
-    },
-    "breath": {
-     "base": 0.45,
-     "drive": "+density",
-     "depth": 0.5
-    },
-    "flare": {
-     "base": 1.5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "bands": {
-     "base": 0.7,
-     "drive": "",
-     "depth": 0.5
-    },
-    "drift": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
     "back": {
      "base": 0.4,
      "drive": "",
      "depth": 0.5
     },
     "chords": {
-     "base": 0.5,
+     "base": 0.7,
      "drive": "",
      "depth": 0.5
     },
     "home": {
-     "base": -0.6,
+     "base": -0.2,
      "drive": "+level",
      "depth": 0.5
     },
@@ -1862,61 +1688,16 @@
      "base": 3,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "marbling": {
-    "size": {
-     "base": 1,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "gaps": {
-     "base": 0.6,
-     "drive": "",
-     "depth": 0.5
-    },
-    "scatter": {
-     "base": 0.32,
-     "drive": "",
-     "depth": 0.5
-    },
-    "comb": {
-     "base": 0.45,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "tines": {
-     "base": 7,
-     "drive": "",
-     "depth": 0.5
-    },
-    "pull": {
-     "base": 130,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "swirl": {
-     "base": 1,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "palette": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "fill": {
-     "base": 0.8,
-     "drive": "",
-     "depth": 0.5
-    },
-    "decay": {
-     "base": 12,
-     "drive": "",
-     "depth": 0.5
-    },
     "drop": {
-     "base": 0.4,
+     "base": 1,
      "drive": "",
      "depth": 0.5
     },
@@ -1929,59 +1710,24 @@
      "base": 0.1,
      "drive": "+bass",
      "depth": 0.5
-    }
-   },
-   "brush": {
-    "width": {
-     "base": 2.595,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "dry": {
-     "base": 0.25,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "reach": {
-     "base": 5.74,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "smooth": {
-     "base": 0.55,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "span": {
-     "base": 130,
-     "drive": "",
-     "depth": 0.5
-    },
-    "nib": {
-     "base": 0.35,
-     "drive": "",
-     "depth": 0.5
-    },
-    "flick": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "gesture": {
-     "base": 0.5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "fade": {
-     "base": 8,
-     "drive": "",
-     "depth": 0.5
     },
     "palette": {
      "base": 0,
      "drive": "",
      "depth": 0.5
     },
+    "fill": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "brush": {
     "size": {
      "base": 1.2,
      "drive": "+level",
@@ -2006,59 +1752,14 @@
      "base": 8,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "blocks": {
-    "block": {
-     "base": 72,
-     "drive": "-rate",
-     "depth": 0.5
-    },
-    "shape": {
-     "base": 0.6,
-     "drive": "-level",
-     "depth": 0.5
-    },
-    "count": {
-     "base": 1.2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "tear": {
-     "base": 0.8,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "split": {
-     "base": 8,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "smear": {
-     "base": 0.3,
-     "drive": "",
-     "depth": 0.5
-    },
-    "hold": {
-     "base": 0.3,
-     "drive": "",
-     "depth": 0.5
-    },
-    "settle": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "base": {
-     "base": 0.7,
-     "drive": "",
-     "depth": 0.5
-    },
-    "heat": {
-     "base": 0.8,
-     "drive": "",
-     "depth": 0.5
-    },
     "size": {
      "base": 64,
      "drive": "-rate",
@@ -2078,76 +1779,36 @@
      "base": 1.2,
      "drive": "",
      "depth": 0.5
-    }
-   },
-   "riley": {
-    "form": {
-     "base": 0,
+    },
+    "settle": {
+     "base": 1.6,
      "drive": "",
      "depth": 0.5
     },
-    "width": {
-     "base": 16,
-     "drive": "",
-     "depth": 0.5
-    },
-    "angle": {
-     "base": 90,
-     "drive": "",
-     "depth": 0.5
-    },
-    "warp": {
+    "presence": {
      "base": 1,
      "drive": "",
      "depth": 0.5
-    },
-    "lens": {
-     "base": 0.3,
-     "drive": "+bass",
-     "depth": 0.5
-    },
-    "wave": {
-     "base": 2,
-     "drive": "+pitch",
-     "depth": 0.5
-    },
-    "kink": {
-     "base": 1.2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "vib": {
-     "base": 0.15,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "pal": {
-     "base": 0,
-     "drive": "",
-     "depth": 0.5
-    },
-    "light": {
-     "base": 0.4,
-     "drive": "+level",
-     "depth": 0.5
-    },
+    }
+   },
+   "riley": {
     "pattern": {
-     "base": 2,
+     "base": 0,
      "drive": "",
      "depth": 0.5
     },
     "stripe": {
-     "base": 25,
+     "base": 16,
      "drive": "",
      "depth": 0.5
     },
     "bend": {
-     "base": 0.775,
+     "base": 1,
      "drive": "+level",
      "depth": 0.5
     },
     "shimmer": {
-     "base": 0.56,
+     "base": 0.3,
      "drive": "+rate",
      "depth": 0.5
     },
@@ -2155,11 +1816,16 @@
      "base": 0,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "halftone": {
     "grid": {
-     "base": 33,
+     "base": 20,
      "drive": "",
      "depth": 0.5
     },
@@ -2168,65 +1834,35 @@
      "drive": "",
      "depth": 0.5
     },
-    "rot": {
-     "base": 15,
+    "life": {
+     "base": 0.7976,
      "drive": "",
-     "depth": 0.5
-    },
-    "flip": {
-     "base": 0.6,
-     "drive": "",
-     "depth": 0.5
-    },
-    "speed": {
-     "base": 1,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "decay": {
-     "base": 1.9,
-     "drive": "-rate",
      "depth": 0.5
     },
     "contrast": {
-     "base": 0,
+     "base": 0.45,
      "drive": "+level",
      "depth": 0.5
     },
     "standing": {
-     "base": 0.6,
+     "base": 0.1005,
      "drive": "+density",
      "depth": 0.5
     },
-    "hueA": {
-     "base": 356,
-     "drive": "",
-     "depth": 0.5
-    },
-    "hueB": {
-     "base": 44,
-     "drive": "",
-     "depth": 0.5
-    },
-    "life": {
-     "base": 0.4,
+    "presence": {
+     "base": 0,
      "drive": "",
      "depth": 0.5
     }
    },
    "fifths": {
-    "radius": {
-     "base": 0.88,
+    "decay": {
+     "base": 9,
      "drive": "",
      "depth": 0.5
     },
-    "weight": {
+    "line": {
      "base": 1.2,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "decay": {
-     "base": 9,
      "drive": "",
      "depth": 0.5
     },
@@ -2235,28 +1871,8 @@
      "drive": "+pitch",
      "depth": 0.5
     },
-    "sink": {
-     "base": 0.55,
-     "drive": "",
-     "depth": 0.5
-    },
-    "follow": {
-     "base": 0.6,
-     "drive": "",
-     "depth": 0.5
-    },
-    "spin": {
-     "base": 0,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "glow": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "func": {
-     "base": 0.8,
+    "shiver": {
+     "base": 0.5,
      "drive": "",
      "depth": 0.5
     },
@@ -2265,98 +1881,48 @@
      "drive": "+level",
      "depth": 0.5
     },
-    "line": {
-     "base": 1.2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "shiver": {
-     "base": 0.5,
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "suprematism": {
     "count": {
-     "base": 31,
+     "base": 22,
      "drive": "",
      "depth": 0.5
     },
-    "spread": {
-     "base": 0.25,
-     "drive": "+level",
+    "life": {
+     "base": 9,
+     "drive": "-rate",
      "depth": 0.5
     },
-    "temp": {
-     "base": 0.43,
-     "drive": "",
-     "depth": 0.5
-    },
-    "drift": {
+    "push": {
      "base": 0.6,
      "drive": "",
      "depth": 0.5
     },
-    "tilt": {
-     "base": 0.55,
-     "drive": "",
-     "depth": 0.5
-    },
-    "pull": {
-     "base": 0.7,
-     "drive": "+density",
-     "depth": 0.5
-    },
-    "register": {
-     "base": 0.7,
+    "temp": {
+     "base": 0.5,
      "drive": "",
      "depth": 0.5
     },
     "size": {
-     "base": 1.132,
+     "base": 0.85,
      "drive": "+bass",
      "depth": 0.5
     },
-    "life": {
-     "base": 20,
-     "drive": "-level",
-     "depth": 0.5
-    },
-    "flip": {
-     "base": 0.35,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "push": {
-     "base": 1.5,
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "contours": {
-    "count": {
+    "lines": {
      "base": 7,
      "drive": "+level",
-     "depth": 0.5
-    },
-    "width": {
-     "base": 1.4,
-     "drive": "",
-     "depth": 0.5
-    },
-    "res": {
-     "base": 9,
-     "drive": "",
-     "depth": 0.5
-    },
-    "flow": {
-     "base": 0.9,
-     "drive": "-level",
-     "depth": 0.5
-    },
-    "warp": {
-     "base": 0.35,
-     "drive": "",
      "depth": 0.5
     },
     "size": {
@@ -2369,28 +1935,18 @@
      "drive": "",
      "depth": 0.5
     },
-    "heat": {
-     "base": 0.72,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "layout": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "sign": {
-     "base": 2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "lines": {
-     "base": 7,
-     "drive": "+level",
+    "flow": {
+     "base": 0.9,
+     "drive": "-level",
      "depth": 0.5
     },
     "tint": {
      "base": 0.72,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2401,33 +1957,8 @@
      "drive": "",
      "depth": 0.5
     },
-    "curve": {
-     "base": 2.2,
-     "drive": "",
-     "depth": 0.5
-    },
-    "drift": {
-     "base": 0.45,
-     "drive": "+rate",
-     "depth": 0.5
-    },
-    "spin": {
-     "base": 0.1,
-     "drive": "+bass",
-     "depth": 0.5
-    },
     "shape": {
      "base": 4,
-     "drive": "",
-     "depth": 0.5
-    },
-    "palette": {
-     "base": 0,
-     "drive": "",
-     "depth": 0.5
-    },
-    "surge": {
-     "base": 1.3,
      "drive": "",
      "depth": 0.5
     },
@@ -2436,14 +1967,19 @@
      "drive": "-density",
      "depth": 0.5
     },
-    "mouth": {
-     "base": 1,
-     "drive": "+level",
+    "spin": {
+     "base": 0.1,
+     "drive": "+bass",
      "depth": 0.5
     },
-    "echoes": {
-     "base": 3,
-     "drive": "-density",
+    "palette": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
@@ -2458,43 +1994,8 @@
      "drive": "+rate",
      "depth": 0.5
     },
-    "press": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
-    "jitter": {
-     "base": 0.3,
-     "drive": "+level",
-     "depth": 0.5
-    },
-    "scratch": {
-     "base": 1,
-     "drive": "",
-     "depth": 0.5
-    },
     "pens": {
      "base": 3,
-     "drive": "",
-     "depth": 0.5
-    },
-    "fade": {
-     "base": 3.5,
-     "drive": "",
-     "depth": 0.5
-    },
-    "ink": {
-     "base": 0.33,
-     "drive": "",
-     "depth": 0.5
-    },
-    "red": {
-     "base": 0.6,
-     "drive": "",
-     "depth": 0.5
-    },
-    "paper": {
-     "base": 0,
      "drive": "",
      "depth": 0.5
     },
@@ -2505,6 +2006,11 @@
     },
     "weight": {
      "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2520,38 +2026,13 @@
      "drive": "+level",
      "depth": 0.5
     },
-    "spread": {
-     "base": 30,
-     "drive": "",
-     "depth": 0.5
-    },
-    "fade": {
+    "stay": {
      "base": 8,
-     "drive": "-rate",
+     "drive": "",
      "depth": 0.5
     },
     "bleed": {
      "base": 0.55,
-     "drive": "",
-     "depth": 0.5
-    },
-    "sat": {
-     "base": 0.72,
-     "drive": "",
-     "depth": 0.5
-    },
-    "hue": {
-     "base": 0,
-     "drive": "",
-     "depth": 0.5
-    },
-    "range": {
-     "base": 0.42,
-     "drive": "",
-     "depth": 0.5
-    },
-    "comp": {
-     "base": 0.35,
      "drive": "",
      "depth": 0.5
     },
@@ -2560,69 +2041,79 @@
      "drive": "",
      "depth": 0.5
     },
-    "stay": {
-     "base": 8,
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "fischinger": {
     "scatter": {
-     "base": 0.19,
-     "drive": "+density",
+     "base": 0.3,
+     "drive": "+rate",
      "depth": 0.5
     },
     "depth": {
-     "base": 0.44,
-     "drive": "+density",
+     "base": 0.6,
+     "drive": "+level",
      "depth": 0.5
     },
     "echoes": {
-     "base": 3,
+     "base": 2,
      "drive": "",
      "depth": 0.5
     },
     "snap": {
-     "base": 1,
-     "drive": "+rate",
+     "base": 0.55,
+     "drive": "",
      "depth": 0.5
     },
     "life": {
      "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "mclaren": {
     "panels": {
-     "base": 4,
+     "base": 3,
      "drive": "+rate",
      "depth": 0.5
     },
     "spread": {
-     "base": 0.6,
+     "base": 0.55,
      "drive": "",
      "depth": 0.5
     },
     "life": {
-     "base": 1.1,
+     "base": 1.4,
      "drive": "",
      "depth": 0.5
     },
     "field": {
-     "base": 0.53,
-     "drive": "-pitch",
+     "base": 0.4,
+     "drive": "+level",
      "depth": 0.5
     },
     "scroll": {
      "base": 0.35,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "lenlye": {
     "wriggle": {
-     "base": 2,
+     "base": 1.2,
      "drive": "+rate",
      "depth": 0.5
     },
@@ -2632,7 +2123,7 @@
      "depth": 0.5
     },
     "life": {
-     "base": 0.2,
+     "base": 0.4,
      "drive": "",
      "depth": 0.5
     },
@@ -2642,7 +2133,12 @@
      "depth": 0.5
     },
     "dirt": {
-     "base": 1.5,
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2676,28 +2172,33 @@
    },
    "klee": {
     "stay": {
-     "base": 3,
+     "base": 14,
      "drive": "",
      "depth": 0.5
     },
     "size": {
-     "base": 35,
+     "base": 20,
      "drive": "",
      "depth": 0.5
     },
     "thick": {
-     "base": 0.6,
+     "base": 1.7,
      "drive": "+level",
      "depth": 0.5
     },
     "mix": {
-     "base": 1,
+     "base": 0.75,
      "drive": "",
      "depth": 0.5
     },
     "veil": {
-     "base": 1,
+     "base": 0.6,
      "drive": "-level",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
@@ -2708,22 +2209,27 @@
      "depth": 0.5
     },
     "wander": {
-     "base": 2,
+     "base": 0.9,
      "drive": "+rate",
      "depth": 0.5
     },
     "swell": {
-     "base": 1.376,
-     "drive": "+bass",
+     "base": 1,
+     "drive": "+level",
      "depth": 0.5
     },
     "colour": {
-     "base": 0.17,
-     "drive": "+density",
+     "base": 0.65,
+     "drive": "",
      "depth": 0.5
     },
     "web": {
      "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2745,12 +2251,17 @@
      "depth": 0.5
     },
     "memory": {
-     "base": 7.088,
-     "drive": "+density",
+     "base": 3.5,
+     "drive": "",
      "depth": 0.5
     },
     "cut": {
-     "base": 0.41,
+     "base": 0.25,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2784,7 +2295,7 @@
    },
    "lewitt": {
     "rule": {
-     "base": 1,
+     "base": 0,
      "drive": "",
      "depth": 0.5
     },
@@ -2807,6 +2318,11 @@
      "base": 700,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "ridges": {
@@ -2826,12 +2342,17 @@
      "depth": 0.5
     },
     "sharp": {
-     "base": 0.45,
+     "base": 0.4,
      "drive": "",
      "depth": 0.5
     },
     "depth": {
-     "base": 0.25,
+     "base": 0.3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -2848,8 +2369,8 @@
      "depth": 0.5
     },
     "move": {
-     "base": 0.45,
-     "drive": "+density",
+     "base": 0.6,
+     "drive": "+level",
      "depth": 0.5
     },
     "curl": {
@@ -2858,15 +2379,20 @@
      "depth": 0.5
     },
     "ground": {
-     "base": 0.88,
-     "drive": "+rate",
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
    "kusama": {
     "size": {
-     "base": 1.8,
-     "drive": "+density",
+     "base": 1,
+     "drive": "+level",
      "depth": 0.5
     },
     "stay": {
@@ -2880,20 +2406,25 @@
      "depth": 0.5
     },
     "wild": {
-     "base": 1,
+     "base": 0.5,
      "drive": "",
      "depth": 0.5
     },
     "flip": {
-     "base": 0,
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
    },
    "ikeda": {
     "busy": {
-     "base": 0.68,
-     "drive": "+level",
+     "base": 0.3,
+     "drive": "+rate",
      "depth": 0.5
     },
     "life": {
@@ -2907,13 +2438,18 @@
      "depth": 0.5
     },
     "flash": {
-     "base": 0.04,
+     "base": 0.5,
      "drive": "",
      "depth": 0.5
     },
     "speed": {
-     "base": 2.478,
-     "drive": "+rate",
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
@@ -2929,16 +2465,21 @@
      "depth": 0.5
     },
     "soft": {
-     "base": 0.52,
+     "base": 0.3,
      "drive": "",
      "depth": 0.5
     },
     "shimmer": {
-     "base": 2,
+     "base": 1,
      "drive": "",
      "depth": 0.5
     },
     "colour": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
      "base": 1,
      "drive": "",
      "depth": 0.5
@@ -2952,26 +2493,26 @@
     },
     "speed": {
      "base": 0.3,
-     "drive": "-density",
+     "drive": "-bass",
      "depth": 0.5
     },
     "damp": {
-     "base": 0.18,
-     "drive": "",
-     "depth": 0.5
-    },
-    "swirl": {
-     "base": 0.35,
-     "drive": "",
-     "depth": 0.5
-    },
-    "stay": {
-     "base": 3.963,
+     "base": 0.3738,
      "drive": "",
      "depth": 0.5
     },
     "push": {
      "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stay": {
+     "base": 4.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -3037,27 +2578,32 @@
    },
    "score": {
     "speed": {
-     "base": 140,
+     "base": 75.56,
      "drive": "+rate",
      "depth": 0.5
     },
     "ink": {
-     "base": 8,
-     "drive": "+density",
+     "base": 1.0175,
+     "drive": "",
      "depth": 0.5
     },
     "figures": {
-     "base": 0.45,
+     "base": 0.238,
      "drive": "+density",
      "depth": 0.5
     },
     "weight": {
-     "base": 1,
+     "base": 2.28,
      "drive": "+level",
      "depth": 0.5
     },
     "paper": {
      "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 0.47,
      "drive": "",
      "depth": 0.5
     }
@@ -3087,6 +2633,11 @@
      "base": 0,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "cells": {
@@ -3101,7 +2652,7 @@
      "depth": 0.5
     },
     "pebble": {
-     "base": 0.25,
+     "base": 1,
      "drive": "",
      "depth": 0.5
     },
@@ -3112,6 +2663,11 @@
     },
     "fill": {
      "base": 0.85,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -3133,13 +2689,18 @@
      "depth": 0.5
     },
     "threads": {
-     "base": 1.2,
+     "base": 1.4,
      "drive": "",
      "depth": 0.5
     },
     "burst": {
-     "base": 0.6,
+     "base": 0.9,
      "drive": "+level",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
      "depth": 0.5
     }
    },
@@ -3168,6 +2729,11 @@
      "base": 0.6,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "mandala": {
@@ -3177,7 +2743,7 @@
      "depth": 0.5
     },
     "size": {
-     "base": 0.72,
+     "base": 0.86,
      "drive": "+level",
      "depth": 0.5
     },
@@ -3195,6 +2761,11 @@
      "base": 0.7,
      "drive": "",
      "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
     }
    },
    "martin": {
@@ -3204,13 +2775,13 @@
      "depth": 0.5
     },
     "wash": {
-     "base": 1,
+     "base": 0.55,
      "drive": "",
      "depth": 0.5
     },
     "mark": {
-     "base": 1,
-     "drive": "",
+     "base": 0.6,
+     "drive": "-level",
      "depth": 0.5
     },
     "stay": {
@@ -3219,7 +2790,12 @@
      "depth": 0.5
     },
     "grid": {
-     "base": 0.6,
+     "base": 0.92,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
@@ -3246,6 +2822,16 @@
      "depth": 0.5
     },
     "shake": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "keep": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
      "base": 1,
      "drive": "",
      "depth": 0.5
@@ -3328,6 +2914,897 @@
     },
     "beat": {
      "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "perlin": {
+    "size": {
+     "base": 1,
+     "drive": "+bass",
+     "depth": 0.5
+    },
+    "rough": {
+     "base": 0.35,
+     "drive": "+pitch",
+     "depth": 0.5
+    },
+    "twist": {
+     "base": 0.5,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "churn": {
+     "base": 0.25,
+     "drive": "+rate",
+     "depth": 0.5
+    },
+    "colour": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "gliss": {
+    "hue": {
+     "base": 33,
+     "drive": "",
+     "depth": 0.5
+    },
+    "number": {
+     "base": 18,
+     "drive": "",
+     "depth": 0.5
+    },
+    "push": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "linger": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "ivory": {
+    "floor": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "crater": {
+     "base": 0.35,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ripple": {
+     "base": 2.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "cracks": {
+     "base": 1.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "strike": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "huddle": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "johansson": {
+    "presence": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stride": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "height": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "arms": {
+     "base": 0.8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "maxStep": {
+     "base": 1.15,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "tree": {
+    "colours": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "leaves": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "twigs": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "wither": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fireworks": {
+    "hue": {
+     "base": 0.08,
+     "drive": "",
+     "depth": 0.5
+    },
+    "range": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "linger": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "clumsy": {
+    "crowd": {
+     "base": 16,
+     "drive": "",
+     "depth": 0.5
+    },
+    "disorder": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "rush": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hop": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1.25,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "gust": {
+    "power": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "reach": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "air": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fan": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "linger": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "duet": {
+    "pull": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "push": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 60,
+     "drive": "",
+     "depth": 0.5
+    },
+    "pair": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "vine": {
+    "spread": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "wither": {
+     "base": 1,
+     "drive": "-level",
+     "depth": 0.5
+    },
+    "branch": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "curl": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "weight": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "royal": {
+    "haughty": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "flourish": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "crowd": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "near": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "robe": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "comfort": {
+    "breath": {
+     "base": 10,
+     "drive": "",
+     "depth": 0.5
+    },
+    "press": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "warmth": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stay": {
+     "base": 5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "honey": {
+    "thick": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "load": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stretch": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "busy": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "colour": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "lazy": {
+    "lazy": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "lift": {
+     "base": 0.75,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fat": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "limbs": {
+     "base": 12,
+     "drive": "",
+     "depth": 0.5
+    },
+    "green": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "squares-snap": {
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "life": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "blur": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "split": {
+     "base": 50,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shake": {
+     "base": 1,
+     "drive": "+level",
+     "depth": 0.5
+    },
+    "milk": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fireworks-snap": {
+    "hue": {
+     "base": 0.08,
+     "drive": "",
+     "depth": 0.5
+    },
+    "range": {
+     "base": 0.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "swirl": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "linger": {
+     "base": 0.45,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "hammer": {
+    "touch": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ring": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "roll": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "handover": {
+    "goneBy": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ring": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "milk": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "prickle": {
+    "waist": {
+     "base": 0.85,
+     "drive": "",
+     "depth": 0.5
+    },
+    "broad": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "hook": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "goneBy": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "touch": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "nap": {
+    "memory": {
+     "base": 7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "slant": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "rest": {
+     "base": 4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "cloth": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "crimp": {
+    "slack": {
+     "base": 5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "reach": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "fibres": {
+     "base": 15,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stays": {
+     "base": 1.2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "interlock": {
+    "bite": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "width": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stays": {
+     "base": 1.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ratchet": {
+     "base": 24,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "pluck": {
+    "pull": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "corner": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "shiver": {
+     "base": 0.09,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ring": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "touch": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "film": {
+    "corners": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "slack": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "kick": {
+     "base": 0.14,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stay": {
+     "base": 2,
+     "drive": "",
+     "depth": 0.5
+    },
+    "tips": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "mica": {
+    "flecks": {
+     "base": 192,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spread": {
+     "base": 120,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 56,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ring": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "colour": {
+     "base": 0,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "fist": {
+    "reach": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "spines": {
+     "base": 240,
+     "drive": "",
+     "depth": 0.5
+    },
+    "stab": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ring": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "ground": {
+     "base": 0.24,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "cut": {
+    "steps": {
+     "base": 8,
+     "drive": "",
+     "depth": 0.5
+    },
+    "size": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "grain": {
+     "base": 0.4,
+     "drive": "",
+     "depth": 0.5
+    },
+    "goneBy": {
+     "base": 3,
+     "drive": "",
+     "depth": 0.5
+    },
+    "wet": {
+     "base": 0.7,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    }
+   },
+   "leidenfrost": {
+    "push": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "burst": {
+     "base": 0.05,
+     "drive": "+hit",
+     "depth": 0.5
+    },
+    "boil": {
+     "base": 0.5,
+     "drive": "",
+     "depth": 0.5
+    },
+    "erratic": {
+     "base": 0.55,
+     "drive": "",
+     "depth": 0.5
+    },
+    "steam": {
+     "base": 0.6,
+     "drive": "",
+     "depth": 0.5
+    },
+    "plate": {
+     "base": 1,
+     "drive": "",
+     "depth": 0.5
+    },
+    "presence": {
+     "base": 1,
      "drive": "",
      "depth": 0.5
     }
