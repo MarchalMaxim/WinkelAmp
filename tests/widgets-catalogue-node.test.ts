@@ -39,7 +39,7 @@ describe('loadCatalogue (every lab/tools file in node:vm)', () => {
     const { verdicts } = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
     for (const [id, m] of widgets) expect(m.verdict, id).toEqual(verdicts[id] ?? null);
     expect(widgets.get('casket')?.verdict?.v).toBe('love');
-    expect(widgets.get('fields')?.verdict?.v).toBe('keep');
+    expect(widgets.get('pixelsort')?.verdict?.v).toBe('keep');
   });
 
   it('never loads lab/tools/dropped/', () => {
