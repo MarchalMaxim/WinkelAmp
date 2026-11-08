@@ -9,7 +9,8 @@ export type Note = [start: number, end: number, midi: number, vel: number, amoun
 /** One attack: notes whose onsets fall within 40 ms of the first one (the lab's CHORDS entry). */
 export interface Chord { t: number; notes: { m: number; v: number; d: number; amount?: number }[]; vel: number; lo: number; hi: number }
 export interface SoundingNote { m: number; v: number; start: number; end: number }
-export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density' | '+hit' | '-hit';
+export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density' | '+hit' | '-hit'
+  | '+loud' | '-loud' | '+pace' | '-pace';
 export interface Param {
   key: string; label?: string; min: number; max: number; step?: number; value: number; drive?: Drive;
   hint?: string; icon?: (g: CanvasRenderingContext2D, v: number, w: number, h: number) => void;
@@ -22,8 +23,10 @@ export interface ToolDef {
   id: string; name: string; blurb?: string; tag?: string; on?: boolean; params?: Param[];
   reset?(x: WidgetCtx): void; onChord?(ch: Chord, x: WidgetCtx): void; frame?(x: WidgetCtx): void;
 }
-/** hit: 1 on a loud attack, a soft one adds its share, and half of it is gone 0.08 s later (each note → jump). */
-export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number }
+/** hit: 1 on a loud attack, a soft one adds its share, and half of it is gone 0.08 s later (each note → jump).
+    loud: the recording's loudness; pace: how busy the attacks are around now (src/widgets/curves.ts). Both are read
+    from curves at the step's song time, not built up step by step. */
+export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number; loud: number; pace: number }
 /** The lab's PST entry for one knob. */
 export interface KnobState { base: number; drive: Drive; depth: number }
 export type KnobMap = Record<string, KnobState>;
@@ -78,7 +81,9 @@ export interface Region { mode: 'spot' | 'window'; shape: 'rect' | 'ellipse'; x:
   rot?: number; feather?: number; blend?: 'clear' | 'over' | 'lighten'; fit?: 'cover' | 'contain' | 'stretch' }
 export type Persist = 'redraw' | 'strokes';
 export interface SongNotes { notes: Note[]; tracks?: Partial<Record<TrackId, { notes: Note[]; family: Family }>>;
-  picks?: Record<string, { notes: Note[] }> }
+  picks?: Record<string, { notes: Note[] }>;
+  /** pack.loudness, for the loud drive. Absent: loud stays 0. */
+  loudness?: { hop: number; values: readonly number[] } }
 /** key = widget, or widget@listen; own = keeps its own pulse (listen set, or any intensity in the show). */
 export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean;
   /** A set of picks: the notes this instance hears. A loaded key whose notes change is evaluated again. */

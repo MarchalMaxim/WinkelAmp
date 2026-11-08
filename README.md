@@ -34,7 +34,7 @@ Pick a song under **Songs**; a song without a show of its own opens with an empt
   the tracks and which own nothing); turn it off, or hold Alt for one drag. Ctrl + wheel zooms.
 - **The side panel** holds the selected clip: when it plays and how long its edges fade, then its knobs, drawn as the
   lab draws them (a picture at each end, the live one moving with the music, the `i` hint, and what the knob follows:
-  fixed, louder → more, …). **Add a widget** opens the collection with your verdicts from the lab and places a clip at
+  fixed, louder notes → more, louder sound → more, busier → more, …). **Add a widget** opens the collection with your verdicts from the lab and places a clip at
   the playhead, on top; so does Ctrl+P.
 - **Undo** (Ctrl+Z), **redo** (Ctrl+Shift+Z), **Save show** (Ctrl+S) writes `shows/<song>.json`.
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose

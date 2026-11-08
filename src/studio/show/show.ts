@@ -46,7 +46,8 @@ export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, 
   /** Attack times per note type in this song (WaLayers.noteTypeAttacks); undefined: no such warnings. */
   noteTypes?: Partial<Record<NoteType, readonly number[]>> }
 
-export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit'];
+export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit',
+  '+loud', '-loud', '+pace', '-pace'];
 const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
   show: ['version', 'id', 'song', 'title', 'composer', 'clips', 'picks'],

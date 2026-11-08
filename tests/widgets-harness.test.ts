@@ -25,7 +25,7 @@ describe('readLabHarness (the real lab/index.html)', () => {
   });
 
   it('reads the drives with their words', () => {
-    expect(h.drives.length).toBe(13);
+    expect(h.drives.length).toBe(17);
     expect(h.drives[0]).toEqual(['', 'fixed']);
     expect(h.drives).toContainEqual(['+density', 'fuller chords → more']);
     expect(h.drives).toContainEqual(['+hit', 'each note → jump']);

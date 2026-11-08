@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loud and pace drives</title>
+<style>
+  :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --panel: #110f12;
+    --level: #b9b2ac; --loud: #4cc9f0; --pace: #7bd88f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--dim); margin: 0 0 14px; max-width: 900px; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  button, select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { border-color: #4a4045; }
+  #time { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 110px; }
+  #status { color: var(--dim); }
+  .stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 860px) { .stages { grid-template-columns: 1fr; } }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .stage h2 { font-size: 14px; font-weight: 600; margin: 2px 4px 6px; display: flex; justify-content: space-between; gap: 8px; }
+  .stage h2 span { font-weight: 400; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .stage canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; }
+  .meter { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; margin: 8px 4px 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; border-radius: 3px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 12px; }
+  .panel h2 { font-size: 13px; font-weight: 500; color: var(--dim); margin: 2px 4px 6px; }
+  #curves { display: block; width: 100%; height: 200px; cursor: pointer; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 4px 2px; font-size: 13px; color: var(--dim); }
+  .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+  .notes { color: var(--dim); font-size: 13px; max-width: 900px; }
+  .notes p { margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Loud and pace drives</h1>
+  <p class="sub">One widget three times over the same recording, with the same knob on three drives: today's <code>level</code>
+    (louder notes), the new <code>loud</code> (the recording's loudness) and the new <code>pace</code> (how busy the music is).
+    Each knob runs from its lowest value at 0 to its highest at 1.</p>
+  <div class="bar">
+    <select id="song" aria-label="Song"></select>
+    <select id="widget" aria-label="Widget"></select>
+    <select id="knob" aria-label="Knob"></select>
+    <button id="play">Play</button>
+    <span id="time">0:00 / 0:00</span>
+    <span id="status">Loading…</span>
+  </div>
+  <div class="stages" id="stages"></div>
+  <div class="panel"><h2>The whole piece: what each drive reads (click to jump)</h2><canvas id="curves"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--level)"></i><code>level</code>: jumps on an attack, halves every 0.8 s</span>
+      <span><i style="background:var(--loud)"></i><code>loud</code>: the loudness lane, read 1.1 s ahead, stretched to this piece</span>
+      <span><i style="background:var(--pace)"></i><code>pace</code>: attacks a second around now, against this piece's busiest</span>
+    </div>
+  </div>
+  <div class="notes">
+    <p><b>What to look for.</b> In a swell or a held chord the left picture shrinks back between attacks while the middle one stays
+      big as long as the sound does. In a fast run the right one grows, however soft the notes are. In the Hall of the Mountain King
+      shows all three: it gets louder and faster at once.</p>
+    <p>Keys: Space plays and pauses, ← and → move five seconds. The address keeps the song, widget and knob
+      (<code>?song=…&amp;widget=…&amp;knob=…</code>).</p>
+  </div>
+</main>
+<script type="module" src="../src/research/drives-page.ts"></script>
+</body>
+</html>

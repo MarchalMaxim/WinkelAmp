@@ -3,7 +3,8 @@
 // (a line, a note type, a track, a family), and the per-instance pulse.
 //
 // groupChords, soundingAt and advancePulse are copies of src/widgets/chords.ts and features.ts (advanceFeatures), the
-// same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data.
+// same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data. loudCurve and
+// paceAt are copies of src/widgets/curves.ts, proved the same way by tests/curves.test.ts.
 //
 // One implementation: the lab loads this file as a classic <script>; the studio and Node evaluate the same text with
 // new Function('WA', src) (src/widgets/layers.ts).
@@ -55,6 +56,53 @@
     f.bass += (Math.min(1, bass / 2) - f.bass) * k;
     f.density += (Math.min(1, snd.length / 10) - f.density) * k;
     f.hit = p.hit;
+  };
+
+  /** loud at song time t (src/widgets/curves.ts makeLoudAt, the same statements): the loudness lane read lead s ahead,
+      linear between its samples' centres, held past its ends, its 5th to 95th percentile stretched to 0..1. No lane, an
+      empty or flat one, or no lead: always 0. The hosts pass WA.LOUDNESS_LAG.open as lead. */
+  WA.loudCurve = function (lane, lead) {
+    var hop = lane && lane.hop, vals = lane && lane.values;
+    if (!vals || !vals.length || !(hop > 0) || !Number.isFinite(lead)) return function () { return 0; };
+    var n = vals.length, sorted = vals.map(function (v) { return Number.isFinite(v) ? v : 0; }).sort(function (a, b) { return a - b; });
+    var lo = sorted[Math.floor(0.05 * (n - 1))], hi = sorted[Math.floor(0.95 * (n - 1))];
+    if (!(hi > lo)) return function () { return 0; };
+    return function (t) {
+      var x = (t + lead) / hop - 0.5, v;
+      if (!(x > 0)) v = vals[0];
+      else if (x >= n - 1) v = vals[n - 1];
+      else { var i = Math.floor(x); v = vals[i] + (vals[i + 1] - vals[i]) * (x - i); }
+      var u = (v - lo) / (hi - lo);
+      return u > 0 ? (u < 1 ? u : 1) : 0;   // NaN → 0
+    };
+  };
+
+  /** pace at song time t (src/widgets/curves.ts paceAt, the same statements): attacks per second in a centred 4 s
+      window (cut at 0) over the 95th percentile of that measure every 0.1 s from the first attack to the last, clamped
+      to 0..1; kept per chord list. */
+  var PACE_HALF = 2, paceCache = new WeakMap();
+  var firstAt = function (times, t) {
+    var a = 0, b = times.length;
+    while (a < b) { var k = (a + b) >> 1; if (times[k] < t) a = k + 1; else b = k; }
+    return a;
+  };
+  var paceRaw = function (times, t) {
+    var a = t - PACE_HALF, b = t + PACE_HALF, len = b - (a > 0 ? a : 0);
+    if (!(len > 0)) return 0;
+    return (firstAt(times, b) - firstAt(times, a)) / len;
+  };
+  WA.paceAt = function (chords, t) {
+    var c = paceCache.get(chords);
+    if (!c) {
+      var times = chords.map(function (ch) { return ch.t; }).sort(function (a, b) { return a - b; }), xs = [];
+      if (times.length) for (var i = 0, t0 = times[0], t1 = times[times.length - 1]; t0 + i * 0.1 <= t1 + 1e-9; i++) xs.push(paceRaw(times, t0 + i * 0.1));
+      xs.sort(function (a, b) { return a - b; });
+      c = { times: times, top: xs.length ? xs[Math.floor(0.95 * (xs.length - 1))] : 0 };
+      paceCache.set(chords, c);
+    }
+    if (!(c.top > 0)) return 0;
+    var u = paceRaw(c.times, t) / c.top;
+    return u > 0 ? (u < 1 ? u : 1) : 0;
   };
 
   /** MIDI → 0..1 over the piano (21..108). */
