@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy lanes</title>
+<style>
+  :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --panel: #110f12;
+    --today: #b9b2ac; --lane: #d9a441; --energy: #4cc9f0; --follow: #7bd88f; --rel: #b48cff; --peak: #ff5a5f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 18px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--dim); margin: 0 0 14px; max-width: 900px; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  button, select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { border-color: #4a4045; }
+  #time { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 110px; }
+  label.tog { color: var(--dim); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .fact { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .fact b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fact span { color: var(--dim); font-size: 13px; }
+  .fact a { color: var(--peak); cursor: pointer; text-decoration: none; margin-right: 10px; font-variant-numeric: tabular-nums; }
+  .fact a:hover { text-decoration: underline; }
+  .row { display: grid; grid-template-columns: 1fr 230px; gap: 12px; }
+  @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 12px; }
+  .panel h2 { font-size: 13px; font-weight: 500; color: var(--dim); margin: 2px 4px 6px; }
+  canvas { display: block; width: 100%; cursor: pointer; }
+  #overview { height: 190px; } #detail { height: 240px; } #meters { height: 240px; cursor: default; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 4px 2px; font-size: 13px; color: var(--dim); }
+  .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+  .notes { color: var(--dim); font-size: 13px; max-width: 900px; }
+  .notes p { margin: 6px 0; }
+  #status { color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Energy lanes</h1>
+  <p class="sub">What our widgets feel today, next to what a TouchDesigner-style chain would hand them, on a real recording. A research demo for
+    <code>docs/research/audio-to-picture.md</code>: nothing in the studio or the lab reads it.</p>
+  <div class="bar">
+    <select id="song" aria-label="Song"></select>
+    <button id="play">Play</button>
+    <span id="time">0:00 / 0:00</span>
+    <label class="tog"><input type="checkbox" id="showRel" checked> loudness judged against its surroundings</label>
+    <span id="status">Loading…</span>
+  </div>
+  <div class="facts" id="facts"></div>
+  <div class="row">
+    <div>
+      <div class="panel"><h2>The whole piece (click to jump)</h2><canvas id="overview"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--today)"></i>what widgets feel today (<code>level</code>, from attacks)</span>
+          <span><i style="background:var(--lane)"></i>today's loudness lane (looks back, runs late)</span>
+          <span><i style="background:var(--energy)"></i>energy of the sound, centred 3 s window (no lag)</span>
+          <span><i style="background:var(--follow)"></i>"follows the sound" intensity curve, as pivots</span>
+          <span><i style="background:var(--rel)"></i>loudness judged against its surroundings</span>
+          <span><i style="background:var(--peak)"></i>the loudest moments, as suggestions</span>
+        </div>
+      </div>
+      <div class="panel"><h2>Close up: 24 seconds around the playhead (ticks: transcribed attacks, taller = louder)</h2><canvas id="detail"></canvas></div>
+    </div>
+    <div class="panel"><h2>Right now</h2><canvas id="meters"></canvas></div>
+  </div>
+  <div class="notes">
+    <p><b>How to read it.</b> The grey shape is all a widget knows about how loud the music is: it jumps on each transcribed attack and halves every 0.8 s.
+      A held chord, a swell on one bow or a passage the transcriber missed drains it to nothing while the sound itself stays loud or grows.
+      The blue line is the sound's energy, measured the way the ear weighs it (K-weighting, as in broadcast loudness meters) over a 3 s window centred on now,
+      which only an offline tool can do, so it has no lag. The green line is what a one-click "follows the sound" preset would write into an intensity lane:
+      the energy climbing fast and falling slowly, stretched to this piece's own range, never below 0.35 so the screen does not empty.</p>
+    <p>Keys: Space plays and pauses, ← and → move five seconds.</p>
+  </div>
+</main>
+<script type="module" src="../src/research/energy-page.ts"></script>
+</body>
+</html>
