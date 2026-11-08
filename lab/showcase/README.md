@@ -17,7 +17,9 @@ Passages in every video: Rachmaninoff dread (0:00), agitato (0:14), the casket (
 coda (1:02). From about 0:52 to 1:01 every widget goes almost black: after the opening knocks the orchestra holds the
 note and lets it die away, and nothing new is played until 0:13 of the recording. It is not a fault.
 
-| # | widget | your verdict so far | what to watch for |
+Current verdicts (2026-11-08): `VERDICTS` in `lab/index.html` and the 2026-11-08 section of `lab/ratings.md`.
+
+| # | widget | your verdict when these were made (early 2026-10-31) | what to watch for |
 |---|---|---|---|
 | 01 | Dread squares | love (v2) | Low notes land as big blurred dark-red squares and fade in about 1.4 s. Sparse by design, so expect black stretches. |
 | 02 | Skittish shapes | love (v3) | High notes freeze, tremble, then bolt into streaks; bass hits rise from below; loud chords scatter them. |

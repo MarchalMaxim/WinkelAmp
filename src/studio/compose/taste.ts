@@ -1,8 +1,9 @@
 /**
  * The user's taste (lab/ratings.md): which loved or kept widgets suit which character. The auto-composer takes a base
  * (fills the picture), maybe an accent (moves over it) and, where it is loud and full, the casket on top (its cuts slice
- * whatever is below). Only ids whose lab verdict (lab/index.html VERDICTS) is love or keep are used; dropped widgets live
- * in lab/tools/dropped/ and are never in the catalogue.
+ * whatever is below). Only ids whose lab verdict (lab/index.html VERDICTS) is love or keep are used: an entry here whose
+ * widget is now rated needs work or drop (2026-11-08) is skipped, and 25 loved or kept widgets have no entry yet (GitHub
+ * issue 31). Widgets moved to lab/tools/dropped/ are never in the catalogue.
  *
  * A widget that paints its own ground (riley, horizon, miro, kusama, ikeda, score, boogie…) hides whatever is drawn
  * before it, so it is always a base. Accents draw over the picture without a ground, or tear and smear it (blocks,
@@ -10,7 +11,7 @@
  * if that is at least 0.5. So a fit is a direction in character space plus a weight: a widget is chosen only where it
  * beats every other one. The weights are balanced so that every widget here wins somewhere over a grid of characters,
  * loved ones about twice as often as kept ones. Two limits keep the quiet end simple: only current has quiet 1 (a silent
- * stretch gets the current alone), and no accent has quiet 0.5 or more.
+ * stretch got the current alone; while it is rated needs work, horizon takes it), and no accent has quiet 0.5 or more.
  */
 import type { Character } from './character';
 

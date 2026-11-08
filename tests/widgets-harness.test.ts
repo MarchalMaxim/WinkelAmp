@@ -21,7 +21,7 @@ describe('readLabHarness (the real lab/index.html)', () => {
 
   it('reads the verdicts', () => {
     expect(h.verdicts.casket.v).toBe('love');
-    expect(h.verdicts.fields.v).toBe('keep');
+    expect(h.verdicts.pixelsort.v).toBe('keep');
   });
 
   it('reads the drives with their words', () => {

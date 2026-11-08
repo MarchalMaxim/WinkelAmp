@@ -271,30 +271,50 @@ song"), and the auto-composer reads the description's feel words and routes an a
 - **Theme combos** (widgets tied to pick sets): [compositions/STYLE.md](compositions/STYLE.md) says which work and the
   rules behind them.
 - **Abstract, never literal.** Shatter, lightning, ripples, moire, whitney and albers were dropped (too physical, or not
-  right); they are not in the collection (`lab/tools/dropped/`).
-- **Loved:** casket (its slashing cuts: "insanely good"), dread squares, rorschach ("parametrize the hell out of it",
-  but keep our defaults), kandinsky ("a complete visualization by itself"), flee, the current, woven threads (strings),
-  murmuration (the user's favourite), marbling, miró, delaunay, lewitt, kusama, ikeda, horizon, graphic score, boogie
-  woogie, op art (riley), glitch blocks, calligraphy (brush), halftone. **Kept:** colour fields ("a good building
-  block"), fischinger, mclaren, len lye, klee, ridges, kline, cells, nebula, pixel sort (it combines with other
-  widgets "in a very cool way": it smears what is under it), mandala, harmonic web (fifths). **Needs work:** matisse,
-  harmonograph, hilma af klint: use them only when the words ask.
+  right). They are not in the collection (`lab/tools/dropped/`), and neither are hilma af klint and tack, dropped later.
+- **Rated drop, still in the collection.** On 2026-11-08 the user rated royal ([#8](https://github.com/MarchalMaxim/WinkelAmp/issues/8)),
+  honey ([#9](https://github.com/MarchalMaxim/WinkelAmp/issues/9)), lazy ([#10](https://github.com/MarchalMaxim/WinkelAmp/issues/10)),
+  agnes martin ([#11](https://github.com/MarchalMaxim/WinkelAmp/issues/11)), nap ([#12](https://github.com/MarchalMaxim/WinkelAmp/issues/12))
+  and delaunay ([#13](https://github.com/MarchalMaxim/WinkelAmp/issues/13)) drop. He asked that this only be recorded, so
+  they stay in the lab and the studio, under "Rated drop" in the catalogue below. Do not use them.
+- **The user's lab ratings, 2026-11-08.** The catalogue below groups the widgets by verdict.
+  - **Loved:** casket (its slashing cuts: "insanely good"), dread squares, snap squares, rorschach ("parametrize the hell
+    out of it", but keep our defaults), kandinsky ("a complete visualization by itself"), flee, marbling ("extremely high
+    potential"), colour fields ("a good building block"), miró, ridges, kline, graphic score, boogie woogie, cells,
+    mandala, harmonic web (fifths), suprematism, contours, tunnel, time slice, ivory, gliss, fireworks, brass gust, duet,
+    vine, hammer, prickle, interlock, plucked corner, film.
+  - **Kept:** fischinger, len lye, lewitt, ikeda, horizon, nebula, pixel sort (it combines with other widgets "in a very
+    cool way": it smears what is under it), calligraphy (brush), glitch blocks, scribble, pointillism, fold, stella, tree,
+    johansson, fireworks every note, handover, crimp.
+  - **Needs work** (use them only when the words ask): murmuration ([#26](https://github.com/MarchalMaxim/WinkelAmp/issues/26),
+    once the user's favourite), the current ([#27](https://github.com/MarchalMaxim/WinkelAmp/issues/27)), woven threads
+    (strings, [#28](https://github.com/MarchalMaxim/WinkelAmp/issues/28)), op art (riley, [#29](https://github.com/MarchalMaxim/WinkelAmp/issues/29)),
+    halftone ([#30](https://github.com/MarchalMaxim/WinkelAmp/issues/30)), kusama ([#25](https://github.com/MarchalMaxim/WinkelAmp/issues/25)),
+    mclaren ([#21](https://github.com/MarchalMaxim/WinkelAmp/issues/21)), klee ([#22](https://github.com/MarchalMaxim/WinkelAmp/issues/22)),
+    matisse ([#23](https://github.com/MarchalMaxim/WinkelAmp/issues/23)), harmonograph ([#24](https://github.com/MarchalMaxim/WinkelAmp/issues/24)),
+    perlin ([#14](https://github.com/MarchalMaxim/WinkelAmp/issues/14)), clumsy ([#15](https://github.com/MarchalMaxim/WinkelAmp/issues/15)),
+    comfort ([#16](https://github.com/MarchalMaxim/WinkelAmp/issues/16)), mica ([#17](https://github.com/MarchalMaxim/WinkelAmp/issues/17)),
+    fist of spines ([#18](https://github.com/MarchalMaxim/WinkelAmp/issues/18)), cut ([#19](https://github.com/MarchalMaxim/WinkelAmp/issues/19)),
+    leidenfrost ([#20](https://github.com/MarchalMaxim/WinkelAmp/issues/20)).
+  - Nothing was removed or reworked after these ratings: the user asked that they be recorded only.
 - **Keep OUR defaults.** The user touched knobs in the lab and asked for our defaults back. Write knobs only when the
   description asks for something a knob does ("sharper", "calmer cuts"), and say which in the commit.
 - Kandinsky v2 no longer lays down red squares (they overlapped with dread squares), but the two together can still be
   busy. The casket goes on top: it cuts whatever is below, so give it something to cut.
-- The widgets marked "not judged yet" are new: try them where the description invites it, and mention it.
+- A widget added after 2026-11-08 has no verdict yet: try it where the description invites it, and mention it.
 
 ## What the auto-composer does
 
 A song without a show opens with an empty timeline. Its "Compose a show for me" button (`src/studio/compose/`, one undo)
-places clips by the music's character: a base (a widget that fills the picture: for example the current, woven threads
-or horizon when quiet, rorschach or riley when low, kandinsky, cells or klee when dense, boogie, ikeda or miró when fast,
-kusama or kline when loud), an accent over it when one fits well (squares for loud bass, flee or calligraphy for fast,
-murmuration for loud chords, pixel sort or glitch blocks to smear and tear the base), and the casket on top where it is
-loud and full. Every loved or kept widget has a place in `src/studio/compose/taste.ts`, used at its defaults; a widget
-that paints its own ground is only ever a base. It is a starting point: a composed show should follow the music's form
-(and the user's words) more closely than that.
+places clips by the music's character: a base (a widget that fills the picture: for example horizon or colour fields
+when quiet (horizon is also what a silent recording gets), rorschach when low, kandinsky or cells when dense, boogie,
+ikeda or miró when fast, kline when loud), an accent over it when one fits well (squares for loud bass, flee or
+calligraphy for fast, pixel sort or glitch blocks to smear and tear the base), and the casket on top where it is loud
+and full. Only widgets the user loved or kept are placed; each needs a place in `src/studio/compose/taste.ts`, used at
+its defaults. Entries for widgets now rated needs work or drop stay in the file but are skipped, and 25 newly loved or
+kept widgets have no place yet ([#31](https://github.com/MarchalMaxim/WinkelAmp/issues/31)). A widget that paints its
+own ground is only ever a base. It is a starting point: a composed show should follow the music's form (and the user's
+words) more closely than that.
 
 ## Composing as a composer: how the two first shows were made
 
@@ -434,7 +454,7 @@ not over a quiet stretch, where they look like their base widget alone.
 | `kusama`, `fold` | a twin colony; loud chords fold it fourfold for a moment | defaults | everywhere (the gold seam vanishes on the yellow ground) |
 | `score`, `squares`, `stella` | concentric stripes frame the page, one more per attack, dark on paper | defaults | busy passages pile up stripes |
 
-The last four use this round's new widgets (time slice, fold, stella), which the user has not judged yet.
+The last four use this round's new widgets: time slice (loved), fold and stella (kept, 2026-11-08).
 
 ## The widgets
 
@@ -445,538 +465,6 @@ _Generated by `npm run widget-docs` from `lab/tools/*.js`, the verdicts in `lab/
 _Feel: synesthetic feel words (`lab/tag-words.json` says what each looks and sounds like). Suits: instruments that go well with it. Role: where it sits in a stack: **under** paints first and never darkens what is on top; **ground** paints its own canvas, so it goes first; **base** fills the picture but lets others show; **texture** is a fine ornament over the others, never the main picture (like the hairs on an arm); **lead** is the main character the eye follows, a melody (murmuration), the low chords (rorschach) or every note (ikeda); **accent** moves over a base; **top** works on whatever is below it; **standalone** is not a layer at all but a whole show by itself, enough to carry a song alone (marbling). Note type: what the studio gives it as `listen` when it is placed where there are enough of those notes._
 
 ### Loved
-
-#### `miro`: Miró
-
-After Miró's Constellations: the melody draws one thin black line that wanders over a pale washed sheet, leaving stars and dots along it. Short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents, and where shapes overlap their colours flip.
-
-Feel: playful, airy, pale, longing · Suits: flute, clarinet · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `life` | how long the sky stays | 4..40 | 16 | fixed | How long the shapes and the line stay on the page. Left: a few seconds, the sheet keeps clearing. Right: the whole passage builds up into one crowded sky. Follows how present: 5 at its left end. |
-| `wander` | how the line wanders | 0..2 | 0.9 | faster → more | How strongly the melody turns the line. Left: long, calm curves. Right: it loops, curls and zigzags with every step of the tune. |
-| `swell` | how big the blobs grow | 0.4..2 | 1 | louder → more | How big a held note's blob grows. Left: small pebbles. Right: big swelling forms. Follows how present: 0.6 at its left end. |
-| `colour` | how much colour | 0..1 | 0.65 | fixed | How many shapes are red, blue or yellow instead of black. Left: black ink only. Right: almost everything in colour. |
-| `web` | lines between the stars | 0..1 | 0.5 | fixed | Thin straight lines tying together the notes of a chord, and each new star to a neighbour. Left: only the one wandering line. Right: a dense web of constellations. Follows how present: 0.05 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much sky it fills: how long the shapes stay, how many lines tie the stars, how big the blobs swell. Left: a few small marks that clear within seconds. Right: the whole crowded constellation. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `delaunay`: Delaunay
-
-Sonia and Robert Delaunay's simultaneous discs. Three discs of rings (bass, middle, treble), each ring cut into coloured segments that turn at their own speed. Every note has its own colour (round the circle of fifths) and lights its ring at its own clock position, with the opposite colour beside it; the struck ring jumps, flashes and swells outward through the disc.
-
-Feel: vivid, whirling, swelling, playful · Suits: plucked, clarinet · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `turn` | how fast the rings turn | 0..1 | 0.3 | faster → more | How fast the rings turn. Left: almost still. Right: whirling, each ring against its neighbour. |
-| `contrast` | opposite colours | 0..1 | 0.65 | fixed | Whether a lit segment sets its opposite colour beside it. Left: only the note's own colour. Right: every colour gets its complementary partner. |
-| `pulse` | swell on each note | 0..1 | 0.45 | louder → more | How far the rings swell outward when a note is struck. Left: the discs stay put. Right: every attack throbs out through the rings. |
-| `memory` | how long colours glow | 0.4..8 | 3.5 | fixed | How long a lit segment stays bright before it sinks back to a dark glaze. Left: a flash. Right: the colours of a chord glow for seconds. |
-| `cut` | how finely cut | 0..1 | 0.25 | fixed | How many segments each ring is cut into. Left: big halves and quarters. Right: fine eighths and sixteenths. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint discs that barely turn, and only the hardest notes light a segment. Right: every note lights and swells at full strength (as before). |
-
-#### `lewitt`: LeWitt
-
-After Sol LeWitt's wall drawings. Every note is a point on the wall (left to right by pitch, one row per note name), and every attack carries out a rule in fine coloured-pencil lines: lines from the corners, lines through the notes in four directions, arcs, squares of parallel lines, lines from the sides, a chain from note to note, lines from the centre. The lines pile up into a dense, systematic drawing; each new section of the music starts a fresh wall with the next rule, written on the wall in pencil.
-
-Feel: pale, airy, marching, serene · Suits: harpsichord, piano · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `rule` | the rule | 0..7 | 0 | fixed | Which rule the lines follow. Left: the rule changes with each section of the music. Right: always one rule, from lines from the corners through four directions, arcs, squares, sides and a chain to lines from the centre. |
-| `lines` | lines per note | 1..4 | 3 | faster → less | How many lines each note draws. Left: one line per note, a sparse drawing. Right: four (from every corner, in every direction), a dense web. Follows how present: 1 at its left end. |
-| `pencil` | pencil or crayon | 0..1 | 0.15 | louder → more | How heavy the lines are. Left: a hard, hair-thin pencil. Right: a soft, thick crayon. |
-| `colours` | how many colours | 0..1 | 1 | fixed | Which pencils are used. Left: graphite only, grey on white. Right: all four of LeWitt's colours: graphite, red, blue and yellow. |
-| `full` | how full a wall gets | 100..3000 | 700 | fixed | How many lines a wall takes before it is painted over and a fresh wall begins with the next rule (a new section of the music always starts one). Left: a clean wall every few chords. Right: the lines pile up into a dense web. Follows how present: 150 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much gets drawn: how many lines each note makes and how many a wall takes before a fresh one begins. Left: one line per note, and the wall is repainted early. Right: three lines per note piling up into a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `kusama`: Kusama
-
-After Yayoi Kusama. One flat colour with dots in its partner colour. Every note starts a colony of dots at its pitch (low left, high right): a big dot on the attack, smaller ones spreading out while the note is held. Full chords lay patches of an infinity net that tightens as the music speeds up. The harmony picks the colours (red/white, yellow/black, blue/white; minor and major swap ground and dots), flooding in from the new chord as one huge dot. <b>How present</b> tones it right down: a faint, calm field where only the hardest notes answer.
-
-Feel: vivid, grainy, playful, marching · Suits: piano, plucked · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | how big the colonies are | 0.4..1.8 | 1 | louder → more | How big each note’s colony of dots grows. Left: small clusters. Right: huge dots and wide colonies. |
-| `stay` | how long the dots stay | 1.5..18 | 6 | fixed | How long a colony stays before it shrinks away. Left: a couple of seconds. Right: they pile up for a long time. |
-| `tight` | how tight the net is | 0..1 | 0.45 | faster → more | The size of the net’s little loops. Left: big, loose loops. Right: a tight mesh of tiny ones. |
-| `wild` | dot sizes: even or wild | 0..1 | 0.5 | fixed | How much the dots in a colony differ in size. Left: neat, even rings of dots. Right: big and tiny dots mixed. |
-| `flip` | how often the colours change | 0..1 | 0.5 | fixed | How readily a change of harmony floods the screen with a new colour pair. Left: only now and then. Right: at every change of chord. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint, nearly still field where only the hardest notes (in a quiet stretch, one now and then) start a colony or change the colours. Right: every note at full colour (as before). |
-
-#### `ikeda`: Ikeda
-
-After Ryoji Ikeda: black and white data. Every note is a barcode at its key (the same note always gives the same code, louder is wider) that strobes across the screen on the attack, settles on the row of its note name (every C on one row, every G on another) and erodes bar by bar; rows of glyphs stream the notes, a one-pixel score scrolls past a playhead, and loud attacks slam hairlines across the screen.
-
-Feel: precise, binary, cryptic, flickering, icy · Suits: harpsichord, piano · Role: lead
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `busy` | how much data | 0..1 | 0.3 | faster → more | How full the screen is with streaming glyphs and data columns. Left: a few clean bars and lines. Right: dense data everywhere. |
-| `life` | how long a barcode stays | 0.1..3 | 1.2 | fixed | How long a note's barcode takes to erode after the note ends. Left: gone in a blink. Right: it crumbles slowly, bar by bar. |
-| `slam` | lines on loud notes | 0..1 | 0.35 | louder → more | How many single-pixel lines slam across the screen when a note is struck loud. Left: none. Right: a burst of lines. |
-| `flash` | white flashes | 0..1 | 0.5 | fixed | How often the very loudest attacks turn the whole screen white for an instant. Left: never. Right: on every big accent. |
-| `speed` | scroll speed | 0.3..2.5 | 1 | fixed | How fast the score and the glyph rows scroll. Left: a slow drift. Right: racing past. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint and slow, and only the hardest notes of the piece print a barcode. Right: everything at full strength (as before). |
-
-#### `horizon`: Horizon
-
-After Sugimoto’s seascapes: one soft horizon between a still grey sky and a long-exposure sea. The harmony tints both very faintly, loudness raises the contrast and lights the line, each note sends a faint shimmer along the horizon (a strong one also breathes light into the haze), and the bass lowers it a little. For quiet music; it is meant to look almost still.
-
-Feel: still, serene, cool, longing · Suits: strings, clarinet · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `level` | where the horizon sits | 0.4..0.6 | 0.46 | more bass → more | How high the horizon is. Left: high, mostly sea. Right: low, mostly sky. At first it follows the bass: deep notes pull it down a little. |
-| `contrast` | how stark | 0..1 | 0.28 | louder → more | How far apart sky and sea are. Left: fog, two nearly equal greys. Right: a bright sky over a black sea. At first louder playing makes it starker. |
-| `soft` | soft horizon | 0..1 | 0.3 | fixed | How soft the line between sky and sea is. Left: a knife edge. Right: they melt into each other through haze. |
-| `shimmer` | shimmer on each note | 0..2 | 1 | fixed | How strongly each note glints along the horizon. Left: no glints, only the light of the line. Right: bright glints that run far along it. |
-| `colour` | colour from the harmony | 0..1 | 0.5 | fixed | How much the chords tint the grey. Left: pure greys. Right: each chord tints the sky and the sea (still gently). |
-| `presence` | how present | 0..1 | 1 | fixed | How much of the picture there is. Left: a dark, almost still sea where only the hardest notes of the piece glint, faintly. Right: the full sky and sea, every note glinting (as before). |
-
-#### `score`: Graphic score
-
-The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a sparse, plain page with only the strongest attacks written, soon drifting off.
-
-Feel: flowing, airy, pale, playful · Suits: piano, flute · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `speed` | how fast the page moves | 20..140 | 48 | faster → more | How fast the writing drifts to the left. Left: slow, the marks crowd together. Right: fast, they spread far apart. Follows how present: 100 at its left end. |
-| `ink` | how much gets written | 0.5..8 | 1.6 | fixed | How many attacks are written out in full; the rest are left as specks. Left: only the strongest few, sparse and calm. Right: nearly every note. Follows how present: 0.5 at its left end. |
-| `figures` | plain or ornate | 0..1 | 0.45 | fuller chords → more | How rich the notation is. Left: plain dots and lines, like Cage. Right: brackets with numerals, black discs, slabs and big circles, like Treatise. Follows how present: 0.05 at its left end. |
-| `weight` | weight of the ink | 0.4..2.4 | 1 | louder → more | How heavy the pen is. Left: fine hairlines and small dots. Right: thick beams and big black marks. |
-| `paper` | night or paper | 0..1 | 1 | fixed | The page. Left: pale ink on black, like chalk at night. Right: black ink on bone paper, like a printed score. |
-| `presence` | how present | 0..1 | 1 | fixed | How much is on the page: how many attacks are written in full, how ornate the notation is, how soon the writing drifts off the page. Left: only the strongest few, plain dots and lines, and they leave quickly. Right: a well-filled page with brackets, discs and circles. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `boogie`: Boogie woogie
-
-After Mondrian's Broadway Boogie Woogie: yellow lanes on cream. Each note drops a small red, blue or grey block where its pitch lane (low notes left) meets the row of its harmony, and every attack makes all the blocks hop along their lanes, so rhythm drives the traffic: fast passages boogie, a slow chorale barely moves. Big loud chords flash a whole crossing.
-
-Feel: playful, marching, vivid, warm · Suits: piano, plucked, clarinet · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `lanes` | how many lanes | 6..16 | 10 | fixed | How dense the city is. Left: a few wide lanes. Right: a tight grid of thin ones. Follows how present: 6 at its left end. |
-| `hop` | how far they jump on each note | 0..2 | 0.6 | faster → more | How far every block hops along its lane when a note is struck. Left: they stand still. Right: two steps at a time. Follows how present: 0.15 at its left end. |
-| `life` | how long blocks stay | 1..12 | 6 | fixed | How long a block lives before it shrinks away. Left: a second. Right: they pile up for many seconds. Follows how present: 1.2 at its left end. |
-| `flash` | big-chord flashes | 0..1 | 0.7 | fixed | How easily a big chord flashes a whole crossing with a large coloured plane. Left: never. Right: even modest chords, and bigger planes. Follows how present: 0.1 at its left end. |
-| `ground` | background | 0..1 | 0 | fixed | The colour under the lanes. Left: Mondrian's cream. Right: night black. |
-| `presence` | how present | 0..1 | 1 | fixed | How much city there is: how many lanes, how far the blocks hop, how long they stay, how often a crossing flashes. Left: a few wide lanes with blocks that come and go. Right: the full busy grid. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `murmuration`: Murmuration (your favourite)
-
-A flock that carries the mood: a dark knot that throbs on low tolls, a ribbon tracing the melody, jittery shards when agitated. Now a loud chord re-forms it, on the attack, into <b>that chord’s own figure</b>: its notes sit on a clock face (C at the top, then clockwise C♯, D … B) and the flock draws the shape they make, a spoke pointing at the bass. Major chords are straight-edged, minor ones curl into stars, two notes make a lens, one note a clock hand. Same chord, same figure.
-
-Feel: unison, mysterious, twitchy, grainy · Suits: violin, voice, flute · Role: lead
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `strike` | which chords re-form it | 0..1 | 0.6 | fixed | How loud a chord must be to pull the flock into its figure. Left: only the biggest, loudest chords. Right: any firm chord. |
-| `hold` | how long a figure stays | 0.8..6 | 2.6 | fixed | How long the flock keeps a chord’s figure before it melts back into the melody. Left: a glimpse. Right: holds for seconds. |
-| `tight` | how crisp the figures are | 0..1 | 0.6 | fixed | How tightly the birds keep formation. Left: a loose, smoky cloud. Right: crisp, thin lines. |
-| `trail` | trail length | 1..16 | 9 | faster → less | How long each bird’s streak is. Left: short dashes. Right: long streaks. |
-| `bleed` | red on loud notes | 0..1 | 0.6 | louder → more | How much loud notes stain the flock red. Left: it stays pale. Right: blood red, white-hot on the biggest chords. |
-| `presence` | how present | 0..1 | 1 | fixed | How much the flock takes over. Left: a few faint birds, calm, and only the hardest chords pull them into a figure. Right: the whole flock at full strength (as before). |
-
-#### `marbling`: Marbling (extremely high potential)
-
-Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.
-
-Feel: liquid, flowing, swelling, warm · Suits: piano, strings · Role: standalone
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `drop` | drop size | 0.1..1.8 | 1 | fixed | How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods. Follows how present: 0.3 at its left end. |
-| `combing` | combing | 0..1.5 | 0.6 | faster → more | How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers. Follows how present: 0.1 at its left end. |
-| `twist` | swirl | 0..1 | 0.1 | more bass → more | How much the bass twists the ink around the newest drops. Left: still water. Right: a whirlpool. |
-| `palette` | colours | 0..3 | 0 | fixed | The inks, low notes to high. Left: blood and bone; then indigo and gold, verdigris and ash. Right: a rainbow by note. |
-| `fill` | lines ↔ solid | 0..1 | 0.8 | fixed | How the ink is drawn. Left: thin outlines on black. Right: solid bands of colour. |
-| `presence` | how present | 0..1 | 1 | fixed | How much ink goes into the bath: how big the drops are and how much the comb rakes them out. Left: a few small beads on black. Right: floods raked into feathers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `kandinsky`: Kandinsky (a complete visualization by itself)
-
-The notes paint a Kandinsky: low notes are heavy black bars crossing a plane of colour (the loudest, deepest ones a small checker grid or a black sun), middle notes blue circles, high notes yellow triangles that fly outward. Chords become constellations, the melody a line. v2: no more red squares (that is Dread squares), a notch quieter, new knobs on our defaults. Turn <b>how present</b> down for less painting: smaller shapes that leave sooner, with hardly any lines.
-
-Feel: vivid, playful, triumphant, heavy · Suits: tutti, trumpet, cello · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `edges` | round or sharp | 0..1 | 0.3 | louder → more | The shapes' edges. Left: soft, round circles and rounded bars. Right: crisp bars, thin lenses and needle-sharp triangles. |
-| `rings` | solid or outlined | 0..1 | 0.5 | louder → less | How many shapes are drawn as outlines with rings inside. Left: all solid colour. Right: mostly outlines and concentric rings. |
-| `web` | connecting lines | 0..1 | 0.5 | fixed | Lines joining the notes of a chord, the melody, and the long lines thrown by big chords. Left: shapes only. Right: a dense web. Follows how present: 0.05 at its left end. |
-| `restless` | calm or restless | 0..1 | 0.3 | faster → more | How the painting moves. Left: still and composed, chords form neat figures. Right: shapes scatter, spin and drift away. |
-| `paint` | how much paint | 0..1 | 0.45 | fixed | How bold the painting gets. Left: small, faint shapes that leave soon. Right: big, saturated shapes that stay for many seconds. Follows how present: 0.1 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much painting it makes: how big the shapes get and how long they stay, and how many lines join them. Left: small shapes that leave soon, almost no lines. Right: big shapes that stay for seconds in a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `rorschach`: Rorschach ink (keep our defaults)
-
-Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. New in v3: a <b>how present</b> knob, to tone it right down: how far each drop spreads, how much it sprays and how long it stays.
-
-Feel: dark, violent, alien, tentacled · Suits: piano, contrabass, timpani · Role: lead
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `sym` | mirror pattern | 1..8 | 1 | fixed | How the ink is mirrored. Left: one fold down the middle, like a folded page. Next: four-way. Right: a kaleidoscope star of up to 8 folds. |
-| `ink` | ink colour | 0..5 | 0 | fixed | The ink and the glow round its edge. Left: oxblood on black. Then indigo, soot with gold, green, violet with rose. Right: pale bone ink. |
-| `size` | blot size | 0.3..2.5 | 1 | fixed | How far each drop of ink spreads. Left: small spots. Right: big blots. Follows how present: 0.45 at its left end. |
-| `spatter` | spatter | 0..3 | 1 | louder → more | How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters. Follows how present: 0 at its left end. |
-| `fade` | how long the ink stays | 1..13 | 9 | louder → less | How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds. Follows how present: 1.6 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much ink there is: how far each drop spreads, how much it sprays, how long it stays. Left: small clean spots that dry at once. Right: big blots filling the page. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `squares`: Dread squares
-
-Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred.
-
-Feel: heavy, dark, dread, stabbing · Suits: piano, contrabass, timpani · Role: accent
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | size | 0.3..2 | 1 | fixed | How big the squares are. Left: small tiles. Right: huge slabs. Follows how present: 0.7 at its left end. |
-| `life` | how long they stay | 0.3..4 | 1.4 | fixed | How long a square stays. Left: a blink. Right: lingers for seconds. Follows how present: 1.1 at its left end. |
-| `blur` | soft edges | 0..3 | 1 | fixed | How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones. |
-| `split` | which notes count as low | 36..72 | 50 | fixed | Only notes below this point make squares; on picked notes, every note does. Left: only the deepest bass. Right: up to the middle of the piano. Follows how present: 44 at its left end. |
-| `shake` | shake on loud notes | 0..2 | 1 | louder → more | How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt. |
-| `presence` | how present | 0..1 | 1 | fixed | How many squares you see: how many notes count as low, how big each is, how long it stays. Left: only the deeper bass makes a square, small, and it soon fades. Right: every low note lands a big square that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `flee`: Skittish shapes
-
-High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers. Turn <b>how present</b> down to tone it right down: faint, slow shapes that only the hardest notes call up.
-
-Feel: skittish, burning, flickering, panic · Suits: violin, flute, piano · Role: accent · Note type: runs
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `mix` | round or sharp shapes | 0..1 | 0.45 | fixed | Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles. |
-| `exp` | how sudden the bolt | 1..5 | 3 | fixed | How a shape speeds up once it flees. Left: a steady glide away. Right: it creeps, then shoots off. |
-| `twitch` | how jumpy | 0..1 | 0.25 | faster → more | How nervous they are. Left: calm, smooth paths. Right: constant flinches and sudden swerves. |
-| `streak` | trail length | 0..3 | 0.8 | faster → more | How far a fleeing shape smears behind itself. Left: no trail, only the shape. Right: long streaks of light. |
-| `pal` | colours | 0..3 | 0 | fixed | The colours, from cool and dark when still to hot and bright when fleeing. Left: ember (red to yellow). Then ice (blue), bone (pale), and right: venom (violet to pink). |
-| `presence` | how present | 0..1 | 1 | fixed | How much of the picture it takes. Left: a few faint shapes that hardly move, called up only by the hardest notes. Right: every high note at full strength (as before). |
-
-#### `current`: The current
-
-Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> slider sets how much current there is, from one lone thread in slow water to the full braid.
-
-Feel: flowing, liquid, silky, glowing, serene · Suits: violin, flute, strings · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `threads` | how many threads | 1..5 | 3 | fixed | How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass. Follows how present: 1 at its left end. |
-| `braid` | how wide they weave | 0..220 | 70 | fixed | How far the other threads swing around the melody’s thread. Left: tight together, almost one line. Right: wide loops that cross far apart. Follows how present: 15 at its left end. |
-| `width` | thread thickness | 0.3..2.5 | 0.9 | louder → more | How thick the threads are drawn. Left: hair-thin. Right: thick, glowing cords. |
-| `flow` | water speed | 0.2..3 | 1 | faster → more | How fast the water runs and the threads travel. Left: a slow, lazy drift. Right: a rushing stream. Follows how present: 0.4 at its left end. |
-| `hue` | ink colour | 0..360 | 350 | fixed | The colour the chords pour into the water. Left and right are both red; in between it runs orange, yellow, green, blue, violet. |
-| `presence` | how present | 0..1 | 1 | fixed | How much current it weaves: how many threads braid, how wide they swing, how fast the water runs. Left: the melody's lone thread in slow water. Right: the whole braid in a rushing stream. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `strings`: Woven threads (accepted the defaults)
-
-Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Six knobs now, all starting at the defaults you accepted; "how present" sets how much weave there is, from one clean crossing to the dense band.
-
-Feel: skittish, anxious, twitchy, fibrous · Suits: violin, plucked · Role: texture
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `bend` | shape: band → rings | 0..1 | 0.32 | fixed | How much the band of threads curls. Left: a straight band across the screen. Middle: an arch. Right: closed woven rings. |
-| `weave` | crossings | 1..9 | 3 | fixed | How many times the threads cross each other along the band. Left: one long, slow wave. Right: a tight weave. Follows how present: 1 at its left end. |
-| `sway` | how much they sway | 0..160 | 46 | louder → more | How far the threads swing up and down. Left: flat, still threads. Right: wide swinging waves. Follows how present: 4 at its left end. |
-| `tangle` | knots on clashing notes | 0..1 | 0.45 | fuller chords → more | How much a thread curls into knots when its note clashes with another (a dissonance). Left: never knots. Right: big tangled curls. Follows how present: 0 at its left end. |
-| `heat` | colours | 0..1 | 0.5 | fixed | The colours of the threads (low notes darker, high notes paler). Left: ink blue and ice. Middle: blood red and bone. Right: ember and gold. |
-| `presence` | how present | 0..1 | 1 | fixed | How much the weave holds: how many crossings the threads make, how far they sway, how much clashing notes knot. Every sounding note is still a thread. Left: a calm, smooth band with one long crossing and no knots. Right: the dense, knotted, swaying band. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `brush`: Calligraphy
-
-The melody written as ink brush strokes: one stroke per phrase, climbing and diving with the top notes, swelling on each attack, drying into streaks and flicking off at the phrase end. Low notes under the melody leave ink dabs; strong chords add a red slash, and after a pause a red ensō circle. The <b>how present</b> knob sets how much ink it lays down.
-
-Feel: longing, swelling, silky, stabbing · Suits: cello, voice, flute · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | brush size | 0.3..3 | 1.2 | louder → more | How thick the ink strokes are. Left: a fine pen line. Right: a fat, loaded brush. Follows how present: 0.5 at its left end. |
-| `dryness` | dry brush | 0..1 | 0.3 | faster → more | How much ink the brush holds. Left: wet, solid ink. Right: a dry brush that breaks into streaks. |
-| `leap` | how far it follows the notes | 2..24 | 5 | fixed | How far the stroke climbs and dives with the melody. Left: an almost level line. Right: a big leap for every note. |
-| `gestures` | slashes on big chords | 0..1 | 0.5 | fixed | How often a strong chord adds a red slash (or, after a pause, a red ensō circle). Left: never, only the melody. Right: on most strong chords. Follows how present: 0.05 at its left end. |
-| `stay` | how long the ink stays | 1..30 | 8 | fixed | How long a stroke stays before it dries away. Left: gone in a second. Right: stays half a minute, the page fills up. Follows how present: 1.5 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much ink it lays down: how long strokes stay, how often big chords add a red slash, how broad the brush is. Left: a few fine strokes that dry away quickly. Right: the full page of ink. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `blocks`: Glitch blocks
-
-Every attack tears blocks of the picture out of place, and they snap back in choppy steps. A quiet note nudges one thin slice; a big chord tears a whole mosaic and flashes an inverted band. Thin note bars (low = red, high = bone) give it a picture of its own; mix it with squares, ink or the casket and it tears those too.
-
-Feel: stabbing, brittle, flickering, panic · Suits: piano, harpsichord · Role: top
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | block size | 8..240 | 64 | faster → less | How big the torn pieces are. Left: thin slivers and fine grit. Right: big chunks of the picture. |
-| `form` | columns or rows | -1..1 | 0.6 | fixed | The shape of the torn pieces. Left: tall columns that slip up and down. Right: wide rows that slide sideways. |
-| `jump` | how far they jump | 0..2 | 0.9 | louder → more | How far a torn piece is thrown out of place. Left: a small shiver. Right: flung far across the picture. Follows how present: 0.35 at its left end. |
-| `amount` | how many tears | 0..3 | 1.2 | fixed | How many pieces each attack tears. Left: hardly any, only the biggest chords. Right: a storm of fragments on every chord. Follows how present: 0.2 at its left end. |
-| `settle` | how long until it heals | 0.15..5 | 1.6 | fixed | How long a torn piece takes to snap back into place. Left: a split-second stutter. Right: the broken picture hangs for seconds. Follows how present: 0.4 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much tearing it does: how many pieces each attack tears, how far they are thrown, how long the broken picture hangs before it heals. Left: a rare small shiver that heals at once. Right: a storm of far-flung fragments that linger. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `riley`: Op art
-
-A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden. <b>how present</b> sets how much field there is: turned down, a few broad, clean bands that only loud playing still bends.
-
-Feel: flickering, swelling, marching, icy · Suits: strings, contrabass · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `pattern` | pattern | 0..2 | 0 | fixed | What the field is made of. Left: stripes. Middle: a checkerboard. Right: rings around the centre. |
-| `stripe` | stripe width | 5..60 | 16 | fixed | How wide each stripe is. Left: fine, dizzying lines. Right: a few broad bands. Follows how present: 36 at its left end. |
-| `bend` | how much the music bends it | 0..2.5 | 1 | louder → more | How hard the notes bend the field: lenses on the bass, ripples on the melody, sharp kinks on chords. Left: almost flat. Right: wild, swelling distortion. Follows how present: 0 at its left end. |
-| `shimmer` | shimmer | 0..2 | 0.3 | faster → more | A fine, fast trembling of every edge, so the eye fizzes. Left: still, clean edges. Right: the whole field buzzes. Follows how present: 0 at its left end. |
-| `colours` | colours | 0..5 | 0 | fixed | The pair of colours. From left: black and bone, black and blood red, oxblood and bone, ink blue and ochre, black and cold cyan, teal and vermilion. |
-| `presence` | how present | 0..1 | 1 | fixed | How much stripe field there is: how many stripes, how hard the notes bend them, how much their edges tremble. Left: a few broad, clean bands that only loud playing still bends. Right: the full fine field, bending and fizzing. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `halftone`: Halftone
-
-Two overprinted dot screens, deep red and pale. Each attack sends a wave of swelling dots out from a point placed by pitch: low notes big slow swells on the red screen, high notes small fast ripples on the pale one; held chords print a faint standing interference pattern, and the loudest full chords flash the red screen in negative.
-
-Feel: grainy, swelling, warm, flickering · Suits: strings, piano · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `grid` | dot size | 10..44 | 20 | fixed | How coarse the dot screen is. Left: a fine screen of tiny dots. Right: a coarse screen of big dots. |
-| `shape` | dot shape | 0..3 | 0 | fixed | What the screen is printed with. Left: round dots, then squares, then crosses. Right: lines. |
-| `life` | how long the waves last | 0.4..6 | 2.2 | fixed | How long a wave of dots keeps spreading before it fades. Left: a quick pulse. Right: slow rings that linger. Follows how present: 0.8 at its left end. |
-| `contrast` | hard print | 0..1 | 0.45 | louder → more | How the dots swell. Left: soft, every size in between, like a photo. Right: hard, each dot is either full or gone, like a stamp. |
-| `standing` | stripes from held chords | 0..1.5 | 0.6 | fuller chords → more | While a chord rings, its notes print a faint standing pattern of stripes. Left: none, only the waves. Right: strong stripes. Follows how present: 0.1 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much gets printed: how long each wave keeps spreading and how strong the held-chord stripes are. Left: short pulses that die quickly, hardly any stripes. Right: slow rings that overlap and a striped field. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `casket`: The casket (built into the app)
-
-New in v2: it strikes once and lets go. On the hardest attacks the picture melts, paint drips from the top and one cut slashes through, then it leaves the picture alone until the next. It works on whatever is under it. <b>keep melting between</b>, all the way right, is the old casket that never stops.
-
-Feel: panic, stabbing, liquid, burning · Suits: tutti, piano, timpani · Role: top
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `melt` | melt | 0..6 | 2.2 | fixed | How far the whole picture slides down and melts when it strikes. Left: it holds still. Right: it runs a long way down. Follows how present: 0.7 at its left end. |
-| `drips` | drips | 0..1 | 0.5 | fixed | How much paint drips from the top when it strikes. Left: no drips. Right: a curtain of them. Follows how present: 0.1 at its left end. |
-| `cutAt` | which attacks strike | 80..118 | 92 | fixed | How hard an attack must be to set it off, against this piece. Left: a strike every few seconds. Right: only the very hardest, far apart. Follows how present: 108 at its left end. |
-| `gap` | how far a cut slides | 0..3 | 1 | fixed | How far the two sides of a cut slide past each other. Left: a hairline. Right: a wide shear. |
-| `shake` | jolt on a cut | 0..2 | 1 | fixed | How hard the picture jolts when a cut lands. Left: still. Right: a violent jolt. |
-| `keep` | keep melting between | 0..1 | 0 | fixed | What it does between strikes. Left: nothing, the picture is left alone. Right: the old casket, melting all the time, dripping on notes and slashing on every loud full chord. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it destroys: how often it strikes, how much paint drips, how far the picture melts. Left: a strike about every twelve seconds in busy music, with a short melt and a drip or two. Right: a strike every five or six seconds, several drips, a long melt. Very sparse music strikes on every attack at any setting. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-### Kept
-
-#### `fischinger`: Fischinger
-
-After Oskar Fischinger's Optical Poem: on a deep blue ground, coloured discs, rings and bars swoop in on every note and stand in a figure by pitch (a row, an arch, a ring, a V, a spiral...) that each chord chooses. New in v2: every note lands with a pop and a ring, loud ones fast and bright, soft ones slow and pale; held notes stay lit, a few notes make big shapes and a crowd many small ones, and the figure rises with high music and sinks with low. A <b>how present</b> knob thins the crowd: shapes that sink back almost at once, and no echoes.
-
-Feel: playful, marching, vivid, glowing · Suits: tutti, plucked · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `scatter` | neat lines or scattered | 0..1 | 0.3 | faster → more | What fast runs do to the figure. Left: it keeps its neat lines. Right: every run makes it bloom outward and turn before it springs back. |
-| `depth` | how far away they fly in from | 0..1 | 0.6 | louder → more | Where a new shape comes from. Left: it simply pops up in its place. Right: it swoops in from deep in the blue, loud notes fastest. |
-| `echoes` | echoes behind each shape | 0..4 | 2 | fixed | Copies that follow each shape a step behind and a little deeper, like dancers in canon. Left: none. Right: four. Follows how present: 0 at its left end. |
-| `snap` | glide or snap | 0..1 | 0.55 | fixed | How the shapes move into a new formation. Left: slow, smooth glides. Right: a quick snap with a little bounce, exactly on the beat. |
-| `life` | how long they dance | 1..10 | 4 | fixed | How long a shape stays in the company before it sinks back into the blue. Left: a second. Right: ten seconds, a big crowd. Follows how present: 1.5 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How crowded the blue is: how long a shape stays in the company, and how many echoes follow each. Left: a few shapes that sink back almost at once. Right: a big crowd with dancers in canon. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `mclaren`: McLaren
-
-After Norman McLaren's Synchromy. New: the film runs. Every note is a card of bars that enters at the top and streams down (deep notes a few thick rungs, high notes a fine comb); a loud note punches a long, wide card deep into the panel and lights it up, a soft one leaves a small shallow print, and each new card cuts cleanly over the older ones, so sparse music shows single cards with space between them and busy music a layered weave.
-
-Feel: marching, vivid, flickering, playful · Suits: piano, harpsichord · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `panels` | how many panels | 1..9 | 3 | faster → more | How many strips the screen is split into. Left: one wide panel. Right: up to 9 narrow ones (busy music adds more). |
-| `spread` | how far a note echoes | 0..1 | 0.55 | fixed | How far each note's bars are repeated into the neighbouring panels. Left: only its own panel. Right: across every panel. Follows how present: 0 at its left end. |
-| `life` | how long the bars stay | 0.15..4 | 1.4 | fixed | How long a note's bars stay on the film after it ends. Left: they vanish near the top. Right: they trail all the way down. Follows how present: 0.5 at its left end. |
-| `field` | dark or coloured panels | 0..1 | 0.4 | louder → more | The panels behind the bars. Left: nearly black, only the bars are coloured. Right: flat, bright fields of colour. |
-| `scroll` | how fast the film runs | 0..1 | 0.35 | fixed | How fast the film streams down the panels. Left: a slow crawl, notes stack up short and close. Right: streaming, notes stretch out long. |
-| `presence` | how present | 0..1 | 1 | fixed | How much film it prints: how far each note echoes into the other panels and how long its bars stay. Left: each note only in its own panel, with bars that are gone soon after it ends, so panels stand empty between notes. Right: notes echo into their neighbours and leave long trails, a layered weave. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `lenlye`: Len Lye
-
-After Len Lye's scratched films: white scratches on black film that boil and jump frame by frame, one mark per note across the film by pitch (bass: tall wriggling pillars; middle: zigzags, coils and rings; treble: little sparks), and loud chords burst into a jagged star with a flash. New in v2: a mark now boils for as long as its note is held, and every note lands as an overexposed, glowing strike before it settles; soft notes are faint broken hairlines, loud ones thick doubled scratches, and high notes sit higher up the film. Added since: a <b>how present</b> knob for how much is on the film: turned down, marks go with their notes, on nearly clean film with small or no bursts.
-
-Feel: flickering, skittish, brittle, playful · Suits: timpani, plucked · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `wriggle` | how much the lines wriggle | 0..2 | 1.2 | faster → more | How wildly each scratch shakes and jumps from frame to frame. Left: almost steady lines. Right: frantic, boiling scrawl. |
-| `fps` | how jerky the film runs | 6..24 | 12 | fixed | How many new film frames are scratched each second (a note always cuts to a new one). Left: slow, jerky stop-motion. Right: fast flicker. |
-| `life` | how long a mark stays after its note | 0..2 | 0.4 | fixed | How long a scratch keeps boiling once its note has stopped (it always lasts while the note is held). Left: gone with the note. Right: lingers for seconds. Follows how present: 0 at its left end. |
-| `burst` | bursts on loud chords | 0..2 | 1 | louder → more | How big the jagged burst and the flash are when a loud chord is struck. Left: none. Right: a big spiky star. Follows how present: 0 at its left end. |
-| `dirt` | scratched, dusty film | 0..2 | 1.2 | fixed | How much film dirt runs across the picture: long vertical scratches and dust specks. Left: clean film. Right: battered old print. Follows how present: 0.15 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much scratching is on the film: how long a mark lingers after its note, how big the bursts on loud chords are, how much dirt runs across. Every note still scratches its mark while it sounds. Left: marks gone with their notes, small or no bursts, nearly clean film. Right: lingering scrawl, bursts and a battered print. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `klee`: Klee
-
-After Paul Klee's polyphony paintings: a mosaic of small warm tiles. Each voice of the music writes along its own row in its own glaze, the row climbing and falling with its pitch; where voices cross, the glazes mix. New in v2: quiet notes lay small squares and loud held ones solid blocks, quick passages a finer split mosaic, and every attack pops (a loud one throws a spray of lit tiles). The <b>how present</b> knob sets how much mosaic it paints: from a thin line of tiles that soon goes to broad bands that build up.
-
-Feel: warm, grainy, marching, glowing · Suits: strings, harpsichord, violin · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `stay` | how long the colour stays | 3..40 | 14 | fixed | How long the paint stays on the tiles. Left: a few seconds, only the last phrase. Right: the whole passage builds up. Follows how present: 3 at its left end. |
-| `size` | size of the tiles | 12..40 | 20 | fixed | How big the mosaic's squares are. Left: a fine mosaic of many small tiles. Right: a few big tiles. |
-| `thick` | how wide each voice paints | 0.6..4 | 1.7 | louder → more | How many tiles tall a note's row is. Left: a single thin line of tiles. Right: broad bands (louder notes are always a bit wider). Follows how present: 0.6 at its left end. |
-| `mix` | colours mixing | 0..1 | 0.75 | fixed | What happens where two voices cross. Left: the newest colour covers the older one. Right: they glaze over each other into a new colour. |
-| `veil` | veil of dots | 0..1 | 0.6 | louder → less | The fine light dots that drift over the picture. Left: bare tiles. Right: a bright veil. It follows the music: quiet passages shimmer, loud ones blaze bare. Follows how present: 0.15 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much mosaic it paints: how long the colour stays on the tiles, how many tiles tall each voice writes, how thick the veil of dots lies over them. Left: a thin line of tiles that is gone in a few seconds, nearly bare. Right: broad bands that build up over the whole passage under the veil. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `ridges`: Ridges
-
-Ridgelines on black, one slice of the music per line across the keyboard (bass left, treble right); the front line is now and older ones roll away behind it. New: every line keeps the loudness it was made with, so soft passages pack into fine dim hairlines and loud ones spread into bold bright lines, and each attack leaves a spark on its peak that rides back into the stack. A <b>how present</b> slider sets how much ridge there is, from a sparse stack of slow, low lines to the full one. Paints its own black.
-
-Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `height` | how tall the peaks rise | 0.3..2.5 | 1 | louder → more | How high a loud note lifts its line. Left: low, gentle hills. Right: tall peaks that hide many lines behind them. Follows how present: 0.7 at its left end. |
-| `speed` | how fast the lines roll away | 4..30 | 11 | faster → more | How quickly each new line moves back into the stack. Left: slow, a long memory of the music. Right: fast, only the last moment. Follows how present: 4 at its left end. |
-| `lines` | how many lines | 16..80 | 46 | fixed | How many lines are stacked. Left: a few, far apart. Right: many, packed tight. Follows how present: 16 at its left end. |
-| `sharp` | soft hills or sharp needles | 0..1 | 0.4 | fixed | The shape of a peak. Left: smooth, rounded hills. Right: thin, jagged needles. |
-| `depth` | flat or deep | 0..1 | 0.3 | fixed | How far the stack recedes. Left: flat, every line the same width. Right: lines shrink and crowd toward the top, rolling into the distance. |
-| `presence` | how present | 0..1 | 1 | fixed | How much ridge it stacks: how many lines, how fast new ones roll in, how high the peaks rise. Left: a sparse stack of slow, low lines, far apart. Right: the full stack. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `kline`: Kline
-
-After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
-
-Feel: stabbing, rough, violent, smeared · Suits: trombone, timpani, tutti · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `thresh` | which chords strike | 0.5..0.97 | 0.8 | fixed | How much a chord must stand out to strike a big bar; every other chord leaves a small mark. Left: many chords strike bars. Right: only the very biggest. |
-| `weight` | how heavy | 0.1..1.9 | 1 | fixed | How thick the bars and marks are. Left: faint, thin lines, on only the hardest chords. Right: huge, heavy beams. |
-| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
-| `order` | loose or rigid | 0..1 | 0.7 | faster → less | How strictly the bars are built. Left: free, flung strokes at any angle. Right: rigid girders, level beams and upright posts that meet at joints. By default it loosens up when the music gets busy. |
-| `ground` | black or bone | 0..1 | 1 | fixed | The colours. Left: black bars on a bone-white ground. Right: bone-white bars on black. |
-| `colour` | what colour | 0..3 | 0 | fixed | The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone. |
-
-#### `cells`: Cells
-
-A mosaic of coloured cells, one per note, left to right by pitch and coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, each attack swells its cell and flashes a pale kernel that shrinks while the note sounds, and loud attacks send a ring of light through the mosaic. <b>How present</b> sets how much mosaic builds up: turned down, cells close as soon as their notes end and the rest is dark ground.
-
-Feel: warm, pale, flowing, playful · Suits: strings, clarinet · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `edge` | how hard attacks land | 0..2 | 1 | louder → more | How strongly each struck note shows. Left: cells just appear, with thin seams. Right: a struck cell swells, its borders go thick and black, and loud ones send a ring of light through the mosaic. |
-| `stay` | how long cells linger | 0..5 | 2 | fixed | When a note ends its cell dims, waits, then closes up into its neighbours. Left: it closes the moment the note ends. Right: it lingers for seconds, so the mosaic fills up. Follows how present: 0 at its left end. |
-| `pebble` | mosaic or pebbles | 0..1 | 0.25 | fixed | The shape of the cells. Left: a tight mosaic of sharp-cornered tiles. Right: separate rounded pebbles with dark gaps between them. |
-| `drift` | drift | 0..2 | 0.6 | faster → more | How much the whole mosaic sways and flows. Left: cells stay where the notes put them. Right: everything floats on a slow current. |
-| `fill` | solid or outlined | 0..1 | 0.85 | fixed | How the cells are painted. Left: only their outlines, like a line drawing. Right: solid blocks of colour. |
-| `presence` | how present | 0..1 | 1 | fixed | How much mosaic builds up: how long cells linger after their note before they close into their neighbours. Sounding notes always hold a cell open. Left: cells close as soon as the note ends, the rest is dark ground. Right: they linger for seconds and fill the picture. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `nebula`: Nebula
-
-Every note is a pull, placed round a circle by its note name, and fine glowing grains stream between the notes. New: each attack now flares where its note sits and breathes out a puff of bright, almost white grains (loud notes big, soft ones faint, deep notes slow and wide, high ones quick and fine), and a chord forms separate knots joined by threads.
-
-Feel: glowing, grainy, whirling, burning · Suits: strings, voice · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `pull` | how hard notes pull | 0.2..2 | 0.8 | fuller chords → more | How strongly the notes gather the grains. Left: a loose haze that barely bends. Right: tight, bright knots and threads. Follows how present: 0.4 at its left end. |
-| `swirl` | fall in or circle round | 0..1.6 | 0.5 | fixed | How the grains move around a note. Left: they fall straight in and stream from note to note. Right: they whirl round it in rings. |
-| `amount` | how much dust | 1000..7000 | 4000 | fixed | How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud. Follows how present: 1000 at its left end. |
-| `threads` | grains or threads | 0.5..6 | 1.4 | fixed | How long each grain draws its path. Left: fine points of dust. Right: long silky threads. |
-| `burst` | how each note ignites | 0..2 | 0.9 | louder → more | What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of bright new grains. Follows how present: 0 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much dust there is: how many grains drift, how hard the notes gather them, and how big a puff each note breathes out. Left: a thin scatter of grains, loose around the notes, with small puffs that only loud notes still raise. Right: a thick cloud with big puffs of new grains. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `pixelsort`: Pixel sort (already combines with other widgets in a very cool way)
-
-Now a real pixel sort: each chord sorts the shapes under it by brightness, in place, so whatever the other widgets drew melts in the chord’s direction (bass down, treble up, the melody sideways). Soft chords shimmer a few thin lines, loud ones melt a wide sheet, the loudest tear a band right across the screen, and held chords hold their melt.
-
-Feel: stabbing, brittle, burning · Suits: trombone, strings · Role: top · Note type: chords
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `len` | how far it smears | 0.2..1.6 | 0.75 | louder → more | How far each chord pulls the picture out. Left: short nicks at the attack. Right: long streaks across the screen. Follows how present: 0.2 at its left end. |
-| `life` | how long it stays | 0.2..3 | 1.3 | faster → less | How long a smear hangs before it shrinks back into the attack. Left: a flicker. Right: lingers for seconds. Follows how present: 0.2 at its left end. |
-| `band` | how wide each smear | 0.3..2.5 | 1 | fixed | How many lines of pixels each chord grabs (big and loud chords grab more). Left: a thin thread. Right: a wide sheet. Follows how present: 0.3 at its left end. |
-| `pick` | what gets smeared | 0..0.7 | 0.12 | fixed | Which parts of the picture get sorted. Left: everything, dark parts too, into solid bars that cut through. Right: only the brightest bits, as thin glowing threads. Follows how present: 0.6 at its left end. |
-| `own` | its own colour | 0..1 | 0.6 | fixed | How much colour it adds at each chord. Left: none, it only sorts what other widgets drew. Right: bright streaks of its own. Follows how present: 0.2 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it smears: how far each chord pulls the picture out, how wide a sheet it grabs, how long it hangs, how much of the picture gets sorted, how much of its own paint it adds. Left: short thin flicks of the brightest bits only. Right: long wide sheets of nearly everything. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `mandala`: Mandala
-
-A radial bloom: each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle. New in v2: every attack lands with rays from the centre and a kick; sounding notes are filled (solid when loud, see-through when soft), and once let go they linger as fine outline lace behind the live ones. The <b>how present</b> knob sets how much it builds: from a small figure of a few short-lived spokes to dense lace.
-
-Feel: whirling, glowing, swelling, vivid · Suits: plucked, voice · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `mirrors` | copies per note | 0.5..3 | 1.5 | fixed | How many mirrored copies a chord gets, per note in it. Left: a few spokes. Right: dense lace, a big chord fills the circle. Follows how present: 0.5 at its left end. |
-| `size` | size (breathes) | 0.4..1.3 | 0.86 | louder → more | How big the mandala is; it follows loudness, so it swells on loud chords. Left: a small jewel. Right: fills the screen. Follows how present: 0.55 at its left end. |
-| `spin` | turning speed | 0..1 | 0.2 | faster → more | How fast the whole figure turns; it follows the tempo, so busy passages turn it faster. Left: still. Right: a steady wheel. |
-| `life` | how long they stay | 0.3..8 | 3.5 | faster → less | How long a shape stays after its note ends; it follows the tempo, so busy passages clear faster. Left: a flicker, only the live notes. Right: layers pile up into a dense mandala. Follows how present: 1.5 at its left end. |
-| `jag` | spikes on clashing notes | 0..1 | 0.7 | fixed | How torn and spiky a petal gets when its note clashes with the others. Left: always smooth. Right: clashes tear and turn violet. |
-| `presence` | how present | 0..1 | 1 | fixed | How much mandala it builds: how far the figure reaches, how many mirrored copies a chord gets, how long the shapes stay after their notes. Left: a small figure of a few spokes that are soon gone. Right: the full circle with lace piling up behind the notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `fields`: Colour fields (a good building block)
-
-Huge, slow, soft fields of colour (Rothko-like), made to sit under other widgets; each field owns a part of the keyboard, bass at the bottom. New in v3: every note now lights its field from inside (low notes to the left, high to the right; loud ones bright and wide, soft ones a faint glow), busy playing makes the edges hum, and a chord change floods its field with the new colour instead of a bright stripe. Quiet passages stay a deep colour instead of going black.
-
-Feel: still, glowing, serene, dark · Suits: strings, horn, voice · Role: under
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `back` | stay in the background | 0..1.9 | 0.4 | fixed | How much it steps back for widgets drawn over it. Left: a full, glowing painting. Right: almost nothing, a breath of colour behind everything that only the loud passages lift. |
-| `chords` | chords move the colour | 0..1 | 0.7 | fixed | How far a chord change moves the colours. Left: one family of colour all the way through. Right: each new chord glides it somewhere new on the palette. |
-| `home` | home colour | -1..1 | -0.2 | louder → more | The colour it returns to on the home chord. Left: deep blues and plums. Right: oxblood and burnt orange. Follows the loudness at first: loud = warmer. |
-| `dyn` | the playing shows | 0..1 | 0.75 | fixed | How much the notes and the loudness show. Left: a still painting whose colours only drift. Right: every note lights its field from inside, loud passages blaze and sharpen, quiet ones sink and blur. Follows how present: 0.2 at its left end. |
-| `n` | how many fields | 1..4 | 3 | fixed | How many fields are stacked. Left: one enormous field. Right: four, one per register, bass at the bottom. Follows how present: 1 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much is going on in the painting: how many fields are stacked and how much each note lights its field. Left: one big field that hardly reacts. Right: several fields, every note blooming inside. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `fifths`: Harmonic web
-
-The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.
-
-Feel: glowing, silky, dark, serene · Suits: strings, viola, voice · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `decay` | how long the web remembers | 0.5..30 | 9 | fixed | How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together. Follows how present: 0.8 at its left end. |
-| `line` | line thickness | 0.3..3 | 1.2 | fixed | How thick the strings are (loud chords are always thicker than soft ones). Left: hairlines. Right: thick glowing cords. |
-| `bow` | how the strings curve | -1..1 | 0.3 | higher notes → more | How each string between two notes bends. Left: bulging outward like petals. Middle: straight. Right: pulled in toward the centre like string art. |
-| `shiver` | struck strings shiver | 0..1 | 0.5 | fixed | How much a chord's strings tremble when it is struck: one slow swell for sweet intervals, fine ripples for clashing ones. Left: still lines. Right: a strong shiver. |
-| `fill` | filled shapes | 0..1 | 0.2 | louder → more | How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes. |
-| `presence` | how present | 0..1 | 1 | fixed | How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again. |
-
-### Needs work (the user rated them; use sparingly)
-
-#### `matisse`: Matisse
-
-Cut paper, after Matisse's late cut-outs: low notes lay big dark algae and slabs, middle notes coils and ribbons, high notes small bright stars, and chords rearrange the wall. New in v2: the music moves the paper. Every note slaps its piece down with a gust that pushes its neighbours aside, a sounding note lifts its piece off the wall on a deep shadow, soft notes cut pale paper and loud ones full colour, and a fortissimo shakes the whole wall.
-
-Feel: vivid, playful, warm · Suits: clarinet, trumpet · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | size of the pieces | 0.4..1.8 | 1 | fixed | How big the cut pieces are. Left: small scraps. Right: huge sheets that crowd the wall. Follows how present: 0.65 at its left end. |
-| `pieces` | how many pieces on the wall | 6..40 | 18 | faster → more | How many pieces the wall holds before new notes swap old ones out. Left: a sparse few. Right: a crowded collage. Follows how present: 7 at its left end. |
-| `move` | how much the notes stir the paper | 0..1 | 0.6 | louder → more | How much the music moves the paper. Left: pieces are laid flat and stay put. Right: every note gusts the paper around it, sounding notes lift their pieces, and chords rearrange the wall. |
-| `curl` | straight or curly cuts | 0..1 | 0.65 | fixed | What the scissors cut. Left: straight-cut squares and patches, like The Snail. Right: curling algae, coils and stars, like Oceania and Jazz. |
-| `ground` | white wall or coloured grounds | 0..1 | 0.6 | fixed | What the paper is pinned on. Left: always a plain white wall. Right: loud deep chords slide in bold coloured grounds with big panels. |
-| `presence` | how present | 0..1 | 1 | fixed | How much paper is on the wall: how many pieces it holds and how big they are cut. Left: a few small scraps. Right: a crowded collage of big sheets. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `harmonograph`: Harmonograph
-
-Now one unbroken line that melts from figure to figure as the harmony changes, and every note pushes it: a loud note flings the pen back out and leaves a thick bright knot in the line, quiet passages let it slow down and curl in. Low chords swing broad and thick, high ones quick and fine; gold = consonant, violet = dissonant.
-
-Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `size` | size | 0.4..1.3 | 0.95 | fixed | How wide the pen swings. Left: a small figure in the middle. Right: fills the screen. |
-| `speed` | how fast the pen draws | 0.3..5 | 1.6 | fixed | How quickly the pen traces the figure. Left: slow, you watch each loop being drawn. Right: the whole figure appears almost at once. Follows how present: 0.4 at its left end. |
-| `damp` | how fast it winds inward | 0.02..0.6 | 0.2 | fixed | How quickly the line spirals in toward the centre between notes. Left: it keeps swinging wide, loops stacked on loops. Right: it curls into the middle in a few turns. |
-| `push` | how hard notes push the pen | 0..1.5 | 0.8 | fixed | What each note does to the pen. Left: nothing, the line just winds down. Right: every note flings the pen back out and leaves a thick bright knot in the line. |
-| `stay` | how long the lines stay | 0.3..8 | 4.5 | fixed | How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other. Follows how present: 0.3 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much figure it draws: how fast the pen goes and how long the lines stay. Left: a short, slow trace that fades quickly. Right: the full tangle of lines. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-### Not judged yet
 
 #### `gliss`: Gliss
 
@@ -995,46 +483,19 @@ Feel: warm, liquid, glowing, flowing · Suits: piano · Role: accent · Note typ
 
 #### `ivory`: Ivory
 
-One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.
+One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch, and the same note played again stands beside the first. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.
 
 Feel: elegant, royal, pale, precise, serene · Suits: piano · Role: lead
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
 | `floor` | where the crater is | 0..1 | 0 | fixed | Left: round, behind the keys, as if you look down at the ground. Right: a flat oval on the floor under them. |
-| `crater` | how deep the crater is | 0..1 | 0.35 | fixed | Left: nothing to see. Right: a clear dent. Very subtle by default. |
-| `ripple` | how far the ripple shifts them | 0..8 | 2.6 | fixed | How far the slices of a key move as the ripple goes through. Left: not at all. Right: they shake. |
+| `crater` | how deep the crater is | 0..1 | 0.35 | fixed | Left: nothing to see. Right: a clear dent. Very subtle by default. On a note: only from the last note on. |
+| `ripple` | how far the ripple shifts them | 0..8 | 2.6 | fixed | How far the slices of a key move as the ripple goes through. Left: not at all. Right: they shake. On a note: only from the last note on. |
 | `cracks` | how many cracks | 0..8 | 1.5 | fixed | Hairline cracks on each key. Left: spotless. Right: well worn. |
+| `strike` | how hard the keys strike | 0..1 | 0 | fixed | Left: keys rise as they always have, over a fifth of a second. Right: a key is up in two frames, jumps past its height and settles, its top edge lit for an instant. |
+| `huddle` | how huddled the keys stand | 0..1 | 0 | fixed | Left: the keys stand where their pitch puts them, leaning and differing a little, as they always have. Right: they stand close together in a tidy parallel row, evenly spaced and upright, the row centred where the phrase sits. |
 | `presence` | how present | 0..1 | 1 | fixed | How strongly it all shows. Left: not at all. Right: fully. |
-
-#### `johansson`: Johansson
-
-A field of still white dots, like stars. When the music moves, thirteen of them turn out to be a person, walking, stepping exactly on the notes.
-
-Feel: precise, playful, grainy, still · Suits: piano, strings · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `presence` | how present | 0..1 | 0.5 | fixed | Left: just the person on black. Right: a thick field of stars it is hidden in. |
-| `stride` | how big its steps | 0.5..1.4 | 1 | fixed | Left: small careful steps. Right: long strides, a big bounce. |
-| `height` | how near | 0.6..1.3 | 1 | fixed | Left: a small person far off. Right: it nearly fills the screen. |
-| `arms` | how the melody lifts it | 0..1.2 | 0.8 | fixed | Left: arms only swing. Right: its arm reaches up with every climbing melody. |
-| `maxStep` | how soon it stops | 0.7..1.6 | 1.15 | fixed | Left: it stops at any gap in the notes. Right: it walks on through most of them. |
-
-#### `tree`: Tree
-
-One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
-
-Feel: withering, glowing, vivid, swelling, precise, warm · Suits: piano, strings, tutti · Role: standalone
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `colours` | which season | 0..6 | 0 | fixed | The colours and the sky, seven steps. Left: crimson and gold, an autumn maple with a second, golden tree. Then cherry blossom on a clear morning; high summer, green with the sun behind it; ginkgo gold on a lavender sky; violet dusk, purple leaves on a dark sky; ember night, glowing leaves on black. Right: first frost, white on a blue dawn. |
-| `leaves` | how many leaves | 0.15..1.6 | 1 | fixed | How thick the canopy gets. Left: a few scattered leaves and a lot of sky. Right: masses of colour with only small gaps. Follows how present: 0.22 at its left end. |
-| `twigs` | how much wood | 0.2..1.5 | 1 | fixed | How finely the branches divide. Left: a few bare limbs, drawn large. Right: a fine lace of twigs. Follows how present: 0.35 at its left end. |
-| `wither` | how much it withers | 0..2 | 1 | fixed | How much of the piece is the dying part. Left: it never goes bare, leaves only come and go. Middle: the leaves turn and fall after the climax. Right: it goes bare early, and in a long piece year after year. Follows how present: 1.5 at its left end. |
-| `size` | how big the leaves are | 0.5..2.2 | 1 | fixed | How big each leaf is. Left: a fine dust of tiny leaves. Right: big leaves you can tell apart. |
-| `presence` | how present | 0..1 | 1 | fixed | How much tree it grows: how many leaves, how much wood, how long the leaves stay. Left: a thin tree with a few leaves that soon drop. Right: the whole canopy. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 #### `fireworks`: Fireworks
 
@@ -1050,21 +511,6 @@ Feel: glowing, vivid, triumphant, whirling · Suits: tutti, timpani, trumpet, pi
 | `swirl` | how much it stirs the air | 0..1 | 0.55 | fixed | How hard a blast stirs the fluid. Left: the smoke barely moves. Right: every burst tears the smoke into curling eddies. |
 | `linger` | how long the smoke hangs | 0..1 | 0.45 | fixed | How long the coloured smoke stays. Left: gone in a moment. Right: it hangs for seconds and builds up. Follows how present: 0.08 at its left end. |
 | `presence` | how present | 0..1 | 1 | fixed | How much firework it throws: how big each burst is and how long its smoke hangs. Left: small bursts with few sparks, and the smoke gone in a moment. Right: big bursts and smoke that builds up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `clumsy`: Clumsy
-
-A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.
-
-Feel: clumsy, playful, vivid, marching · Suits: bassoon, plucked, piano · Role: lead
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `crowd` | how many | 3..30 | 16 | fixed | How many shapes are trying to keep up. Left: three or four. Right: a jostling mob. Follows how present: 4 at its left end. |
-| `disorder` | how hard an attack knocks them | 0.2..2 | 1 | fixed | What an attack does to them. Left: a stumble. Right: everything flies. Follows how present: 0.5 at its left end. |
-| `rush` | how fast they scramble back | 0.3..2 | 1 | fixed | How they hurry back into line. Left: they plod. Right: frantic little hops. |
-| `hop` | how high they hop | 0.25..2.2 | 1 | fixed | How high each hop goes. Left: shuffling along the floor. Right: huge bounces. Follows how present: 0.5 at its left end. |
-| `size` | how big they are | 0.5..2 | 1.25 | fixed | How big the shapes are. Left: small bits. Right: great lumps. |
-| `presence` | how present | 0..1 | 1 | fixed | How big the crowd is and how wild: how many shapes are trying to keep up, how high they hop, how hard an attack knocks them. Left: four shapes shuffling and stumbling a little. Right: the whole jostling mob. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 #### `gust`: Brass gust
 
@@ -1111,66 +557,6 @@ Feel: viney, withering, fibrous, alien · Suits: strings, cello, viola · Role: 
 | `weight` | how thick the stems are | 0.3..4.5 | 1 | fixed | How thick the lines are drawn. Left: hair. Right: heavy ropes. |
 | `presence` | how present | 0..1 | 1 | fixed | How much vine it grows: how fast the tips run, how readily they fork, how soon old stems die back. Left: one or two slow stems that do not last. Right: the whole network. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
-#### `royal`: Royal
-
-One tall brushed stroke holds the middle of the page, and a small court of marks darts in from the edges, hopping forward on every note. It ignores them. On a strong attack it rises slowly and leans away, and on the next the tip alone flicks outward: everyone on that side is sent off the page. It does not watch them go. The louder the demand, the slower and colder the rise.
-
-Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · Role: lead
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `haughty` | how far it turns away | 0.15..1.4 | 1 | fixed | How far the figure leans back from them before it flicks. Left: a slight lift of the chin. Right: it turns its whole back. Follows how present: 0.5 at its left end. |
-| `flourish` | how grand the gesture is | 0.2..1.6 | 1 | fixed | How much of the stroke flicks, and how far. Left: only the very tip. Right: the whole upper part, in a sweep. Follows how present: 0.4 at its left end. |
-| `crowd` | how many come near | 0..1 | 0.45 | fixed | How many small marks come up to it. Left: one at a time. Right: a stream of them. Follows how present: 0.05 at its left end. |
-| `near` | how close they get | 0..1 | 0.6 | fixed | How close the marks dare come. Left: they stop far off. Right: right up to it. |
-| `robe` | the colour | 0..2 | 0 | fixed | Which colours it wears. Left: purple and gold. Middle: black and gold. Right: oxblood and ivory. |
-| `presence` | how present | 0..1 | 1 | fixed | How much court there is: how many marks come near, how grand the gesture, how far it turns away. Left: one mark at a time and a slight lift of the chin. Right: the full court and the whole turning of the back. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `comfort`: Comfort
-
-Big flat fields of soft colour, each held on one side and dissolving into the others on the other, breathing slowly together and wandering over minutes. A note is a gentle press and a wide, faint blush: the field's own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones, and a melody blushes as clearly as a chord.
-
-Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `breath` | how slowly it breathes | 3.5..20 | 10 | fixed | How long one breath takes. Left: a quick, light rise and fall. Right: one long breath every 20 seconds. |
-| `press` | how far a note presses | 0.15..2 | 1 | fixed | How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give. |
-| `size` | how big the fields are | 0..1 | 0.5 | fixed | How many fields share the picture. Left: many small ones. Right: a few huge ones. |
-| `warmth` | how warm the colours are | 0..1 | 0.5 | fixed | The colour of it all. Left: cool dusk, grey-rose. Right: amber. |
-| `stay` | how long the warmth stays | 1.5..15 | 5 | fixed | How long a field keeps the warmth of a note. Left: fades quickly. Right: stays for many seconds. |
-| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark, what lies under it shows, and only the hardest attacks press. Right: full colour, and every note presses. |
-
-#### `honey`: Honey
-
-Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape sink under the weight, and it stays low; then it fills, and slowly pushes out another.
-
-Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base · Note type: long
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `thick` | how thick it is | 0..1 | 0.5 | fixed | How stiffly it all moves. Left: runny and quick. Right: nearly solid, it barely moves. |
-| `load` | how much each note adds | 0.25..2.2 | 1 | fixed | How heavy a note is. Left: small shapes, thin threads. Right: great heavy shapes. Follows how present: 0.25 at its left end. |
-| `stretch` | how far a thread stretches | 0..1 | 0.7 | fixed | How far a thread stretches before it breaks. Left: it snaps early. Right: it never lets go. Follows how present: 0.2 at its left end. |
-| `busy` | how many notes push out a new shape | 0..1 | 0.5 | fixed | How many notes push out a new shape. Left: only the big ones. Right: nearly every note. Follows how present: 0 at its left end. |
-| `colour` | how dark the honey is | 0..1 | 0.5 | fixed | How dark the honey is. Left: pale, light acacia. Right: dark treacle. |
-| `presence` | how present | 0..1 | 1 | fixed | How much honey there is: how readily notes push out a new shape, how heavy each one is, how far the threads stretch. Left: shapes come rarely and stay small, and their threads snap early. Right: the full web of heavy shapes and long sagging threads. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
-#### `lazy`: Lazy
-
-It can't be bothered, and there is a lot of it. Huge, shapeless green stains slumped across the picture, far too heavy for the music to move: an attack soaks in as a dull sour colour and only leans on them a little, and they take seconds to come back. Once in a long while a hard note asks one to get up. It gathers itself slowly, gets a little way, gives up and slumps onto the others. Busy music it ignores, swelling slowly.
-
-Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How heavy it is, and how much it takes to get it moving. Left: lighter, and gets up now and then. Right: a dead weight that hardly ever stirs. |
-| `lift` | how high it bothers to lift | 0.1..1 | 0.75 | fixed | How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen. Follows how present: 0.3 at its left end. |
-| `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the stains are. Left: slim. Right: huge, overlapping everything. Follows how present: 0.6 at its left end. |
-| `limbs` | how many masses | 4..15 | 12 | fixed | How many masses lie in the heap. Left: a few. Right: a big heap. Follows how present: 4 at its left end. |
-| `green` | which green | 0..1 | 0.5 | fixed | Which greens it lies in. Left: a dark pond. Right: sour acid. |
-| `presence` | how present | 0..1 | 1 | fixed | How much green lies there: how many masses, how fat they are, how high one bothers to lift. Left: a few slim masses that barely stir. Right: the whole slumped heap. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
-
 #### `timeslice`: Time slice
 
 A slit-scan of the widgets under it: every strip of the picture comes from a different moment of the last seconds, more delayed the further it is from a now line that follows the melody. Made to sit on widgets that move: riley breaks into staircases of cut stripes (try the rings), strings and murmuration shear into ragged ribbons, ikeda’s barcodes step; it works on widgets that repaint their ground too. Each note cuts a sharp band of the present through the smear, loud chords stretch time, silence straightens it. Alone: a piano roll written outward from the now line. <b>how present</b> sets how much it smears: turned down, a short lean with hairline cuts.
@@ -1185,49 +571,218 @@ Feel: flowing, liquid, stabbing, panic · Suits: violin, flute, strings · Role:
 | `live` | how much of the live picture shows through | 0..1 | 0.2 | fixed | How much of the present picture shows through the slit-scan. Left: only the slit-scan. Right: half live, half past. |
 | `stretch` | how hard loud chords stretch time | 0..1 | 0.6 | fixed | How much loud chords stretch the delay. Left: they don’t, the delay stays put. Right: soft playing keeps it short and a loud chord throws it to the maximum. |
 
-#### `fold`: Fold
+#### `miro`: Miró
 
-A mirror for the whole picture, made to sit on other widgets: it folds whatever is already on the screen, so kusama becomes a twin colony, marbling a Rorschach marble, strings a woven butterfly, ikeda a mirrored data wall. The fold line turns with the bass round the circle of fifths, chords flip which half is mirrored, loud chords fold it twice for a beat, and quiet passages fade the mirror. Alone it is a stitched seam of light that flashes on every chord.
+After Miró's Constellations: the melody draws one thin black line that wanders over a pale washed sheet, leaving stars and dots along it. Short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents, and where shapes overlap their colours flip.
 
-Feel: whirling, glowing, stabbing, swelling · Suits: contrabass, cello, piano · Role: top
-
-| knob | label | range | default | driven by | what it does |
-|---|---|---|---|---|---|
-| `folds` | how many folds | 1..6 | 1 | fixed | How many mirror lines cross the centre. Left: one mirror. Right: up to six, a kaleidoscope. |
-| `turn` | what turns the fold | 0..1 | 1 | fixed | How far the mirror line turns with the harmony (the bass note, round the circle of fifths). Left: it stays upright. Right: it turns with every change of harmony. |
-| `strength` | how strong the mirror image is | 0..1 | 1 | fixed | How strongly the mirrored half covers the other side (quiet passages fade it a little more). Left: a faint ghost. Right: as strong as the original. |
-| `flip` | chords flip the side | 0..1 | 0.5 | fixed | How often a full chord swaps which half is the original and which the mirror. Left: never. Right: every chord swaps the source half. |
-| `seam` | seam | 0..1 | 0.6 | fixed | The line of light along the fold. Left: no line, only the mirror. Right: a bright stitched seam that flashes on every chord. |
-
-#### `stella`: Stella
-
-A rhythm layer made to sit on other widgets: it paints no ground, only thin frames, after Frank Stella’s stripe paintings. Every attack adds one frame a step further in from the edge and older ones fade, so fast playing piles up concentric stripes and slow playing leaves one or two lone frames; loud attacks give square frames, soft ones rounded. The centre stays open, and it inverts whatever is under it (dark on paper, light on black, cyan over red). Try it on score with squares, horizon with murmuration, current with squares, or Miró with Rorschach.
-
-Feel: marching, brittle, icy, stabbing · Suits: harpsichord, timpani, piano · Role: accent · Note type: repeats
+Feel: playful, airy, pale, longing · Suits: flute, clarinet · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `life` | how long they stay | 0.15..5 | 1.4 | fixed | How long a frame stays before it fades. Left: one blink. Right: lingering stripes that pile up. Follows how present: 0.5 at its left end. |
-| `thick` | how thick | 1..14 | 3.5 | louder → more | How wide each stripe is (loud attacks a little wider). Left: hairlines. Right: heavy bands. |
-| `reach` | how far in | 0..1 | 0.45 | fixed | How deep the stripes pile up before starting again at the edge. Left: they hug the edge. Right: they reach halfway to the centre. Follows how present: 0.08 at its left end. |
-| `which` | which notes count | 0..1 | 0.5 | fixed | Which attacks add a frame. Left: only the bass, so it marks the left hand’s pulse. Middle: every attack. Right: only the top line, the melody. |
-| `beat` | on the beat | 0..1 | 0 | fixed | When frames come. Left: on every attack. Right: snapped to the beat it hears, so only the metre shows. |
-| `presence` | how present | 0..1 | 1 | fixed | How many frames you see: how long each stays and how deep the stripes pile up before restarting at the edge. Left: a lone frame at the edge that soon fades. Right: lingering concentric stripes reaching in. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+| `life` | how long the sky stays | 4..40 | 16 | fixed | How long the shapes and the line stay on the page. Left: a few seconds, the sheet keeps clearing. Right: the whole passage builds up into one crowded sky. Follows how present: 5 at its left end. |
+| `wander` | how the line wanders | 0..2 | 0.9 | faster → more | How strongly the melody turns the line. Left: long, calm curves. Right: it loops, curls and zigzags with every step of the tune. |
+| `swell` | how big the blobs grow | 0.4..2 | 1 | louder → more | How big a held note's blob grows. Left: small pebbles. Right: big swelling forms. Follows how present: 0.6 at its left end. |
+| `colour` | how much colour | 0..1 | 0.65 | fixed | How many shapes are red, blue or yellow instead of black. Left: black ink only. Right: almost everything in colour. |
+| `web` | lines between the stars | 0..1 | 0.5 | fixed | Thin straight lines tying together the notes of a chord, and each new star to a neighbour. Left: only the one wandering line. Right: a dense web of constellations. Follows how present: 0.05 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much sky it fills: how long the shapes stay, how many lines tie the stars, how big the blobs swell. Left: a few small marks that clear within seconds. Right: the whole crowded constellation. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
-#### `martin`: Agnes Martin
+#### `ridges`: Ridges
 
-After Agnes Martin: pale bands of washed colour under a fine pencil grid, the keyboard from bass (bottom) to treble. A soft note faintly deepens its band; a held note tints its own thin stripe in the colour of the harmony. Loud music is nearly ignored: it is for the chorale and the oboe cadenza. Paints its own canvas; turn <b>how present</b> down and the page keeps only its resting bands under a few ruled lines, with marks that are faint and soon gone.
+Ridgelines on black, one slice of the music per line across the keyboard (bass left, treble right); the front line is now and older ones roll away behind it. New: every line keeps the loudness it was made with, so soft passages pack into fine dim hairlines and loud ones spread into bold bright lines, and each attack leaves a spark on its peak that rides back into the stack. A <b>how present</b> slider sets how much ridge there is, from a sparse stack of slow, low lines to the full one. Paints its own black.
 
-Feel: still, pale, serene, airy · Suits: oboe, voice · Role: ground · Note type: long
+Feel: dark, flowing, swelling, dread · Suits: piano, cello · Role: ground
 
 | knob | label | range | default | driven by | what it does |
 |---|---|---|---|---|---|
-| `paper` | night or day paper | 0..1 | 1 | fixed | The ground the bands sit on. Left: a very dark canvas with chalk lines. Right: warm off-white paper with pencil lines. |
-| `wash` | colour of the bands | 0..1 | 0.55 | fixed | How much colour the bands hold at rest. Left: bare paper, only the pencil grid. Right: clear rose and blue bands. |
-| `mark` | how much a note marks | 0..1 | 0.6 | louder → less | How strongly a note deepens its band and a held note tints its stripe. Left: the music barely touches the picture. Right: every soft note leaves a clear wash. Set to follow loudness downwards, so loud music marks it even less. Follows how present: 0.3 at its left end. |
-| `stay` | how long a mark stays | 1..20 | 10 | faster → less | How long a deepened band or tinted stripe takes to fade back. Left: a breath. Right: it lingers for many seconds. Set to fade faster when the music gets busy. Follows how present: 2.5 at its left end. |
-| `grid` | how fine the grid | 0..1 | 0.6 | fixed | The pencil grid over the bands. Left: only the ruled lines between the bands. Right: a fine, dense mesh of small rectangles. Follows how present: 0.2 at its left end. |
-| `presence` | how present | 0..1 | 1 | fixed | How much the music and the pencil leave on the page: how strongly a note deepens its band or tints its stripe, how long that mark stays, how many pencil lines rule the grid. Left: the resting bands under a few ruled lines, and marks that are faint and gone in a breath. Right: a fine grid and clear washes that linger for many seconds. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+| `height` | how tall the peaks rise | 0.3..2.5 | 1 | louder → more | How high a loud note lifts its line. Left: low, gentle hills. Right: tall peaks that hide many lines behind them. Follows how present: 0.7 at its left end. |
+| `speed` | how fast the lines roll away | 4..30 | 11 | faster → more | How quickly each new line moves back into the stack. Left: slow, a long memory of the music. Right: fast, only the last moment. Follows how present: 4 at its left end. |
+| `lines` | how many lines | 16..80 | 46 | fixed | How many lines are stacked. Left: a few, far apart. Right: many, packed tight. Follows how present: 16 at its left end. |
+| `sharp` | soft hills or sharp needles | 0..1 | 0.4 | fixed | The shape of a peak. Left: smooth, rounded hills. Right: thin, jagged needles. |
+| `depth` | flat or deep | 0..1 | 0.3 | fixed | How far the stack recedes. Left: flat, every line the same width. Right: lines shrink and crowd toward the top, rolling into the distance. |
+| `presence` | how present | 0..1 | 1 | fixed | How much ridge it stacks: how many lines, how fast new ones roll in, how high the peaks rise. Left: a sparse stack of slow, low lines, far apart. Right: the full stack. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `kline`: Kline
+
+After Franz Kline: the biggest chords strike huge bars (low ones lie flat, high ones stand up, full ones get a girder beside them), and slowly soak back into the ground. New in v3: nothing moves unless the music moves it: bars fade without motion, and a bar is painted over only at the moment a new bar lands and pushes it out; and a colour knob. From v2: every other chord lays one short brush mark, so the music draws a broken, cornering line between the bars: short notes leave stubs, held notes longer strokes, loud notes wet slabs, soft ones dry wire, and a leap turns a corner.
+
+Feel: stabbing, rough, violent, smeared · Suits: trombone, timpani, tutti · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `thresh` | which chords strike | 0.5..0.97 | 0.8 | fixed | How much a chord must stand out to strike a big bar; every other chord leaves a small mark. Left: many chords strike bars. Right: only the very biggest. |
+| `weight` | how heavy | 0.1..1.9 | 1 | fixed | How thick the bars and marks are. Left: faint, thin lines, on only the hardest chords. Right: huge, heavy beams. |
+| `stay` | how long they stay | 1.2..24 | 4 | louder → more | How long the bars and marks take to soak back into the ground. Left: gone almost at once. Right: stays for half a minute. By default it follows loudness, so loud passages build up and quiet ones clear. |
+| `order` | loose or rigid | 0..1 | 0.7 | faster → less | How strictly the bars are built. Left: free, flung strokes at any angle. Right: rigid girders, level beams and upright posts that meet at joints. By default it loosens up when the music gets busy. |
+| `ground` | black or bone | 0..1 | 1 | fixed | The colours. Left: black bars on a bone-white ground. Right: bone-white bars on black. |
+| `colour` | what colour | 0..3 | 0 | fixed | The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone. |
+
+#### `score`: Graphic score
+
+The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a sparse, plain page with only the strongest attacks written, soon drifting off.
+
+Feel: flowing, airy, pale, playful · Suits: piano, flute · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `speed` | how fast the page moves | 20..140 | 48 | faster → more | How fast the writing drifts to the left. Left: slow, the marks crowd together. Right: fast, they spread far apart. Follows how present: 100 at its left end. |
+| `ink` | how much gets written | 0.5..8 | 1.6 | fixed | How many attacks are written out in full; the rest are left as specks. Left: only the strongest few, sparse and calm. Right: nearly every note. Follows how present: 0.5 at its left end. |
+| `figures` | plain or ornate | 0..1 | 0.45 | fuller chords → more | How rich the notation is. Left: plain dots and lines, like Cage. Right: brackets with numerals, black discs, slabs and big circles, like Treatise. Follows how present: 0.05 at its left end. |
+| `weight` | weight of the ink | 0.4..2.4 | 1 | louder → more | How heavy the pen is. Left: fine hairlines and small dots. Right: thick beams and big black marks. |
+| `paper` | night or paper | 0..1 | 1 | fixed | The page. Left: pale ink on black, like chalk at night. Right: black ink on bone paper, like a printed score. |
+| `presence` | how present | 0..1 | 1 | fixed | How much is on the page: how many attacks are written in full, how ornate the notation is, how soon the writing drifts off the page. Left: only the strongest few, plain dots and lines, and they leave quickly. Right: a well-filled page with brackets, discs and circles. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `boogie`: Boogie woogie
+
+After Mondrian's Broadway Boogie Woogie: yellow lanes on cream. Each note drops a small red, blue or grey block where its pitch lane (low notes left) meets the row of its harmony, and every attack makes all the blocks hop along their lanes, so rhythm drives the traffic: fast passages boogie, a slow chorale barely moves. Big loud chords flash a whole crossing.
+
+Feel: playful, marching, vivid, warm · Suits: piano, plucked, clarinet · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `lanes` | how many lanes | 6..16 | 10 | fixed | How dense the city is. Left: a few wide lanes. Right: a tight grid of thin ones. Follows how present: 6 at its left end. |
+| `hop` | how far they jump on each note | 0..2 | 0.6 | faster → more | How far every block hops along its lane when a note is struck. Left: they stand still. Right: two steps at a time. Follows how present: 0.15 at its left end. |
+| `life` | how long blocks stay | 1..12 | 6 | fixed | How long a block lives before it shrinks away. Left: a second. Right: they pile up for many seconds. Follows how present: 1.2 at its left end. |
+| `flash` | big-chord flashes | 0..1 | 0.7 | fixed | How easily a big chord flashes a whole crossing with a large coloured plane. Left: never. Right: even modest chords, and bigger planes. Follows how present: 0.1 at its left end. |
+| `ground` | background | 0..1 | 0 | fixed | The colour under the lanes. Left: Mondrian's cream. Right: night black. |
+| `presence` | how present | 0..1 | 1 | fixed | How much city there is: how many lanes, how far the blocks hop, how long they stay, how often a crossing flashes. Left: a few wide lanes with blocks that come and go. Right: the full busy grid. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `cells`: Cells
+
+A mosaic of coloured cells, one per note, left to right by pitch and coloured by the harmony (warm at home, cool far away). New in v2: bass notes make broad slabs and high notes small chips, each attack swells its cell and flashes a pale kernel that shrinks while the note sounds, and loud attacks send a ring of light through the mosaic. <b>How present</b> sets how much mosaic builds up: turned down, cells close as soon as their notes end and the rest is dark ground.
+
+Feel: warm, pale, flowing, playful · Suits: strings, clarinet · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `edge` | how hard attacks land | 0..2 | 1 | louder → more | How strongly each struck note shows. Left: cells just appear, with thin seams. Right: a struck cell swells, its borders go thick and black, and loud ones send a ring of light through the mosaic. |
+| `stay` | how long cells linger | 0..5 | 2 | fixed | When a note ends its cell dims, waits, then closes up into its neighbours. Left: it closes the moment the note ends. Right: it lingers for seconds, so the mosaic fills up. Follows how present: 0 at its left end. |
+| `pebble` | mosaic or pebbles | 0..1 | 0.25 | fixed | The shape of the cells. Left: a tight mosaic of sharp-cornered tiles. Right: separate rounded pebbles with dark gaps between them. |
+| `drift` | drift | 0..2 | 0.6 | faster → more | How much the whole mosaic sways and flows. Left: cells stay where the notes put them. Right: everything floats on a slow current. |
+| `fill` | solid or outlined | 0..1 | 0.85 | fixed | How the cells are painted. Left: only their outlines, like a line drawing. Right: solid blocks of colour. |
+| `presence` | how present | 0..1 | 1 | fixed | How much mosaic builds up: how long cells linger after their note before they close into their neighbours. Sounding notes always hold a cell open. Left: cells close as soon as the note ends, the rest is dark ground. Right: they linger for seconds and fill the picture. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `mandala`: Mandala
+
+A radial bloom: each note lands on a ring set by its pitch, at an angle set by its note name, copied and mirrored round the circle. New in v2: every attack lands with rays from the centre and a kick; sounding notes are filled (solid when loud, see-through when soft), and once let go they linger as fine outline lace behind the live ones. The <b>how present</b> knob sets how much it builds: from a small figure of a few short-lived spokes to dense lace.
+
+Feel: whirling, glowing, swelling, vivid · Suits: plucked, voice · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `mirrors` | copies per note | 0.5..3 | 1.5 | fixed | How many mirrored copies a chord gets, per note in it. Left: a few spokes. Right: dense lace, a big chord fills the circle. Follows how present: 0.5 at its left end. |
+| `size` | size (breathes) | 0.4..1.3 | 0.86 | louder → more | How big the mandala is; it follows loudness, so it swells on loud chords. Left: a small jewel. Right: fills the screen. Follows how present: 0.55 at its left end. |
+| `spin` | turning speed | 0..1 | 0.2 | faster → more | How fast the whole figure turns; it follows the tempo, so busy passages turn it faster. Left: still. Right: a steady wheel. |
+| `life` | how long they stay | 0.3..8 | 3.5 | faster → less | How long a shape stays after its note ends; it follows the tempo, so busy passages clear faster. Left: a flicker, only the live notes. Right: layers pile up into a dense mandala. Follows how present: 1.5 at its left end. |
+| `jag` | spikes on clashing notes | 0..1 | 0.7 | fixed | How torn and spiky a petal gets when its note clashes with the others. Left: always smooth. Right: clashes tear and turn violet. |
+| `presence` | how present | 0..1 | 1 | fixed | How much mandala it builds: how far the figure reaches, how many mirrored copies a chord gets, how long the shapes stay after their notes. Left: a small figure of a few spokes that are soon gone. Right: the full circle with lace piling up behind the notes. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `marbling`: Marbling (extremely high potential)
+
+Every attack drops ink on a still bath and pushes the older ink outward into bands. <b>Louder = a bigger drop</b> (a bead when soft, a flood at fff). <b>Higher = brighter ink, landing higher</b>; low notes are dark and sink low. Within a phrase the drops walk along, a step per chord; a pause, or a sudden rush of faster notes, starts a new phrase elsewhere. <b>The comb comes on loud accents and at each new phrase</b> (more often when the music runs fast) and rakes the older ink into feathers. The bass twists it.
+
+Feel: liquid, flowing, swelling, warm · Suits: piano, strings · Role: standalone
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `drop` | drop size | 0.1..1.8 | 1 | fixed | How big the drops are overall; louder notes always make bigger ones. Left: a few small beads and shreds of ink on black. Right: floods. Follows how present: 0.3 at its left end. |
+| `combing` | combing | 0..1.5 | 0.6 | faster → more | How often and how hard a comb rakes the ink (on accents, new phrases, and fast runs). Left: never combed; the ink stays in smooth bands. Right: raked into feathers. Follows how present: 0.1 at its left end. |
+| `twist` | swirl | 0..1 | 0.1 | more bass → more | How much the bass twists the ink around the newest drops. Left: still water. Right: a whirlpool. |
+| `palette` | colours | 0..3 | 0 | fixed | The inks, low notes to high. Left: blood and bone; then indigo and gold, verdigris and ash. Right: a rainbow by note. |
+| `fill` | lines ↔ solid | 0..1 | 0.8 | fixed | How the ink is drawn. Left: thin outlines on black. Right: solid bands of colour. |
+| `presence` | how present | 0..1 | 1 | fixed | How much ink goes into the bath: how big the drops are and how much the comb rakes them out. Left: a few small beads on black. Right: floods raked into feathers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `kandinsky`: Kandinsky (a complete visualization by itself)
+
+The notes paint a Kandinsky: low notes are heavy black bars crossing a plane of colour (the loudest, deepest ones a small checker grid or a black sun), middle notes blue circles, high notes yellow triangles that fly outward. Chords become constellations, the melody a line. v2: no more red squares (that is Dread squares), a notch quieter, new knobs on our defaults. Turn <b>how present</b> down for less painting: smaller shapes that leave sooner, with hardly any lines.
+
+Feel: vivid, playful, triumphant, heavy · Suits: tutti, trumpet, cello · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `edges` | round or sharp | 0..1 | 0.3 | louder → more | The shapes' edges. Left: soft, round circles and rounded bars. Right: crisp bars, thin lenses and needle-sharp triangles. |
+| `rings` | solid or outlined | 0..1 | 0.5 | louder → less | How many shapes are drawn as outlines with rings inside. Left: all solid colour. Right: mostly outlines and concentric rings. |
+| `web` | connecting lines | 0..1 | 0.5 | fixed | Lines joining the notes of a chord, the melody, and the long lines thrown by big chords. Left: shapes only. Right: a dense web. Follows how present: 0.05 at its left end. |
+| `restless` | calm or restless | 0..1 | 0.3 | faster → more | How the painting moves. Left: still and composed, chords form neat figures. Right: shapes scatter, spin and drift away. |
+| `paint` | how much paint | 0..1 | 0.45 | fixed | How bold the painting gets. Left: small, faint shapes that leave soon. Right: big, saturated shapes that stay for many seconds. Follows how present: 0.1 at its left end. |
+| `midColour` | colour of the circles | 0..7 | 5 | fixed | The colour of the middle notes' circles (and of the faint fields behind). From left: yellow, orange, red, rose, violet, blue, turquoise, green, blending between them. Kandinsky's own is blue. |
+| `highColour` | colour of the triangles | 0..7 | 0 | fixed | The colour of the high notes' triangles. From left: yellow, orange, red, rose, violet, blue, turquoise, green, blending between them. Kandinsky's own is yellow. |
+| `presence` | how present | 0..1 | 1 | fixed | How much painting it makes: how big the shapes get and how long they stay, and how many lines join them. Left: small shapes that leave soon, almost no lines. Right: big shapes that stay for seconds in a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `rorschach`: Rorschach ink (keep our defaults)
+
+Low notes drop ink that soaks out into mirrored blots; higher notes fling specks; the loudest, fullest chords splatter. New in v3: a <b>how present</b> knob, to tone it right down: how far each drop spreads, how much it sprays and how long it stays.
+
+Feel: dark, violent, alien, tentacled · Suits: piano, contrabass, timpani · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `sym` | mirror pattern | 1..8 | 1 | fixed | How the ink is mirrored. Left: one fold down the middle, like a folded page. Next: four-way. Right: a kaleidoscope star of up to 8 folds. |
+| `ink` | ink colour | 0..5 | 0 | fixed | The ink and the glow round its edge. Left: oxblood on black. Then indigo, soot with gold, green, violet with rose. Right: pale bone ink. |
+| `size` | blot size | 0.3..2.5 | 1 | fixed | How far each drop of ink spreads. Left: small spots. Right: big blots. Follows how present: 0.45 at its left end. |
+| `spatter` | spatter | 0..3 | 1 | louder → more | How much higher notes fling specks, and how readily loud full chords splatter. Left: clean blots, no spray. Right: lots of spray and splatters. Follows how present: 0 at its left end. |
+| `fade` | how long the ink stays | 1..13 | 9 | louder → less | How long the ink takes to dry away. Left: blots vanish within a second or two. Right: they stay on the page for many seconds. Follows how present: 1.6 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much ink there is: how far each drop spreads, how much it sprays, how long it stays. Left: small clean spots that dry at once. Right: big blots filling the page. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `squares`: Dread squares
+
+Low notes land as big dark-red squares. Now they fade in about 1.4 s, and their edges are soft and blurred. Notes you picked by hand always land, however high.
+
+Feel: heavy, dark, dread, stabbing · Suits: piano, contrabass, timpani · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | size | 0.3..2 | 1 | fixed | How big the squares are. Left: small tiles. Right: huge slabs. Follows how present: 0.7 at its left end. |
+| `life` | how long they stay | 0.3..4 | 1.4 | fixed | How long a square stays. Left: a blink. Right: lingers for seconds. Follows how present: 1.1 at its left end. |
+| `blur` | soft edges | 0..3 | 1 | fixed | How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones. |
+| `split` | which notes count as low | 36..72 | 50 | fixed | Only notes below this point make squares; on picked notes, every note does. Left: only the deepest bass. Right: up to the middle of the piano. Follows how present: 44 at its left end. |
+| `shake` | shake on loud notes | 0..2 | 1 | louder → more | How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt. |
+| `presence` | how present | 0..1 | 1 | fixed | How many squares you see: how many notes count as low, how big each is, how long it stays. Left: only the deeper bass makes a square, small, and it soon fades. Right: every low note lands a big square that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `flee`: Skittish shapes
+
+High notes stumble in as small hot shapes that freeze, tremble, then bolt, faster and faster, smearing into streaks and heating towards white as they go. Bass hits rise from below, loud chords burst inside the flock and melody leaps blow up the old spot, scattering them; fast passages make them dense and frantic, slow ones leave a few cold stragglers. Turn <b>how present</b> down to tone it right down: faint, slow shapes that only the hardest notes call up. Slide <b>how snappy</b> up and the freeze shortens and the bolt comes sooner; all the way up, each shape bolts at once, brightest on its own note, and is gone two seconds later.
+
+Feel: skittish, burning, flickering, panic · Suits: violin, flute, piano · Role: accent · Note type: runs
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `mix` | round or sharp shapes | 0..1 | 0.45 | fixed | Which shapes appear. Left: soft dots, ovals and rings. Right: hooks, chevrons and needles. |
+| `exp` | how sudden the bolt | 1..5 | 3 | fixed | How a shape speeds up once it flees. Left: a steady glide away. Right: it creeps, then shoots off. |
+| `twitch` | how jumpy | 0..1 | 0.25 | faster → more | How nervous they are. Left: calm, smooth paths. Right: constant flinches and sudden swerves. |
+| `streak` | trail length | 0..3 | 0.8 | faster → more | How far a fleeing shape smears behind itself. Left: no trail, only the shape. Right: long streaks of light. |
+| `pal` | colours | 0..3 | 0 | fixed | The colours, from cool and dark when still to hot and bright when fleeing. Left: ember (red to yellow). Then ice (blue), bone (pale), and right: venom (violet to pink). |
+| `snap` | how snappy | 0..1 | 0 | fixed | How hard each note hits. Left: as flee always was, a new shape freezes, trembles, then bolts faster and faster. Right: every note bolts at once, brightest on its own note, and burns out in two seconds. In between, the further right, the shorter the freeze, the sooner the bolt and the stronger the flash. |
+| `presence` | how present | 0..1 | 1 | fixed | How much of the picture it takes. Left: a few faint shapes that hardly move, called up only by the hardest notes. Right: every high note at full strength (as before). |
+
+#### `fields`: Colour fields
+
+Huge, slow, soft fields of colour (Rothko-like), made to sit under other widgets; each field owns a part of the keyboard, bass at the bottom. New in v3: every note now lights its field from inside (low notes to the left, high to the right; loud ones bright and wide, soft ones a faint glow), busy playing makes the edges hum, and a chord change floods its field with the new colour instead of a bright stripe. Quiet passages stay a deep colour instead of going black.
+
+Feel: still, glowing, serene, dark · Suits: strings, horn, voice · Role: under
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `back` | stay in the background | 0..1.9 | 0.4 | fixed | How much it steps back for widgets drawn over it. Left: a full, glowing painting. Right: almost nothing, a breath of colour behind everything that only the loud passages lift. |
+| `chords` | chords move the colour | 0..1 | 0.7 | fixed | How far a chord change moves the colours. Left: one family of colour all the way through. Right: each new chord glides it somewhere new on the palette. |
+| `home` | home colour | -1..1 | -0.2 | louder → more | The colour it returns to on the home chord. Left: deep blues and plums. Right: oxblood and burnt orange. Follows the loudness at first: loud = warmer. |
+| `dyn` | the playing shows | 0..1 | 0.75 | fixed | How much the notes and the loudness show. Left: a still painting whose colours only drift. Right: every note lights its field from inside, loud passages blaze and sharpen, quiet ones sink and blur. Follows how present: 0.2 at its left end. |
+| `n` | how many fields | 1..4 | 3 | fixed | How many fields are stacked. Left: one enormous field. Right: four, one per register, bass at the bottom. Follows how present: 1 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much is going on in the painting: how many fields are stacked and how much each note lights its field. Left: one big field that hardly reacts. Right: several fields, every note blooming inside. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `fifths`: Harmonic web
+
+The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.
+
+Feel: glowing, silky, dark, serene · Suits: strings, viola, voice · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `decay` | how long the web remembers | 0.5..30 | 9 | fixed | How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together. Follows how present: 0.8 at its left end. |
+| `line` | line thickness | 0.3..3 | 1.2 | fixed | How thick the strings are (loud chords are always thicker than soft ones). Left: hairlines. Right: thick glowing cords. |
+| `bow` | how the strings curve | -1..1 | 0.3 | higher notes → more | How each string between two notes bends. Left: bulging outward like petals. Middle: straight. Right: pulled in toward the centre like string art. |
+| `shiver` | struck strings shiver | 0..1 | 0.5 | fixed | How much a chord's strings tremble when it is struck: one slow swell for sweet intervals, fine ripples for clashing ones. Left: still lines. Right: a strong shiver. |
+| `fill` | filled shapes | 0..1 | 0.2 | louder → more | How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes. |
+| `presence` | how present | 0..1 | 1 | fixed | How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again. |
 
 #### `suprematism`: Suprematism
 
@@ -1274,6 +829,306 @@ Feel: whirling, flowing, glowing, burning, panic · Suits: tutti, strings · Rol
 | `palette` | colours | 0..3 | 0 | fixed | The colours, from low notes to high ones. Left to right: ember (blood red to gold), ice (deep blue to white), bruise (violet to teal), bone (grey to warm white). |
 | `presence` | how present | 0..1 | 1 | fixed | How much of the picture it takes. Left: a few faint outlines on a slow drift, thrown only by the hardest notes. Right: every note at full strength (as before). |
 
+#### `casket`: The casket (built into the app)
+
+New in v2: it strikes once and lets go. On the hardest attacks the picture melts, paint drips from the top and one cut slashes through, then it leaves the picture alone until the next. It works on whatever is under it. <b>keep melting between</b>, all the way right, is the old casket that never stops.
+
+Feel: panic, stabbing, liquid, burning · Suits: tutti, piano, timpani · Role: top
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `melt` | melt | 0..6 | 2.2 | fixed | How far the whole picture slides down and melts when it strikes. Left: it holds still. Right: it runs a long way down. Follows how present: 0.7 at its left end. |
+| `drips` | drips | 0..1 | 0.5 | fixed | How much paint drips from the top when it strikes. Left: no drips. Right: a curtain of them. Follows how present: 0.1 at its left end. |
+| `cutAt` | which attacks strike | 80..118 | 92 | fixed | How hard an attack must be to set it off, against this piece. Left: a strike every few seconds. Right: only the very hardest, far apart. Follows how present: 108 at its left end. |
+| `gap` | how far a cut slides | 0..3 | 1 | fixed | How far the two sides of a cut slide past each other. Left: a hairline. Right: a wide shear. |
+| `shake` | jolt on a cut | 0..2 | 1 | fixed | How hard the picture jolts when a cut lands. Left: still. Right: a violent jolt. |
+| `keep` | keep melting between | 0..1 | 0 | fixed | What it does between strikes. Left: nothing, the picture is left alone. Right: the old casket, melting all the time, dripping on notes and slashing on every loud full chord. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it destroys: how often it strikes, how much paint drips, how far the picture melts. Left: a strike about every twelve seconds in busy music, with a short melt and a drip or two. Right: a strike every five or six seconds, several drips, a long melt. Very sparse music strikes on every attack at any setting. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `squares-snap`: Snap squares
+
+Low notes land as big dark-red squares, in the same places as Dread squares, but each one cracks on at full strength, lit for an instant, and then sinks back to a quiet ember; you set how long the sink takes (the default is about half a second, so you can see it). Notes you picked by hand always land, however high.
+
+Feel: heavy, dark, dread, stabbing · Suits: piano, contrabass, timpani · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | size | 0.3..2 | 1 | fixed | How big the squares are. Left: small tiles. Right: huge slabs. Follows how present: 0.7 at its left end. |
+| `life` | how long a square takes to sink | 0.15..3 | 0.6 | fixed | How long a square takes to sink back after it cracks on at full strength. Left: it drops at once, in about a sixth of a second. Right: it sinks slowly, over about three seconds. It always lands at full strength; this only sets how slowly it comes down. Follows how present: 0.3 at its left end. |
+| `blur` | soft edges | 0..3 | 1 | fixed | How soft the edges are. Left: sharp, clean edges. Right: blurred, glowing ones. A square is always sharp at the instant it lands and softens over a moment. |
+| `split` | which notes count as low | 36..72 | 50 | fixed | Only notes below this point make squares; notes you picked by hand always do. Left: only the deepest bass. Right: up to the middle of the piano. Follows how present: 44 at its left end. |
+| `shake` | shake on loud notes | 0..2 | 1 | louder → more | How hard the picture shakes when a note is struck very loud. Left: still. Right: a jolt. |
+| `milk` | milky white | 0..1 | 0 | fixed | What colour the squares are. Left: dark red, as always. Right: milky white, like ivory. |
+| `presence` | how present | 0..1 | 1 | fixed | How many squares you see: how many notes count as low, how big each is, how long it stays. Left: only the deeper bass makes a square, small, and it soon fades. Right: every low note lands a big square that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `hammer`: Hammer
+
+Each note is struck like a piano string: a bar of light at the height of its pitch, wider the harder it is played, with a white-hot core for one instant. Then it drops at once to a thin warm line that rings out, longer in the bass (deep red) than in the treble (pale gold). A chord is a stack of bars; the same key again restrikes its own bar, which jumps and rings. You can count the notes.
+
+Feel: stabbing, glowing, vivid · Suits: piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `touch` | articulation | 0..3 | 2 | fixed | How a note is played: staccato, marcato, piano, bell. Left: here and gone. Right: a bright strike that drops at once to a long, quiet ring. |
+| `ring` | how long it rings | 0.25..3 | 1 | fixed | How long the line a note leaves keeps glowing. Left: it is gone in a quarter of the time. Right: it rings three times as long. Follows how present: 0.5 at its left end. |
+| `roll` | a rolled chord is one strike | 0..1 | 0 | fixed | A chord spread from the bottom up. Left: every note of the roll flashes. Right: the notes tick in order, small and quiet, and only the top one strikes. |
+| `size` | size | 0.5..2 | 1 | fixed | How big the bars are. Left: short, thin lines. Right: long, thick bars of light. Follows how present: 0.7 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves behind: how big its bar is and how long its line rings. Left: small bars, soon gone. Right: big bars that ring out. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `prickle`: Prickle
+
+One huge flat thorn per note, from the left or the right edge, its sides curving in to a hairline tip. Struck red with a bone tip, it holds still in dim red and withdraws straight back as the next note comes from the other side. A chord stabs one spot from both sides; a fast run is a volley of needles.
+
+Feel: stabbing, brittle, dark · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `waist` | how thin the waist | 0..1 | 0.85 | fixed | How the sides of a thorn curve in. Left: a straight-sided wedge. Right: a slim waist and a long hairline tip. |
+| `broad` | how broad the base | 0.3..1.5 | 1 | fixed | How wide a thorn is where it leaves the edge. Left: all needles. Right: slabs that fill a quarter of the frame. Follows how present: 0.6 at its left end. |
+| `hook` | how bent the tip | 0..1 | 0.5 | fixed | How much the last stretch of a thorn bends down. Left: dead straight. Right: a claw. |
+| `goneBy` | gone by | 0.3..2.5 | 1.2 | fixed | How long a thorn may stay when no next note comes. Left: a thorn never lasts a third of a second. Right: a lone note may stay two and a half seconds. Follows how present: 0.3 at its left end. |
+| `touch` | articulation | 0..3 | 2 | fixed | How a note is played: staccato, marcato, piano, bell. Left: here and gone, with no dim body. Right: a bright strike that glows longer before the dim red holds. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how broad its thorn is and how long it may stay. Left: thin thorns, soon gone. Right: broad thorns that may stay. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `interlock`: Interlock
+
+Each note fires a pair of straight needles, one from above and one from below, that pass each other along the middle line. A scale zips the seam shut; the same note again drives its needle deeper. They stand still and darken away.
+
+Feel: stabbing, brittle, dark · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `bite` | how far they cross | 0..2 | 1 | fixed | How far a needle's tip crosses the middle line. Left: the tips just meet. Right: they go deep past each other. |
+| `width` | how wide a needle | 0.3..2 | 1 | fixed | How wide a needle is at its root. Left: hairline splinters. Right: heavy wedges. Follows how present: 0.6 at its left end. |
+| `stays` | how long the mesh stays | 0.3..4 | 1.4 | fixed | How long a needle stays after its note, standing still while it darkens. Left: gone in a third of a second. Right: the mesh holds for seconds. Follows how present: 0.3 at its left end. |
+| `ratchet` | how much a repeat drives in | 0..40 | 24 | fixed | How much deeper the same note played again drives its needle. Left: a repeat only flashes. Right: each one goes visibly deeper. |
+| `presence` | how present | 0..1 | 1 | fixed | How much you see: how long the needles stay and how wide they are. Left: thin needles that are soon gone. Right: wide needles and a mesh that holds. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `pluck`: Plucked corner
+
+Each note pulls its own straight thread aside: two straight lines and one hard corner, struck bone-white. The corner splits and runs, so the thread flaps through a triangle, a flat top and back, and the fading screen stacks its positions into a fan of straight hairlines. Then a thin red line stays a moment and goes. Bass threads are long, treble ones short; a repeated note pulls the same thread at a new point. Nothing in it is ever curved.
+
+Feel: brittle, skittish, airy · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `pull` | how far it is pulled | 0.3..2 | 1 | fixed | How far a note pulls its thread aside. Left: a small kink. Right: a wide corner far out of line. Follows how present: 0.6 at its left end. |
+| `corner` | how hard the corner is | 0..1 | 1 | fixed | How the thread is pulled. Left: by a soft finger, a short flat top between two corners. Right: one corner as hard as a ruled line. |
+| `shiver` | how long it shivers | 0.04..0.16 | 0.09 | fixed | How long the thread flaps after the pull. Left: one flap, then straight. Right: a few flaps, never long enough to look like a new note. |
+| `ring` | how long it rings | 0.25..3 | 1 | fixed | How long the thin red line stays once the thread is straight. Left: gone in a quarter of the time. Right: three times as long. Follows how present: 0.25 at its left end. |
+| `touch` | articulation | 0..3 | 2 | fixed | How a note is played: staccato, marcato, piano, bell. Left: here and gone. Right: a bright strike that drops at once to a long, quiet ring. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how far it pulls and how long its line stays. Left: small kinks, soon gone. Right: wide pulls that ring out. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `film`: Film
+
+One ink-blue sail whose corners are the last notes. Each note pulls the oldest corner to its own place in one step, whipping past and back with a bone tip; every edge is scooped taut, so a wide leap is a deep curve, and the corners close to needles.
+
+Feel: cool, silky, still · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `corners` | how many notes hold it | 3..7 | 3 | fixed | How many of the last notes are corners of the sail. Left: three corners, each note a big change. Right: a seven-pointed star, each note a small one. |
+| `slack` | how deep the edges curve in | 0..1 | 0.6 | fixed | How deeply the edges curve inward. Left: straight edges, a hard polygon. Right: deep scoops, the corners drawn out to long needles. |
+| `kick` | how far a corner overshoots | 0..0.4 | 0.14 | fixed | How far a new corner whips past its place before it settles. Left: it lands dead. Right: it whips past and rings back. |
+| `stay` | how long it stays | 0.3..4 | 2 | fixed | How long the sail stays when no note comes. Left: gone soon after the line stops. Right: it hangs for seconds. Follows how present: 0.6 at its left end. |
+| `tips` | how bright the tips | 0..1 | 1 | fixed | How big the bone-bright cap on each new corner is. Left: the tips barely show. Right: a bright needle point at every note. Follows how present: 0.3 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How long the sail lingers once the music stops. Left: it is gone soon after the last note. Right: it hangs for up to two seconds. Moving it sets that knob; set it by hand afterwards and it holds until you move this again. |
+
+### Kept
+
+#### `johansson`: Johansson
+
+A field of still white dots, like stars. When the music moves, thirteen of them turn out to be a person, walking, stepping exactly on the notes.
+
+Feel: precise, playful, grainy, still · Suits: piano, strings · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `presence` | how present | 0..1 | 0.5 | fixed | Left: just the person on black. Right: a thick field of stars it is hidden in. |
+| `stride` | how big its steps | 0.5..1.4 | 1 | fixed | Left: small careful steps. Right: long strides, a big bounce. |
+| `height` | how near | 0.6..1.3 | 1 | fixed | Left: a small person far off. Right: it nearly fills the screen. |
+| `arms` | how the melody lifts it | 0..1.2 | 0.8 | fixed | Left: arms only swing. Right: its arm reaches up with every climbing melody. |
+| `maxStep` | how soon it stops | 0.7..1.6 | 1.15 | fixed | Left: it stops at any gap in the notes. Right: it walks on through most of them. |
+
+#### `tree`: Tree
+
+One tree against a glowing sky, seen from below. Every attack grows it a step, right on the note, and new leaves land big and lit while the light breaks through the crown where the note fell: low notes in the lower boughs, high notes in the crown, loud ones a whole spray. After the climax the leaves turn and fall limb by limb, and the sky goes to dusk behind the black branches.
+
+Feel: withering, glowing, vivid, swelling, precise, warm · Suits: piano, strings, tutti · Role: standalone
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `colours` | which season | 0..6 | 0 | fixed | The colours and the sky, seven steps. Left: crimson and gold, an autumn maple with a second, golden tree. Then cherry blossom on a clear morning; high summer, green with the sun behind it; ginkgo gold on a lavender sky; violet dusk, purple leaves on a dark sky; ember night, glowing leaves on black. Right: first frost, white on a blue dawn. |
+| `leaves` | how many leaves | 0.15..1.6 | 1 | fixed | How thick the canopy gets. Left: a few scattered leaves and a lot of sky. Right: masses of colour with only small gaps. Follows how present: 0.22 at its left end. |
+| `twigs` | how much wood | 0.2..1.5 | 1 | fixed | How finely the branches divide. Left: a few bare limbs, drawn large. Right: a fine lace of twigs. Follows how present: 0.35 at its left end. |
+| `wither` | how much it withers | 0..2 | 1 | fixed | How much of the piece is the dying part. Left: it never goes bare, leaves only come and go. Middle: the leaves turn and fall after the climax. Right: it goes bare early, and in a long piece year after year. Follows how present: 1.5 at its left end. |
+| `size` | how big the leaves are | 0.5..2.2 | 1 | fixed | How big each leaf is. Left: a fine dust of tiny leaves. Right: big leaves you can tell apart. |
+| `presence` | how present | 0..1 | 1 | fixed | How much tree it grows: how many leaves, how much wood, how long the leaves stay. Left: a thin tree with a few leaves that soon drop. Right: the whole canopy. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `fold`: Fold
+
+A mirror for the whole picture, made to sit on other widgets: it folds whatever is already on the screen, so kusama becomes a twin colony, marbling a Rorschach marble, strings a woven butterfly, ikeda a mirrored data wall. The fold line turns with the bass round the circle of fifths, chords flip which half is mirrored, loud chords fold it twice for a beat, and quiet passages fade the mirror. Alone it is a stitched seam of light that flashes on every chord.
+
+Feel: whirling, glowing, stabbing, swelling · Suits: contrabass, cello, piano · Role: top
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `folds` | how many folds | 1..6 | 1 | fixed | How many mirror lines cross the centre. Left: one mirror. Right: up to six, a kaleidoscope. |
+| `turn` | what turns the fold | 0..1 | 1 | fixed | How far the mirror line turns with the harmony (the bass note, round the circle of fifths). Left: it stays upright. Right: it turns with every change of harmony. |
+| `strength` | how strong the mirror image is | 0..1 | 1 | fixed | How strongly the mirrored half covers the other side (quiet passages fade it a little more). Left: a faint ghost. Right: as strong as the original. |
+| `flip` | chords flip the side | 0..1 | 0.5 | fixed | How often a full chord swaps which half is the original and which the mirror. Left: never. Right: every chord swaps the source half. |
+| `seam` | seam | 0..1 | 0.6 | fixed | The line of light along the fold. Left: no line, only the mirror. Right: a bright stitched seam that flashes on every chord. |
+
+#### `stella`: Stella
+
+A rhythm layer made to sit on other widgets: it paints no ground, only thin frames, after Frank Stella’s stripe paintings. Every attack adds one frame a step further in from the edge and older ones fade, so fast playing piles up concentric stripes and slow playing leaves one or two lone frames; loud attacks give square frames, soft ones rounded. The centre stays open, and it inverts whatever is under it (dark on paper, light on black, cyan over red). Try it on score with squares, horizon with murmuration, current with squares, or Miró with Rorschach.
+
+Feel: marching, brittle, icy, stabbing · Suits: harpsichord, timpani, piano · Role: accent · Note type: repeats
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `life` | how long they stay | 0.15..5 | 1.4 | fixed | How long a frame stays before it fades. Left: one blink. Right: lingering stripes that pile up. Follows how present: 0.5 at its left end. |
+| `thick` | how thick | 1..14 | 3.5 | louder → more | How wide each stripe is (loud attacks a little wider). Left: hairlines. Right: heavy bands. |
+| `reach` | how far in | 0..1 | 0.45 | fixed | How deep the stripes pile up before starting again at the edge. Left: they hug the edge. Right: they reach halfway to the centre. Follows how present: 0.08 at its left end. |
+| `which` | which notes count | 0..1 | 0.5 | fixed | Which attacks add a frame. Left: only the bass, so it marks the left hand’s pulse. Middle: every attack. Right: only the top line, the melody. |
+| `beat` | on the beat | 0..1 | 0 | fixed | When frames come. Left: on every attack. Right: snapped to the beat it hears, so only the metre shows. |
+| `presence` | how present | 0..1 | 1 | fixed | How many frames you see: how long each stays and how deep the stripes pile up before restarting at the edge. Left: a lone frame at the edge that soon fades. Right: lingering concentric stripes reaching in. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `fischinger`: Fischinger
+
+After Oskar Fischinger's Optical Poem: on a deep blue ground, coloured discs, rings and bars swoop in on every note and stand in a figure by pitch (a row, an arch, a ring, a V, a spiral...) that each chord chooses. New in v2: every note lands with a pop and a ring, loud ones fast and bright, soft ones slow and pale; held notes stay lit, a few notes make big shapes and a crowd many small ones, and the figure rises with high music and sinks with low. A <b>how present</b> knob thins the crowd: shapes that sink back almost at once, and no echoes.
+
+Feel: playful, marching, vivid, glowing · Suits: tutti, plucked · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `scatter` | neat lines or scattered | 0..1 | 0.3 | faster → more | What fast runs do to the figure. Left: it keeps its neat lines. Right: every run makes it bloom outward and turn before it springs back. |
+| `depth` | how far away they fly in from | 0..1 | 0.6 | louder → more | Where a new shape comes from. Left: it simply pops up in its place. Right: it swoops in from deep in the blue, loud notes fastest. |
+| `echoes` | echoes behind each shape | 0..4 | 2 | fixed | Copies that follow each shape a step behind and a little deeper, like dancers in canon. Left: none. Right: four. Follows how present: 0 at its left end. |
+| `snap` | glide or snap | 0..1 | 0.55 | fixed | How the shapes move into a new formation. Left: slow, smooth glides. Right: a quick snap with a little bounce, exactly on the beat. |
+| `life` | how long they dance | 1..10 | 4 | fixed | How long a shape stays in the company before it sinks back into the blue. Left: a second. Right: ten seconds, a big crowd. Follows how present: 1.5 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How crowded the blue is: how long a shape stays in the company, and how many echoes follow each. Left: a few shapes that sink back almost at once. Right: a big crowd with dancers in canon. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `lenlye`: Len Lye
+
+After Len Lye's scratched films: white scratches on black film that boil and jump frame by frame, one mark per note across the film by pitch (bass: tall wriggling pillars; middle: zigzags, coils and rings; treble: little sparks), and loud chords burst into a jagged star with a flash. New in v2: a mark now boils for as long as its note is held, and every note lands as an overexposed, glowing strike before it settles; soft notes are faint broken hairlines, loud ones thick doubled scratches, and high notes sit higher up the film. Added since: a <b>how present</b> knob for how much is on the film: turned down, marks go with their notes, on nearly clean film with small or no bursts.
+
+Feel: flickering, skittish, brittle, playful · Suits: timpani, plucked · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `wriggle` | how much the lines wriggle | 0..2 | 1.2 | faster → more | How wildly each scratch shakes and jumps from frame to frame. Left: almost steady lines. Right: frantic, boiling scrawl. |
+| `fps` | how jerky the film runs | 6..24 | 12 | fixed | How many new film frames are scratched each second (a note always cuts to a new one). Left: slow, jerky stop-motion. Right: fast flicker. |
+| `life` | how long a mark stays after its note | 0..2 | 0.4 | fixed | How long a scratch keeps boiling once its note has stopped (it always lasts while the note is held). Left: gone with the note. Right: lingers for seconds. Follows how present: 0 at its left end. |
+| `burst` | bursts on loud chords | 0..2 | 1 | louder → more | How big the jagged burst and the flash are when a loud chord is struck. Left: none. Right: a big spiky star. Follows how present: 0 at its left end. |
+| `dirt` | scratched, dusty film | 0..2 | 1.2 | fixed | How much film dirt runs across the picture: long vertical scratches and dust specks. Left: clean film. Right: battered old print. Follows how present: 0.15 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much scratching is on the film: how long a mark lingers after its note, how big the bursts on loud chords are, how much dirt runs across. Every note still scratches its mark while it sounds. Left: marks gone with their notes, small or no bursts, nearly clean film. Right: lingering scrawl, bursts and a battered print. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `lewitt`: LeWitt
+
+After Sol LeWitt's wall drawings. Every note is a point on the wall (left to right by pitch, one row per note name), and every attack carries out a rule in fine coloured-pencil lines: lines from the corners, lines through the notes in four directions, arcs, squares of parallel lines, lines from the sides, a chain from note to note, lines from the centre. The lines pile up into a dense, systematic drawing; each new section of the music starts a fresh wall with the next rule, written on the wall in pencil.
+
+Feel: pale, airy, marching, serene · Suits: harpsichord, piano · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `rule` | the rule | 0..7 | 0 | fixed | Which rule the lines follow. Left: the rule changes with each section of the music. Right: always one rule, from lines from the corners through four directions, arcs, squares, sides and a chain to lines from the centre. |
+| `lines` | lines per note | 1..4 | 3 | faster → less | How many lines each note draws. Left: one line per note, a sparse drawing. Right: four (from every corner, in every direction), a dense web. Follows how present: 1 at its left end. |
+| `pencil` | pencil or crayon | 0..1 | 0.15 | louder → more | How heavy the lines are. Left: a hard, hair-thin pencil. Right: a soft, thick crayon. |
+| `colours` | how many colours | 0..1 | 1 | fixed | Which pencils are used. Left: graphite only, grey on white. Right: all four of LeWitt's colours: graphite, red, blue and yellow. |
+| `full` | how full a wall gets | 100..3000 | 700 | fixed | How many lines a wall takes before it is painted over and a fresh wall begins with the next rule (a new section of the music always starts one). Left: a clean wall every few chords. Right: the lines pile up into a dense web. Follows how present: 150 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much gets drawn: how many lines each note makes and how many a wall takes before a fresh one begins. Left: one line per note, and the wall is repainted early. Right: three lines per note piling up into a dense web. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `ikeda`: Ikeda
+
+After Ryoji Ikeda: black and white data. Every note is a barcode at its key (the same note always gives the same code, louder is wider) that strobes across the screen on the attack, settles on the row of its note name (every C on one row, every G on another) and erodes bar by bar; rows of glyphs stream the notes, a one-pixel score scrolls past a playhead, and loud attacks slam hairlines across the screen.
+
+Feel: precise, binary, cryptic, flickering, icy · Suits: harpsichord, piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `busy` | how much data | 0..1 | 0.3 | faster → more | How full the screen is with streaming glyphs and data columns. Left: a few clean bars and lines. Right: dense data everywhere. |
+| `life` | how long a barcode stays | 0.1..3 | 1.2 | fixed | How long a note's barcode takes to erode after the note ends. Left: gone in a blink. Right: it crumbles slowly, bar by bar. |
+| `slam` | lines on loud notes | 0..1 | 0.35 | louder → more | How many single-pixel lines slam across the screen when a note is struck loud. Left: none. Right: a burst of lines. |
+| `flash` | white flashes | 0..1 | 0.5 | fixed | How often the very loudest attacks turn the whole screen white for an instant. Left: never. Right: on every big accent. |
+| `speed` | scroll speed | 0.3..2.5 | 1 | fixed | How fast the score and the glyph rows scroll. Left: a slow drift. Right: racing past. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint and slow, and only the hardest notes of the piece print a barcode. Right: everything at full strength (as before). |
+
+#### `horizon`: Horizon
+
+After Sugimoto’s seascapes: one soft horizon between a still grey sky and a long-exposure sea. The harmony tints both very faintly, loudness raises the contrast and lights the line, each note sends a faint shimmer along the horizon (a strong one also breathes light into the haze), and the bass lowers it a little. For quiet music; it is meant to look almost still.
+
+Feel: still, serene, cool, longing · Suits: strings, clarinet · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `level` | where the horizon sits | 0.4..0.6 | 0.46 | more bass → more | How high the horizon is. Left: high, mostly sea. Right: low, mostly sky. At first it follows the bass: deep notes pull it down a little. |
+| `contrast` | how stark | 0..1 | 0.28 | louder → more | How far apart sky and sea are. Left: fog, two nearly equal greys. Right: a bright sky over a black sea. At first louder playing makes it starker. |
+| `soft` | soft horizon | 0..1 | 0.3 | fixed | How soft the line between sky and sea is. Left: a knife edge. Right: they melt into each other through haze. |
+| `shimmer` | shimmer on each note | 0..2 | 1 | fixed | How strongly each note glints along the horizon. Left: no glints, only the light of the line. Right: bright glints that run far along it. |
+| `colour` | colour from the harmony | 0..1 | 0.5 | fixed | How much the chords tint the grey. Left: pure greys. Right: each chord tints the sky and the sea (still gently). |
+| `presence` | how present | 0..1 | 1 | fixed | How much of the picture there is. Left: a dark, almost still sea where only the hardest notes of the piece glint, faintly. Right: the full sky and sea, every note glinting (as before). |
+
+#### `nebula`: Nebula
+
+Every note is a pull, placed round a circle by its note name, and fine glowing grains stream between the notes. New: each attack now flares where its note sits and breathes out a puff of bright, almost white grains (loud notes big, soft ones faint, deep notes slow and wide, high ones quick and fine), and a chord forms separate knots joined by threads.
+
+Feel: glowing, grainy, whirling, burning · Suits: strings, voice · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `pull` | how hard notes pull | 0.2..2 | 0.8 | fuller chords → more | How strongly the notes gather the grains. Left: a loose haze that barely bends. Right: tight, bright knots and threads. Follows how present: 0.4 at its left end. |
+| `swirl` | fall in or circle round | 0..1.6 | 0.5 | fixed | How the grains move around a note. Left: they fall straight in and stream from note to note. Right: they whirl round it in rings. |
+| `amount` | how much dust | 1000..7000 | 4000 | fixed | How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud. Follows how present: 1000 at its left end. |
+| `threads` | grains or threads | 0.5..6 | 1.4 | fixed | How long each grain draws its path. Left: fine points of dust. Right: long silky threads. |
+| `burst` | how each note ignites | 0..2 | 0.9 | louder → more | What happens where a note strikes. Left: it only glows and starts to pull. Right: it flares and breathes out a big puff of bright new grains. Follows how present: 0 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much dust there is: how many grains drift, how hard the notes gather them, and how big a puff each note breathes out. Left: a thin scatter of grains, loose around the notes, with small puffs that only loud notes still raise. Right: a thick cloud with big puffs of new grains. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `pixelsort`: Pixel sort (already combines with other widgets in a very cool way)
+
+Now a real pixel sort: each chord sorts the shapes under it by brightness, in place, so whatever the other widgets drew melts in the chord’s direction (bass down, treble up, the melody sideways). Soft chords shimmer a few thin lines, loud ones melt a wide sheet, the loudest tear a band right across the screen, and held chords hold their melt.
+
+Feel: stabbing, brittle, burning · Suits: trombone, strings · Role: top · Note type: chords
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `len` | how far it smears | 0.2..1.6 | 0.75 | louder → more | How far each chord pulls the picture out. Left: short nicks at the attack. Right: long streaks across the screen. Follows how present: 0.2 at its left end. |
+| `life` | how long it stays | 0.2..3 | 1.3 | faster → less | How long a smear hangs before it shrinks back into the attack. Left: a flicker. Right: lingers for seconds. Follows how present: 0.2 at its left end. |
+| `band` | how wide each smear | 0.3..2.5 | 1 | fixed | How many lines of pixels each chord grabs (big and loud chords grab more). Left: a thin thread. Right: a wide sheet. Follows how present: 0.3 at its left end. |
+| `pick` | what gets smeared | 0..0.7 | 0.12 | fixed | Which parts of the picture get sorted. Left: everything, dark parts too, into solid bars that cut through. Right: only the brightest bits, as thin glowing threads. Follows how present: 0.6 at its left end. |
+| `own` | its own colour | 0..1 | 0.6 | fixed | How much colour it adds at each chord. Left: none, it only sorts what other widgets drew. Right: bright streaks of its own. Follows how present: 0.2 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it smears: how far each chord pulls the picture out, how wide a sheet it grabs, how long it hangs, how much of the picture gets sorted, how much of its own paint it adds. Left: short thin flicks of the brightest bits only. Right: long wide sheets of nearly everything. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `brush`: Calligraphy
+
+The melody written as ink brush strokes: one stroke per phrase, climbing and diving with the top notes, swelling on each attack, drying into streaks and flicking off at the phrase end. Low notes under the melody leave ink dabs; strong chords add a red slash, and after a pause a red ensō circle. The <b>how present</b> knob sets how much ink it lays down.
+
+Feel: longing, swelling, silky, stabbing · Suits: cello, voice, flute · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | brush size | 0.3..3 | 1.2 | louder → more | How thick the ink strokes are. Left: a fine pen line. Right: a fat, loaded brush. Follows how present: 0.5 at its left end. |
+| `dryness` | dry brush | 0..1 | 0.3 | faster → more | How much ink the brush holds. Left: wet, solid ink. Right: a dry brush that breaks into streaks. |
+| `leap` | how far it follows the notes | 2..24 | 5 | fixed | How far the stroke climbs and dives with the melody. Left: an almost level line. Right: a big leap for every note. |
+| `gestures` | slashes on big chords | 0..1 | 0.5 | fixed | How often a strong chord adds a red slash (or, after a pause, a red ensō circle). Left: never, only the melody. Right: on most strong chords. Follows how present: 0.05 at its left end. |
+| `stay` | how long the ink stays | 1..30 | 8 | fixed | How long a stroke stays before it dries away. Left: gone in a second. Right: stays half a minute, the page fills up. Follows how present: 1.5 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much ink it lays down: how long strokes stay, how often big chords add a red slash, how broad the brush is. Left: a few fine strokes that dry away quickly. Right: the full page of ink. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `blocks`: Glitch blocks
+
+Every attack tears blocks of the picture out of place, and they snap back in choppy steps. A quiet note nudges one thin slice; a big chord tears a whole mosaic and flashes an inverted band. Thin note bars (low = red, high = bone) give it a picture of its own; mix it with squares, ink or the casket and it tears those too.
+
+Feel: stabbing, brittle, flickering, panic · Suits: piano, harpsichord · Role: top
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | block size | 8..240 | 64 | faster → less | How big the torn pieces are. Left: thin slivers and fine grit. Right: big chunks of the picture. |
+| `form` | columns or rows | -1..1 | 0.6 | fixed | The shape of the torn pieces. Left: tall columns that slip up and down. Right: wide rows that slide sideways. |
+| `jump` | how far they jump | 0..2 | 0.9 | louder → more | How far a torn piece is thrown out of place. Left: a small shiver. Right: flung far across the picture. Follows how present: 0.35 at its left end. |
+| `amount` | how many tears | 0..3 | 1.2 | fixed | How many pieces each attack tears. Left: hardly any, only the biggest chords. Right: a storm of fragments on every chord. Follows how present: 0.2 at its left end. |
+| `settle` | how long until it heals | 0.15..5 | 1.6 | fixed | How long a torn piece takes to snap back into place. Left: a split-second stutter. Right: the broken picture hangs for seconds. Follows how present: 0.4 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much tearing it does: how many pieces each attack tears, how far they are thrown, how long the broken picture hangs before it heals. Left: a rare small shiver that heals at once. Right: a storm of far-flung fragments that linger. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
 #### `scribble`: Scribble
 
 Nervous pens scrawl continuous loops, one pen per register: notes jolt and press them, loops coil tight in dense, dissonant passages and open into long arcs when it is soft. Chords make a pen scratch back over its own line (often in red), the biggest chords strike a long stroke, and old lines fade like graphite.
@@ -1303,5 +1158,398 @@ Feel: grainy, vivid, liquid, playful · Suits: plucked, flute · Role: base
 | `bleed` | dots melt into colour | 0..1 | 0.55 | fixed | How much old dots melt into soft fields of colour. Left: crisp dots on black. Right: dots dissolve into a blurred colour wash. |
 | `layout` | where the colours go | 0..2 | 0 | fixed | How the notes are laid out. Left: a field (across: how far from the home key; up: high or low). Middle: a keyboard, low to high. Right: a wheel around the home key. In between blends the two. |
 | `presence` | how present | 0..1 | 1 | fixed | How much paint it throws: how many dots each note dabs and how long the painting stays. Left: a few sparse dabs that vanish soon. Right: dense spray and a long memory. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `fireworks-snap`: Fireworks, every note
+
+Fireworks that count the notes: on picked notes none is dropped (a close one goes off at half strength), each burst opens with a bright heart for an instant, and the sparks start fierce and die in about half the time. Every attack goes off, and the blast stirs the air: a real fluid, so the smoke curls outward in petals and the next burst tears through what the last one left. Sparks fly and fall through it, dragging their wakes. Left to right by pitch, higher and bigger the harder it is played. You set the colour.
+
+Feel: glowing, vivid, triumphant, whirling · Suits: tutti, timpani, trumpet, piano · Role: top
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `hue` | which colour | 0..1 | 0.08 | fixed | The colour of the bursts, all round the wheel: red, gold, green, blue, violet, and back to red. |
+| `range` | how far the colours wander | 0..1 | 0.2 | fixed | How far from that colour a burst may go, by its pitch, so a note keeps its colour. Left: all one colour. Right: the whole rainbow. |
+| `size` | how big the bursts are | 0.4..2.4 | 1 | fixed | How big a burst is. Left: small, many fit. Right: one fills the sky. Follows how present: 0.55 at its left end. |
+| `swirl` | how much it stirs the air | 0..1 | 0.55 | fixed | How hard a blast stirs the fluid. Left: the smoke barely moves. Right: every burst tears the smoke into curling eddies. |
+| `linger` | how long the smoke hangs | 0..1 | 0.45 | fixed | How long the coloured smoke stays. Left: gone in a moment. Right: it hangs for seconds and builds up. Follows how present: 0.08 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much firework it throws: how big each burst is and how long its smoke hangs. Left: small bursts with few sparks, and the smoke gone in a moment. Right: big bursts and smoke that builds up. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `handover`: Handover
+
+One slab per note, struck bone-hot and cooling to milky white (or dark red), shrinking away so that it is exactly gone when the next note lands. No note ever shares the stage with the next.
+
+Feel: heavy, dark, stabbing · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `goneBy` | gone by | 0.3..2.5 | 1.2 | fixed | How long a lone note may last when nothing follows it. Left: a mark never lasts a third of a second. Right: a lone note may glow up to two and a half seconds. Follows how present: 0.6 at its left end. |
+| `size` | size | 0.4..2 | 1 | fixed | How big a fresh slab is. Left: small tiles. Right: huge slabs. Follows how present: 0.75 at its left end. |
+| `ring` | how long it rings | 0.25..3 | 1 | fixed | How slowly a slab gives up its size before the next note. Left: it is small again in a quarter of the time. Right: it keeps most of its size until the last moment. Follows how present: 0.6 at its left end. |
+| `milk` | milky white | 0..1 | 1 | fixed | What colour the slabs cool to. Left: dark red. Right: milky white, like ivory. |
+| `presence` | how present | 0..1 | 1 | fixed | How much you see: how big each slab is, how long it may last. Left: small, quick slabs. Right: big slabs that may last. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `crimp`: Crimp
+
+Each note lays a ribbon of razor-thin lines at its pitch's height, dead straight at the attack; within half a second the lines go slack into a fine wave, out of step, and the ribbon turns into a brick-red woolly strip. Louder notes reach further. The same key again yanks its strip straight in place.
+
+Feel: brittle, silky, skittish · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `slack` | how fuzzy it goes | 1..6.5 | 5 | fixed | How wavy the lines go once struck. Left: they stay almost straight. Right: they go to wool. |
+| `reach` | how long a strip is | 0.3..1.4 | 1 | fixed | How far a note's lines reach; louder notes reach further. Left: short dashes. Right: right across the screen. Follows how present: 0.3 at its left end. |
+| `fibres` | lines in a strip | 3..21 | 15 | fixed | How many lines a note lays down. Left: a few clean lines. Right: a dense pelt. Follows how present: 3 at its left end. |
+| `stays` | how long it stays | 0.4..3 | 1.2 | fixed | How long the wool lies there after a note. Left: gone at once. Right: wool lies around for seconds. Follows how present: 0.4 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how long its strip is, how many lines, how long the wool stays. Left: a few short lines, soon gone. Right: long, dense strips that linger. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+### Needs work (the user rated them; use sparingly)
+
+#### `perlin`: Perlin
+
+A wet, lumpy surface of Perlin noise, lit from above. Its knobs are the noise’s own: lump size, roughness, twist, churn. Bass notes swell the big lumps, high notes ripple the fine grain, and each note raises a bulge where it lands.
+
+Feel: viscous, swelling, dark, liquid · Suits: cello, contrabass, tutti, piano · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | how big the lumps are | 0.4..2.5 | 1 | more bass → more | The noise’s base frequency. Left: many small lumps. Right: a few huge ones. |
+| `rough` | how rough | 0.2..0.65 | 0.35 | higher notes → more | The persistence: how much each finer layer of the noise adds. Left: smooth rounded lumps. Right: crinkled, grainy skin. |
+| `twist` | how much it twists | 0..1.5 | 0.5 | louder → more | Domain warping: the noise bends the ground of more noise. Left: plain blobs. Right: swirled, folded, stretched like taffy. |
+| `churn` | how fast it churns | 0..1.5 | 0.25 | faster → more | How fast the noise moves through time. Left: still. Right: boiling. |
+| `colour` | colour | 0..4 | 0 | fixed | The colour of the surface. Left to right: indigo, jade, amber, pearl, oxblood. |
+| `presence` | how present | 0..1 | 1 | fixed | The sea level: how much of the surface shows. Left: black, and only the bulges the notes raise break through. Right: lumps cover the whole picture. |
+
+#### `clumsy`: Clumsy
+
+A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.
+
+Feel: clumsy, playful, vivid, marching · Suits: bassoon, plucked, piano · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `crowd` | how many | 3..30 | 16 | fixed | How many shapes are trying to keep up. Left: three or four. Right: a jostling mob. Follows how present: 4 at its left end. |
+| `disorder` | how hard an attack knocks them | 0.2..2 | 1 | fixed | What an attack does to them. Left: a stumble. Right: everything flies. Follows how present: 0.5 at its left end. |
+| `rush` | how fast they scramble back | 0.3..2 | 1 | fixed | How they hurry back into line. Left: they plod. Right: frantic little hops. |
+| `hop` | how high they hop | 0.25..2.2 | 1 | fixed | How high each hop goes. Left: shuffling along the floor. Right: huge bounces. Follows how present: 0.5 at its left end. |
+| `size` | how big they are | 0.5..2 | 1.25 | fixed | How big the shapes are. Left: small bits. Right: great lumps. |
+| `presence` | how present | 0..1 | 1 | fixed | How big the crowd is and how wild: how many shapes are trying to keep up, how high they hop, how hard an attack knocks them. Left: four shapes shuffling and stumbling a little. Right: the whole jostling mob. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `comfort`: Comfort
+
+Big flat fields of soft colour, each held on one side and dissolving into the others on the other, breathing slowly together and wandering over minutes. A note is a gentle press and a wide, faint blush: the field's own colour starts rising at once, its edge gives, and it takes its time to come back while the fields nearby lean in. Low notes press the big low fields, high notes the small high ones, and a melody blushes as clearly as a chord.
+
+Feel: comfortable, slow, warm, serene · Suits: cello, horn, voice · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `breath` | how slowly it breathes | 3.5..20 | 10 | fixed | How long one breath takes. Left: a quick, light rise and fall. Right: one long breath every 20 seconds. |
+| `press` | how far a note presses | 0.15..2 | 1 | fixed | How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give. |
+| `size` | how big the fields are | 0..1 | 0.5 | fixed | How many fields share the picture. Left: many small ones. Right: a few huge ones. |
+| `warmth` | how warm the colours are | 0..1 | 0.5 | fixed | The colour of it all. Left: cool dusk, grey-rose. Right: amber. |
+| `stay` | how long the warmth stays | 1.5..15 | 5 | fixed | How long a field keeps the warmth of a note. Left: fades quickly. Right: stays for many seconds. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: nearly dark, what lies under it shows, and only the hardest attacks press. Right: full colour, and every note presses. |
+
+#### `mclaren`: McLaren
+
+After Norman McLaren's Synchromy. New: the film runs. Every note is a card of bars that enters at the top and streams down (deep notes a few thick rungs, high notes a fine comb); a loud note punches a long, wide card deep into the panel and lights it up, a soft one leaves a small shallow print, and each new card cuts cleanly over the older ones, so sparse music shows single cards with space between them and busy music a layered weave.
+
+Feel: marching, vivid, flickering, playful · Suits: piano, harpsichord · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `panels` | how many panels | 1..9 | 3 | faster → more | How many strips the screen is split into. Left: one wide panel. Right: up to 9 narrow ones (busy music adds more). |
+| `spread` | how far a note echoes | 0..1 | 0.55 | fixed | How far each note's bars are repeated into the neighbouring panels. Left: only its own panel. Right: across every panel. Follows how present: 0 at its left end. |
+| `life` | how long the bars stay | 0.15..4 | 1.4 | fixed | How long a note's bars stay on the film after it ends. Left: they vanish near the top. Right: they trail all the way down. Follows how present: 0.5 at its left end. |
+| `field` | dark or coloured panels | 0..1 | 0.4 | louder → more | The panels behind the bars. Left: nearly black, only the bars are coloured. Right: flat, bright fields of colour. |
+| `scroll` | how fast the film runs | 0..1 | 0.35 | fixed | How fast the film streams down the panels. Left: a slow crawl, notes stack up short and close. Right: streaming, notes stretch out long. |
+| `presence` | how present | 0..1 | 1 | fixed | How much film it prints: how far each note echoes into the other panels and how long its bars stay. Left: each note only in its own panel, with bars that are gone soon after it ends, so panels stand empty between notes. Right: notes echo into their neighbours and leave long trails, a layered weave. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `klee`: Klee
+
+After Paul Klee's polyphony paintings: a mosaic of small warm tiles. Each voice of the music writes along its own row in its own glaze, the row climbing and falling with its pitch; where voices cross, the glazes mix. New in v2: quiet notes lay small squares and loud held ones solid blocks, quick passages a finer split mosaic, and every attack pops (a loud one throws a spray of lit tiles). The <b>how present</b> knob sets how much mosaic it paints: from a thin line of tiles that soon goes to broad bands that build up.
+
+Feel: warm, grainy, marching, glowing · Suits: strings, harpsichord, violin · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `stay` | how long the colour stays | 3..40 | 14 | fixed | How long the paint stays on the tiles. Left: a few seconds, only the last phrase. Right: the whole passage builds up. Follows how present: 3 at its left end. |
+| `size` | size of the tiles | 12..40 | 20 | fixed | How big the mosaic's squares are. Left: a fine mosaic of many small tiles. Right: a few big tiles. |
+| `thick` | how wide each voice paints | 0.6..4 | 1.7 | louder → more | How many tiles tall a note's row is. Left: a single thin line of tiles. Right: broad bands (louder notes are always a bit wider). Follows how present: 0.6 at its left end. |
+| `mix` | colours mixing | 0..1 | 0.75 | fixed | What happens where two voices cross. Left: the newest colour covers the older one. Right: they glaze over each other into a new colour. |
+| `veil` | veil of dots | 0..1 | 0.6 | louder → less | The fine light dots that drift over the picture. Left: bare tiles. Right: a bright veil. It follows the music: quiet passages shimmer, loud ones blaze bare. Follows how present: 0.15 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much mosaic it paints: how long the colour stays on the tiles, how many tiles tall each voice writes, how thick the veil of dots lies over them. Left: a thin line of tiles that is gone in a few seconds, nearly bare. Right: broad bands that build up over the whole passage under the veil. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `matisse`: Matisse
+
+Cut paper, after Matisse's late cut-outs: low notes lay big dark algae and slabs, middle notes coils and ribbons, high notes small bright stars, and chords rearrange the wall. New in v2: the music moves the paper. Every note slaps its piece down with a gust that pushes its neighbours aside, a sounding note lifts its piece off the wall on a deep shadow, soft notes cut pale paper and loud ones full colour, and a fortissimo shakes the whole wall.
+
+Feel: vivid, playful, warm · Suits: clarinet, trumpet · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | size of the pieces | 0.4..1.8 | 1 | fixed | How big the cut pieces are. Left: small scraps. Right: huge sheets that crowd the wall. Follows how present: 0.65 at its left end. |
+| `pieces` | how many pieces on the wall | 6..40 | 18 | faster → more | How many pieces the wall holds before new notes swap old ones out. Left: a sparse few. Right: a crowded collage. Follows how present: 7 at its left end. |
+| `move` | how much the notes stir the paper | 0..1 | 0.6 | louder → more | How much the music moves the paper. Left: pieces are laid flat and stay put. Right: every note gusts the paper around it, sounding notes lift their pieces, and chords rearrange the wall. |
+| `curl` | straight or curly cuts | 0..1 | 0.65 | fixed | What the scissors cut. Left: straight-cut squares and patches, like The Snail. Right: curling algae, coils and stars, like Oceania and Jazz. |
+| `ground` | white wall or coloured grounds | 0..1 | 0.6 | fixed | What the paper is pinned on. Left: always a plain white wall. Right: loud deep chords slide in bold coloured grounds with big panels. |
+| `presence` | how present | 0..1 | 1 | fixed | How much paper is on the wall: how many pieces it holds and how big they are cut. Left: a few small scraps. Right: a crowded collage of big sheets. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `kusama`: Kusama
+
+After Yayoi Kusama. One flat colour with dots in its partner colour. Every note starts a colony of dots at its pitch (low left, high right): a big dot on the attack, smaller ones spreading out while the note is held. Full chords lay patches of an infinity net that tightens as the music speeds up. The harmony picks the colours (red/white, yellow/black, blue/white; minor and major swap ground and dots), flooding in from the new chord as one huge dot. <b>How present</b> tones it right down: a faint, calm field where only the hardest notes answer.
+
+Feel: vivid, grainy, playful, marching · Suits: piano, plucked · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | how big the colonies are | 0.4..1.8 | 1 | louder → more | How big each note’s colony of dots grows. Left: small clusters. Right: huge dots and wide colonies. |
+| `stay` | how long the dots stay | 1.5..18 | 6 | fixed | How long a colony stays before it shrinks away. Left: a couple of seconds. Right: they pile up for a long time. |
+| `tight` | how tight the net is | 0..1 | 0.45 | faster → more | The size of the net’s little loops. Left: big, loose loops. Right: a tight mesh of tiny ones. |
+| `wild` | dot sizes: even or wild | 0..1 | 0.5 | fixed | How much the dots in a colony differ in size. Left: neat, even rings of dots. Right: big and tiny dots mixed. |
+| `flip` | how often the colours change | 0..1 | 0.5 | fixed | How readily a change of harmony floods the screen with a new colour pair. Left: only now and then. Right: at every change of chord. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: a faint, nearly still field where only the hardest notes (in a quiet stretch, one now and then) start a colony or change the colours. Right: every note at full colour (as before). |
+
+#### `harmonograph`: Harmonograph
+
+Now one unbroken line that melts from figure to figure as the harmony changes, and every note pushes it: a loud note flings the pen back out and leaves a thick bright knot in the line, quiet passages let it slow down and curl in. Low chords swing broad and thick, high ones quick and fine; gold = consonant, violet = dissonant.
+
+Feel: whirling, silky, glowing, serene · Suits: strings, clarinet · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `size` | size | 0.4..1.3 | 0.95 | fixed | How wide the pen swings. Left: a small figure in the middle. Right: fills the screen. |
+| `speed` | how fast the pen draws | 0.3..5 | 1.6 | fixed | How quickly the pen traces the figure. Left: slow, you watch each loop being drawn. Right: the whole figure appears almost at once. Follows how present: 0.4 at its left end. |
+| `damp` | how fast it winds inward | 0.02..0.6 | 0.2 | fixed | How quickly the line spirals in toward the centre between notes. Left: it keeps swinging wide, loops stacked on loops. Right: it curls into the middle in a few turns. |
+| `push` | how hard notes push the pen | 0..1.5 | 0.8 | fixed | What each note does to the pen. Left: nothing, the line just winds down. Right: every note flings the pen back out and leaves a thick bright knot in the line. |
+| `stay` | how long the lines stay | 0.3..8 | 4.5 | fixed | How long a drawn line glows before it fades. Left: only a comet tail behind the pen. Right: old figures linger and layer over each other. Follows how present: 0.3 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much figure it draws: how fast the pen goes and how long the lines stay. Left: a short, slow trace that fades quickly. Right: the full tangle of lines. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `murmuration`: Murmuration
+
+A flock that carries the mood: a dark knot that throbs on low tolls, a ribbon tracing the melody, jittery shards when agitated. Now a loud chord re-forms it, on the attack, into <b>that chord’s own figure</b>: its notes sit on a clock face (C at the top, then clockwise C♯, D … B) and the flock draws the shape they make, a spoke pointing at the bass. Major chords are straight-edged, minor ones curl into stars, two notes make a lens, one note a clock hand. Same chord, same figure.
+
+Feel: unison, mysterious, twitchy, grainy · Suits: violin, voice, flute · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `strike` | which chords re-form it | 0..1 | 0.6 | fixed | How loud a chord must be to pull the flock into its figure. Left: only the biggest, loudest chords. Right: any firm chord. |
+| `hold` | how long a figure stays | 0.8..6 | 2.6 | fixed | How long the flock keeps a chord’s figure before it melts back into the melody. Left: a glimpse. Right: holds for seconds. |
+| `tight` | how crisp the figures are | 0..1 | 0.6 | fixed | How tightly the birds keep formation. Left: a loose, smoky cloud. Right: crisp, thin lines. |
+| `trail` | trail length | 1..16 | 9 | faster → less | How long each bird’s streak is. Left: short dashes. Right: long streaks. |
+| `bleed` | red on loud notes | 0..1 | 0.6 | louder → more | How much loud notes stain the flock red. Left: it stays pale. Right: blood red, white-hot on the biggest chords. |
+| `presence` | how present | 0..1 | 1 | fixed | How much the flock takes over. Left: a few faint birds, calm, and only the hardest chords pull them into a figure. Right: the whole flock at full strength (as before). |
+
+#### `current`: The current
+
+Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> slider sets how much current there is, from one lone thread in slow water to the full braid.
+
+Feel: flowing, liquid, silky, glowing, serene · Suits: violin, flute, strings · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `threads` | how many threads | 1..5 | 3 | fixed | How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass. Follows how present: 1 at its left end. |
+| `braid` | how wide they weave | 0..220 | 70 | fixed | How far the other threads swing around the melody’s thread. Left: tight together, almost one line. Right: wide loops that cross far apart. Follows how present: 15 at its left end. |
+| `width` | thread thickness | 0.3..2.5 | 0.9 | louder → more | How thick the threads are drawn. Left: hair-thin. Right: thick, glowing cords. |
+| `flow` | water speed | 0.2..3 | 1 | faster → more | How fast the water runs and the threads travel. Left: a slow, lazy drift. Right: a rushing stream. Follows how present: 0.4 at its left end. |
+| `hue` | ink colour | 0..360 | 350 | fixed | The colour the chords pour into the water. Left and right are both red; in between it runs orange, yellow, green, blue, violet. |
+| `presence` | how present | 0..1 | 1 | fixed | How much current it weaves: how many threads braid, how wide they swing, how fast the water runs. Left: the melody's lone thread in slow water. Right: the whole braid in a rushing stream. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `strings`: Woven threads
+
+Each note is a curved thread in one woven band. Consonant notes lean together, clashing ones knot up; every chord braids its notes at one spot and sends bright kinks running along them; held notes swell and glow; the hardest chords snap a thread and whip the weave. Six knobs now, all starting at the defaults you accepted; "how present" sets how much weave there is, from one clean crossing to the dense band.
+
+Feel: skittish, anxious, twitchy, fibrous · Suits: violin, plucked · Role: texture
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `bend` | shape: band → rings | 0..1 | 0.32 | fixed | How much the band of threads curls. Left: a straight band across the screen. Middle: an arch. Right: closed woven rings. |
+| `weave` | crossings | 1..9 | 3 | fixed | How many times the threads cross each other along the band. Left: one long, slow wave. Right: a tight weave. Follows how present: 1 at its left end. |
+| `sway` | how much they sway | 0..160 | 46 | louder → more | How far the threads swing up and down. Left: flat, still threads. Right: wide swinging waves. Follows how present: 4 at its left end. |
+| `tangle` | knots on clashing notes | 0..1 | 0.45 | fuller chords → more | How much a thread curls into knots when its note clashes with another (a dissonance). Left: never knots. Right: big tangled curls. Follows how present: 0 at its left end. |
+| `heat` | colours | 0..1 | 0.5 | fixed | The colours of the threads (low notes darker, high notes paler). Left: ink blue and ice. Middle: blood red and bone. Right: ember and gold. |
+| `presence` | how present | 0..1 | 1 | fixed | How much the weave holds: how many crossings the threads make, how far they sway, how much clashing notes knot. Every sounding note is still a thread. Left: a calm, smooth band with one long crossing and no knots. Right: the dense, knotted, swaying band. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `riley`: Op art
+
+A Bridget Riley stripe field the music bends. Bass notes swell it into lenses, the melody sends ripples through it (higher notes, tighter ripples), chords kink it into sharp chevrons and the biggest ones cut an inverted band through it. It brightens as the music gets louder. It fills the whole picture, so widgets drawn before it are hidden. <b>how present</b> sets how much field there is: turned down, a few broad, clean bands that only loud playing still bends.
+
+Feel: flickering, swelling, marching, icy · Suits: strings, contrabass · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `pattern` | pattern | 0..2 | 0 | fixed | What the field is made of. Left: stripes. Middle: a checkerboard. Right: rings around the centre. |
+| `stripe` | stripe width | 5..60 | 16 | fixed | How wide each stripe is. Left: fine, dizzying lines. Right: a few broad bands. Follows how present: 36 at its left end. |
+| `bend` | how much the music bends it | 0..2.5 | 1 | louder → more | How hard the notes bend the field: lenses on the bass, ripples on the melody, sharp kinks on chords. Left: almost flat. Right: wild, swelling distortion. Follows how present: 0 at its left end. |
+| `shimmer` | shimmer | 0..2 | 0.3 | faster → more | A fine, fast trembling of every edge, so the eye fizzes. Left: still, clean edges. Right: the whole field buzzes. Follows how present: 0 at its left end. |
+| `colours` | colours | 0..5 | 0 | fixed | The pair of colours. From left: black and bone, black and blood red, oxblood and bone, ink blue and ochre, black and cold cyan, teal and vermilion. |
+| `presence` | how present | 0..1 | 1 | fixed | How much stripe field there is: how many stripes, how hard the notes bend them, how much their edges tremble. Left: a few broad, clean bands that only loud playing still bends. Right: the full fine field, bending and fizzing. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `halftone`: Halftone
+
+Two overprinted dot screens, deep red and pale. Each attack sends a wave of swelling dots out from a point placed by pitch: low notes big slow swells on the red screen, high notes small fast ripples on the pale one; held chords print a faint standing interference pattern, and the loudest full chords flash the red screen in negative.
+
+Feel: grainy, swelling, warm, flickering · Suits: strings, piano · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `grid` | dot size | 10..44 | 20 | fixed | How coarse the dot screen is. Left: a fine screen of tiny dots. Right: a coarse screen of big dots. |
+| `shape` | dot shape | 0..3 | 0 | fixed | What the screen is printed with. Left: round dots, then squares, then crosses. Right: lines. |
+| `life` | how long the waves last | 0.4..6 | 2.2 | fixed | How long a wave of dots keeps spreading before it fades. Left: a quick pulse. Right: slow rings that linger. Follows how present: 0.8 at its left end. |
+| `contrast` | hard print | 0..1 | 0.45 | louder → more | How the dots swell. Left: soft, every size in between, like a photo. Right: hard, each dot is either full or gone, like a stamp. |
+| `standing` | stripes from held chords | 0..1.5 | 0.6 | fuller chords → more | While a chord rings, its notes print a faint standing pattern of stripes. Left: none, only the waves. Right: strong stripes. Follows how present: 0.1 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much gets printed: how long each wave keeps spreading and how strong the held-chord stripes are. Left: short pulses that die quickly, hardly any stripes. Right: slow rings that overlap and a striped field. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `mica`: Mica
+
+Granite in low sun. Each pitch owns a fixed scatter of thin shards, all lying at one angle (pitch class × 15°: an octave is parallel, a semitone 15° off). A note flashes its whole set silver in one step and lets it sink to violet. Nothing ever moves; a repeat is the same constellation again.
+
+Feel: brittle, cool, grainy · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `flecks` | how many flakes | 40..400 | 192 | fixed | How many flakes each note owns. Left: a few big shards. Right: the frame is thick with glitter. Follows how present: 48 at its left end. |
+| `spread` | how far from its height | 40..400 | 120 | fixed | How far a note's flakes scatter from the height of its pitch. Left: a note glints in a band at its pitch. Right: it glints all over the frame. |
+| `size` | how big the biggest flake | 16..90 | 56 | fixed | How long the biggest flake is. Left: fine sparkle. Right: real splinters you could cut on. |
+| `ring` | how long it stays | 0.25..3 | 1 | fixed | How long the flakes stay after the glint. Left: a glint and gone. Right: they stay as a dim ash for over a second. Follows how present: 0.5 at its left end. |
+| `colour` | which mineral | 0..2 | 0 | fixed | Which stone. Left: silver over cold violet. Middle: bone over feldspar rose. Right: pyrite gold over umber. |
+| `presence` | how present | 0..1 | 1 | fixed | How much you see: how many flakes each note lights and how long they stay. Left: a few big shards, quickly gone. Right: the whole stone. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `fist`: Fist of spines
+
+A field of dark-teal needles lies along a slow nap. On each note every needle within reach turns at once to aim at the note's spot and stabs, stopping short, so the spot stays black; then they lie back together. Pitch places the spot, loudness sets how far the call reaches.
+
+Feel: stabbing, cool, still · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `reach` | how far the call reaches | 0.3..2 | 1 | fixed | How far around a note the spines turn. Left: a small tight fist. Right: half the screen turns. |
+| `spines` | how many spines | 50..600 | 240 | fixed | How many spines stand in the field. Left: few, long, well apart. Right: dense, short stubble. Follows how present: 50 at its left end. |
+| `stab` | how hard they stab | 0..1 | 0.7 | fixed | How hard the spines jab at the note. Left: they only turn. Right: they jab past their length and snap back. |
+| `ring` | how long they stay turned | 0.25..3 | 1 | fixed | How long the fist stays lit and the spines take to lie back. Left: gone in a quarter of the time. Right: three times as long. Follows how present: 0.25 at its left end. |
+| `ground` | how much the field shows at rest | 0..0.35 | 0.24 | fixed | How much the resting field shows. Left: only the fist. Right: the nap is always visible. |
+| `presence` | how present | 0..1 | 1 | fixed | How much you see: how many spines, how long the fist stays. Left: a few spines and a quick blink. Right: a full field and a fist that lingers. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `cut`: Cut
+
+Each note stands a slab with knife-sharp faces. Nothing moves until the next note: then every slab on the stage loses one step of its edge, corners first, then edges, then faces, until it is sugar and gone. Best on picked notes and slow music; at six notes a second a slab lives about a second and a half.
+
+Feel: grainy, warm, still · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `steps` | how many notes a slab survives | 2..16 | 8 | fixed | How many later notes a slab lives through, crumbling one step at each. Left: gone after the next note or two. Right: a long crumbling trail. Follows how present: 2 at its left end. |
+| `size` | how big | 0.4..2 | 1 | fixed | How big a slab is; a harder note makes a wider one. Left: bricks. Right: large slabs. Follows how present: 0.7 at its left end. |
+| `grain` | how coarse the crumbs | 0..1 | 0.4 | fixed | How coarse the crumbs are as a slab wears away. Left: fine sugar. Right: coarse gravel. |
+| `goneBy` | how long in silence | 0.5..8 | 3 | fixed | How long slabs wait in a silence before they quietly dim away. Left: they go dim soon. Right: they wait up to eight seconds. Follows how present: 0.5 at its left end. |
+| `wet` | what colour | 0..1 | 0.7 | fixed | The colour of the sand. Left: pale dry sand. Towards the right: wet ochre, then dark red. |
+| `presence` | how present | 0..1 | 1 | fixed | How much stands on the stage: how many notes a slab survives, how big it is, how long it waits in silence. Left: few small slabs that go soon. Right: a long crumbling trail of big slabs. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `leidenfrost`: Leidenfrost
+
+Water drops skate on their own steam over a hot plate, starting with one big drop. Between notes they wander erratically on smooth noise, and a shared gust sometimes swerves them together. A note pushes a drop in a random direction; when the burst knob allows (by default the louder the note, the likelier) it splits the drop into two equal halves; a small bead it reaches boils off in a puff. Low notes reach the big drops, high notes the small beads.
+
+Feel: liquid, skittish, gusty · Suits: piano · Role: texture
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `push` | how hard notes push | 0..1 | 0.5 | fixed | How far a note sends its drop. Left: a nudge. Right: across the plate. Follows how present: 0.2 at its left end. |
+| `burst` | how easily they burst | 0..1 | 0.05 | each note → jump | The chance a note splits its drop into two equal halves. Left: never. Right: every note. It follows each note’s loudness at first. |
+| `boil` | how fast beads boil off | 0..1 | 0.5 | fixed | How big a bead can be and still vanish in a puff when a note reaches it, and how fast small beads boil away. Left: only tiny ones. Right: even mid-sized ones. |
+| `erratic` | how erratic | 0..1 | 0.55 | fixed | How the drops move between notes. Left: a calm drift. Right: nervous skittering. |
+| `steam` | how much steam | 0..1 | 0.6 | fixed | How much steam comes off the drops and every note. Left: dry. Right: thick wisps that lean with the gust. Follows how present: 0.15 at its left end. |
+| `plate` | how much the plate glows | 0..1 | 1 | fixed | The hot plate under the drops, glowing in slow embers. Left: black, only the drops and their steam, to lay over other widgets. Right: the full glow. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how far it pushes and how much steam rises. Left: small nudges, dry. Right: long slides in thick steam. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+### Rated drop (still in the lab; do not use in new shows)
+
+#### `royal`: Royal
+
+One tall brushed stroke holds the middle of the page, and a small court of marks darts in from the edges, hopping forward on every note. It ignores them. On a strong attack it rises slowly and leans away, and on the next the tip alone flicks outward: everyone on that side is sent off the page. It does not watch them go. The louder the demand, the slower and colder the rise.
+
+Feel: royal, elegant, dismissive, silky · Suits: horn, harpsichord, trumpet · Role: lead
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `haughty` | how far it turns away | 0.15..1.4 | 1 | fixed | How far the figure leans back from them before it flicks. Left: a slight lift of the chin. Right: it turns its whole back. Follows how present: 0.5 at its left end. |
+| `flourish` | how grand the gesture is | 0.2..1.6 | 1 | fixed | How much of the stroke flicks, and how far. Left: only the very tip. Right: the whole upper part, in a sweep. Follows how present: 0.4 at its left end. |
+| `crowd` | how many come near | 0..1 | 0.45 | fixed | How many small marks come up to it. Left: one at a time. Right: a stream of them. Follows how present: 0.05 at its left end. |
+| `near` | how close they get | 0..1 | 0.6 | fixed | How close the marks dare come. Left: they stop far off. Right: right up to it. |
+| `robe` | the colour | 0..2 | 0 | fixed | Which colours it wears. Left: purple and gold. Middle: black and gold. Right: oxblood and ivory. |
+| `presence` | how present | 0..1 | 1 | fixed | How much court there is: how many marks come near, how grand the gesture, how far it turns away. Left: one mark at a time and a slight lift of the chin. Right: the full court and the whole turning of the back. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `honey`: Honey
+
+Flat heavy shapes hang at different heights, tied by threads that sag and will not let go. A note makes a shape sink under the weight, and it stays low; then it fills, and slowly pushes out another.
+
+Feel: viscous, droopy, slow, glowing · Suits: cello, horn, strings · Role: base · Note type: long
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `thick` | how thick it is | 0..1 | 0.5 | fixed | How stiffly it all moves. Left: runny and quick. Right: nearly solid, it barely moves. |
+| `load` | how much each note adds | 0.25..2.2 | 1 | fixed | How heavy a note is. Left: small shapes, thin threads. Right: great heavy shapes. Follows how present: 0.25 at its left end. |
+| `stretch` | how far a thread stretches | 0..1 | 0.7 | fixed | How far a thread stretches before it breaks. Left: it snaps early. Right: it never lets go. Follows how present: 0.2 at its left end. |
+| `busy` | how many notes push out a new shape | 0..1 | 0.5 | fixed | How many notes push out a new shape. Left: only the big ones. Right: nearly every note. Follows how present: 0 at its left end. |
+| `colour` | how dark the honey is | 0..1 | 0.5 | fixed | How dark the honey is. Left: pale, light acacia. Right: dark treacle. |
+| `presence` | how present | 0..1 | 1 | fixed | How much honey there is: how readily notes push out a new shape, how heavy each one is, how far the threads stretch. Left: shapes come rarely and stay small, and their threads snap early. Right: the full web of heavy shapes and long sagging threads. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `lazy`: Lazy
+
+It can't be bothered, and there is a lot of it. Huge, shapeless green stains slumped across the picture, far too heavy for the music to move: an attack soaks in as a dull sour colour and only leans on them a little, and they take seconds to come back. Once in a long while a hard note asks one to get up. It gathers itself slowly, gets a little way, gives up and slumps onto the others. Busy music it ignores, swelling slowly.
+
+Feel: lazy, green, slow, heavy · Suits: bassoon, contrabass, cello · Role: ground
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `lazy` | how lazy it is | 0..1 | 0.5 | fixed | How heavy it is, and how much it takes to get it moving. Left: lighter, and gets up now and then. Right: a dead weight that hardly ever stirs. |
+| `lift` | how high it bothers to lift | 0.1..1 | 0.75 | fixed | How far a mass gets before it gives up. Left: barely raises an end. Right: up to a third of the screen. Follows how present: 0.3 at its left end. |
+| `fat` | how fat the masses are | 0.5..1.7 | 1 | fixed | How thick the stains are. Left: slim. Right: huge, overlapping everything. Follows how present: 0.6 at its left end. |
+| `limbs` | how many masses | 4..15 | 12 | fixed | How many masses lie in the heap. Left: a few. Right: a big heap. Follows how present: 4 at its left end. |
+| `green` | which green | 0..1 | 0.5 | fixed | Which greens it lies in. Left: a dark pond. Right: sour acid. |
+| `presence` | how present | 0..1 | 1 | fixed | How much green lies there: how many masses, how fat they are, how high one bothers to lift. Left: a few slim masses that barely stir. Right: the whole slumped heap. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `delaunay`: Delaunay
+
+Sonia and Robert Delaunay's simultaneous discs. Three discs of rings (bass, middle, treble), each ring cut into coloured segments that turn at their own speed. Every note has its own colour (round the circle of fifths) and lights its ring at its own clock position, with the opposite colour beside it; the struck ring jumps, flashes and swells outward through the disc.
+
+Feel: vivid, whirling, swelling, playful · Suits: plucked, clarinet · Role: base
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `turn` | how fast the rings turn | 0..1 | 0.3 | faster → more | How fast the rings turn. Left: almost still. Right: whirling, each ring against its neighbour. |
+| `contrast` | opposite colours | 0..1 | 0.65 | fixed | Whether a lit segment sets its opposite colour beside it. Left: only the note's own colour. Right: every colour gets its complementary partner. |
+| `pulse` | swell on each note | 0..1 | 0.45 | louder → more | How far the rings swell outward when a note is struck. Left: the discs stay put. Right: every attack throbs out through the rings. |
+| `memory` | how long colours glow | 0.4..8 | 3.5 | fixed | How long a lit segment stays bright before it sinks back to a dark glaze. Left: a flash. Right: the colours of a chord glow for seconds. |
+| `cut` | how finely cut | 0..1 | 0.25 | fixed | How many segments each ring is cut into. Left: big halves and quarters. Right: fine eighths and sixteenths. |
+| `presence` | how present | 0..1 | 1 | fixed | How much it takes over. Left: faint discs that barely turn, and only the hardest notes light a segment. Right: every note lights and swells at full strength (as before). |
+
+#### `martin`: Agnes Martin
+
+After Agnes Martin: pale bands of washed colour under a fine pencil grid, the keyboard from bass (bottom) to treble. A soft note faintly deepens its band; a held note tints its own thin stripe in the colour of the harmony. Loud music is nearly ignored: it is for the chorale and the oboe cadenza. Paints its own canvas; turn <b>how present</b> down and the page keeps only its resting bands under a few ruled lines, with marks that are faint and soon gone.
+
+Feel: still, pale, serene, airy · Suits: oboe, voice · Role: ground · Note type: long
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `paper` | night or day paper | 0..1 | 1 | fixed | The ground the bands sit on. Left: a very dark canvas with chalk lines. Right: warm off-white paper with pencil lines. |
+| `wash` | colour of the bands | 0..1 | 0.55 | fixed | How much colour the bands hold at rest. Left: bare paper, only the pencil grid. Right: clear rose and blue bands. |
+| `mark` | how much a note marks | 0..1 | 0.6 | louder → less | How strongly a note deepens its band and a held note tints its stripe. Left: the music barely touches the picture. Right: every soft note leaves a clear wash. Set to follow loudness downwards, so loud music marks it even less. Follows how present: 0.3 at its left end. |
+| `stay` | how long a mark stays | 1..20 | 10 | faster → less | How long a deepened band or tinted stripe takes to fade back. Left: a breath. Right: it lingers for many seconds. Set to fade faster when the music gets busy. Follows how present: 2.5 at its left end. |
+| `grid` | how fine the grid | 0..1 | 0.6 | fixed | The pencil grid over the bands. Left: only the ruled lines between the bands. Right: a fine, dense mesh of small rectangles. Follows how present: 0.2 at its left end. |
+| `presence` | how present | 0..1 | 1 | fixed | How much the music and the pencil leave on the page: how strongly a note deepens its band or tints its stripe, how long that mark stays, how many pencil lines rule the grid. Left: the resting bands under a few ruled lines, and marks that are faint and gone in a breath. Right: a fine grid and clear washes that linger for many seconds. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+#### `nap`: Nap
+
+Each note strokes a band of velvet pile into the black, with a cut, fibrous edge; a chord strokes several and their crossings go black. Strike the same note again and its band goes out. Nothing moves between notes.
+
+Feel: silky, dark, still · Suits: piano · Role: accent
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `memory` | how many strokes it remembers | 1..16 | 7 | fixed | How many strokes stay in the cloth. Left: only the last stroke is there. Right: sixteen strokes cut through each other. Follows how present: 1 at its left end. |
+| `width` | how broad the finger | 0.5..1.6 | 1 | fixed | How broad each stroke is. Left: thin scratches. Right: broad swathes. Follows how present: 0.7 at its left end. |
+| `slant` | how much the strokes cross | 0..1 | 0.7 | fixed | How steeply the strokes lean. Left: all upright, side by side. Right: steep diagonals crossing. |
+| `rest` | how long it stays lit in silence | 1..12 | 4 | fixed | How long the cloth stays lit after the music stops. Left: it goes dark soon after. Right: it holds through long rests. Follows how present: 1.5 at its left end. |
+| `cloth` | which cloth | 0..2 | 0 | fixed | Which cloth the strokes are made in. Left: dark red. Right: blue-grey. |
+| `presence` | how present | 0..1 | 1 | fixed | How much you see: how many strokes stay, how broad, how long they last in silence. Left: one thin stroke that soon goes. Right: many broad strokes that hold. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 <!-- widgets:end -->

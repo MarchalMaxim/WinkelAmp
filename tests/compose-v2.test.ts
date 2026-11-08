@@ -174,7 +174,8 @@ describe('composeShow with layers and words', () => {
   it('an accent that suits strings hears the string family when two string tracks play, else the one that does', () => {
     // A fast thin stretch, then a slow loud full one where murmuration is the accent. Its instruments are pinned to
     // strings and cello here (its tags change as the user tunes them; 2026-11-01 they became violin, voice, flute).
-    const m = widgets.get('murmuration')!, stringy = new Map(widgets).set('murmuration', { ...m, tags: { ...m.tags!, instruments: ['strings', 'cello'] } });
+    // Its verdict is pinned to love too: the test is about routing, and the user rated it needs work on 2026-11-08.
+    const m = widgets.get('murmuration')!, stringy = new Map(widgets).set('murmuration', { ...m, verdict: { v: 'love', on: 'v3' }, tags: { ...m.tags!, instruments: ['strings', 'cello'] } });
     const pack = (cello: boolean) => makePack({ duration: 60, sections: [30], parts: [
       { from: 0, to: 30, rate: 6, vel: 50, register: 'mid', poly: 1 }, { from: 30, to: 60, rate: 1, vel: 110, register: 'mid', poly: 3 },
       { from: 30, to: 50, rate: 1.25, vel: 110, register: 'high', poly: 1, track: 'violin' },
