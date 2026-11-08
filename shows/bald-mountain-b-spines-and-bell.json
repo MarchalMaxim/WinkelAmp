@@ -403,7 +403,7 @@
    "end": 440.35,
    "track": 3,
    "fade": 0,
-   "widget": "urchin",
+   "widget": "fist",
    "listen": "picks:blows",
    "knobs": {
     "ground": 0.18,
@@ -720,7 +720,7 @@
    "end": 462,
    "track": 3,
    "fade": 0,
-   "widget": "urchin",
+   "widget": "fist",
    "listen": "picks:bell",
    "knobs": {
     "ground": 0.35,
