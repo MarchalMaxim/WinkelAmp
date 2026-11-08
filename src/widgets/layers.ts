@@ -40,9 +40,12 @@ export interface WaLayers {
     swell(s: Span, o?: { peak?: number; floor?: number }): Pivot[];
     pulse(s: Span, beats: readonly number[], o: { every: number; floor?: number; duty?: number }): Pivot[];
     gate(s: Span, curve: { hop: number; values: readonly number[] }, o: { above: number; floor?: number }): Pivot[];
+    follow(s: Span, curve: { hop: number; values: readonly number[] },
+      o?: { floor?: number; up?: number; down?: number; lead?: number; maxPivots?: number }): Pivot[];
     plays(s: Span, notes: readonly Note[], o?: { floor?: number }): Pivot[];
   };
   MAX_PIVOTS: number;                                   // 256
+  LOUDNESS_LAG: { open: number; close: number; mean: number };   // how late pack.loudness runs, in seconds
   // persist.js (T1 table and vis; T12 fills PERSIST)
   VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
   vis(a: number, cls: Persist): number;

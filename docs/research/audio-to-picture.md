@@ -138,9 +138,9 @@ What a widget can feel, per frame:
 
 | # | Improvement | Effort | Already partly exists? | Needs |
 |---|---|---|---|---|
-| 0 | Open the "Loud parts" gate on time (a lead of about 1.7 s on `pack.loudness`) | hours | yes, as a 0.15 s lead | nothing |
-| 1 | "Follows the sound" intensity preset | hours | partly | nothing (works on pack.loudness today) |
-| 2 | Depth control on each knob | hours | partly (data side done) | nothing |
+| 0 | **Built 2026-11-08.** Open the "Loud parts" gate on time (it now opens 1.1 s and closes 2.4 s earlier, measured) | hours | yes, as a 0.15 s lead | nothing |
+| 1 | **Built 2026-11-08.** "Follows the sound" intensity preset | hours | partly | nothing (works on pack.loudness today) |
+| 2 | **Built 2026-11-08.** Depth control on each knob | hours | partly (data side done) | nothing |
 | 3 | `+loud` and `+pace` knob drives | a day | no | better with #4 |
 | 4 | Zero-lag energy lanes (step A) | a day | partly | the augment-pack script, shared with #5 |
 | 5 | Onsets and melody in the pack, plus a 4 s describe-song table | a day | partly | the augment-pack script |
@@ -154,7 +154,9 @@ Items 4 and 5 share one script, `scripts/augment-pack.ts`. It decodes `songs/<id
 - prelude and rach-prelude-recording were built with `--piano-notes`, which a plain `--force` would not repeat.
 - Older packs predate later pack-code changes. A rebuild could change notes or tracks, and picks would then fall off the roll.
 
-### 0. Open the "Loud parts" gate on time (found by the demo)
+### 0. Open the "Loud parts" gate on time (found by the demo; built 2026-11-08)
+
+- **Measured before building.** One shift was not enough: the lane rises faster than it falls. Against the sound's own centred 0.4 s energy on six pieces, the lane crosses upward about 1.1 s late (median of 34 crossings) and downward about 2.4 s late (median of 33). So the gate opens 1.1 s and closes 2.4 s earlier (`WA.LOUDNESS_LAG` in [automation.js](lab/layers/automation.js)). A run still open at the song's end keeps its end.
 
 - **What.** `WA.presets.gate` ([automation.js](lab/layers/automation.js:209)) opens 0.15 s before the lane crosses its threshold. The lane itself runs about 1.7 s late. Read the lane about 1.7 s ahead, as a named constant shared with the faint loudness picture in [lanes.ts](src/studio/ui/lanes.ts:411). Item 4 later makes the lead 0.
 - **Why.** Today every gated layer swells in and dies away about 1.5 s after the music does.

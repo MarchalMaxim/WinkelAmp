@@ -252,9 +252,12 @@ button.link:hover { color: var(--fg); }
 .prm .name { color: var(--fg); min-width: 0; line-height: 1.2; }
 .prm .info { padding: 0 6px; font-size: 11px; line-height: 16px; border-radius: 50%; color: var(--dim); font-style: italic; font-family: Georgia, serif; }
 .prm .row { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; align-items: center; margin-top: 3px; }
-.prm.plain { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name sel' 'slider slider'; gap: 1px 6px; align-items: center; }
+.prm.plain { display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: 'name depth sel' 'slider slider slider'; gap: 1px 6px; align-items: center; }
 .prm.plain .name { grid-area: name; color: var(--dim); } .prm.plain select { grid-area: sel; } .prm.plain input { grid-area: slider; }
 .prm input { width: 100%; accent-color: var(--on); margin: 0; }
+/* How strongly a knob follows the music: small and quiet. In a rich row it ends the lower row, so the name keeps its room. */
+.prm input.depth { width: 48px; opacity: 0.7; } .prm input.depth:hover, .prm input.depth:focus { opacity: 1; }
+.prm .row:has(input.depth:not([hidden])) { grid-template-columns: 40px 1fr 40px 48px; } .prm.plain input.depth { grid-area: depth; }
 .prm select { background: #1b171b; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; font-size: 11px; max-width: 124px; }
 .prm canvas { display: block; width: 40px; height: 26px; border-radius: 3px; background: #0a080a; }
 .prm canvas.live { background: #241b20; box-shadow: 0 0 0 1px #3a2c31; }

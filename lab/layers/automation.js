@@ -10,6 +10,12 @@
   /** At most this many pivots per layer per section; the presets merge further to stay under. */
   WA.MAX_PIVOTS = 256;
 
+  /** How late the song's loudness lane (pack.loudness) runs behind the sound, in seconds. It is an average of power
+      looking only backwards, so it rises sooner than it falls. Measured 2026-11-08 on six pieces against the sound's
+      own energy (docs/research/audio-to-picture.md): it crosses upwards about 1.1 s late and downwards about 2.4 s
+      late (medians of 34 and 33 crossings); 1.7 s on average. */
+  WA.LOUDNESS_LAG = { open: 1.1, close: 2.4, mean: 1.7 };
+
   var clamp01 = function (v) { return v > 0 ? (v < 1 ? v : 1) : 0; };   // NaN → 0
 
   /** The curve's value at song time t: holds before the first pivot and after the last; each segment takes the shape
@@ -133,6 +139,24 @@
     return { grid: grid, gap: gap };
   };
 
+  /** The indices of the points (ts, vs) that draw them to within eps in v (Douglas-Peucker, distance measured
+      straight up), the first and last always kept. */
+  var simplify = function (ts, vs, eps) {
+    var n = ts.length, mark = [], stack = [[0, n - 1]], i;
+    mark[0] = true; mark[n - 1] = true;
+    while (stack.length) {
+      var seg = stack.pop(), a = seg[0], b = seg[1], best = -1, bd = eps;
+      for (i = a + 1; i < b; i++) {
+        var line = vs[a] + ((vs[b] - vs[a]) * (ts[i] - ts[a])) / (ts[b] - ts[a]), dist = Math.abs(vs[i] - line);
+        if (dist > bd) { bd = dist; best = i; }
+      }
+      if (best > 0) { mark[best] = true; stack.push([a, best], [best, b]); }
+    }
+    var out = [];
+    for (i = 0; i < n; i++) if (mark[i]) out.push(i);
+    return out;
+  };
+
   WA.presets = {
     /** floor (0) at the section start, 1 after `seconds`. */
     fadeIn: function (s, seconds, o) {
@@ -204,8 +228,12 @@
       }
       return out;
     },
-    /** Open where the curve (sample i covers [i·hop, (i+1)·hop)) is ≥ above, closed below above − 0.05; runs
-        under 0.25 s dropped, then gaps under 0.5 s bridged; opens 0.15 s early with 0.1 s ramps; clipped to the span. */
+    /** Open where the curve (sample i covers [i·hop, (i+1)·hop)) is ≥ above, closed below above − 0.05. In this
+        order: runs under 0.25 s dropped and gaps under 0.5 s bridged, both on the lane, where its own wobble is;
+        then each run moved back to the sound, opening LOUDNESS_LAG.open and closing LOUDNESS_LAG.close earlier
+        (a run still open where the lane ends keeps its end); its start held at 0 or later; a run left shorter than
+        0.25 s keeps 0.25 s from its start, so a short burst still shows. Then it opens 0.15 s early with 0.1 s
+        ramps; clipped to the span. */
     gate: function (s, curve, o) {
       var above = o.above, floor = o.floor != null ? o.floor : 0, hop = curve.hop, vals = curve.values;
       var runs = [], open = false, a = 0;
@@ -214,10 +242,59 @@
         if (!open && v >= above) { open = true; a = i * hop; }
         else if (open && v < above - 0.05) { open = false; runs.push([a, i * hop]); }
       }
-      if (open) runs.push([a, vals.length * hop]);
+      var end = vals.length * hop, lag = WA.LOUDNESS_LAG;
+      if (open) runs.push([a, end]);
       runs = runs.filter(function (r) { return r[1] - r[0] >= 0.25; });
+      runs = bridge(runs, 0.5).map(function (r) {
+        var a2 = Math.max(0, r[0] - lag.open), b2 = r[1] >= end ? r[1] : r[1] - lag.close;
+        return [a2, Math.max(b2, a2 + 0.25)];
+      });
+      // Moved runs keep their gaps of 0.5 s or more, except near the song start, where holding the starts at 0 can
+      // make two runs overlap: bridged again, which changes nothing anywhere else.
       runs = bridge(runs, 0.5).filter(function (r) { return r[1] + 0.1 > s.start && r[0] - 0.25 < s.end; });
       return runPivots(s, runs, floor, 0.1, 0.15, 0.1);
+    },
+    /** Rises and falls with the loudness curve over the span, as linear pivots from floor (0.35) to 1. The curve is
+        read `lead` seconds ahead (LOUDNESS_LAG.open: it runs late; held at its last value past its end), one sample a
+        hop; it climbs with a time constant of `up` (0.2 s) and falls with `down` (0.8 s); the span's own 5th to 95th
+        percentile is stretched to floor..1 (a range under 0.1 counts as 0.1 from its top, so a flat span is all 1); then as few pivots as draw it to within 0.02,
+        loosened until at most `maxPivots` (248) are left. t to 0.01 s, v to 0.001; the span's ends exact. Empty with
+        no curve or an empty span. */
+    follow: function (s, curve, o) {
+      o = o || {};
+      var floor = o.floor != null ? o.floor : 0.35, up = o.up != null ? o.up : 0.2, down = o.down != null ? o.down : 0.8;
+      var lead = o.lead != null ? o.lead : WA.LOUDNESS_LAG.open, max = Math.max(2, o.maxPivots != null ? o.maxPivots : WA.MAX_PIVOTS - 8);
+      var hop = curve && curve.hop, vals = curve && curve.values;
+      if (!vals || !vals.length || !(hop > 0) || !(s.end > s.start)) return [];
+      var ts = [], xs = [], i, t;
+      for (i = 0; (t = s.start + i * hop) < s.end - 1e-9; i++) ts.push(t);
+      ts.push(s.end);
+      for (i = 0; i < ts.length; i++) {
+        var k = Math.floor((ts[i] + lead) / hop + 1e-9);
+        var x = vals[k < 0 ? 0 : k < vals.length ? k : vals.length - 1];
+        xs.push(Number.isFinite(x) ? x : 0);
+      }
+      var ys = [xs[0]];   // the follower starts where the curve is
+      for (i = 1; i < xs.length; i++) {
+        var y = ys[i - 1], tau = xs[i] > y ? up : down, dt = ts[i] - ts[i - 1];
+        ys.push(tau > 0 ? y + (xs[i] - y) * (1 - Math.exp(-dt / tau)) : xs[i]);
+      }
+      var sorted = ys.slice().sort(function (p, q) { return p - q; }), n = sorted.length;
+      var lo = sorted[Math.floor(0.05 * (n - 1))], hi = sorted[Math.floor(0.95 * (n - 1))];
+      // A calm span is not stretched: its range counts as at least 0.1 (about 4 dB), measured down from its top, so a
+      // wobble of a dB or two stays near 1 instead of pumping from floor to 1.
+      if (hi - lo < 0.1) lo = hi - 0.1;
+      var vs = ys.map(function (y) { return floor + (1 - floor) * clamp01((y - lo) / (hi - lo)); });
+      var eps = 0.02, keep = simplify(ts, vs, eps);
+      while (keep.length > max) { eps *= 1.5; keep = simplify(ts, vs, eps); }
+      var out = [];
+      for (i = 0; i < keep.length; i++) {
+        var j = keep[i], last = i === keep.length - 1;
+        t = i === 0 ? s.start : last ? s.end : Math.min(s.end, Math.max(s.start, Math.round(ts[j] * 100) / 100));
+        if (out.length && t <= out[out.length - 1].t) { if (!last) continue; out.pop(); }
+        out.push({ t: t, v: Math.round(vs[j] * 1000) / 1000 });
+      }
+      return out;
     },
     /** Open while the notes that meet the span sound (gaps under 1 s bridged), 0.2 s ramps, clipped to the span. */
     plays: function (s, notes, o) {

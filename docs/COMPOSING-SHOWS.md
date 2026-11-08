@@ -51,7 +51,8 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
   `{ "base": 96, "drive": "-level", "depth": 0.4 }` (what the lab's "Copy settings" gives). A drive moves the knob with
   the music: `+level` louder → more, `-level` louder → less, and the same for `rate` (faster), `pitch` (higher notes),
   `bass` (more bass), `density` (fuller chords) and `hit` (new: a fast per-attack pulse that jumps on every note
-  and is back below half in about 80 ms, for snappy drives; harder notes jump it higher); `""` holds it fixed. `depth` 0..1 is how far. Leave out a knob to keep
+  and is back below half in about 80 ms, for snappy drives; harder notes jump it higher); `""` holds it fixed. `depth` 0..1 is how far (default 0.5; the studio's small "how strongly" slider at the
+  end of a driven knob's row). Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
 - `fade` (optional, seconds, default 1, at most half the clip, 0 = a hard cut): how long the clip takes to come in and go
   out, at both edges, inside the clip.
@@ -237,8 +238,14 @@ The presets (in the studio's panel and the lab's cards; they write ordinary pivo
 - **Swell**: up to full in the middle of the clip, then back (eased).
 - **Pulse** every N beats or 4-beat bars: full on the beat, falling away over half the period (made coarser if it
   would need more than 256 pivots).
-- **Gate on loudness**: open where the recording is louder than a threshold (default: its 60th percentile there),
-  shut between, with short ramps.
+- **Gate on loudness** ("Loud parts" in the studio): open where the recording is louder than a threshold (default:
+  its 60th percentile there in the lab, its median in the studio), shut between, with short ramps. The song's
+  loudness lane runs late (it averages backwards), so the gate opens 1.1 s and closes 2.4 s before the lane crosses
+  the threshold: measured on six pieces (`WA.LOUDNESS_LAG`, [the research](research/audio-to-picture.md)).
+- **Follow the loudness** ("Follows the sound" in the studio): the layer rises and falls with how loud the recording
+  is, including swells and held chords that start no new notes. The loudness climbs fast (0.2 s) and falls slowly
+  (0.8 s), and the clip's own quietest and loudest parts are stretched to "never below" (35 % unless the studio's
+  "Lowest" is set) and full. A calm clip stays near full instead of pumping.
 - **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
 
 In the studio the selected clip's curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),

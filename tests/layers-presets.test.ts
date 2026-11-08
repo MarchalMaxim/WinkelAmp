@@ -77,24 +77,54 @@ describe('pulse', () => {
 
 describe('gate', () => {
   const curve = (f: (t: number) => number, dur = 40) => ({ hop: 0.1, values: Array.from({ length: dur * 10 }, (_, i) => f(i * 0.1 + 1e-9)) });
+  const lag = WA.LOUDNESS_LAG;
 
-  it('opens 0.15 s early with a 0.1 s ramp and closes over 0.1 s', () => {
+  it('has the measured lag of the loudness lane', () => {
+    expect(lag).toEqual({ open: 1.1, close: 2.4, mean: 1.7 });
+  });
+
+  it('opens 1.1 + 0.15 s before the lane does, closes 2.4 s before it, with 0.1 s ramps', () => {
     const g = P.gate(s, curve((t) => (t >= 15 && t < 20 ? 0.9 : 0.2)), { above: 0.5 });
-    expect(brief(g)).toEqual([[14.75, 0], [14.85, 1, 'hold'], [20, 1], [20.1, 0, 'hold']]);
-    expect(WA.automationAt(g, 14.85)).toBe(1);
-    expect(WA.automationAt(g, 20.1)).toBe(0);
+    expect(brief(g)).toEqual([[13.65, 0], [13.75, 1, 'hold'], [17.6, 1], [17.7, 0, 'hold']]);
+    expect(WA.automationAt(g, g[1].t)).toBe(1);
+    expect(WA.automationAt(g, g[3].t)).toBe(0);
     sane(g);
   });
 
-  it('ignores a 0.2 s blip and bridges a 0.3 s dip', () => {
+  it('a step up in the lane at t opens at about t − 1.1 − 0.15', () => {
+    for (const t of [12, 17.3, 24.6]) {
+      const g = P.gate(s, curve((x) => (x >= t ? 0.9 : 0.2)), { above: 0.5 });
+      const open = g.find((p) => p.v === 1)!;
+      expect(open.t).toBeCloseTo(t - 1.1 - 0.15, 6);
+      expect(WA.automationAt(g, 30)).toBe(1);   // still loud at the end of the lane: it stays open to the end
+    }
+  });
+
+  it('a short run keeps 0.25 s from its shifted start', () => {
+    const g = P.gate(s, curve((t) => (t >= 15 && t < 15.5 ? 0.9 : 0.2)), { above: 0.5 });
+    expect(brief(g)).toEqual([[13.65, 0], [13.75, 1, 'hold'], [14.15, 1], [14.25, 0, 'hold']]);
+  });
+
+  it('clamps at 0: a run near the song start opens from 0 and keeps 0.25 s', () => {
+    const g = P.gate({ start: 0, end: 10 }, curve((t) => (t >= 0.5 && t < 1 ? 0.9 : 0.2)), { above: 0.5 });
+    expect(WA.automationAt(g, 0)).toBe(1);
+    expect(WA.automationAt(g, 0.25)).toBe(1);
+    expect(WA.automationAt(g, 0.36)).toBe(0);
+    sane(g, { start: 0, end: 10 });
+    const two = P.gate({ start: 0, end: 10 }, curve((t) => (t < 0.3 || (t >= 0.9 && t < 5) ? 0.9 : 0.2)), { above: 0.5 });
+    expect(WA.automationAt(two, 1.5)).toBe(1);   // the second run is not lost under the first, both held at 0
+    sane(two, { start: 0, end: 10 });
+  });
+
+  it('ignores a 0.2 s blip and bridges a 0.3 s dip in the lane', () => {
     expect(P.gate(s, curve((t) => (t >= 15 && t < 15.2 ? 0.9 : 0.2)), { above: 0.5 })).toEqual([]);
     const g = P.gate(s, curve((t) => ((t >= 15 && t < 18) || (t >= 18.3 && t < 22) ? 0.9 : 0.2)), { above: 0.5, floor: 0.25 });
-    expect(brief(g)).toEqual([[14.75, 0.25], [14.85, 1, 'hold'], [22, 1], [22.1, 0.25, 'hold']]);
+    expect(brief(g)).toEqual([[13.65, 0.25], [13.75, 1, 'hold'], [19.6, 1], [19.7, 0.25, 'hold']]);
   });
 
   it('has hysteresis: it stays open down to above − 0.05', () => {
     const g = P.gate(s, curve((t) => (t < 15 ? 0.2 : t < 18 ? 0.6 : t < 21 ? 0.47 : 0.2)), { above: 0.5 });
-    expect(brief(g)).toEqual([[14.75, 0], [14.85, 1, 'hold'], [21, 1], [21.1, 0, 'hold']]);
+    expect(brief(g)).toEqual([[13.65, 0], [13.75, 1, 'hold'], [18.6, 1], [18.7, 0, 'hold']]);
   });
 
   it('clips a run across the span edges with edge pivots, so the curve inside the span is unchanged', () => {
@@ -102,7 +132,7 @@ describe('gate', () => {
     const g = P.gate(s, c, { above: 0.5 });
     expect(WA.automationAt(g, 10)).toBe(1);
     expect(WA.automationAt(g, 30)).toBe(1);
-    expect(brief(g)).toEqual([[10, 1, 'hold'], [25, 1], [25.1, 0, 'hold'], [29.55, 0], [29.65, 1, 'hold'], [30, 1]]);
+    expect(brief(g)).toEqual([[10, 1, 'hold'], [22.6, 1], [22.7, 0, 'hold'], [28.45, 0], [28.55, 1, 'hold'], [30, 1]]);
     const wide = P.gate({ start: 0, end: 40 }, c, { above: 0.5 });
     for (let t = 10; t <= 30; t += 0.01) expect(WA.automationAt(g, t)).toBeCloseTo(WA.automationAt(wide, t), 12);
     sane(g);
@@ -114,6 +144,69 @@ describe('gate', () => {
     expect(g.length).toBeLessThanOrEqual(WA.MAX_PIVOTS);
     expect(g.length).toBeGreaterThan(200);
     sane(g, long);
+  });
+});
+
+describe('follow', () => {
+  const lane = (f: (t: number) => number, dur = 40) => ({ hop: 0.1, values: Array.from({ length: Math.round(dur * 10) }, (_, i) => f(i * 0.1)) });
+  const at = (ps: Pivot[], t: number) => WA.automationAt(ps, t);
+
+  it('a ramp: from the floor up to 1, few pivots, the ends of the span exact', () => {
+    const p = P.follow(s, lane((t) => t / 40), { lead: 0 });
+    sane(p);
+    expect(p[0].t).toBe(10); expect(p[p.length - 1].t).toBe(30);
+    expect(p[0].v).toBeCloseTo(0.35, 3);
+    expect(p[p.length - 1].v).toBe(1);
+    expect(p.length).toBeLessThan(12);
+    for (let i = 1; i < p.length; i++) expect(p[i].v).toBeGreaterThanOrEqual(p[i - 1].v);
+    expect(at(p, 20)).toBeGreaterThan(0.55); expect(at(p, 20)).toBeLessThan(0.8);
+  });
+
+  it('a step: climbs fast, falls slowly', () => {
+    const up = P.follow(s, lane((t) => (t >= 20 ? 0.8 : 0.2)), { lead: 0 });
+    expect(at(up, 19.9)).toBeCloseTo(0.35, 2);
+    expect(at(up, 20.6)).toBeGreaterThan(0.9);
+    const down = P.follow(s, lane((t) => (t >= 20 ? 0.2 : 0.8)), { lead: 0 });
+    expect(at(down, 19.9)).toBeCloseTo(1, 2);
+    expect(at(down, 20.6)).toBeGreaterThan(0.6);   // still coming down
+    expect(at(down, 24)).toBeLessThan(0.4);
+  });
+
+  it('reads the lane ahead by the lead (1.1 s by default)', () => {
+    const c = lane((t) => (t >= 20 ? 0.8 : 0.2));
+    const d = P.follow(s, c), z = P.follow(s, c, { lead: 0 });
+    for (const t of [18, 18.95, 19.2, 19.5, 21]) expect(at(d, t)).toBeCloseTo(at(z, t + 1.1), 1);
+    expect(at(d, 19.6)).toBeGreaterThan(0.9);
+  });
+
+  it('a flat span is all 1; an empty span or lane writes nothing', () => {
+    expect(P.follow(s, lane(() => 0.4))).toEqual([{ t: 10, v: 1 }, { t: 30, v: 1 }]);
+    expect(P.follow({ start: 12, end: 12 }, lane((t) => t / 40))).toEqual([]);
+    expect(P.follow(s, { hop: 0.1, values: [] })).toEqual([]);
+  });
+
+  it('does not stretch a calm span: a wobble of a dB or two stays near 1', () => {
+    const p = P.follow(s, lane((t) => 0.4 + 0.004 * Math.sin(t * 2)));
+    for (const q of p) expect(q.v).toBeGreaterThan(0.9);
+  });
+
+  it('keeps to the floor, rounds, stays within its budget and is the same every time', () => {
+    const long = { start: 0, end: 600 };
+    const noisy = lane((t) => 0.5 + 0.3 * Math.sin(t / 7) + 0.2 * Math.sin(t * 3.1) * Math.sin(t / 2.3), 600);
+    const p = P.follow(long, noisy, { floor: 0.5 });
+    sane(p, long);
+    expect(p.length).toBeLessThanOrEqual(248);
+    expect(p.length).toBeGreaterThan(20);
+    for (const q of p) {
+      expect(q.v).toBeGreaterThanOrEqual(0.5); expect(q.v).toBeLessThanOrEqual(1);
+      expect(Math.abs(q.t * 100 - Math.round(q.t * 100))).toBeLessThan(1e-6);
+      expect(Math.abs(q.v * 1000 - Math.round(q.v * 1000))).toBeLessThan(1e-6);
+      expect(q.shape).toBeUndefined();
+    }
+    expect(P.follow(long, noisy, { floor: 0.5 })).toEqual(p);
+    const few = P.follow(long, noisy, { floor: 0.5, maxPivots: 20 });
+    expect(few.length).toBeLessThanOrEqual(20);
+    sane(few, long);
   });
 });
 
