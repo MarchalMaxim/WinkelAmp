@@ -2,9 +2,11 @@
 
 ## 1. The short answer
 
-Our widgets only ever see transcribed notes: chords, the notes that are sounding, and six features computed from attacks. They never see the sound itself.
+Our widgets only ever see transcribed notes: chords, the notes that are sounding, and six features computed from attacks. They never see the sound itself. Two things follow from that, and the demo (section 8) measured both on five pieces.
 
-The signal called `level` is not loudness. It jumps up when a note starts and then halves every 0.8 s. A held swell, a long fff chord, or a tremolo that the transcriber turns into one long note therefore looks like energy draining away.
+**1. Our one loudness signal runs about 1.7 s late.** `pack.loudness` is smoothed twice, looking only backwards. It runs 1.6 to 1.8 s behind the sound on every piece measured, with a match of r ≥ 0.94. The "Loud parts" gate preset reads it and corrects only 0.15 s ([automation.js](lab/layers/automation.js:209)), so a gated layer opens and closes about 1.5 s after the music does. The faint loudness picture behind the intensity lane is just as late.
+
+**2. In sustained music, energy without attacks never reaches a widget.** The signal called `level` is not loudness. It jumps when a note starts and halves every 0.8 s, so a held swell or a long chord reads as energy draining away. This matters on strings and slow chorales. In Barber's Adagio and the Firebird, `level` is near zero 15 % and 21 % of the time the music is louder than its median. In busy pieces it hardly matters, because the attacks already carry the energy: Mars 2 %, Danse macabre and the Nocturne 0 %.
 
 The longest memory any widget has is about 1.4 s. Phrase energy and section energy reach the screen only when someone draws them by hand.
 
@@ -136,6 +138,7 @@ What a widget can feel, per frame:
 
 | # | Improvement | Effort | Already partly exists? | Needs |
 |---|---|---|---|---|
+| 0 | Open the "Loud parts" gate on time (a lead of about 1.7 s on `pack.loudness`) | hours | yes, as a 0.15 s lead | nothing |
 | 1 | "Follows the sound" intensity preset | hours | partly | nothing (works on pack.loudness today) |
 | 2 | Depth control on each knob | hours | partly (data side done) | nothing |
 | 3 | `+loud` and `+pace` knob drives | a day | no | better with #4 |
@@ -151,10 +154,17 @@ Items 4 and 5 share one script, `scripts/augment-pack.ts`. It decodes `songs/<id
 - prelude and rach-prelude-recording were built with `--piano-notes`, which a plain `--force` would not repeat.
 - Older packs predate later pack-code changes. A rebuild could change notes or tracks, and picks would then fall off the roll.
 
+### 0. Open the "Loud parts" gate on time (found by the demo)
+
+- **What.** `WA.presets.gate` ([automation.js](lab/layers/automation.js:209)) opens 0.15 s before the lane crosses its threshold. The lane itself runs about 1.7 s late. Read the lane about 1.7 s ahead, as a named constant shared with the faint loudness picture in [lanes.ts](src/studio/ui/lanes.ts:411). Item 4 later makes the lead 0.
+- **Why.** Today every gated layer swells in and dies away about 1.5 s after the music does.
+- **Effort.** Hours, plus a test in `tests/layers-presets.test.ts`.
+- **Risk.** None for existing shows. A preset writes pivots only when clicked, and saved pivots do not change.
+
 ### 1. "Follows the sound" preset (partly exists)
 
 - **What.** A new `WA.presets.follow(span, curve, {floor, lead})` in [automation.js](lab/layers/automation.js:131):
-  1. It samples the loudness curve inside the span, with a lead of about 1.5 s on `pack.loudness` to undo its lag (0 once the energy lanes exist).
+  1. It samples the loudness curve inside the span, with a lead of about 1.7 s (measured) on `pack.loudness` to undo its lag (0 once the energy lanes exist).
   2. It climbs fast and falls slowly (for example 0.2 s up, 1.5 s down).
   3. It normalises to the span's 5th–95th percentile and maps the result to floor..1.
   4. It simplifies to fewer than `MAX_PIVOTS` linear pivots.
@@ -370,7 +380,7 @@ Items 4 and 5 share one script, `scripts/augment-pack.ts`. It decodes `songs/<id
 
 ## 8. The demo: energy lanes
 
-[lab/energy.html](lab/energy.html) shows items 1, 4 and 7, plus the deferred "relative" lane, on any song in `songs/`. It is a demo only: nothing in the studio or the lab reads it, and it writes nothing. To run it:
+[lab/energy.html](lab/energy.html) shows items 1, 4 and 7, plus the deferred "relative" lane, on any song in `songs/`. It is a demo only: nothing in the studio or the lab reads it, and it writes nothing. It lives on branch `claude/audio-viz-pipeline-research-c79252`, not on main, so run it from that worktree's folder (it has the `songs` junction):
 
 ```bash
 npx vite --port 5203 --strictPort
