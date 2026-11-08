@@ -19,6 +19,8 @@ Built, and nobody has watched these play with music.
 
 - **`npm run widgets-check` flags Fold, Kline and Time Slice** for their slider, but the user decided none of them has one, so it should stop flagging them.
 
+- **Show the composer the signals a widget is connected to** (asked 2026-11-08). The user approved "Follows the sound" and the "how strongly" slider, but finds the response still slow. He wants to see what he is connecting a widget to: a graph, beside a clip or knob in the studio, of how each signal moves through the song (for example loudness, smoothed loudness, `level`, `rate`, `hit`). `lab/energy.html` already draws several of them (what `level` feels, the loudness lane, the sound's own centred energy, the follow curve) and is a starting point. The slowness comes mostly from the loudness lane itself: it is averaged backwards over about 1.5 s. The fix is item 4 in `docs/research/audio-to-picture.md`, an energy lane with no lag stored with each song.
+
 - **A design session for a bell and piano effect** (not started). The user: "make a design session for a effect that looks like the sound produced by a bell and a piano. a \"clinging\" sound, like \"clinging bells\"."
 
 ## Decisions for the user
