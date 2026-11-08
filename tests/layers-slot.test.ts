@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { groupChords, soundingAt } from '../src/widgets/chords';
+import { paceAt, setCurves } from '../src/widgets/curves';
 import { advanceFeatures, newFeatures } from '../src/widgets/features';
 import type { InstanceState, LayerHost, LayeredSlot } from '../src/widgets/layers';
 import type { Chord, Note, Pivot, WidgetCtx } from '../src/widgets/types';
@@ -50,7 +51,7 @@ describe('coldInstance', () => {
     WA.coldInstance(i, 10);
     expect(i.ci).toBe(chords.findIndex((c) => c.t > 10));
     expect(i.pulse).toEqual({ level: 0, rate: 0, hit: 0 });
-    expect(i.feat).toEqual(newFeatures());
+    expect(i.feat).toEqual({ ...newFeatures(), pace: paceAt(i.chords, 10) });   // pace is already at t; loud 0 without a loudAt
     expect(WA.newFeatures()).toEqual(newFeatures());
     WA.coldInstance(i, 1e9);
     expect(i.ci).toBe(chords.length);
@@ -136,6 +137,7 @@ describe('drawLayered', () => {
       while (ci < chords.length && chords[ci].t <= t) fired.push(chords[ci++]);
       WA.drawLayered(host([]), slot(i, { t, dt: 1 / 60 }));
       advanceFeatures(ref, rf, fired, soundingAt(notes, t), 1 / 60);
+      setCurves(rf, i.chords, t, () => 0);
     }
     expect(i.pulse).toEqual(ref);
     expect(i.feat).toEqual(rf);

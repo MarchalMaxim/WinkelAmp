@@ -75,7 +75,7 @@ export function readLabHarness(html: string): LabHarness {
 declare module './types' {
   interface LabSong {
     /** The song's pack data for the lab (plan 2026-10-31 §11): lab/pack-<id>.js, written by `npm run lab-notes -- <id>`
-        (git-ignored), sets window.PACK = { tracks, beats, loudness }. Both the lab and render.html?labSong load it. */
+        (git-ignored), sets window.PACK = { tracks, beats, loudness, energy? }. Both the lab and render.html?labSong load it. */
     pack?: string;
   }
 }

@@ -3,7 +3,7 @@
  *
  *   npm run lab-notes -- <id>
  *
- * Reads songs/<id>/pack.json and writes one line, window.PACK = { tracks, beats, loudness };, which the lab loads as a
+ * Reads songs/<id>/pack.json and writes one line, window.PACK = { tracks, beats, loudness, energy? };, which the lab loads as a
  * classic script when its SONGS entry names pack: 'pack-<id>.js'. A pack without tracks (a piano song, or v1) gives
  * tracks {} so the lab's "listens to" offers the lines derived from the notes only. The notes themselves stay in the
  * lab's notes*.js files. A song new to the lab (no lab/<id>.mp3 yet) also gets those, all git-ignored: lab/<id>.mp3, a link
@@ -22,7 +22,8 @@ const pack = JSON.parse(readFileSync(file, 'utf8')) as SongPack;
 const problems = validatePack(pack);
 if (problems.length) { console.error(`${file} is not a valid pack:\n  ${problems.join('\n  ')}`); process.exit(1); }
 
-const data = { tracks: pack.tracks ?? {}, beats: pack.beats, loudness: pack.loudness };
+// energy (the zero-lag lane, dB) only when the pack has it: WA.energyCurve(PACK) turns it into a 0..1 lane.
+const data = { tracks: pack.tracks ?? {}, beats: pack.beats, loudness: pack.loudness, ...(pack.energy ? { energy: pack.energy } : {}) };
 const out = resolve(REPO, 'lab', `pack-${id}.js`);
 const tmp = `${out}.${process.pid}.tmp`;
 try {
@@ -40,4 +41,4 @@ if (!existsSync(audio)) {
   console.log(`${relative(REPO, audio).replace(/\\/g, '/')}, ${relative(REPO, notes).replace(/\\/g, '/')}: ${pack.notes.length} notes`);
 }
 const tracks = Object.entries(data.tracks).map(([t, k]) => `${t} ${k!.notes.length}`);
-console.log(`${relative(REPO, out).replace(/\\/g, '/')}: ${tracks.length ? `tracks ${tracks.join(', ')}` : 'no tracks'}; ${pack.beats.length} beats, ${pack.loudness.values.length} loudness values`);
+console.log(`${relative(REPO, out).replace(/\\/g, '/')}: ${tracks.length ? `tracks ${tracks.join(', ')}` : 'no tracks'}; ${pack.beats.length} beats, ${pack.loudness.values.length} loudness values${pack.energy ? ', energy' : ', no energy'}`);

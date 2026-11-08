@@ -66,6 +66,12 @@ export interface SongPack {
   tracks?: Partial<Record<TrackId, Track>>;
   /** Every model that ran for this pack; `instruments` is the list MuScriptor was given. */
   transcribers?: { name: 'piano' | 'ymt3' | 'bp' | 'muscriptor'; model: string; seconds: number; notes: number; instruments?: string[] }[];
+  /**
+   * The zero-lag energy lane (src/audio/energy.ts), in dB, as long as loudness: sample i is the window centred on
+   * (i + 0.5)·0.1 s, 0.4 s wide (momentary) or 3 s (shortTerm). Any version; absent in packs made before it (npm run
+   * augment-pack adds it).
+   */
+  energy?: { hop: 0.1; momentary: number[]; shortTerm: number[] };
 }
 
 const SOURCES: readonly NotesSource[] = ['gpu', 'file', 'approx', 'merged', 'hybrid', 'ymt3', 'bp-hybrid', 'ms-hybrid'];
@@ -132,6 +138,18 @@ export function validatePack(x: unknown): string[] {
   else {
     if (durOk && l.values.length !== loudnessLength(duration)) e.push(`loudness.values: ${l.values.length} values, expected ${loudnessLength(duration)} (one per 0.1 s)`);
     if (!l.values.every((v) => isNum(v) && v >= 0 && v <= 1)) e.push('loudness.values: not all in 0..1');
+  }
+  if (p.energy !== undefined) {
+    const en = p.energy as unknown;
+    if (!isObj(en) || en.hop !== 0.1 || !Array.isArray(en.momentary) || !Array.isArray(en.shortTerm)) e.push('energy: not { hop: 0.1, momentary, shortTerm }');
+    else {
+      const want = isObj(l) && Array.isArray(l.values) ? l.values.length : durOk ? loudnessLength(duration) : null;
+      for (const k of ['momentary', 'shortTerm'] as const) {
+        const v = en[k] as unknown[];
+        if (want !== null && v.length !== want) e.push(`energy.${k}: ${v.length} values, expected ${want} (as many as loudness)`);
+        if (!v.every(isNum)) e.push(`energy.${k}: not all finite numbers`);
+      }
+    }
   }
   if (!Array.isArray(p.harmony)) e.push('harmony: not an array');
   else {

@@ -63,7 +63,7 @@ describe('validateShow', () => {
 
   it('rejects unknown widgets, bad knobs, ids; warns of out-of-range knobs and typos', () => {
     expect(at(errs(show(clip('a', 0, 5, 0, 'nope'))), 'clips[0].widget')).toHaveLength(1);
-    expect(at(errs(show(clip('a', 0, 5, 0, 'kandinsky', { knobs: { edges: { drive: '+loud' } as never } }))), 'clips[0].knobs.edges.drive')).toHaveLength(1);
+    expect(at(errs(show(clip('a', 0, 5, 0, 'kandinsky', { knobs: { edges: { drive: '+loudness' } as never } }))), 'clips[0].knobs.edges.drive')).toHaveLength(1);
     expect(at(errs(show(clip('a', 0, 5, 0, 'kandinsky', { knobs: { edges: { depth: 2 } } }))), 'clips[0].knobs.edges.depth')).toHaveLength(1);
     expect(at(errs({ ...good(), id: 'Not A Slug' }), 'id')).toHaveLength(1);
     expect(at(warns(show(clip('a', 0, 5, 0, 'kandinsky', { knobs: { edges: 99 } }))), 'clips[0].knobs.edges')).toHaveLength(1);

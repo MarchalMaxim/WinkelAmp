@@ -5,6 +5,7 @@
  * Times are song seconds of the decoded audio (when the sound is heard).
  */
 import type { Chord, MelodyNote } from './types';
+import { energyLane, type EnergyLane } from './energy';
 import { extractMelody } from './melody';
 import { analyzeOffline } from './offline';
 import { segment } from './structure';
@@ -34,6 +35,8 @@ export interface SongAnalysis {
   sections: { start: number; end: number; novelty: number }[];
   beats: number[];
   loudness: { hop: 0.1; values: number[] };
+  /** The zero-lag energy lane (energy.ts): dB, as long as loudness. Optional only so hand-made analyses need none. */
+  energy?: EnergyLane;
   harmony: { t: number; root: number; minor: boolean }[];
   onsets: { t: number; s: number }[];
   melody: MelodyNote[];
@@ -211,6 +214,7 @@ export function analyzeSong(pcm: Float32Array, sampleRate: number, onProgress?: 
     if (c) last = r3(clamp01(s / c));
     values.push(last);
   }
+  const energy = energyLane(pcm, sampleRate, loudnessLength(duration));
   onProgress?.(1);
-  return { duration, sections, beats, loudness: { hop: LOUDNESS_HOP, values }, harmony, onsets, melody };
+  return { duration, sections, beats, loudness: { hop: LOUDNESS_HOP, values }, energy, harmony, onsets, melody };
 }

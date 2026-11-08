@@ -138,12 +138,42 @@ describe('gate', () => {
     sane(g);
   });
 
+  it('with lag { open: 0, close: 0 } (the energy lane): full 0.15 s before the lane rises, closing where it falls', () => {
+    const none = { open: 0, close: 0 };
+    const g = P.gate(s, curve((t) => (t >= 15 && t < 20 ? 0.9 : 0.2)), { above: 0.5, lag: none });
+    expect(brief(g)).toEqual([[14.75, 0], [14.85, 1, 'hold'], [20, 1], [20.1, 0, 'hold']]);
+    for (const t of [12, 17.3, 24.6]) {
+      const open = P.gate(s, curve((x) => (x >= t ? 0.9 : 0.2)), { above: 0.5, lag: none }).find((p) => p.v === 1)!;
+      expect(open.t).toBeCloseTo(t - 0.15, 6);
+    }
+    // a short run keeps its own 0.5 s; with no lag given, the default is the measured lag, as before
+    expect(brief(P.gate(s, curve((t) => (t >= 15 && t < 15.5 ? 0.9 : 0.2)), { above: 0.5, lag: none }))).toEqual([[14.75, 0], [14.85, 1, 'hold'], [15.5, 1], [15.6, 0, 'hold']]);
+    const c = curve((t) => (t >= 15 && t < 20 ? 0.9 : 0.2));
+    expect(P.gate(s, c, { above: 0.5, lag: WA.LOUDNESS_LAG })).toEqual(P.gate(s, c, { above: 0.5 }));
+  });
+
   it('caps 1000 alternating runs at MAX_PIVOTS', () => {
     const long = { start: 0, end: 1000 };
     const g = P.gate(long, curve((t) => (t % 1 < 0.4 ? 0.9 : 0.1), 1000), { above: 0.5 });
     expect(g.length).toBeLessThanOrEqual(WA.MAX_PIVOTS);
     expect(g.length).toBeGreaterThan(200);
     sane(g, long);
+  });
+});
+
+describe('loudSource: where gate and follow read loudness', () => {
+  const loudness = { hop: 0.1, values: [0.1, 0.5, 0.9] };
+  const energy = { hop: 0.1, momentary: [-50, -31, -12], shortTerm: [-40, -40, -40] };
+  it('the energy curve with no lag when the pack has it, momentary unless asked', () => {
+    expect(WA.loudSource({ loudness, energy })).toEqual({ curve: WA.energyCurve({ energy }), lag: { open: 0, close: 0, mean: 0 }, energy: true });
+    expect(WA.loudSource({ loudness, energy }, 'shortTerm')!.curve).toEqual(WA.energyCurve({ energy }, 'shortTerm'));
+    const c = WA.energyCorrection(energy);
+    expect(WA.loudSource({ energy })!.curve.values).toEqual(energy.momentary.map((d) => Math.min(1, Math.max(0, (d + c + 50) / 38))));
+  });
+  it('else pack.loudness with LOUDNESS_LAG; null with neither', () => {
+    for (const e of [undefined, null]) expect(WA.loudSource({ loudness, energy: e })).toEqual({ curve: loudness, lag: WA.LOUDNESS_LAG, energy: false });
+    expect(WA.loudSource({})).toBeNull();
+    expect(WA.loudSource(null)).toBeNull();
   });
 });
 

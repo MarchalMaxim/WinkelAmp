@@ -6,7 +6,7 @@
 <title>Energy lanes</title>
 <style>
   :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --panel: #110f12;
-    --today: #b9b2ac; --lane: #d9a441; --energy: #4cc9f0; --follow: #7bd88f; --rel: #b48cff; --peak: #ff5a5f; }
+    --today: #b9b2ac; --lane: #d9a441; --energy: #4cc9f0; --follow: #7bd88f; --rel: #b48cff; --peak: #ff5a5f; --stored: #ff9ed8; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
   main { max-width: 1280px; margin: 0 auto; padding: 18px 16px 40px; }
@@ -61,7 +61,12 @@
           <span><i style="background:var(--peak)"></i>the loudest moments, as suggestions</span>
         </div>
       </div>
-      <div class="panel"><h2>Close up: 24 seconds around the playhead (ticks: transcribed attacks, taller = louder)</h2><canvas id="detail"></canvas></div>
+      <div class="panel"><h2>Close up: 24 seconds around the playhead (ticks: transcribed attacks, taller = louder)</h2><canvas id="detail"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--energy);opacity:0.45"></i>this page's own 0.4 s measurement</span>
+          <span><i style="background:repeating-linear-gradient(90deg, var(--stored) 0 3px, transparent 3px 6px)"></i>stored no-lag lane (pack.energy, made at ingest): should lie on the thin blue line</span>
+        </div>
+      </div>
     </div>
     <div class="panel"><h2>Right now</h2><canvas id="meters"></canvas></div>
   </div>

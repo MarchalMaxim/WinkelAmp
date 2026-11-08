@@ -127,10 +127,11 @@ const quantile = (vals: number[], q: number) => {
 // ---------- tuning ----------
 
 /** Typical long-term loudness of a recording (LUFS-ish, K-weighted). Masters louder or softer are pulled halfway here. */
-const REF_LOUDNESS = -20;
-/** Loudness map: dB (after the long-term correction) → 0..1. */
-const LOUD_LO = -50;
-const LOUD_HI = -12;
+export const REF_LOUDNESS = -20;
+/** Loudness map: dB (after the long-term correction) → 0..1. The energy lane's curve (widgets/curves.ts energyCurve) uses it
+    too, after the same correction. */
+export const LOUD_LO = -50;
+export const LOUD_HI = -12;
 /** Rate of the analysis grid for the onset envelope (Hz). */
 const GRID = 60;
 const MAX_PEAKS = 32;

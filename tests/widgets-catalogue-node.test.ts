@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { readLabHarness } from '../src/widgets/lab-harness';
 
-const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit'];
+const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit', '+loud', '-loud', '+pace', '-pace'];
 
 describe('loadCatalogue (every lab/tools file in node:vm)', () => {
   const { widgets, failed } = loadCatalogue();

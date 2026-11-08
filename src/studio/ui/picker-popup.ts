@@ -337,7 +337,7 @@ export class PickerPopup {
     this.buildChips();
     this.el.hidden = false;
     const canvas = this.$<HTMLCanvasElement>('canvas');
-    this.runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks }, lib);
+    this.runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, lib);
     this.conductor = new Conductor(this.runtime, this.draftNow(), meta);
     this.conductor.reset(player.time);
     this.stopLive = startLive(this.conductor, this.runtime, player.audio, (t) => this.frame(t));

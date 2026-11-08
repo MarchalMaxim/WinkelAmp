@@ -86,7 +86,9 @@ params: [
   `presence` that dims (`tools/kusama.js`). It may be a sixth knob. At default values a widget draws exactly
   what it drew before, and a stored knob value never changes meaning. Drive adds `depth * (max - min)`, so widening a driven
   knob's range changes its swing and the default look: add a new plain knob instead. Compare seeded `?render=1` frames.
-- Drives (stored as `+level` etc.) show as words: louder / faster / higher notes / more bass / fuller chords → more / less.
+- Drives (stored as `+level` etc.) show as words: louder notes / faster / higher notes / more bass / fuller chords /
+  louder sound (`loud`) / busier (`pace`) → more / less. `loud` and `pace` are read from curves at the song time
+  (src/widgets/curves.ts), so they never build up: the recording's loudness, and attacks per second in the 4 s around now.
 - `tag`: `'new'` for a new widget, `'v2'`, `'v3'`… for a rework. A tag that differs from the version the user judged
   (`VERDICTS` in `index.html`, from `ratings.json` (2026-11-08) and `ratings.md`) marks the card "reworked" and sorts it to the top.
 

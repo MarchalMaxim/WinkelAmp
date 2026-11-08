@@ -4,9 +4,10 @@
 import { advanceFeatures, newFeatures, type Pulse } from '../widgets/features';
 import { groupChords } from '../widgets/chords';
 import type { Note } from '../widgets/types';
+import { LOUD_HI, LOUD_LO } from '../audio/descriptors';
 
 /** Our loudness lane's own dB → 0..1 map (descriptors.ts LOUD_LO / LOUD_HI), so the curves share one scale. */
-export const LOUD_LO = -50, LOUD_HI = -12;
+export { LOUD_HI, LOUD_LO };
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 

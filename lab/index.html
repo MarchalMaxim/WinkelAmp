@@ -192,13 +192,15 @@
   <details class="filt" id="filt" hidden></details>
   <details class="combos" id="combos" hidden></details>
   <p class="legend">
-    <span class="how">A knob can stay <b>fixed</b>, or follow one of five things the music does:</span>
-    <b>louder</b> = the keys are struck harder ·
+    <span class="how">A knob can stay <b>fixed</b>, or follow one of the things the music does:</span>
+    <b>louder notes</b> = the keys are struck harder (it fades between notes) ·
+    <b>louder sound</b> = the recording itself is loud ·
     <b>faster</b> = more notes per second ·
+    <b>busier</b> = many notes in the seconds around now, against the busiest parts of the piece ·
     <b>higher notes</b> = the top note climbs ·
     <b>more bass</b> = more weight in the low notes ·
     <b>fuller chords</b> = more notes sounding at once.
-    <span class="how">“louder → more” turns the knob up as the music gets louder; “louder → less” turns it down.
+    <span class="how">“louder sound → more” turns the knob up as the music gets louder; “louder sound → less” turns it down.
     The two small pictures at the ends of a slider show what left and right do; the lit one by its name shows where it is now, moving with the music. Hover or tap <i>i</i> for a sentence about it.</span>
   </p>
   <p class="missing" id="missing"></p>
@@ -602,9 +604,10 @@ const sortKey = (tool) => (!VERDICTS[tool.id] && !RATED.has(tool.id) ? 0 : isRev
 // Parameters: a tool lists params [{ key, label, min, max, step?, value, drive?, hint?, icon? }] and reads ctx.p('key') each
 // frame. The user sets each one's base value and what drives it (a music feature, up or down) on the tool's card.
 // Stored values stay '+level' etc. so saved settings keep loading; only the words shown changed.
-const DRIVES = [['', 'fixed'], ['+level', 'louder → more'], ['-level', 'louder → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
+const DRIVES = [['', 'fixed'], ['+level', 'louder notes → more'], ['-level', 'louder notes → less'], ['+rate', 'faster → more'], ['-rate', 'faster → less'],
   ['+pitch', 'higher notes → more'], ['-pitch', 'higher notes → less'], ['+bass', 'more bass → more'], ['-bass', 'more bass → less'],
-  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less'], ['+hit', 'each note → jump'], ['-hit', 'each note → dip']];
+  ['+density', 'fuller chords → more'], ['-density', 'fuller chords → less'], ['+hit', 'each note → jump'], ['-hit', 'each note → dip'],
+  ['+loud', 'louder sound → more'], ['-loud', 'louder sound → less'], ['+pace', 'busier → more'], ['-pace', 'busier → less']];
 let PST = {}; try { if (!RENDER) PST = JSON.parse(localStorage.getItem('wa-params') || '{}'); } catch {}
 const pst = (tool, q) => ((PST[tool.id] ??= {})[q.key] ??= { base: q.value, drive: q.drive ?? '', depth: 0.5 });
 // Every change also goes to the local save server (save-server.mjs), so Claude can read it from any browser.
@@ -630,7 +633,11 @@ const RENDER_LAYERS = (() => {
 /** The layer entries as the show's list: [{ widget, listen?, region?, intensity? }], in TOOL_IDS order. */
 const layerList = () => RENDER_LAYERS ?? TOOL_IDS.filter((id) => LAYERS[id] && typeof LAYERS[id] === 'object').map((id) => ({ widget: id, ...LAYERS[id] }));
 const saveL = () => { if (RENDER) return; try { localStorage.setItem('wa-layers', JSON.stringify(LAYERS)); } catch {} sync(); };
-ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 };
+ctx.feat = { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0 };
+/** loud at song time t (lines.js loudCurve: PACK.energy's momentary curve as it is when the pack has it, else
+    PACK.loudness read LOUDNESS_LAG.open ahead): 0 until the pack has loaded (the start below sets it), and without one. */
+let LOUD_AT = () => 0;
+const loudAt = (t) => LOUD_AT(t);
 ctx.p = (key) => {
   const tool = ctx.tool, q = tool?.params?.find((x) => x.key === key); if (!q) return undefined;
   const s = pst(tool, q); let v = s.base;
@@ -729,8 +736,8 @@ function render() {
   renderFilter();
 }
 
-/** What a card's layer controls know of the song: its notes, the pack's tracks, beats and loudness, its moments. */
-const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, moments: SONG.moments, dur: DUR });
+/** What a card's layer controls know of the song: its notes, the pack's tracks, beats, loudness and energy, its moments. */
+const labSong = () => ({ id: SONG_ID, notes: NOTES, tracks: window.PACK?.tracks, beats: window.PACK?.beats, loudness: window.PACK?.loudness, energy: window.PACK?.energy, moments: SONG.moments, dur: DUR });
 
 /* The filter bar over the cards: feel words by axis and instruments by family (lab/tag-words.json). A card shows when
    its tags have every word picked (AND). Kept in the URL: ?feel=dark,liquid&inst=cello. It only hides cards: what is
@@ -902,7 +909,7 @@ function applyLayers(list) {
     if (key === id) {
       // The widget itself (WidgetRuntime keeps an instance for every widget): own when its entry has a curve.
       if (!base) continue;
-      const inst = newInst(key, id, NOTES, CHORDS, false, false); L.coldInstance(inst, STEP_T); setOwn(inst, own);
+      const inst = newInst(key, id, NOTES, CHORDS, false, false); L.coldInstance(inst, STEP_T, loudAt); setOwn(inst, own);
       INST.set(key, { key, tool: base, base: true, inst }); made.push(key); continue;
     }
     if (TOOL_SRC[id] == null || !base) { errors[key] = `no widget ${id}`; continue; }
@@ -912,7 +919,7 @@ function applyLayers(list) {
     const chords = routed ? L.groupChords(notes) : CHORDS;
     try {
       const tool = instantiate(id, routed ? notes : null, chords);
-      const inst = newInst(key, id, notes, chords, true, routed); L.coldInstance(inst, STEP_T);
+      const inst = newInst(key, id, notes, chords, true, routed); L.coldInstance(inst, STEP_T, loudAt);
       INST.set(key, { key, tool, base: false, inst }); made.push(key);
     } catch (e) { errors[key] = `load: ${e.message}`; console.warn('layer', key, 'did not load:', e); }
   }
@@ -950,7 +957,7 @@ function callInst(it, fn, x, ch) {
 const makeCanvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
 let LAYER_SCRATCH = null;
 const labHost = {
-  ctx, g, canvas: c, S: 1,
+  ctx, g, canvas: c, S: 1, loudAt,
   // labHost.ctx, not ctx: a windowed call runs with it set to the instance's window view (slot.js).
   call: (inst, fn, ch) => callInst(INST.get(inst.key), fn, labHost.ctx, ch),
   scratch: () => (LAYER_SCRATCH ??= makeCanvas(W, H)),
@@ -973,7 +980,7 @@ function drawSlot(s, fired, t, dt, drawn) {
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
     return;
   }
-  if (it.inst.own && !DRAWN_PREV.has(it.key)) WA_LAYERS.coldInstance(it.inst, STEP_T);   // back after an absence
+  if (it.inst.own && !DRAWN_PREV.has(it.key)) WA_LAYERS.coldInstance(it.inst, STEP_T, loudAt);   // back after an absence
   WA_LAYERS.drawLayered(labHost, { inst: it.inst, receiving: true, weight: 1, layer: s.layer ?? {}, fired, lastT: STEP_T, t, dt });
 }
 /** A widget restarted (its card switched on): its reset, and its layer instances' with their windows cleared. */
@@ -999,10 +1006,11 @@ window.labLayers = {
 let ci = 0, lastT = 0, liveT = 0;
 function reset(t) {
   lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0; ctx.hit = 0;
+  WA_LAYERS.curveFeatures(ctx.feat, CHORDS, t, loudAt);   // loud and pace are already those at t: a widget's reset may read them
   ci = CHORDS.findIndex((ch) => ch.t > t); if (ci < 0) ci = CHORDS.length;
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   // Every layer instance starts cold at t, its window black (WidgetRuntime.reset).
-  for (const it of INST.values()) { WA_LAYERS.coldInstance(it.inst, t); if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win); }
+  for (const it of INST.values()) { WA_LAYERS.coldInstance(it.inst, t, loudAt); if (it.inst.win) WA_LAYERS.clearWindow(it.inst.win); }
   for (const tool of TOOLS) safe(tool, 'reset', ctx);
   for (const it of INST.values()) if (!it.base) callInst(it, 'reset', ctx);
   STEP_T = t; DRAWN_PREV = new Set();
@@ -1038,6 +1046,8 @@ function step(t, dt) {
     f.level = ctx.level; f.rate = Math.min(1, ctx.rate / 8);
     f.pitch += ((top ? ctx.pitch01(top.m) : f.pitch) - f.pitch) * k; f.bass += (Math.min(1, bass / 2) - f.bass) * k; f.density += (Math.min(1, snd.length / 10) - f.density) * k;
     f.hit = ctx.hit; }
+  // loud and pace: read from curves at t, never built up (lines.js); an own layer instance gets its own in slot.js.
+  WA_LAYERS.curveFeatures(ctx.feat, CHORDS, t, loudAt);
   // Shared background: fade toward black. A tool may paint its own on top.
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, W, H);
@@ -1063,7 +1073,7 @@ function step(t, dt) {
 // whose time was crossed fires. Returns the song time reached.
 if (RENDER) {
   window.renderSeek = (t, seed = 1) => {
-    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0 });
+    window.reseed(seed); Object.assign(ctx.feat, { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0 });
     ctx.now = 0; reset(t); return t;
   };
   window.renderStep = (dt) => {
@@ -1138,6 +1148,7 @@ document.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => seek(Num
 document.getElementById('track').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); seek(((ev.clientX - r.left) / r.width) * DUR); };
 document.getElementById('export').onclick = async () => { const j = JSON.stringify({ ratings, params: PST, layers: layerList() }); try { await navigator.clipboard.writeText(j); document.getElementById('export').textContent = 'Copied: paste it to Claude'; } catch { prompt('Copy this and paste it to Claude:', j); } };
 Promise.all([loadTools(), loadPack(), loadTags(), loadRated()]).then(() => {
+  LOUD_AT = WA_LAYERS.loudCurve(window.PACK?.loudness, WA_LAYERS.LOUDNESS_LAG.open, window.PACK?.energy);
   applyLayers(layerList());
   if (RENDER) for (const l of RENDER_LAYERS) active.add(l.widget);   // a widget with an entry draws, as the studio's
   let carry = null; try { if (!RENDER && !only) carry = JSON.parse(sessionStorage.getItem('wa-carry') || 'null'); sessionStorage.removeItem('wa-carry'); } catch {}

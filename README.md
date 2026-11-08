@@ -34,7 +34,7 @@ Pick a song under **Songs**; a song without a show of its own opens with an empt
   the tracks and which own nothing); turn it off, or hold Alt for one drag. Ctrl + wheel zooms.
 - **The side panel** holds the selected clip: when it plays and how long its edges fade, then its knobs, drawn as the
   lab draws them (a picture at each end, the live one moving with the music, the `i` hint, and what the knob follows:
-  fixed, louder → more, …). **Add a widget** opens the collection with your verdicts from the lab and places a clip at
+  fixed, louder notes → more, louder sound → more, busier → more, …). **Add a widget** opens the collection with your verdicts from the lab and places a clip at
   the playhead, on top; so does Ctrl+P.
 - **Undo** (Ctrl+Z), **redo** (Ctrl+Shift+Z), **Save show** (Ctrl+S) writes `shows/<song>.json`.
 - **Show** tab: *Describe the show* saves your words to `shows/<song>.description.md`; ask Claude Code to compose
@@ -162,6 +162,11 @@ npm run ingest -- <audio> [--id <slug>] [--title "<t>"] [--notes auto|gpu|hybrid
   `--notes` other than `auto` or `hybrid`, it is exit 2); `--muscriptor-notes` reads a saved run instead of running it.
 - `npm run describe-song -- <id>` then lists the tracks and where each instrument plays; `npm run pianoroll` draws
   piano rolls of them.
+- The pack also holds `energy`: the recording's loudness every 0.1 s over a 0.4 s and a 3 s window centred on that
+  moment, so it has no lag. The loud drive, the "Loud parts" and "Follows the sound" presets and the faint loudness
+  picture in the intensity lane read it; a pack without it falls back to the older `loudness` lane, which runs about
+  1.7 s late. `npm run augment-pack [-- <id>…]` adds it to packs made before it (only that key; the original is kept
+  as `pack.before-energy.json`). Never use `ingest --force` for this.
 
 ### Pick the melody's notes for a widget
 
@@ -227,7 +232,8 @@ npm run render-show -- <show id | file> [--scale 2] [--fps 60] [--from s] [--to 
                        #   with the recording's sound (a song without a show: the one the studio composes)
 npm run setup-ymt3 -- --from <Space folder>  # installs YourMT3+ outside the repo (see above)
 npm run setup-muscriptor -- [--download]     # checks MuScriptor's venv and weights, says its licence (see above)
-npm run lab-notes -- <id>                    # the lab's files for a song (lab/pack-<id>.js: tracks, beats, loudness; a new song also its audio and notes)
+npm run lab-notes -- <id>                    # the lab's files for a song (lab/pack-<id>.js: tracks, beats, loudness, energy; a new song also its audio and notes)
+npm run augment-pack [-- <id>…] [--force-energy]   # adds the zero-lag energy lane to older packs (keeps pack.before-energy.json)
 npm run pianoroll -- <id> --out <png> [--by track]   # a piano roll of a song, coloured by track, class or line
 npm run studio-check   # drives the studio in Chrome on a 30 s test song (starts its own server)
 npm run layers-check   # the layer panel: listens to, where, intensity presets, the widget picker's filters

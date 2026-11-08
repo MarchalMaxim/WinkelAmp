@@ -315,14 +315,20 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       { id: 'beat', label: 'Each beat', menu: 'Pulse every beat', icon: ICONS.beat, make: (sp, floor) => P.pulse(sp, beats, { every: 1, floor }) },
       { id: 'bar', label: 'Each bar', menu: 'Pulse every bar', note: '4 beats', icon: ICONS.bar, make: (sp, floor) => P.pulse(sp, beats, { every: 4, floor }) },
       { id: 'gate', label: 'Loud parts', menu: 'Gate on loudness', note: 'open in the louder half', icon: ICONS.gate, make: (sp, floor) => {
-        // The lane runs late: read it that much later, so the threshold is the music inside the span.
-        const lo = d.song.loudness, hop = lo.hop, lag = L.LOUDNESS_LAG.mean, n = lo.values.length;
+        // The energy lane's 3 s curve (shortTerm: the 0.4 s one makes the gate chatter), with no lag. Without it,
+        // pack.loudness, which runs late: read that much later, so the threshold is the music inside the span.
+        const src = L.loudSource(d.song, 'shortTerm') ?? { curve: d.song.loudness, lag: L.LOUDNESS_LAG };
+        const lo = src.curve, hop = lo.hop, lag = src.lag.mean, n = lo.values.length;
         const inSpan = lo.values.slice(Math.min(Math.floor((sp.start + lag) / hop), n - 1), Math.ceil((sp.end + lag) / hop));
-        return P.gate(sp, lo, { above: Math.min(0.95, Math.max(0.05, median(inSpan) || 0.5)), floor });
+        return P.gate(sp, lo, { above: Math.min(0.95, Math.max(0.05, median(inSpan) || 0.5)), floor, lag: src.lag });
       } },
       // Quiet passages must not empty the screen: with "Lowest" at 0 it stays above 35 %.
       { id: 'follow', label: 'Follows the sound', menu: 'Follow the loudness', note: `rises and falls with the music, never below ${pct(followFloor())}`,
-        icon: ICONS.follow, make: (sp, floor) => P.follow(sp, d.song.loudness, { floor: floor > 0 ? floor : 0.35 }) },
+        icon: ICONS.follow, make: (sp, floor) => {
+          // The energy lane's 0.4 s curve as it is; without it, pack.loudness read LOUDNESS_LAG.open ahead.
+          const src = L.loudSource(d.song) ?? { curve: d.song.loudness, lag: L.LOUDNESS_LAG };
+          return P.follow(sp, src.curve, { floor: floor > 0 ? floor : 0.35, lead: src.lag.open });
+        } },
     ];
     if (l?.listen && l.listen !== 'all') {
       const listen = l.listen;
@@ -402,6 +408,12 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     view = v;
   };
 
+  // The faint picture's curve, made once per song (the energy curve is a new array each time it is asked for).
+  let faintOf: SongPack | null = null, faint: { curve: { hop: number; values: readonly number[] }; lag: { mean: number } } | null = null;
+  const faintCurve = () => {
+    if (faintOf !== d.song || !faint) { faintOf = d.song; faint = L.loudSource(d.song) ?? { curve: d.song.loudness, lag: L.LOUDNESS_LAG }; }
+    return faint;
+  };
   const draw = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (view) drawLane(view); placeHead(); }); };
 
   const drawLane = (v: LaneView) => {
@@ -414,8 +426,9 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     if (!pc) return;
     const px0 = Math.max(0, Math.floor(G.x(pc.span.start))), px1 = Math.min(w, Math.ceil(G.x(pc.span.end)));
 
-    // The loudness, faint, from the bottom; drawn earlier by the time it runs late, so it lines up with the attacks.
-    const lo = d.song.loudness, hop = lo.hop, lag = L.LOUDNESS_LAG.mean;
+    // The loudness, faint, from the bottom: the energy lane's 0.4 s curve where it is, which lines up with the attacks
+    // as it is; else pack.loudness, drawn earlier by the time it runs late.
+    const src = faintCurve(), lo = src.curve, hop = lo.hop, lag = src.lag.mean;
     g.fillStyle = '#e9e2da12';
     g.beginPath(); g.moveTo(0, h);
     for (let x = 0; x <= w; x++) {

@@ -26,6 +26,8 @@ These were waiting for the user's eye. He rated them on 2026-11-08. The verdicts
 
 - **Show the composer the signals a widget is connected to** (asked 2026-11-08). The user approved "Follows the sound" and the "how strongly" slider, but finds the response still slow. He wants to see what he is connecting a widget to: a graph, beside a clip or knob in the studio, of how each signal moves through the song (for example loudness, smoothed loudness, `level`, `rate`, `hit`). `lab/energy.html` already draws several of them (what `level` feels, the loudness lane, the sound's own centred energy, the follow curve) and is a starting point. The slowness comes mostly from the loudness lane itself: it is averaged backwards over about 1.5 s. The fix is item 4 in `docs/research/audio-to-picture.md`, an energy lane with no lag stored with each song.
 
+- **A setup window for a clip, instead of more in the side panel** (asked 2026-11-08, parked). The user: the studio's side panel "is nice, but at capacity" for extra things such as the "how strongly" sliders, the new drives and the signal graph above. An idea, not settled: when a widget is added (or a clip opened), a larger window pops out where its knobs, what each follows, and the signals it is connected to can be set and seen, as the "Connect notes to a widget" picker does for notes. The signal graph above would live there.
+
 - **A design session for a bell and piano effect** (not started). The user: "make a design session for a effect that looks like the sound produced by a bell and a piano. a \"clinging\" sound, like \"clinging bells\"."
 
 ## Decisions for the user

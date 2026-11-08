@@ -1,7 +1,7 @@
 // The shared layer maths (plan §2): lab/layers/*.js, written once. The lab loads each file as a classic <script>;
 // the studio (src/widgets/layers-source.ts) and Node (scripts/node/layers.ts) evaluate the same text here. Pure: no
 // Vite, no fs, so both loaders can import it.
-import type { Chord, Features, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
+import type { Chord, EnergyLanesLike, Features, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
 
 export interface Span { start: number; end: number }
 
@@ -20,6 +20,8 @@ export interface LayerHost {
   scratch(): HTMLCanvasElement;                         // canvas-sized, reused
   windowOf(inst: InstanceState): HTMLCanvasElement;     // canvas-sized, opaque black when created
   make(w: number, h: number): HTMLCanvasElement;
+  /** loud at song time t (src/widgets/curves.ts makeLoudAt); absent: loud is 0. */
+  loudAt?(t: number): number;
 }
 
 export interface LayeredSlot { inst: InstanceState; receiving: boolean; weight: number; layer: SlotLayer;
@@ -39,7 +41,7 @@ export interface WaLayers {
     steps(s: Span, o: { n: number; floor?: number }): Pivot[]; level(s: Span, v: number): Pivot[];
     swell(s: Span, o?: { peak?: number; floor?: number }): Pivot[];
     pulse(s: Span, beats: readonly number[], o: { every: number; floor?: number; duty?: number }): Pivot[];
-    gate(s: Span, curve: { hop: number; values: readonly number[] }, o: { above: number; floor?: number }): Pivot[];
+    gate(s: Span, curve: { hop: number; values: readonly number[] }, o: { above: number; floor?: number; lag?: { open: number; close: number } }): Pivot[];
     follow(s: Span, curve: { hop: number; values: readonly number[] },
       o?: { floor?: number; up?: number; down?: number; lead?: number; maxPivots?: number }): Pivot[];
     plays(s: Span, notes: readonly Note[], o?: { floor?: number }): Pivot[];
@@ -55,6 +57,18 @@ export interface WaLayers {
   lineNotes(notes: readonly Note[], line: Line): Note[];
   listenNotes(song: SongNotes, listen: Listen | undefined): { notes: Note[]; heard: string };   // heard 'all' = fell back; picks:<id> never falls back: a missing set hears nothing
   advancePulse(p: { level: number; rate: number; hit: number }, f: Features, fired: readonly Chord[], snd: readonly SoundingNote[], dt: number): void;
+  /** curves.ts makeLoudAt and paceAt, the same statements */
+  loudCurve(lane: { hop: number; values: readonly number[] } | null | undefined, lead: number | undefined, energy?: EnergyLanesLike | null): (t: number) => number;
+  paceAt(chords: readonly Chord[], t: number): number;
+  /** curves.ts energyCurve and energyCorrection, the same statements; LOUD_DB = descriptors.ts LOUD_LO / LOUD_HI /
+      REF_LOUDNESS and curves.ts ENERGY_GATE */
+  LOUD_DB: { lo: number; hi: number; ref: number; gate: number };
+  energyCorrection(e: EnergyLanesLike): number;
+  energyCurve(pack: { energy?: EnergyLanesLike | null } | null | undefined, which?: 'momentary' | 'shortTerm'): { hop: number; values: number[] } | null;
+  /** Where gate, follow and the studio's faint picture read loudness: the energy curve with no lag when the pack has
+      it, else pack.loudness with LOUDNESS_LAG; null with neither. */
+  loudSource(song: { energy?: EnergyLanesLike | null; loudness?: { hop: number; values: readonly number[] } | null } | null | undefined,
+    which?: 'momentary' | 'shortTerm'): { curve: { hop: number; values: readonly number[] }; lag: { open: number; close: number; mean: number }; energy: boolean } | null;
   // present.js
   presentValues(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less'>[] | undefined, s: number): Record<string, number>;
   presentAt(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less' | 'leads'>[] | undefined, now: Readonly<Record<string, number>> | undefined, g: number): Record<string, number>;
@@ -72,8 +86,11 @@ export interface WaLayers {
   clearBox(box: HTMLCanvasElement, w: number, h: number): void;
   /** features.ts newFeatures */
   newFeatures(): Features;
-  /** cold at t, as after a seek: ci = the first chord after t, pulse 0, fresh features (resets and comebacks) */
-  coldInstance(inst: InstanceState, t: number): void;
+  /** cold at t, as after a seek: ci = the first chord after t, pulse 0, fresh features but loud and pace at t (resets
+      and comebacks) */
+  coldInstance(inst: InstanceState, t: number, loudAt?: (t: number) => number): void;
+  /** loud (from loudAt, absent → 0) and pace (of chords) at t into f: curves.ts setCurves */
+  curveFeatures(f: Features, chords: readonly Chord[], t: number, loudAt?: (t: number) => number): void;
   /** drawLayered's step 1: the attacks the slot hears (advances inst.ci when routed) */
   deliveredChords(s: LayeredSlot): Chord[];
   /** drawLayered's step 3: weight × vis(a) with a curve, else the weight */

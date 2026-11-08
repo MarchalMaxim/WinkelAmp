@@ -12,6 +12,7 @@ import type { Mark } from '../show/marks';
 import type { SongPack } from '../pack/pack';
 import { edgeSeconds } from '../show/schedule';
 import { instanceKey, type Clip, type Show } from '../show/show';
+import { energyCurve } from '../../widgets/curves';
 import type { Chord } from '../../widgets/types';
 import { duplicateSelected, removeSelected, selectedClip, splitAt } from './clip-actions';
 import { clipViewTime } from './clip-panel';
@@ -37,7 +38,7 @@ export function widgetHue(id: string): number {
 
 /** How much the music does around each moment, 0..1 every `hop` s: the attacks the widgets answer (louder and
     fuller count more) over ±0.75 s, with the recording's loudness beneath. What the silhouette draws. */
-export function activity(chords: readonly Chord[], loudness: SongPack['loudness'], duration: number, hop = 0.25): number[] {
+export function activity(chords: readonly Chord[], loudness: { hop: number; values: readonly number[] }, duration: number, hop = 0.25): number[] {
   const n = Math.max(1, Math.ceil(duration / hop)), raw = new Array<number>(n).fill(0);
   for (const ch of chords) {
     const e = (ch.vel / 127) * Math.min(1, 0.4 + ch.notes.length / 5);
@@ -439,7 +440,8 @@ export class Timeline {
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
     const D = this.d.duration(), HOP = 0.25, mid = (h - 8) / 2, { a: va, b: vb } = this.view, span = vb - va;
     const X = (t: number) => ((t - va) / span) * w, T = (x: number) => va + (x / w) * span;
-    const A = (this.act ??= activity(this.d.chords, this.d.song.loudness, D, HOP));
+    // The loudness part: the zero-lag energy lane (0.4 s) when the pack has it, else pack.loudness, which runs late.
+    const A = (this.act ??= activity(this.d.chords, energyCurve(this.d.song) ?? this.d.song.loudness, D, HOP));
     const at = (t: number) => A[Math.min(A.length - 1, Math.max(0, Math.floor(t / HOP)))] ?? 0;
     const level = (x: number) => { let v = 0; for (let t = T(x); t < T(x + 1) + 1e-9; t += HOP) v = Math.max(v, at(t)); return Math.max(0.6, v * mid * 0.95); };
     g.fillStyle = 'hsl(30 12% 40%)';

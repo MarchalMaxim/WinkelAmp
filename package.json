@@ -31,6 +31,7 @@
     "hd-check": "node scripts/hd-check.mjs",
     "persist-probe": "node scripts/persist-probe.mjs",
     "lab-notes": "tsx scripts/lab-notes.ts",
+    "augment-pack": "tsx scripts/augment-pack.ts",
     "runtime-check": "node scripts/checks/runtime-layers-check.mjs",
     "layers-check": "node scripts/checks/layers-check.mjs",
     "overlay-check": "node scripts/checks/overlay-check.mjs",

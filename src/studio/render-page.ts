@@ -10,7 +10,7 @@
 //   &probe=<id>:<weight>                     that widget's slot weight (npm run persist-probe)
 //   &tracks=same                             a test hook: tracks piano and violin whose notes are all the notes
 //   &warm=<n>                                a test hook: n Math.random calls before the layer instances load
-//   The song's pack file (/lab/pack-<id>.js, window.PACK = { tracks, beats, loudness }) loads when its SONGS entry names one.
+//   The song's pack file (/lab/pack-<id>.js, window.PACK = { tracks, beats, loudness, energy? }) loads when its SONGS entry names one.
 // The page imitates the lab's render mode before anything runs: seeded Math.random (state 1), no workers, and
 // queueMicrotask collected and run at the end of each step (pixelsort draws after the others that way).
 import { Conductor } from './show/conductor';
@@ -70,14 +70,15 @@ async function labSongMode(id: string): Promise<void> {
   if (!Array.isArray(layers)) throw new Error('layers= is a JSON list of { widget, listen?, region?, intensity? }');
   const probeArg = params.get('probe'), probe = probeArg ? { id: probeArg.split(':')[0], weight: Number(probeArg.split(':')[1]) } : undefined;
   if (probe && !(probe.weight >= 0)) throw new Error(`probe=${probeArg}: <id>:<weight>`);
-  let tracks: SongNotes['tracks'];
+  let tracks: SongNotes['tracks'], loudness: SongNotes['loudness'], energy: SongNotes['energy'];
   if (params.get('tracks') === 'same') tracks = { piano: { notes, family: 'keys' }, violin: { notes, family: 'strings' } };
   else if (song.pack) {
     await loadScript(`/lab/${song.pack}`);
-    tracks = (window as { PACK?: { tracks?: SongNotes['tracks'] } }).PACK?.tracks;
+    const pack = (window as { PACK?: { tracks?: SongNotes['tracks']; loudness?: SongNotes['loudness']; energy?: SongNotes['energy'] } }).PACK;
+    tracks = pack?.tracks; loudness = pack?.loudness; energy = pack?.energy;
   }
   const harness = labHarness();
-  const rt = new WidgetRuntime(canvas, { notes, tracks }, { sources: labWidgetSources(), harness, layers: studioLayers() }, opts);
+  const rt = new WidgetRuntime(canvas, { notes, tracks, loudness, energy }, { sources: labWidgetSources(), harness, layers: studioLayers() }, opts);
   rt.load(harness.toolIds);   // ALL of them, in lab order: load-time randomness (rorschach's paper) is part of the pixels
   for (let n = Number(params.get('warm')) || 0; n > 0; n--) Math.random();
   rt.load(labLayerSpecs(harness.toolIds, layers));   // then the routed and own instances, in TOOL_IDS order
@@ -97,7 +98,7 @@ async function showMode(id: string): Promise<void> {
   const show = await json<Show>(`${base}/api/shows/${encodeURIComponent(id)}`);
   const pack = await json<SongPack>(`${base}/songs/${encodeURIComponent(show.song)}/pack.json`);
   (window as { NOTES?: Note[] }).NOTES = pack.notes;   // before any widget file runs: several read it when they load
-  const rt = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks }, { sources: labWidgetSources(), harness: labHarness(), layers: studioLayers() }, opts);
+  const rt = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, { sources: labWidgetSources(), harness: labHarness(), layers: studioLayers() }, opts);
   const conductor = new Conductor(rt, show, (w) => { const t = rt.tool(w); return t ? toMeta(t, null) : undefined; }, structureTimes(pack.sections));
   const ids = [...new Set(show.clips.map((c) => c.widget))];
   run(rt, conductor, { duration: pack.duration, title: show.title ?? pack.title }, ids);
