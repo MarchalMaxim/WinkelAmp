@@ -107,7 +107,7 @@ export class Picker {
           <div class="np-card">
             <ol class="np-steps">
               <li data-s1><i>1</i><div>Pick notes<small data-s1t></small><button type="button" class="np-bring" data-bring hidden title="Picks the notes you marked earlier that aren't connected to a widget. Undo takes it back."></button></div></li>
-              <li data-s2><i>2</i><div>Connect notes to a widget<div class="np-connect"><button type="button" class="primary" data-connect disabled>Connect to a widget…</button><button type="button" class="np-bring" data-stop-adding hidden>Leave its notes as they were</button></div></div></li>
+              <li data-s2><i>2</i><div>Connect notes to a widget<div class="np-connect"><button type="button" class="primary" data-connect disabled title="Ctrl+P">Connect to a widget…</button><button type="button" class="np-bring" data-stop-adding hidden>Leave its notes as they were</button></div></div></li>
               <li data-s3><i>3</i><div>Hear it in the scene<small>Each picked note fires the widget once</small></div></li>
             </ol>
           </div>
@@ -532,7 +532,8 @@ export class Picker {
   };
 
   /** Every key first, or the studio's would act on the show underneath. Space plays, Esc closes the popup and then the
-      picker, Ctrl+Z undoes picks, Ctrl+S still saves. */
+      picker, Ctrl+Z undoes picks, Ctrl+S still saves. Ctrl+P finds a widget: over the popup, and from the roll once
+      notes are picked, where it opens the popup on them first. */
   private readonly onKey = (e: KeyboardEvent): void => {
     const mod = e.ctrlKey || e.metaKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (mod && k === 's') return;
@@ -541,7 +542,15 @@ export class Picker {
     e.stopPropagation();
     const popup = this.popup, popupOpen = !!popup?.isOpen;
     if (this.d.palette.isOpen) { e.preventDefault(); this.d.palette.close(); return; }
-    if (mod && k === 'p' && !e.shiftKey) { e.preventDefault(); if (popupOpen) popup!.choose(this.d.palette); return; }
+    if (mod && k === 'p' && !e.shiftKey) {
+      e.preventDefault();
+      if (popupOpen) popup!.choose(this.d.palette);
+      else if (this.marked.size) {   // from the roll: the popup on the picked notes, and the widgets to choose from at once
+        this.openPopup();
+        if (!this.adding && this.popup?.isOpen) this.popup.choose(this.d.palette);   // adding to a set: its widget is chosen already
+      }
+      return;
+    }
     if (k === 'Escape') { e.preventDefault(); if (popupOpen) popup!.escape(); else this.close(); return; }
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;

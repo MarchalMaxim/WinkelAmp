@@ -131,8 +131,12 @@ try {
   }, before));
 
   // ---- the popup and the preview ----
-  await page.click('[data-connect]');
+  await page.keyboard.press('Control+p');
+  await page.waitForSelector('dialog.palette[open]');
+  check('Ctrl+P on the roll opens the popup on the picked notes, and the widgets to choose from', await page.evaluate(() => !document.querySelector('.np-modal').hidden));
+  await page.keyboard.press('Escape');
   await settle();
+  check('and Esc there leaves the popup open', await page.evaluate(() => !document.querySelector('dialog.palette').open && !document.querySelector('.np-modal').hidden));
   check('Place in scene is off with none picked', await page.isDisabled('[data-ok]'));
   await page.click('.np-modal [data-choose]');
   await settle();
