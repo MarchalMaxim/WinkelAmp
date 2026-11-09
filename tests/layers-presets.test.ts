@@ -259,3 +259,135 @@ describe('plays', () => {
     sane(P.plays({ start: 0, end: 4000 }, many), { start: 0, end: 4000 });
   });
 });
+
+describe('toClimax and climaxes: building to the loudest moment', () => {
+  const lane = (f: (t: number) => number, dur = 120) => ({ hop: 0.1, values: Array.from({ length: Math.round(dur * 10) }, (_, i) => f(i * 0.1)) });
+  const at = (ps: Pivot[], t: number) => WA.automationAt(ps, t);
+  // Quiet, a dip at 20 s, a wobbly climb to a peak at 60 s, quieter after.
+  const shape = (t: number) => (t < 20 ? 0.4 - 0.01 * t : t <= 60 ? 0.2 + 0.6 * ((t - 20) / 40) + 0.04 * Math.sin(t * 2) : Math.max(0.3, 0.8 - 0.1 * (t - 60)));
+  const L0 = lane(shape), whole = { start: 0, end: 120 };
+
+  it('holds at the floor to the low point, then only grows up to 1 at the peak', () => {
+    const p = P.toClimax(whole, L0);
+    sane(p, whole);
+    expect(p[0]).toEqual({ t: 0, v: 0.35 }); expect(p[p.length - 1].t).toBe(120);
+    expect(at(p, 10)).toBeCloseTo(0.35, 3); expect(at(p, 19.9)).toBeCloseTo(0.35, 2);
+    let last = 0;
+    for (let t = 0; t <= 60; t += 0.25) { const v = at(p, t); expect(v).toBeGreaterThanOrEqual(last - 1e-9); last = v; }
+    expect(at(p, 60)).toBeCloseTo(1, 2);
+    expect(at(p, 40)).toBeGreaterThan(0.5); expect(at(p, 40)).toBeLessThan(0.9);
+  });
+
+  it('stays at 1 while the sound is near the peak, at most 4 s, then settles over 3 s and holds the floor', () => {
+    const p = P.toClimax(whole, L0);
+    const top = p.filter((q) => q.v === 1);
+    expect(top.length).toBeGreaterThanOrEqual(1);
+    const end = top[top.length - 1].t;
+    expect(end).toBeGreaterThanOrEqual(60); expect(end).toBeLessThanOrEqual(64);
+    expect(at(p, end + 1.5)).toBeCloseTo(1 - 0.65 / 2, 1);
+    expect(at(p, end + 3)).toBeCloseTo(0.35, 2);
+    for (let t = end + 3; t <= 120; t += 1) expect(at(p, t)).toBeCloseTo(0.35, 3);
+    // A long top is cut at 4 s.
+    const flatTop = P.toClimax(whole, lane((t) => (t < 50 ? 0.2 + t / 100 : t < 80 ? 0.7 : 0.2)), { floor: 0.4 });
+    expect(flatTop.filter((q) => q.v === 1).pop()!.t).toBeCloseTo(53.9, 0);
+    expect(at(flatTop, 70)).toBeCloseTo(0.4, 3);
+  });
+
+  it('no dip before the peak', () => {
+    const p = P.toClimax(whole, L0);
+    for (let i = 1; i < p.length && p[i].t <= 60; i++) expect(p[i].v).toBeGreaterThanOrEqual(p[i - 1].v);
+  });
+
+  it('is clipped to the span and finds the peak inside it', () => {
+    const sp = { start: 30, end: 50 }, p = P.toClimax(sp, L0);
+    sane(p, sp);
+    expect(p[0].t).toBe(30); expect(p[p.length - 1].t).toBe(50);
+    expect(Math.max(...p.map((q) => q.v))).toBe(1);
+    // The peak of the piece (60 s) is not in this span: its own loudest point is, near its end.
+    expect(p.find((q) => q.v === 1)!.t).toBeGreaterThan(45);
+  });
+
+  it('takes the first of the given peaks that lies in the span', () => {
+    const two = lane((t) => 0.2 + 0.5 * Math.exp(-(((t - 30) / 3) ** 2)) + 0.6 * Math.exp(-(((t - 90) / 3) ** 2)));
+    const p = P.toClimax(whole, two, { peaks: [{ t: 200 }, { t: 30 }, { t: 90 }] });
+    expect(at(p, 30)).toBeCloseTo(1, 2);
+    expect(at(p, 90)).toBeCloseTo(0.35, 2);   // after the chosen peak it holds the floor
+    const q = P.toClimax(whole, two);         // no peaks given: the span's own loudest point
+    expect(at(q, 90)).toBeCloseTo(1, 2); expect(at(q, 30)).toBeLessThan(1);
+  });
+
+  it('a nearly flat span, no curve or an empty span: nothing', () => {
+    expect(P.toClimax(whole, lane((t) => 0.5 + 0.04 * Math.sin(t)))).toEqual([]);
+    expect(P.toClimax(whole, null)).toEqual([]);
+    expect(P.toClimax({ start: 5, end: 5 }, L0)).toEqual([]);
+  });
+
+  it('keeps to the pivot budget', () => {
+    const noisy = lane((t) => 0.1 + (t / 2000) * 0.8 + 0.1 * Math.sin(t * 7) * Math.sin(t * 1.3), 2000);
+    const sp = { start: 0, end: 2000 };
+    sane(P.toClimax(sp, noisy), sp);
+    expect(P.toClimax(sp, noisy).length).toBeLessThanOrEqual(WA.MAX_PIVOTS - 8);
+    expect(P.toClimax(sp, noisy, { maxPivots: 10 }).length).toBeLessThanOrEqual(10);
+  });
+
+  it('always reaches 1: the turns are kept through the simplifying, also on a tight budget', () => {
+    // Wandering loudness (smoothed random walks, 60 s) and random spans: before the turns were kept, a few of these
+    // topped out just under 1.
+    let seed = 7, n = 0;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let k = 0; k < 400; k++) {
+      const v: number[] = [];
+      for (let i = 0, x = 0.5, d = 0; i < 600; i++) { d = 0.9 * d + 0.02 * (rnd() - 0.5); x = Math.min(1, Math.max(0, x + d)); v.push(x); }
+      for (let j = 0; j < 5; j++) {
+        const a = rnd() * 40, sp = { start: a, end: a + 5 + rnd() * (55 - a) };
+        for (const maxPivots of [undefined, 12]) {
+          const p = P.toClimax(sp, { hop: 0.1, values: v }, { maxPivots });
+          if (!p.length) continue;
+          n++;
+          expect(Math.max(...p.map((q) => q.v))).toBe(1);
+          expect(p.length).toBeLessThanOrEqual(maxPivots ?? WA.MAX_PIVOTS - 8);
+        }
+      }
+    }
+    expect(n).toBeGreaterThan(3000);
+    // With room for only the span's ends and one more, the turns give way and the budget holds.
+    expect(P.toClimax(whole, L0, { maxPivots: 4 }).length).toBeLessThanOrEqual(4);
+  });
+
+  it('reads the lane at its own start time', () => {
+    const shifted = { ...L0, start: -1.7 }, p = P.toClimax(whole, shifted);
+    expect(at(p, 58.3)).toBeCloseTo(1, 2);
+  });
+
+  const dbSong = (f: (t: number) => number, dur = 200) => {
+    const db = Array.from({ length: dur * 10 }, (_, i) => f((i + 0.5) * 0.1));
+    return { energy: { hop: 0.1, momentary: db, shortTerm: db } };
+  };
+
+  it('climaxes: a real peak beats a long plateau that the 0..1 lane cuts off at its top', () => {
+    // A minute at about -4 dB (above the lane's top even after the level correction) and a short swell to +2 dB.
+    const song = dbSong((t) => (t > 40 && t < 100 ? -4 + 0.5 * Math.sin(t) : t > 140 && t < 150 ? 2 - Math.abs(t - 145) : -30));
+    const c = WA.climaxes(song);
+    expect(c[0].t).toBeGreaterThan(143); expect(c[0].t).toBeLessThan(147);
+    // On the cut-off lane both tie at 1 and the plateau's first wobble wins.
+    const cut = WA.energyCurve(song, 'shortTerm')!;
+    expect(Math.max(...cut.values.slice(400, 1000))).toBe(1); expect(Math.max(...cut.values.slice(1400, 1500))).toBe(1);
+  });
+
+  it('climaxes: the best first, 20 s apart, at most 3, the energy lane centred on its samples', () => {
+    const song = dbSong((t) => -30 + 15 * Math.exp(-(((t - 50) / 2) ** 2)) + 10 * Math.exp(-(((t - 60) / 2) ** 2)) + 12 * Math.exp(-(((t - 120) / 2) ** 2)) + 5 * Math.exp(-(((t - 170) / 2) ** 2)) + 3 * Math.exp(-(((t - 190) / 2) ** 2)));
+    const c = WA.climaxes(song);
+    expect(c.map((x) => Math.round(x.t))).toEqual([50, 120, 170]);
+    for (let i = 1; i < c.length; i++) expect(c[i].score).toBeLessThanOrEqual(c[i - 1].score);
+    expect(WA.climaxes(song, { n: 1 }).length).toBe(1);
+    expect(WA.climaxes(song)).toEqual(c);   // the same again (kept per lane)
+  });
+
+  it('climaxes without an energy lane: pack.loudness moved earlier by the lag; none without either', () => {
+    const loud = lane((t) => 0.2 + 0.6 * Math.exp(-(((t - 60) / 3) ** 2)));
+    const c = WA.climaxes({ loudness: loud });
+    expect(c[0].t).toBeCloseTo(60 - WA.LOUDNESS_LAG.mean, 1);
+    expect(WA.climaxes({})).toEqual([]); expect(WA.climaxLane(null)).toBeNull();
+    expect(WA.climaxes({ loudness: { hop: 0.1, values: [] } })).toEqual([]);
+  });
+});

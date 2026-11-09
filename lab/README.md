@@ -87,8 +87,9 @@ params: [
   what it drew before, and a stored knob value never changes meaning. Drive adds `depth * (max - min)`, so widening a driven
   knob's range changes its swing and the default look: add a new plain knob instead. Compare seeded `?render=1` frames.
 - Drives (stored as `+level` etc.) show as words: louder notes / faster / higher notes / more bass / fuller chords /
-  louder sound (`loud`) / busier (`pace`) → more / less. `loud` and `pace` are read from curves at the song time
-  (src/widgets/curves.ts), so they never build up: the recording's loudness, and attacks per second in the 4 s around now.
+  louder sound (`loud`) / busier (`pace`) / louder than around it (`rel`) → more / less. `loud`, `pace` and `rel` are
+  read from curves at the song time (src/widgets/curves.ts), so they never build up: the recording's loudness, attacks
+  per second in the 4 s around now, and the loudness against the 8 s on either side.
 - `tag`: `'new'` for a new widget, `'v2'`, `'v3'`… for a rework. A tag that differs from the version the user judged
   (`VERDICTS` in `index.html`, from `ratings.json` (2026-11-08) and `ratings.md`) marks the card "reworked" and sorts it to the top.
 

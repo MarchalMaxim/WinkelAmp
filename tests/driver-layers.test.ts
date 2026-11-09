@@ -84,6 +84,13 @@ describe('labLayers', () => {
     expect(f.steps[0].slots.filter((s) => s.id === 'strings@melody')).toHaveLength(1);
   });
 
+  it('carries "keep the strongest" with a curve, and drops it without one', () => {
+    const f = fakeRuntime(TOOL_IDS);
+    labLayers(f.rt, [], [{ widget: 'squares', intensity: curve, thin: 'loud' }, { widget: 'kandinsky', thin: 'loud' }], MOMENTS).step(1, 1 / 60);
+    expect(f.steps[0].slots.find((s) => s.id === 'squares')?.layer).toEqual({ pivots: curve, thin: 'loud' });
+    expect(f.steps[0].slots.find((s) => s.id === 'kandinsky')?.layer).toBeUndefined();
+  });
+
   it('a plain entry without a curve or region is the base slot with no layer; a widget neither only nor entered does not draw', () => {
     const f = fakeRuntime(TOOL_IDS);
     labLayers(f.rt, [], [{ widget: 'timeslice' }], MOMENTS).step(0.5, 0.5);

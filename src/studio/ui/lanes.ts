@@ -158,6 +158,8 @@ export function hitTest(pivots: readonly Pivot[], x: (t: number) => number, y: (
 
 export interface LaneDeps {
   store: Store; song: SongPack; duration(): number; names(id: string): string; hue(id: string): number;
+  /** Whether a widget has the how present slider (show.ts hasHowPresent). Absent: none has. */
+  howPresent?(id: string): boolean;
   /** What of the song the timeline shows now. */
   view(): { a: number; b: number };
 }
@@ -169,19 +171,23 @@ interface LaneView { clip: string; widget: string; listen?: string; el: HTMLElem
 interface Geo { a: number; b: number; W: number; H: number; pad: number; x(t: number): number; y(v: number): number; t(x: number): number; v(y: number): number }
 type Target = { piece: Piece; hit: Hit } | null;
 /** A shape on the strip: its word, what it does, and a small picture of it (an SVG path in 24×12). */
-interface ShapeChip { id: string; label: string; menu: string; note?: string; icon: string; make(span: Span, floor: number): Pivot[] }
+interface ShapeChip { id: string; label: string; menu: string; note?: string; icon: string; make(span: Span, floor: number): Pivot[];
+  /** Why it cannot be used for this song; absent: it can. */
+  off?: string }
 interface Drag {
   kind: 'pivot' | 'bend' | 'level'; piece: Piece; index: number; group: string; moved: boolean; bend0: number;
   px: number; py: number; fine: boolean; t0: number; v0: number; t: number; v: number;
 }
 
 const PREFS = 'wa-studio.lanes';
+const THIN_TIP = 'When turned down, the loudest notes stay and the weak ones go first';
 const ICONS = {
   in: 'M1 11 L10 1 H23', out: 'M1 1 H14 L23 11', build: 'M1 11 C13 11 19 8 23 1', decay: 'M1 1 C5 8 11 11 23 11',
   swell: 'M1 11 C6 11 8 1 12 1 S18 11 23 11', dip: 'M1 1 C6 1 8 11 12 11 S18 1 23 1',
   breathe: 'M1 11 C3 11 3 1 6 1 S9 11 12 11 S15 1 18 1 S21 11 23 11', steps: 'M1 11 H6 V8 H12 V5 H18 V1 H23',
   beat: 'M1 1 L3 11 H5 V1 L7 11 H9 V1 L11 11 H13 V1 L15 11 H17 V1 L19 11 H21 V1 L23 11', bar: 'M1 1 L6 11 H12 V1 L17 11 H23',
   gate: 'M1 11 H5 V1 H10 V11 H14 V1 H23', follow: 'M1 9 L4 6 L6 8 L9 2 L12 4 L14 3 L17 8 L20 7 L23 9', plays: 'M1 11 H3 V1 H16 V11 H23', half: 'M1 6 H23', clear: 'M1 1 H23',
+  climax: 'M1 9 H6 L9 7 L12 6 L15 3 L17 1 H19 L21 9 H23',
 };
 const LISTEN_WORDS: Record<string, string> = {
   melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents',
@@ -216,6 +222,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       <button type="button" class="lanes-toggle" data-big title="A taller lane, with less room for the picture">Bigger</button>
       <span class="lanes-hint"></span>
       <span class="lanes-spacer"></span>
+      <button type="button" class="lanes-toggle" data-strongest>Keep the strongest</button>
       <label class="lanes-floor" title="How far down the shapes below go"><span>Lowest</span><input type="range" data-floor min="0" max="0.9" step="0.05" aria-label="How far down the shapes go"><output></output></label>
     </div>
     <div class="lanes-shapes" role="group" aria-label="Shapes for the curve"></div>
@@ -225,6 +232,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   const head = root.querySelector<HTMLElement>('.lanes-head')!, tip = root.querySelector<HTMLElement>('.lanes-tip')!;
   const hint = root.querySelector<HTMLElement>('.lanes-hint')!, strip = root.querySelector<HTMLElement>('.lanes-shapes')!;
   const snapBtn = root.querySelector<HTMLButtonElement>('[data-snap]')!, drawBtn = root.querySelector<HTMLButtonElement>('[data-draw]')!, bigBtn = root.querySelector<HTMLButtonElement>('[data-big]')!;
+  const thinBtn = root.querySelector<HTMLButtonElement>('[data-strongest]')!;
   const floorIn = root.querySelector<HTMLInputElement>('[data-floor]')!, floorOut = root.querySelector<HTMLOutputElement>('.lanes-floor output')!;
 
   let view: LaneView | null = null, builtKey = '', drag: Drag | null = null, gesture = 0, raf = 0, now = 0;
@@ -259,7 +267,19 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
       : prefs.draw ? 'Drag across the lane to draw the curve'
       : 'Click to add · drag · Shift: fine · double-click: delete';
     drawShapes(open && !state().ui.recording);
+    // "Keep the strongest": the clip's own setting (Layer.thin), not a view preference. A curve only moves how present
+    // when the widget has that slider (conductor.ts moved); without it the curve fades, and the flag thins.
+    const c = selectedClip(), present = c?.intensityMoves === 'present' && !!d.howPresent?.(c.widget);
+    thinBtn.setAttribute('aria-pressed', String(c?.thin === 'loud' && !present));
+    thinBtn.disabled = !c || state().ui.recording || present;
+    thinBtn.title = THIN_TIP + (present ? ' (this curve makes the widget more or less present, so no notes are dropped)' : '');
   };
+  thinBtn.addEventListener('click', () => {
+    const c = selectedClip();
+    if (!c || thinBtn.disabled) return;
+    d.store.dispatch({ type: 'edit', edit: { kind: 'setClip', clip: c.id, patch: { thin: c.thin === 'loud' ? null : 'loud' } }, group: `intensity:thin:${++gesture}` });
+    syncBar();
+  });
   snapBtn.addEventListener('click', () => { prefs.snap = !prefs.snap; savePrefs(); syncBar(); draw(); });
   drawBtn.addEventListener('click', () => { prefs.draw = !prefs.draw; savePrefs(); syncBar(); });
   bigBtn.addEventListener('click', () => { prefs.big = !prefs.big; savePrefs(); syncBar(); });
@@ -329,6 +349,10 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
           const src = L.loudSource(d.song) ?? { curve: d.song.loudness, lag: L.LOUDNESS_LAG };
           return P.follow(sp, src.curve, { floor: floor > 0 ? floor : 0.35, lead: src.lag.open });
         } },
+      // The clip's strongest of the piece's loudest moments (the timeline marks them), else its own loudest point.
+      { id: 'climax', label: 'Build to the climax', menu: 'Build to the climax', note: `grows with the music up to its loudest moment, then settles back to ${pct(followFloor())}`,
+        icon: ICONS.climax, off: L.climaxLane(d.song) ? undefined : 'this song has no loudness to read',
+        make: (sp, floor) => P.toClimax(sp, L.climaxLane(d.song), { floor: floor > 0 ? floor : 0.35, peaks: L.climaxes(d.song) }) },
     ];
     if (l?.listen && l.listen !== 'all') {
       const listen = l.listen;
@@ -343,7 +367,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   /** The curve over the clip's span; one undo step. */
   const putShape = (id: string, group?: string) => {
     const chip = shapes().find((c) => c.id === id), pc = pieceOf();
-    if (!chip || !pc) return;
+    if (!chip || chip.off || !pc) return;
     const piv = chip.make(pc.span, prefs.floor).map((p) => ({ ...p, t: ms(p.t) }));
     selected = null;
     commit(pc, sliceCurve(piv, pc.span, (t) => L.automationAt(piv, t)), group ?? `intensity:shape:${++gesture}`);
@@ -353,10 +377,10 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
   };
 
   const drawShapes = (on: boolean) => {
-    const chips = shapes(), key = JSON.stringify([chips.map((c) => [c.id, c.note]), on]);
+    const chips = shapes(), key = JSON.stringify([chips.map((c) => [c.id, c.note, c.off]), on]);
     if (key !== chipsKey) {
       chipsKey = key;
-      strip.innerHTML = chips.map((c) => `<button type="button" class="lanes-shape" data-shape="${c.id}" title="${c.menu}${c.note ? `: ${c.note}` : ''}" ${on ? '' : 'disabled'}>
+      strip.innerHTML = chips.map((c) => `<button type="button" class="lanes-shape" data-shape="${c.id}" title="${c.menu}${c.off ? ` (${c.off})` : c.note ? `: ${c.note}` : ''}" ${on && !c.off ? '' : 'disabled'}>
         <svg viewBox="0 0 24 12" width="24" height="12" aria-hidden="true"><path d="${c.icon}"/></svg>${c.label}</button>`).join('');
     }
     const cur = lastShape && openKey() === lastShape.at && curveKey() === lastShape.wrote ? lastShape.id : '';
@@ -783,7 +807,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
 
   /** The same shapes as the strip, at the pointer. */
   const openPresets = (x: number, y: number) => {
-    const items: MenuItem[] = shapes().map((c) => ({ label: c.menu, note: c.note ?? '', run: () => putShape(c.id) }));
+    const items: MenuItem[] = shapes().map((c) => ({ label: c.menu, note: c.off ?? c.note ?? '', disabled: !!c.off, run: () => putShape(c.id) }));
     openMenu(x, y, 'Intensity shapes', items, 'Bars are 4 beats: the song has no downbeats.');
   };
 

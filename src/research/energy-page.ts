@@ -2,8 +2,9 @@
 // API, measures the sound offline in the browser, and plots it against what widgets feel today. Writes nothing.
 import { decodeToMono } from '../studio/ingest/fallback';
 import type { Note } from '../widgets/types';
+import { studioLayers } from '../widgets/layers-source';
 import {
-  bestLag, blockPower, centredDb, climaxes, followPreset, LOUD_LO, pivotAt, relative, resample, todayLevel, unitOfDb, type Pivot,
+  bestLag, blockPower, centredDb, followPreset, LOUD_LO, pivotAt, relative, resample, todayLevel, unitOfDb, type Pivot,
 } from './energy';
 
 interface Pack { id: string; title: string; audio: string; duration: number; notes: Note[]; sections: { start: number; end: number }[];
@@ -14,7 +15,7 @@ interface Lanes {
   /** The pack's stored momentary lane (pack.energy, src/audio/energy.ts) on this page's grid, or null without one;
       agree: the median difference in dB from this page's own 0.4 s measurement, where both are above −50. */
   stored: Float32Array | null; agree: number | null;
-  follow: Pivot[]; peaks: { t: number; v: number }[]; lag: { lag: number; r: number }; dark: number;
+  follow: Pivot[]; climax: Pivot[]; peaks: { t: number; v: number }[]; lag: { lag: number; r: number }; dark: number;
 }
 
 const HOP = 0.01;
@@ -76,12 +77,14 @@ async function analyse(id: string): Promise<Lanes> {
   const lag = bestLag(resample(energy, HOP, pack.loudness.hop, coarse), pack.loudness.values.slice(0, coarse), pack.loudness.hop, 4);
   const rel = resample(relative(resample(energy, HOP, 0.1, coarse), 0.1), 0.1, HOP, n);
   const follow = followPreset(momentary, HOP, { start: 0, end: n * HOP }, { floor: 0.35, maxPivots: 200 });
-  const peaks = climaxes(energy, HOP, { n: 3, gap: 20 });
+  // The loudest moments and "Build to the climax" over the whole piece, exactly as the studio and the lab make them.
+  const W = studioLayers(), peaks = W.climaxes(pack);
+  const climax = W.presets.toClimax({ start: 0, end: n * HOP }, W.climaxLane(pack), { peaks, maxPivots: 200 });
   // While the music is louder than its own median, how often does a widget's level sit near zero?
   const med = Array.from(energy).sort((a, b) => a - b)[Math.floor(n / 2)];
   let loud = 0, dark = 0;
   for (let i = 0; i < n; i++) if (energy[i] > med) { loud++; if (today[i] < 0.1) dark++; }
-  return { pack, hop: HOP, n, today, energy, momentary, lane, rel, stored, agree, follow, peaks, lag, dark: loud ? dark / loud : 0 };
+  return { pack, hop: HOP, n, today, energy, momentary, lane, rel, stored, agree, follow, climax, peaks, lag, dark: loud ? dark / loud : 0 };
 }
 
 // ---------- drawing ----------
@@ -134,6 +137,10 @@ function plot(c: HTMLCanvasElement, L: Lanes, t0: number, t1: number, close: boo
   L.follow.forEach((p, i) => { const px = X(v, p.t), py = Y(v, p.v); if (i) g.lineTo(px, py); else g.moveTo(px, py); });
   g.stroke();
   for (const p of L.follow) if (p.t >= t0 && p.t <= t1) { g.beginPath(); g.arc(X(v, p.t), Y(v, p.v), close ? 3 : 1.6, 0, 7); g.fill(); }
+  // "Build to the climax"
+  g.strokeStyle = css('--climax'); g.lineWidth = 1.6; g.setLineDash([6, 3]); g.beginPath();
+  L.climax.forEach((p, i) => { const px = X(v, p.t), py = Y(v, p.v); if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+  g.stroke(); g.setLineDash([]);
   // loudest moments
   g.fillStyle = css('--peak'); g.font = '11px system-ui';
   L.peaks.forEach((p, i) => { if (p.t < t0 || p.t > t1) return; const px = X(v, p.t); g.fillRect(px - 1, 0, 2, 10); g.fillText(`${i + 1}`, px + 4, 10); });

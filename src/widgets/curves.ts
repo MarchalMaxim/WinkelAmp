@@ -1,7 +1,7 @@
-// The two drives read from precomputed curves, at the song time of the step: loud (the recording's loudness) and pace
-// (how busy the notes are). Nothing builds up, so playing, seeking and rendering frame by frame agree. lab/layers/lines.js
-// has copies (loudCurve, paceAt, energyCurve), the same statements in the same order: tests/curves.test.ts proves them
-// bit-identical.
+// The three drives read from precomputed curves, at the song time of the step: loud (the recording's loudness), rel
+// (louder than around it) and pace (how busy the notes are). Nothing builds up, so playing, seeking and rendering frame
+// by frame agree. lab/layers/lines.js has copies (loudCurve, relCurve, paceAt, energyCurve), the same statements in the
+// same order: tests/curves.test.ts proves them bit-identical.
 import { LOUD_HI, LOUD_LO, REF_LOUDNESS } from '../audio/descriptors';
 import type { Chord, EnergyLanesLike, Features } from './types';
 
@@ -30,6 +30,58 @@ export function makeLoudAt(lane: LoudnessLane | null | undefined, lead: number |
     else { const i = Math.floor(x); v = vals[i] + (vals[i + 1] - vals[i]) * (x - i); }
     const u = (v - lo) / (hi - lo);
     return u > 0 ? (u < 1 ? u : 1) : 0;   // NaN → 0
+  };
+}
+
+/** Half the window rel judges a moment against, in seconds. */
+export const REL_HALF = 8;
+
+const relCache = new WeakMap<object, number[]>();
+
+/** rel of each sample of a 0..1 lane (src/research/energy.ts relative): 0.5 at the median of the ±REL_HALF s around
+    it, 0 and 1 a spread below and above (the window's 10th to 95th percentile, at least 0.16), half and half with its
+    place between the whole piece's 10th and 95th percentile. The window's percentiles are taken every 0.1 s and held
+    in between. A flat lane: all 0. Worked out once, kept by `key`. */
+function relValues(key: object, hop: number, vals: readonly number[]): number[] {
+  const hit = relCache.get(key);
+  if (hit) return hit;
+  const n = vals.length, half = Math.round(REL_HALF / hop), step = Math.max(1, Math.round(0.1 / hop)), u: number[] = [], out: number[] = [];
+  for (let i = 0; i < n; i++) u.push(Number.isFinite(vals[i]) ? vals[i] : 0);
+  const all = u.slice().sort((a, b) => a - b), gLo = all[Math.floor(0.1 * (n - 1))], gHi = all[Math.floor(0.95 * (n - 1))], flat = !(all[n - 1] > all[0]);
+  let med = 0, spread = 1;
+  for (let i = 0; i < n; i++) {
+    if (flat) { out.push(0); continue; }
+    if (i % step === 0) {
+      const w = u.slice(Math.max(0, i - half), Math.min(n, i + half + 1)).sort((a, b) => a - b), m = w.length - 1;
+      med = w[Math.floor(0.5 * m)];
+      spread = Math.max(0.16, w[Math.floor(0.95 * m)] - w[Math.floor(0.1 * m)]);
+    }
+    const a = 0.5 + (u[i] - med) / spread, b = gHi > gLo ? (u[i] - gLo) / (gHi - gLo) : 0;
+    out.push(0.5 * (a > 0 ? (a < 1 ? a : 1) : 0) + 0.5 * (b > 0 ? (b < 1 ? b : 1) : 0));
+  }
+  relCache.set(key, out);
+  return out;
+}
+
+/** rel at song time t, 0..1: how much louder than around it the recording is now (relValues), so a quiet passage still
+    swells while the real climax still wins. The same lane loud reads, chosen as makeLoudAt does (the energy lane's
+    momentary curve as it is, else pack.loudness read `lead` s ahead), and read between its samples' centres the same
+    way. Worked out on the first read, once per lane object. No lane (and no energy), an empty one, or no lead: always 0. */
+export function makeRelAt(lane: LoudnessLane | null | undefined, lead: number | undefined, energy?: EnergyLanes | null): (t: number) => number {
+  const e = energyCurve({ energy }, 'momentary');
+  let key: object | null | undefined = lane;
+  if (e && Number.isFinite(lead)) { lane = e; lead = 0; key = energy; }
+  const hop = lane?.hop, vals = lane?.values;
+  if (!vals || !vals.length || !(hop! > 0) || !Number.isFinite(lead)) return () => 0;
+  let rel: number[] | null = null, n = 0;
+  return (t) => {
+    if (!rel) { rel = relValues(key!, hop!, vals); n = rel.length; }   // on the first read: a song that never reads rel pays nothing
+    const x = (t + lead!) / hop! - 0.5;
+    let v: number;
+    if (!(x > 0)) v = rel[0];
+    else if (x >= n - 1) v = rel[n - 1];
+    else { const i = Math.floor(x); v = rel[i] + (rel[i + 1] - rel[i]) * (x - i); }
+    return v > 0 ? (v < 1 ? v : 1) : 0;   // NaN → 0
   };
 }
 
@@ -124,10 +176,11 @@ export function paceAt(chords: readonly Chord[], t: number): number {
   return u > 0 ? (u < 1 ? u : 1) : 0;
 }
 
-/** loud and pace at song time t, into f (lab/layers/slot.js curveFeatures): read from curves, never built up. pace
+/** loud, pace and rel at song time t, into f (lab/layers/slot.js curveFeatures): read from curves, never built up. pace
     counts all the chords the features' listener is given, whatever an intensity curve lets through: thinning does not
-    calm it. Set apart from advanceFeatures, whose arithmetic stays as it was. */
-export function setCurves(f: Features, chords: readonly Chord[], t: number, loudAt: (t: number) => number): void {
+    calm it. No relAt: rel is 0. Set apart from advanceFeatures, whose arithmetic stays as it was. */
+export function setCurves(f: Features, chords: readonly Chord[], t: number, loudAt: (t: number) => number, relAt?: (t: number) => number): void {
   f.loud = loudAt(t);
   f.pace = paceAt(chords, t);
+  f.rel = relAt ? relAt(t) : 0;
 }

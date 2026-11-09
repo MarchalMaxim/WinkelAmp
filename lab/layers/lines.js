@@ -4,7 +4,7 @@
 //
 // groupChords, soundingAt and advancePulse are copies of src/widgets/chords.ts and features.ts (advanceFeatures), the
 // same statements in the same order: tests/layers-pulse.test.ts proves them bit-identical on random data. loudCurve,
-// paceAt and energyCurve are copies of src/widgets/curves.ts, proved the same way by tests/curves.test.ts.
+// relCurve, paceAt and energyCurve are copies of src/widgets/curves.ts, proved the same way by tests/curves.test.ts.
 //
 // One implementation: the lab loads this file as a classic <script>; the studio and Node evaluate the same text with
 // new Function('WA', src) (src/widgets/layers.ts).
@@ -77,6 +77,51 @@
       else { var i = Math.floor(x); v = vals[i] + (vals[i + 1] - vals[i]) * (x - i); }
       var u = (v - lo) / (hi - lo);
       return u > 0 ? (u < 1 ? u : 1) : 0;   // NaN → 0
+    };
+  };
+
+  /** rel of each sample of a 0..1 lane (src/widgets/curves.ts relValues, the same statements): 0.5 at the median of
+      the ±8 s around it, 0 and 1 a spread below and above, half and half with its place in the whole piece. A flat
+      lane: all 0. Kept by key. */
+  var REL_HALF = 8, relCache = new WeakMap();
+  var relValues = function (key, hop, vals) {
+    var hit = relCache.get(key);
+    if (hit) return hit;
+    var n = vals.length, half = Math.round(REL_HALF / hop), step = Math.max(1, Math.round(0.1 / hop)), u = [], out = [], i;
+    for (i = 0; i < n; i++) u.push(Number.isFinite(vals[i]) ? vals[i] : 0);
+    var all = u.slice().sort(function (a, b) { return a - b; }), gLo = all[Math.floor(0.1 * (n - 1))], gHi = all[Math.floor(0.95 * (n - 1))], flat = !(all[n - 1] > all[0]);
+    var med = 0, spread = 1;
+    for (i = 0; i < n; i++) {
+      if (flat) { out.push(0); continue; }
+      if (i % step === 0) {
+        var w = u.slice(Math.max(0, i - half), Math.min(n, i + half + 1)).sort(function (a, b) { return a - b; }), m = w.length - 1;
+        med = w[Math.floor(0.5 * m)];
+        spread = Math.max(0.16, w[Math.floor(0.95 * m)] - w[Math.floor(0.1 * m)]);
+      }
+      var a = 0.5 + (u[i] - med) / spread, b = gHi > gLo ? (u[i] - gLo) / (gHi - gLo) : 0;
+      out.push(0.5 * (a > 0 ? (a < 1 ? a : 1) : 0) + 0.5 * (b > 0 ? (b < 1 ? b : 1) : 0));
+    }
+    relCache.set(key, out);
+    return out;
+  };
+
+  /** rel at song time t (src/widgets/curves.ts makeRelAt, the same statements): louder than around it, 0..1, on the
+      lane loudCurve reads, chosen and read between samples the same way. No lane (and no energy), an empty one, or no
+      lead: always 0. The hosts pass the same arguments as to loudCurve. */
+  WA.relCurve = function (lane, lead, energy) {
+    var e = WA.energyCurve({ energy: energy }, 'momentary');
+    var key = lane;
+    if (e && Number.isFinite(lead)) { lane = e; lead = 0; key = energy; }
+    var hop = lane && lane.hop, vals = lane && lane.values;
+    if (!vals || !vals.length || !(hop > 0) || !Number.isFinite(lead)) return function () { return 0; };
+    var rel = null, n = 0;
+    return function (t) {
+      if (!rel) { rel = relValues(key, hop, vals); n = rel.length; }   // on the first read: a song that never reads rel pays nothing
+      var x = (t + lead) / hop - 0.5, v;
+      if (!(x > 0)) v = rel[0];
+      else if (x >= n - 1) v = rel[n - 1];
+      else { var i = Math.floor(x); v = rel[i] + (rel[i + 1] - rel[i]) * (x - i); }
+      return v > 0 ? (v < 1 ? v : 1) : 0;   // NaN → 0
     };
   };
 

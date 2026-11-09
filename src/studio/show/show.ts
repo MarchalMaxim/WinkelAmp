@@ -25,8 +25,10 @@ export const END_SLACK = 0.5;
 /** number = base; the object is the lab's PST entry ("Copy settings" pastes in). */
 export type KnobSetting = number | Partial<KnobState>;
 /** What a clip plays. listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t.
-    intensityMoves 'present': the curve moves how present instead of fading the clip and thinning its attacks. */
-export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[]; intensityMoves?: 'present' }
+    intensityMoves 'present': the curve moves how present instead of fading the clip and thinning its attacks.
+    thin 'loud': where the curve is turned down, the loudest attacks stay and the weak ones go first (none without a curve). */
+export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[]; intensityMoves?: 'present';
+  thin?: 'loud' }
 /** Whether a curve can move how present: the widget has the slider. Without it, the curve fades. */
 export const hasHowPresent = (params: readonly { key: string }[]): boolean => params.some((q) => q.key === 'presence');
 /** A widget placed on the timeline. id: stable, unique in the show. track: 0 is drawn first (the bottom). fade: seconds it
@@ -47,12 +49,12 @@ export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, 
   noteTypes?: Partial<Record<NoteType, readonly number[]>> }
 
 export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit',
-  '+loud', '-loud', '+pace', '-pace'];
+  '+loud', '-loud', '+pace', '-pace', '+rel', '-rel'];
 const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
   show: ['version', 'id', 'song', 'title', 'composer', 'clips', 'picks'],
   composer: ['by', 'at'],
-  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity', 'intensityMoves'],
+  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity', 'intensityMoves', 'thin'],
   knob: ['base', 'drive', 'depth'],
   region: ['mode', 'shape', 'x', 'y', 'w', 'h', 'rot', 'feather', 'blend', 'fit'],
   pivot: ['t', 'v', 'shape', 'bend'],
@@ -233,6 +235,10 @@ function validateLayer(l: Record<string, unknown>, at: string, span: Span | null
   if (l.intensityMoves !== undefined) {
     if (l.intensityMoves !== 'present') err(`${at}.intensityMoves`, "not 'present'");
     else if (meta && !hasHowPresent(meta.params)) warn(`${at}.intensityMoves`, `'${l.widget}' has no how present slider: its curve fades it`);
+  }
+  if (l.thin !== undefined) {
+    if (l.thin !== 'loud') err(`${at}.thin`, "not 'loud'");
+    else if (l.intensityMoves === 'present' && meta && hasHowPresent(meta.params)) warn(`${at}.thin`, 'its curve moves how present, which drops no attacks');
   }
   if (l.knobs === undefined) return;
   if (!isObj(l.knobs)) { err(`${at}.knobs`, 'not an object { key: value }'); return; }
@@ -508,6 +514,7 @@ function repairClip(x: Clip, at: string, c: ShowContext, sets: ReadonlySet<strin
     if (p) l.intensity = p; else delete l.intensity;
   }
   if (l.intensityMoves !== undefined && l.intensityMoves !== 'present') { fix(`${at}.intensityMoves`, "was not 'present': removed"); delete l.intensityMoves; }
+  if (l.thin !== undefined && l.thin !== 'loud') { fix(`${at}.thin`, "was not 'loud': removed"); delete l.thin; }
   if (l.knobs !== undefined && !isObj(l.knobs)) { fix(`${at}.knobs`, 'was not an object: removed'); delete l.knobs; }
   for (const [key, v] of Object.entries(l.knobs ?? {})) {
     const kp = `${at}.knobs.${key}`, q = meta?.params.find((p) => p.key === key);

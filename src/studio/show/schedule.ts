@@ -14,6 +14,8 @@ export interface ScheduledWidget {
   knobs: Record<string, KnobSetting>; region?: Region; pivots?: Pivot[];
   /** Its curve is to move how present (if the widget has the slider: the Conductor knows the widgets). */
   moves?: boolean;
+  /** Its curve keeps the strongest attacks (show.ts Layer.thin); only with pivots. */
+  thin?: 'loud';
 }
 
 /** How long a clip takes to come in and to go: its fade, at most half its length. */
@@ -56,6 +58,7 @@ function entry(show: Show, c: Clip, t: number): ScheduledWidget {
   if (c.intensity?.length) {
     w.pivots = c.intensity;
     if (c.intensityMoves === 'present') w.moves = true;
+    if (c.thin === 'loud') w.thin = 'loud';
   }
   return w;
 }

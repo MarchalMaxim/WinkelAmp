@@ -10,7 +10,7 @@ export type Note = [start: number, end: number, midi: number, vel: number, amoun
 export interface Chord { t: number; notes: { m: number; v: number; d: number; amount?: number }[]; vel: number; lo: number; hi: number }
 export interface SoundingNote { m: number; v: number; start: number; end: number }
 export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density' | '+hit' | '-hit'
-  | '+loud' | '-loud' | '+pace' | '-pace';
+  | '+loud' | '-loud' | '+pace' | '-pace' | '+rel' | '-rel';
 export interface Param {
   key: string; label?: string; min: number; max: number; step?: number; value: number; drive?: Drive;
   hint?: string; icon?: (g: CanvasRenderingContext2D, v: number, w: number, h: number) => void;
@@ -24,9 +24,10 @@ export interface ToolDef {
   reset?(x: WidgetCtx): void; onChord?(ch: Chord, x: WidgetCtx): void; frame?(x: WidgetCtx): void;
 }
 /** hit: 1 on a loud attack, a soft one adds its share, and half of it is gone 0.08 s later (each note → jump).
-    loud: the recording's loudness; pace: how busy the attacks are around now (src/widgets/curves.ts). Both are read
-    from curves at the step's song time, not built up step by step. */
-export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number; loud: number; pace: number }
+    loud: the recording's loudness; pace: how busy the attacks are around now; rel: how much louder than the seconds
+    around it the recording is (src/widgets/curves.ts). All three are read from curves at the step's song time, not
+    built up step by step. */
+export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number; loud: number; pace: number; rel: number }
 /** The lab's PST entry for one knob. */
 export interface KnobState { base: number; drive: Drive; depth: number }
 export type KnobMap = Record<string, KnobState>;
@@ -92,8 +93,9 @@ export interface EnergyLanesLike { hop: number; momentary: readonly number[]; sh
 export interface InstanceSpec { key: string; widget: string; listen?: Listen; own?: boolean;
   /** A set of picks: the notes this instance hears. A loaded key whose notes change is evaluated again. */
   notes?: Note[] }
-/** until: the curve is read at min(t, until), a decaying instance's frozen value. */
-export interface SlotLayer { pivots?: readonly Pivot[]; until?: number; region?: Region; glide?: { from: Region; u: number } }
+/** until: the curve is read at min(t, until), a decaying instance's frozen value. thin 'loud': with pivots, a turned-down
+    curve keeps the strongest attacks around each one instead of a share picked by hash (automation.js passesStrongest). */
+export interface SlotLayer { pivots?: readonly Pivot[]; until?: number; region?: Region; glide?: { from: Region; u: number }; thin?: 'loud' }
 export type Role = 'under' | 'ground' | 'base' | 'texture' | 'lead' | 'accent' | 'top' | 'standalone';
 /** noteType: what the widget hears when placed in the studio, if the section has enough of it. Absent: all notes. */
 export interface WidgetTags { feel: string[]; instruments: string[]; role: Role; noteType?: NoteType }

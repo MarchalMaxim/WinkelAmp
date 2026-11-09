@@ -185,3 +185,22 @@ describe('intensityMoves', () => {
     expect(s.clips.map((c) => c.intensityMoves)).toEqual(['present', 'present']);
   });
 });
+
+describe('thin', () => {
+  const base: Show = { version: 3, id: 'demo', song: 'demo', clips: [{ id: 'a', start: 0, end: 10, track: 0, widget: 'gust', intensity: [{ t: 0, v: 0 }, { t: 10, v: 1 }] }] };
+  const set = (s: Show, v: 'loud' | null) => applyEdit(s, { kind: 'setClip', clip: 'a', patch: { thin: v } });
+
+  it('is set and taken off, the curve untouched', () => {
+    const on = set(base, 'loud');
+    expect(on.clips[0].thin).toBe('loud');
+    expect(on.clips[0].intensity).toEqual(base.clips[0].intensity);
+    expect('thin' in set(on, null).clips[0]).toBe(false);
+  });
+  it('refuses anything else', () => {
+    expect(applyEdit(base, { kind: 'setClip', clip: 'a', patch: { thin: 'quiet' as never } })).toBe(base);
+  });
+  it('stays through a split, on both halves', () => {
+    const s = applyEdit(set(base, 'loud'), { kind: 'splitClip', clip: 'a', t: 5 });
+    expect(s.clips.map((c) => c.thin)).toEqual(['loud', 'loud']);
+  });
+});

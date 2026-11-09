@@ -3,7 +3,7 @@
 //
 //   WA_LAYER_UI.mount(el, toolId, {
 //     song: { id, notes, tracks, beats, loudness, energy?, moments: [[t, mood, label?]], dur },   // tracks/beats/loudness/energy: window.PACK
-//     get: function () { return the entry { listen?, region?, intensity? } or undefined },
+//     get: function () { return the entry { listen?, region?, intensity?, thin? } or undefined },
 //     set: function (entry or null) { … },          // the lab's labLayers.set: stores it, loads what it needs
 //     onChange: function (entry or null) { … },     // optional, after every set
 //     now: function () { return song seconds },     // "this moment" is the moment playing now
@@ -109,6 +109,7 @@
       return 'every ' + (v === 1 ? 'beat' : v + ' beats') + (song.beats && song.beats.length ? '' : ' (no beats in this song: half a second each)'); } },
     gate: { label: 'Gate on loudness', min: 0.05, max: 0.95, step: 0.05, value: null, say: function (v) { return 'seen when louder than ' + Math.round(v * 100) + ' %'; } },
     follow: { label: 'Follow the loudness', min: 0, max: 0.8, step: 0.05, value: 0.35, say: function (v) { return 'never below ' + Math.round(v * 100) + ' %'; } },
+    climax: { label: 'Build to the climax', min: 0, max: 0.8, step: 0.05, value: 0.35, say: function (v) { return 'grows to the loudest moment, then settles back to ' + Math.round(v * 100) + ' %'; } },
     plays: { label: 'While its part plays', min: 0, max: 0.5, step: 0.05, value: 0, say: function (v) { return v > 0 ? 'between notes it stays at ' + Math.round(v * 100) + ' %' : 'gone between notes'; } },
     fade: { label: 'Fade at moments', min: 0.5, max: 20, step: 0.5, value: 4, say: function (v) { return 'fades in and out over ' + v + ' s at each moment'; } },
   };
@@ -138,13 +139,16 @@
       as the studio writes them. 'fade': each moment inside the span fades in over `amount` seconds from its start and
       out over the same before its end (at most half the moment each). 'follow': the amount is its floor. Gate and
       follow read WA.loudSource: the energy lane with no lag when the pack has it (the gate its 3 s curve, follow its
-      0.4 s one), else pack.loudness with WA.LOUDNESS_LAG. Empty for 'always', and for a gate or follow with neither. */
+      0.4 s one), else pack.loudness with WA.LOUDNESS_LAG. 'climax': the amount is its floor; it builds to the strongest
+      of the song's loudest moments (WA.climaxes) inside the span. Empty for 'always', and for a gate, follow or climax
+      with no loudness. */
   function presetPivots(L, kind, amount, span, song, listen) {
     var P = L.presets, dur = song.dur, p = [];
     var room = L.MAX_PIVOTS - padCount(span, dur);   // the padded curve stays within MAX_PIVOTS, its closing pivots kept
     if (kind === 'pulse') p = P.pulse(span, song.beats || [], { every: Math.max(1, Math.round(amount)) });
     else if (kind === 'gate') { var gs = L.loudSource(song, 'shortTerm'); p = gs ? P.gate(span, gs.curve, { above: amount, lag: gs.lag }) : []; }
     else if (kind === 'follow') { var fs = L.loudSource(song); p = fs ? P.follow(span, fs.curve, { floor: amount, lead: fs.lag.open }) : []; }
+    else if (kind === 'climax') p = P.toClimax(span, L.climaxLane(song), { floor: amount, peaks: L.climaxes(song), maxPivots: room });
     else if (kind === 'plays') p = P.plays(span, L.listenNotes({ notes: song.notes, tracks: song.tracks }, listen).notes, { floor: amount });
     else if (kind === 'fade') {
       var cut = false;
@@ -161,14 +165,15 @@
     return padToSong(L, p, span, dur);
   }
 
-  /** The entry as the show keeps it: listen 'all', a whole-screen place and an empty curve are left out; null when
-      nothing is left (the widget draws as today). */
+  /** The entry as the show keeps it: listen 'all', a whole-screen place and an empty curve are left out, and "keep the
+      strongest" (thin 'loud') without a curve, where it does nothing; null when nothing is left (the widget draws as today). */
   function tidyEntry(e) {
     if (!e) return null;
     var o = {};
     if (e.listen !== undefined && e.listen !== 'all') o.listen = e.listen;
     if (e.region) o.region = e.region;
     if (e.intensity && e.intensity.length) o.intensity = e.intensity;
+    if (o.intensity && e.thin === 'loud') o.thin = 'loud';
     return Object.keys(o).length ? o : null;
   }
 
@@ -265,20 +270,21 @@
       + '<label class="lyr-fea" title="Edge softness"><span>soft</span><input type="range" data-feather min="0" max="1" step="0.05" aria-label="Edge softness"></label>'
       + '<button type="button" data-edit title="Move, size and turn it on the stage">on the stage</button></span></div>'
       + '<div class="lyr-row"><span class="lyr-k">intensity</span><span class="lyr-int"><select data-preset aria-label="How it comes and goes"></select>'
-      + '<select data-scope aria-label="Over which part of the song"><option value="moment">this moment</option><option value="song">whole song</option></select></span></div>'
+      + '<select data-scope aria-label="Over which part of the song"><option value="moment">this moment</option><option value="song">whole song</option></select>'
+      + '<button type="button" data-strongest>Keep the strongest</button></span></div>'
       + '<div class="lyr-row lyr-amt"><span class="lyr-k"></span><span class="lyr-amtc"><input type="range" data-amount aria-label="How much"><span class="lyr-say"></span></span></div>'
       + '<p class="lyr-note"></p></details>';
     var $ = function (q) { return el.querySelector(q); };
     var det = $('.lyr-d'), sum = $('.lyr-sum'), sel = $('[data-listen]'), shape = $('[data-shape]'), blendSel = $('[data-blend]'), feather = $('[data-feather]');
     var preset = $('[data-preset]'), scope = $('[data-scope]'), amount = $('[data-amount]'), say = $('.lyr-say'), note = $('.lyr-note');
-    var regRow = $('.lyr-reg'), amtRow = $('.lyr-amt'), editBtn = $('[data-edit]');
+    var regRow = $('.lyr-reg'), amtRow = $('.lyr-amt'), editBtn = $('[data-edit]'), thinBtn = $('[data-strongest]');
     // Nothing in here switches the card on or off.
     el.addEventListener('click', function (ev) { ev.stopPropagation(); });
     det.open = !!(B.open[toolId] || tidyEntry(o.get()));
     det.addEventListener('toggle', function () { if (det.open) B.open[toolId] = true; else delete B.open[toolId]; saveBook(); });
 
     preset.innerHTML = Object.keys(PRESETS).map(function (k) {
-      var off = (k === 'gate' || k === 'follow') && !L.loudSource(song);
+      var off = ((k === 'gate' || k === 'follow') && !L.loudSource(song)) || (k === 'climax' && !L.climaxLane(song));
       return '<option value="' + k + '"' + (off ? ' disabled' : '') + '>' + esc(PRESETS[k].label) + (off ? ' (no loudness curve for this song)' : '') + '</option>';
     }).join('') + '<option value="custom" hidden>a curve from elsewhere</option>';
 
@@ -300,6 +306,7 @@
     }
 
     function commit(next) {
+      if (!('thin' in next)) next.thin = get().thin;   // every change keeps "keep the strongest" unless it sets it
       var e = tidyEntry(next);
       o.set(e);
       if (o.onChange) o.onChange(e);
@@ -363,6 +370,10 @@
       ensureOverlay(o); openOverlay(toolId);
     });
     preset.addEventListener('change', function () { setCurve(preset.value === 'always' ? null : newCurve(preset.value)); });
+    thinBtn.addEventListener('click', function () {
+      var e = get();
+      commit({ listen: e.listen, region: e.region, intensity: e.intensity, thin: e.thin === 'loud' ? undefined : 'loud' });
+    });
     scope.addEventListener('change', function () {
       var c = B.curve[toolId]; if (!c) return;
       var m = momentAt(spans, o.now ? o.now() : 0) || { start: 0, end: song.dur, label: 'the song' };
@@ -386,6 +397,10 @@
       preset.value = kind;
       scope.hidden = !c;
       amtRow.hidden = !c;
+      var curved = !!(e.intensity && e.intensity.length);
+      thinBtn.disabled = !curved;
+      thinBtn.setAttribute('aria-pressed', String(curved && e.thin === 'loud'));
+      thinBtn.title = curved ? 'When turned down, the loudest notes stay and the weak ones go first' : 'When turned down, the loudest notes stay and the weak ones go first (pick a curve first)';
       if (c) {
         scope.value = c.scope;
         var P = PRESETS[c.kind];
@@ -396,6 +411,7 @@
       var bits = [listenLabel(e.listen)];
       bits.push(!r ? 'whole screen' : r.mode === 'spot' ? 'mask' : 'small copy');
       bits.push(kind === 'always' ? 'always full' : kind === 'custom' ? 'its own curve' : PRESETS[kind].label.toLowerCase());
+      if (curved && e.thin === 'loud') bits.push('keeps the strongest');
       sum.textContent = bits.join(' · ');
       el.classList.toggle('set', !!tidyEntry(o.get()));
       var say2 = [];

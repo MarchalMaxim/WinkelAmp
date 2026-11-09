@@ -55,8 +55,10 @@ and the user's words into `shows/<id>.json`. The widget list at the end is gener
   and is back below half in about 80 ms, for snappy drives; harder notes jump it higher); `loud` (louder sound: the
   recording's own loudness, the piece's quiet end to its loud end, held between notes; read from the pack's energy
   lane over 0.4 s centred on now, so it has no lag; a pack without that lane falls back to the older loudness lane,
-  read 1.1 s ahead because it runs late, until `npm run augment-pack` adds it) and `pace` (busier: attacks per
-  second in the 4 s around now, against the piece's busiest parts); `""` holds it fixed. `depth` 0..1 is how far (default 0.5; the studio's small "how strongly" slider at the
+  read 1.1 s ahead because it runs late, until `npm run augment-pack` adds it), `pace` (busier: attacks per
+  second in the 4 s around now, against the piece's busiest parts) and `rel` (louder than around it: the same sound
+  as `loud`, judged against the 8 s on either side and half against the whole piece, so a quiet passage still swells
+  while the real climax still reads highest); `""` holds it fixed. `depth` 0..1 is how far (default 0.5; the studio's small "how strongly" slider at the
   end of a driven knob's row). Leave out a knob to keep
   the widget's default; a base outside the knob's range is clamped (with a warning).
 - `fade` (optional, seconds, default 1, at most half the clip, 0 = a hard cut): how long the clip takes to come in and go
@@ -237,6 +239,19 @@ the slider is the ceiling and the curve a share of it, so a vine can branch more
 
 The widget keeps running at 0, so it comes back in its own state.
 
+### `thin`: keep the strongest
+
+```json
+{ "widget": "fireworks", "intensity": [{ "t": 120, "v": 0.2 }, { "t": 150, "v": 1 }], "thin": "loud" }
+```
+
+With `"thin": "loud"`, a curve below 1 still lets through the same share of attacks, but not a random one: the loudest
+notes of the 4 s on either side stay and the weak ones go first. At 0.2 the layer answers only the real accents, and a
+build fills in from them down to the softer notes. On notes all equally loud it still picks at random, spread evenly,
+but not the same notes as without the flag. It does nothing without a curve, or with `intensityMoves` on a widget with
+the how present slider, which drops no attacks. The studio's switch is **Keep the strongest**
+on the intensity lane's bar; see it side by side with today's choice on `lab/strongest.html`.
+
 The presets (in the studio's panel and the lab's cards; they write ordinary pivots you can then edit):
 
 - **Fade in** over N seconds from the clip's start; **Fade out** over the last N seconds.
@@ -255,6 +270,11 @@ The presets (in the studio's panel and the lab's cards; they write ordinary pivo
   with no lag (without that lane, the older loudness lane read 1.1 s ahead). The loudness climbs fast (0.2 s) and
   falls slowly (0.8 s), and the clip's own quietest and loudest parts are stretched to "never below" (35 % unless the
   studio's "Lowest" is set) and full. A calm clip stays near full instead of pumping.
+- **Build to the climax**: holds at "never below" (35 %) until the quietest point before the clip's loudest moment,
+  grows with the music from there and never drops back, is full at the peak while the sound stays there (at most
+  4 s), then settles back over 3 s and stays low. The peak is the strongest of the piece's three loudest moments that
+  falls in the clip (the timeline marks them with small triangles; they are suggestions), else the clip's own loudest
+  point. A clip whose loudness hardly moves gets no curve.
 - **While its part plays**: open while the part the layer listens to sounds, shut in its rests.
 
 In the studio the selected clip's curve is drawn in a lane under the timeline: click to add a pivot, drag to move it (Shift: finely),

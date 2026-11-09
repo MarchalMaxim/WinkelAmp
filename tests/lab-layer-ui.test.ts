@@ -187,6 +187,14 @@ describe('intensity presets', () => {
     for (let t = 0; t <= dur; t += 0.37) expect(L.automationAt(p, t)).toBeCloseTo(t < span.start || t > span.end ? 1 : L.automationAt(inner, t), 12);
     expect(p.length).toBeLessThanOrEqual(L.MAX_PIVOTS);
   });
+  it('climax writes the shared preset with the amount as its floor, full outside its moment; nothing without loudness', () => {
+    const span = { start: 40, end: 90 }, inner = L.presets.toClimax(span, L.climaxLane(song), { floor: 0.3, peaks: L.climaxes(song) });
+    const p = U.presetPivots(L, 'climax', 0.3, span, song);
+    for (let t = 0; t <= dur; t += 0.37) expect(L.automationAt(p, t)).toBeCloseTo(t < span.start || t > span.end ? 1 : L.automationAt(inner, t), 12);
+    expect(p.length).toBeLessThanOrEqual(L.MAX_PIVOTS);
+    expect(U.presetPivots(L, 'climax', 0.3, whole, { ...song, loudness: undefined })).toEqual([]);
+    expect(inner.length).toBeGreaterThan(2);
+  });
   it('the default gate threshold reads the lane 1.7 s later, where the music of the span shows on it', () => {
     const step = { hop: 0.1, values: Array.from({ length: 400 }, (_, i) => (i < 150 ? 0.2 : 0.8)) };   // loud on the lane from 15 s
     expect(U.gateDefault(step, { start: 12, end: 16 })).toBe(0.8);    // read over 13.7 .. 17.7, mostly loud
@@ -205,6 +213,12 @@ describe('entries', () => {
     const r = U.defaultRegion('strings');
     expect(U.tidyEntry({ region: r, intensity: [{ t: 1, v: 0 }] })).toEqual({ region: r, intensity: [{ t: 1, v: 0 }] });
     expect(U.tidyEntry(undefined)).toBeNull();
+  });
+  it('keeps "keep the strongest" only with a curve, where it does something', () => {
+    expect(U.tidyEntry({ intensity: [{ t: 1, v: 0 }], thin: 'loud' })).toEqual({ intensity: [{ t: 1, v: 0 }], thin: 'loud' });
+    expect(U.tidyEntry({ listen: 'melody', thin: 'loud' })).toEqual({ listen: 'melody' });
+    expect(U.tidyEntry({ thin: 'loud' })).toBeNull();
+    expect(U.tidyEntry({ intensity: [{ t: 1, v: 0 }], thin: 'quiet' })).toEqual({ intensity: [{ t: 1, v: 0 }] });
   });
 });
 

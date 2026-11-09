@@ -144,8 +144,8 @@ What a widget can feel, per frame:
 | 3 | `+loud` and `+pace` knob drives | a day | no | better with #4 |
 | 4 | **Built 2026-11-08.** Zero-lag energy lanes (step A), and every loudness reader switched to them | a day | partly | the augment-pack script, shared with #5 |
 | 5 | Onsets and melody in the pack, plus a 4 s describe-song table | a day | partly | the augment-pack script |
-| 6 | "Keep the strongest" thinning | a day | partly | nothing |
-| 7 | "Build to the climax" preset | a day | no | nothing (better with #4) |
+| 6 | **Built 2026-11-09.** "Keep the strongest" thinning | a day | partly | nothing |
+| 7 | **Built 2026-11-09.** "Build to the climax" preset, and the loudest moments on the timeline | a day | no | nothing (better with #4) |
 | 8 | Pace warning in check-show | hours | partly | nothing |
 | 9 | Fade independent of frame rate, plus picture delay | hours | no | nothing |
 
@@ -290,7 +290,10 @@ The plan, as written before building:
   - Each pack grows by about 50–150 KB.
   - The melody is weak on orchestral recordings, so label it as an estimate.
 
-### 6. "Keep the strongest" thinning (partly exists)
+### 6. "Keep the strongest" thinning (built 2026-11-09)
+
+- **Built.** A layer flag `thin: 'loud'` (show.ts `Layer.thin`, carried by schedule.ts, conductor.ts `slotLayer`, driver.ts and the lab). With it, an attack passes at intensity a when the share of the instance's chords within ±4 s that beat it (louder, or as loud with a higher hash) is below a: `WA.thinRanks` and `WA.passesStrongest` in [automation.js](lab/layers/automation.js), worked out once per chord list and salt, used by `deliveredChords` in [slot.js](lab/layers/slot.js). Without the flag nothing changes (tests/layers-thin.test.ts compares against the old `passes`).
+- **Where to see it.** The studio's **Keep the strongest** switch on the intensity lane's bar (disabled when the curve moves how present, which needs the widget's how present slider), the same switch beside a lab card's intensity preset, and the side-by-side demo [lab/strongest.html](lab/strongest.html) (section 8).
 
 - **What.** An optional layer flag, `thin: 'loud'`. At intensity a, an attack passes if its velocity rank among the instance's chords within ±4 s is at least 1−a. Ties are broken by the existing hash, so playback stays deterministic and seek-safe. It is one toggle beside the intensity lane.
 - **What exists.** The `accents` line already keeps a fixed top 15% ([lines.js](lab/layers/lines.js:247)). Hand-made picks sets (ff-blows) do it by hand.
@@ -310,12 +313,16 @@ The plan, as written before building:
   - tests
 - **Risk.** None without the flag; the hash path runs exactly as today. Older studios strip the key on repair.
 - **Points to watch.**
-  - On ensemble tracks with flat velocities, ties fall back to the hash, which is today's behaviour.
+  - On ensemble tracks with flat velocities, ties fall back to the hash: still a random pick, spread evenly, but not the same notes as without the flag.
   - Recompute the ranks when the picks change.
   - Disable the toggle on `present` layers, which do not thin.
   - The onset-strength blend is dropped: the pack has no onsets until #5.
 
-### 7. "Build to the climax" preset (new)
+### 7. "Build to the climax" preset (built 2026-11-09)
+
+- **Built.** `WA.climaxes(song)` and `WA.presets.toClimax` in [automation.js](lab/layers/automation.js). They read the energy lane's 3 s curve in dB on the lane's own scale with the top left open, so a stretch at the ceiling no longer ties with a louder moment. A pack without the energy lane falls back to `pack.loudness` 1.7 s earlier, which still stops at its top.
+  - Picks on the real packs: Barber 349.3 s, then 447.7 and 184.5. Bald Mountain 353.7, 26.7, 187.3. Danse macabre 375.7, 239.2, 93.5. Chopin 48/1 234.2, 116.5, 290.9: the top pick is now the loudest point of the recording (−8.8 dB, the agitato), not the plateau at 211 s; the ff climax at 285–313 comes third and is about as loud in dB.
+  - See it in the studio: the "Build to the climax" chip beside "Follows the sound", and a small warm triangle under the timeline's strip at each loudest moment (hover it). In the lab: the layer card's preset list, and the dashed orange curve on [lab/energy.html](lab/energy.html), whose red markers now come from `WA.climaxes`.
 
 - **What.**
   - `WA.climaxes` finds peaks in `pack.loudness` at load time: it smooths over ±1.5 s, ranks by height × prominence, and keeps peaks at least 20 s apart. It adds no pack field and needs no re-ingest.
@@ -361,7 +368,7 @@ The plan, as written before building:
 
 ## 6. Bigger ideas for later
 
-- **Section-relative loudness (`rel`, energy lanes step B).** It needs tuning by eye on several pieces first.
+- **Section-relative loudness (`rel`, energy lanes step B). Built 2026-11-09 as the `+rel` / `-rel` knob drives** ("louder than around it → more / less"). `makeRelAt` in [curves.ts](src/widgets/curves.ts) (ES5 copy `relCurve` in lab/layers/lines.js, proved bit-identical in tests/curves.test.ts) runs `relative()` once per song on the lane `+loud` reads: 0.5 at the median of the ±8 s around now, half and half with the whole piece, so a quiet passage still swells while the real climax still reads highest. No gain cap yet: tune by eye on Barber, Firebird and Mars. See it on [lab/drives.html](lab/drives.html), the third picture.
 - **A tension lane (Farbood model).** A week or more. The harmonic term (spiral-array strain) does not exist, the weights were fitted to short excerpts, and transcription octave errors would make the "pitch rising" term spike falsely at climaxes. The cheaper "Follows the sound" (#1) gets most of the value.
 - **A music-paced clock (`ctx.flow`).** Not worth it. Widgets keep their own accumulators, and `+rate` drives already pace ridges, score, current, cells, fields and marbling. Once #3 exists, switching those drives to `+loud` gives the same effect. It also does not fix the murmuration complaint, which is about the trigger and the target figure, not speed.
 - **Chord prominence on about 21 widgets with absolute thresholds.** That is days of work. A changed gate in front of seeded random draws shifts the random stream, so shows stop drawing the same. The magnitudes after the gate also assume the threshold was crossed.
@@ -425,4 +432,8 @@ What it measured (2026-11-08):
 So the lag of today's loudness lane is real and the same everywhere, about 1.7 s. "Energy without attacks" is a problem of the sustained pieces (strings, slow chorales), not of busy ones: in Mars, Danse macabre and the piano pieces the attacks already carry the energy. In Barber at 5:18 (`?song=barber-adagio&t=318`) the close-up shows it plainly. The sound climbs steadily toward the climax, while what a widget feels drains to almost nothing in every gap between attacks.
 ### The loud and pace drives
 
-[lab/drives.html](lab/drives.html) shows items 3 and 4 at work: one widget four times over the same recording, the same knob on `+level`, `+loud` (the zero-lag energy lane), `+loud` again from the old lane read 1.1 s ahead (as before item 4, for comparison) and `+pace`, its base at the knob's lowest value and depth 1, so each picture's knob goes from lowest to highest as its drive goes from 0 to 1. A bar and a number under each picture give the knob's value now, and a plot of the whole piece shows what each drive reads (click it to jump). Run vite as above and open `http://localhost:5203/lab/drives.html` (`?song=<id>&widget=<id>&knob=<key>&t=<seconds>`; it opens on Barber, Brass gust, "how much air there is to push"; In the Hall of the Mountain King shows pace best). The runtimes are the studio's own (`WidgetRuntime` with the layer code), so what you see is what a show with those knobs draws. The code is [drives-page.ts](src/research/drives-page.ts); it writes nothing.
+[lab/drives.html](lab/drives.html) shows items 3 and 4 at work: one widget four times over the same recording, the same knob on `+level`, `+loud` (the zero-lag energy lane), `+rel` (the same lane judged against the 8 s on either side, section 6; it replaced a second `+loud` from the old lane on 2026-11-09) and `+pace`, its base at the knob's lowest value and depth 1, so each picture's knob goes from lowest to highest as its drive goes from 0 to 1. A bar and a number under each picture give the knob's value now, and a plot of the whole piece shows what each drive reads (click it to jump). Run vite as above and open `http://localhost:5203/lab/drives.html` (`?song=<id>&widget=<id>&knob=<key>&t=<seconds>`; it opens on Barber, Brass gust, "how much air there is to push"; In the Hall of the Mountain King shows pace best). The runtimes are the studio's own (`WidgetRuntime` with the layer code), so what you see is what a show with those knobs draws. The code is [drives-page.ts](src/research/drives-page.ts); it writes nothing.
+
+### Keep the strongest
+
+[lab/strongest.html](lab/strongest.html) shows item 6: one widget twice on the same notes, its intensity curve held at the slider's level (default 30 %), on the left "a random selection (today)", on the right "the strongest notes" (`thin: 'loud'`). Under the pictures a strip of the 24 s around the playhead has one tick per attack, taller for louder, lit where each side lets it through, with the count each side lets through; it shows the difference even paused. Open `http://localhost:5204/lab/strongest.html` (`?song=<id>&widget=<id>&a=<0..1>&t=<seconds>`; it opens on In the Hall of the Mountain King, which has the widest spread of note loudness within a few seconds of the packs here, and Brass gust, which blows on every attack). The code is [strongest-page.ts](src/research/strongest-page.ts); it writes nothing.

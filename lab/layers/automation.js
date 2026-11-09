@@ -50,15 +50,61 @@
     return h >>> 0;
   };
 
-  /** Whether an attack at t reaches a layer of intensity a: a fixed fraction a of the attacks, the same ones every time.
-      FNV-1a over the 8 bytes (salt LE, round(t·1000) LE as uint32). */
-  WA.passes = function (t, a, salt) {
-    if (a >= 1) return true;
-    if (!(a > 0)) return false;
+  /** An attack's own number for an instance: FNV-1a over the 8 bytes (salt LE, round(t·1000) LE as uint32). */
+  WA.attackHash = function (t, salt) {
     var h = OFFSET, x = salt >>> 0, y = Math.round(t * 1000) >>> 0, i;
     for (i = 0; i < 4; i++) { h ^= (x >>> (8 * i)) & 0xff; h = Math.imul(h, PRIME); }
     for (i = 0; i < 4; i++) { h ^= (y >>> (8 * i)) & 0xff; h = Math.imul(h, PRIME); }
-    return (h >>> 0) / 4294967296 < a;
+    return h >>> 0;
+  };
+
+  /** Whether an attack at t reaches a layer of intensity a: a fixed fraction a of the attacks, the same ones every time. */
+  WA.passes = function (t, a, salt) {
+    if (a >= 1) return true;
+    if (!(a > 0)) return false;
+    return WA.attackHash(t, salt) / 4294967296 < a;
+  };
+
+  // ---- "keep the strongest" (a layer's thin: 'loud') ----------------------------------------------------------------
+
+  /** How far around an attack the strongest are looked for, in seconds, each way (inclusive). */
+  WA.THIN_SPAN = 4;
+  var THIN = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  /** For each chord of a list (sorted by time), the share of the chords within ±THIN_SPAN s of it (itself included) that
+      beat it: 0 for the strongest there. One beats another when it is louder (vel), or as loud with a higher attackHash,
+      so on a track of flat velocities it still picks at random, spread evenly, but not the same chords as passes. Worked out once per list and salt: a new list
+      (a set of picks edited) gets its own. A function of the list alone, so play, a seek and a render agree. */
+  WA.thinRanks = function (chords, salt) {
+    var bySalt = THIN ? THIN.get(chords) : chords.__waThin, key = String(salt >>> 0);
+    if (!bySalt) { bySalt = {}; if (THIN) THIN.set(chords, bySalt); else chords.__waThin = bySalt; }
+    if (bySalt[key]) return bySalt[key];
+    var n = chords.length, hs = [], out = [], lo = 0, hi = 0, i, j;
+    for (i = 0; i < n; i++) hs.push(WA.attackHash(chords[i].t, salt));
+    for (i = 0; i < n; i++) {
+      var t = chords[i].t, v = chords[i].vel, beat = 0;
+      while (lo < n && chords[lo].t < t - WA.THIN_SPAN) lo++;
+      while (hi < n && chords[hi].t <= t + WA.THIN_SPAN) hi++;
+      for (j = lo; j < hi; j++) if (chords[j].vel > v || (chords[j].vel === v && hs[j] > hs[i])) beat++;
+      out.push(beat / (hi - lo));
+    }
+    bySalt[key] = out;
+    return out;
+  };
+
+  /** Whether the attack ch of an instance's chord list reaches a layer of intensity a when it keeps the strongest: its
+      share of stronger neighbours (thinRanks) is below a. A chord not in the list takes passes. */
+  WA.passesStrongest = function (chords, ch, a, salt) {
+    if (a >= 1) return true;
+    if (!(a > 0)) return false;
+    var lo = 0, hi = chords.length - 1, m;
+    while (lo <= hi) {
+      m = (lo + hi) >> 1;
+      if (chords[m].t < ch.t) lo = m + 1;
+      else if (chords[m].t > ch.t) hi = m - 1;
+      else return WA.thinRanks(chords, salt)[m] < a;
+    }
+    return WA.passes(ch.t, a, salt);
   };
 
   // ---- presets: generators of ordinary pivots inside a section's span -------------------------------------------
@@ -140,10 +186,12 @@
   };
 
   /** The indices of the points (ts, vs) that draw them to within eps in v (Douglas-Peucker, distance measured
-      straight up), the first and last always kept. */
-  var simplify = function (ts, vs, eps) {
-    var n = ts.length, mark = [], stack = [[0, n - 1]], i;
+      straight up), the first and last always kept, and the indices in `pins` (ascending) when given. */
+  var simplify = function (ts, vs, eps, pins) {
+    var n = ts.length, mark = [], stack = [], i, a = 0;
     mark[0] = true; mark[n - 1] = true;
+    for (i = 0; pins && i < pins.length; i++) if (pins[i] > a && pins[i] < n - 1) { mark[pins[i]] = true; stack.push([a, pins[i]]); a = pins[i]; }
+    stack.push([a, n - 1]);
     while (stack.length) {
       var seg = stack.pop(), a = seg[0], b = seg[1], best = -1, bd = eps;
       for (i = a + 1; i < b; i++) {
@@ -155,6 +203,79 @@
     var out = [];
     for (i = 0; i < n; i++) if (mark[i]) out.push(i);
     return out;
+  };
+
+  // ---- the loudest moments (docs/research/audio-to-picture.md item 7) --------------------------------------------
+
+  /** Where a song's loudness for the climax comes from: the energy lane's 3 s curve, else pack.loudness, else null. */
+  var climaxSource = function (song) {
+    var e = song && song.energy, lo = song && song.loudness;
+    if (e && e.shortTerm && e.shortTerm.length && e.hop > 0) return e;
+    return lo && lo.values && lo.values.length && lo.hop > 0 ? lo : null;
+  };
+  var climaxCache = new WeakMap();
+  /** The cache entry for a source and a smoothing: { lane, peaks: { 'gap:n': [...] } }. */
+  var climaxEntry = function (src, smooth) {
+    var all = climaxCache.get(src);
+    if (!all) { all = {}; climaxCache.set(src, all); }
+    return all[smooth] || (all[smooth] = { lane: null, peaks: {} });
+  };
+
+  /** The loudness that "Build to the climax" and the loudest moments read: { hop, values, start }, values[i] at song
+      time start + i·hop, a centred mean over ±smooth s (1.5; the edges average what there is). With the pack's energy
+      lane: its 3 s curve (pack.energy.shortTerm, sample i centred on (i + 0.5)·hop) on the loudness lane's scale
+      (WA.energyCorrection, then WA.LOUD_DB), held at 0 below but not cut off at the top, so a long stretch at the
+      lane's ceiling does not tie with a louder moment. Without: pack.loudness moved WA.LOUDNESS_LAG.mean earlier (it
+      runs late; it stops at 1). null with neither. Kept per lane: do not change what it returns. */
+  WA.climaxLane = function (song, o) {
+    var smooth = o && o.smooth != null ? o.smooth : 1.5, src = climaxSource(song), raw = [], hop = src && src.hop, start, i;
+    if (!src) return null;
+    var entry = climaxEntry(src, smooth);
+    if (entry.lane) return entry.lane;
+    if (src === song.energy) {
+      var db = src.shortTerm, c = WA.energyCorrection(src), LO = WA.LOUD_DB.lo, HI = WA.LOUD_DB.hi;
+      start = 0.5 * hop;
+      for (i = 0; i < db.length; i++) { var u = (db[i] + c - LO) / (HI - LO); raw.push(u > 0 ? u : 0); }   // NaN → 0
+    } else {
+      start = -WA.LOUDNESS_LAG.mean;
+      for (i = 0; i < src.values.length; i++) raw.push(Number.isFinite(src.values[i]) ? src.values[i] : 0);
+    }
+    var n = raw.length, half = Math.round(smooth / hop), pre = [0], values = [];
+    for (i = 0; i < n; i++) pre.push(pre[i] + raw[i]);
+    for (i = 0; i < n; i++) { var a = Math.max(0, i - half), b = Math.min(n, i + half + 1); values.push((pre[b] - pre[a]) / (b - a)); }
+    entry.lane = { hop: hop, values: values, start: start };
+    return entry.lane;
+  };
+
+  /** The piece's loudest moments, as suggestions (src/research/energy.ts climaxes): the peaks of WA.climaxLane, each
+      scored by its height × its prominence (how far it stands above the higher of the lowest points on either side
+      before anything higher), the best first, at least `gap` s (20) apart, at most `n` (3). [{ t, v, score }]: t the
+      song time (0 or later), v the lane's value there. Empty with no loudness. */
+  WA.climaxes = function (song, o) {
+    o = o || {};
+    var lane = WA.climaxLane(song, o);
+    if (!lane) return [];
+    var gap = o.gap != null ? o.gap : 20, max = o.n != null ? o.n : 3;
+    var entry = climaxEntry(climaxSource(song), o.smooth != null ? o.smooth : 1.5), key = gap + ':' + max, out = entry.peaks[key];
+    if (!out) {
+      var sm = lane.values, n = sm.length, peaks = [], i, j;
+      for (i = 1; i < n - 1; i++) {
+        if (!(sm[i] >= sm[i - 1] && sm[i] > sm[i + 1])) continue;
+        var l = sm[i], r = sm[i];
+        for (j = i - 1; j >= 0 && sm[j] <= sm[i]; j--) l = Math.min(l, sm[j]);
+        for (j = i + 1; j < n && sm[j] <= sm[i]; j++) r = Math.min(r, sm[j]);
+        peaks.push({ i: i, score: sm[i] * (sm[i] - Math.max(l, r)) });
+      }
+      peaks.sort(function (x, y) { return y.score - x.score || x.i - y.i; });
+      out = [];
+      for (j = 0; j < peaks.length && out.length < max; j++) {
+        var t = lane.start + peaks[j].i * lane.hop, near = false;
+        for (i = 0; i < out.length; i++) if (Math.abs(out[i].t - t) < gap) near = true;
+        if (!near) out.push({ t: t, v: sm[peaks[j].i], score: peaks[j].score });
+      }
+      entry.peaks[key] = out;
+    }
+    return out.map(function (p) { return { t: Math.max(0, p.t), v: p.v, score: p.score }; });
   };
 
   WA.presets = {
@@ -293,6 +414,77 @@
         var j = keep[i], last = i === keep.length - 1;
         t = i === 0 ? s.start : last ? s.end : Math.min(s.end, Math.max(s.start, Math.round(ts[j] * 100) / 100));
         if (out.length && t <= out[out.length - 1].t) { if (!last) continue; out.pop(); }
+        out.push({ t: t, v: Math.round(vs[j] * 1000) / 1000 });
+      }
+      return out;
+    },
+    /** Builds to the strongest climax in the span and settles after it, as linear pivots (floor 0.35 to 1). curve: a
+        lane like WA.climaxLane's ({ hop, values, start }, values[i] at start + i·hop, start 0 when absent), read
+        linearly between samples, held past its ends. The peak: the first of o.peaks (WA.climaxes, the best first)
+        inside the span, else the span's loudest point. From the span's start it holds at floor up to the quietest
+        point before the peak; from there it grows with the loudness and never falls back (the loudest so far,
+        stretched so that quietest point is floor and the peak is 1); it stays at 1 while the sound stays within 0.05
+        of the peak, at most `hold` s (4); it settles to floor over `settle` s (3) and holds there to the span's end.
+        No dip before the peak. Then as few pivots as draw it to within 0.02, loosened until at most `maxPivots` (248)
+        are left, always keeping the turns (the peak, the end of the top, the end of the settling) when there is room
+        for them; t to 0.01 s, v to 0.001; the span's ends exact. Empty with no curve, an empty span, or a span whose
+        loudness moves less than 0.1 (nothing to build to). */
+    toClimax: function (s, curve, o) {
+      o = o || {};
+      var floor = o.floor != null ? o.floor : 0.35, hold = o.hold != null ? o.hold : 4, settle = o.settle != null ? o.settle : 3;
+      var max = Math.max(2, o.maxPivots != null ? o.maxPivots : WA.MAX_PIVOTS - 8);
+      var hop = curve && curve.hop, vals = curve && curve.values, t0 = (curve && curve.start) || 0;
+      if (!vals || !vals.length || !(hop > 0) || !(s.end > s.start)) return [];
+      var at = function (t) {
+        var x = (t - t0) / hop, n = vals.length, v;
+        if (!(x > 0)) v = vals[0];
+        else if (x >= n - 1) v = vals[n - 1];
+        else { var k = Math.floor(x); v = vals[k] + (vals[k + 1] - vals[k]) * (x - k); }
+        return Number.isFinite(v) ? v : 0;
+      };
+      var ts = [s.start], us, i, t;
+      for (i = Math.max(0, Math.floor((s.start - t0) / hop)); (t = t0 + i * hop) < s.end - 1e-9; i++) if (t > s.start + 1e-9) ts.push(t);
+      ts.push(s.end);
+      us = ts.map(at);
+      var lo = Infinity, hi = -Infinity, top = 0;
+      for (i = 0; i < us.length; i++) { if (us[i] < lo) lo = us[i]; if (us[i] > hi) { hi = us[i]; top = i; } }
+      if (hi - lo < 0.1) return [];
+      var tp = null, peaks = o.peaks || [];
+      for (i = 0; i < peaks.length && tp === null; i++) if (peaks[i].t >= s.start && peaks[i].t <= s.end) tp = peaks[i].t;
+      if (tp === null) tp = ts[top];
+      var up = at(tp), tl = s.start, ul = up, te = tp;
+      for (i = 0; i < ts.length && ts[i] < tp; i++) if (us[i] < ul) { ul = us[i]; tl = ts[i]; }
+      for (i = 0; i < ts.length; i++) {
+        if (ts[i] <= tp) continue;
+        if (us[i] < up - 0.05) break;
+        te = Math.min(ts[i], tp + hold);
+        if (ts[i] >= tp + hold) break;
+      }
+      // The turns get pivots of their own: the peak, the end of the top, the end of the settling.
+      [tp, te, te + settle].forEach(function (x) { if (x > s.start && x < s.end) ts.push(x); });
+      ts.sort(function (p, q) { return p - q; });
+      ts = ts.filter(function (x, k) { return k === 0 || x > ts[k - 1] + 1e-9; });
+      var vs = [], run = ul, rise = up - ul;
+      for (i = 0; i < ts.length; i++) {
+        t = ts[i];
+        if (t >= tp - 1e-9 && t <= te + 1e-9) { vs.push(1); continue; }
+        if (t > te) { vs.push(t < te + settle ? 1 - ((1 - floor) * (t - te)) / settle : floor); continue; }
+        if (t <= tl) { vs.push(floor); continue; }
+        var u = at(t);
+        if (u > run) run = u;
+        vs.push(rise > 0 ? floor + (1 - floor) * clamp01((run - ul) / rise) : 1);
+      }
+      // The turns stay through the simplifying, so the curve always reaches 1. With too few pivots for them, they go.
+      var pins = [], near = function (x, y) { return Math.abs(x - y) <= 1e-9; };
+      for (i = 1; i < ts.length - 1; i++) if (near(ts[i], tp) || near(ts[i], te) || near(ts[i], te + settle)) pins.push(i);
+      var eps = 0.02, keep = simplify(ts, vs, eps, pins);
+      while (keep.length > max && eps < 4) { eps *= 1.5; keep = simplify(ts, vs, eps, pins); }
+      if (keep.length > max) { pins = []; eps = 0.02; keep = simplify(ts, vs, eps); while (keep.length > max) { eps *= 1.5; keep = simplify(ts, vs, eps); } }
+      var out = [];
+      for (i = 0; i < keep.length; i++) {
+        var j = keep[i], last = i === keep.length - 1;
+        t = i === 0 ? s.start : last ? s.end : Math.min(s.end, Math.max(s.start, Math.round(ts[j] * 100) / 100));
+        if (out.length && t <= out[out.length - 1].t) { if (!last && (pins.indexOf(j) < 0 || out.length < 2)) continue; out.pop(); }
         out.push({ t: t, v: Math.round(vs[j] * 1000) / 1000 });
       }
       return out;

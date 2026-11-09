@@ -4,6 +4,8 @@
 import type { Chord, EnergyLanesLike, Features, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
 
 export interface Span { start: number; end: number }
+/** What WA.climaxLane and WA.climaxes read of a song. */
+export type ClimaxSong = { energy?: EnergyLanesLike | null; loudness?: { hop: number; values: readonly number[] } | null } | null | undefined;
 
 export interface InstanceState {
   key: string; widget: string; salt: number;            // salt = fnv32(key)
@@ -22,6 +24,8 @@ export interface LayerHost {
   make(w: number, h: number): HTMLCanvasElement;
   /** loud at song time t (src/widgets/curves.ts makeLoudAt); absent: loud is 0. */
   loudAt?(t: number): number;
+  /** rel at song time t (src/widgets/curves.ts makeRelAt); absent: rel is 0. */
+  relAt?(t: number): number;
 }
 
 export interface LayeredSlot { inst: InstanceState; receiving: boolean; weight: number; layer: SlotLayer;
@@ -34,6 +38,15 @@ export interface WaLayers {
   automationAt(p: readonly Pivot[] | undefined, t: number): number;
   fnv32(s: string): number;
   passes(t: number, a: number, salt: number): boolean;
+  /** passes' hash of an attack, 0 ≤ h < 2^32. */
+  attackHash(t: number, salt: number): number;
+  /** "Keep the strongest": seconds each way the strongest are looked for. */
+  THIN_SPAN: number;
+  /** Per chord, the share of chords within ±THIN_SPAN s that beat it (louder, or as loud with a higher hash); cached per
+      list and salt. */
+  thinRanks(chords: readonly Chord[], salt: number): number[];
+  /** Whether ch reaches intensity a when its layer keeps the strongest (thinRanks below a); a chord not in the list takes passes. */
+  passesStrongest(chords: readonly Chord[], ch: Chord, a: number, salt: number): boolean;
   presets: {
     fadeIn(s: Span, seconds: number, o?: { floor?: number }): Pivot[]; fadeOut(s: Span, seconds: number, o?: { floor?: number }): Pivot[];
     build(s: Span, o?: { floor?: number }): Pivot[]; decay(s: Span, o?: { floor?: number }): Pivot[]; dip(s: Span, o?: { floor?: number }): Pivot[];
@@ -45,9 +58,16 @@ export interface WaLayers {
     follow(s: Span, curve: { hop: number; values: readonly number[] },
       o?: { floor?: number; up?: number; down?: number; lead?: number; maxPivots?: number }): Pivot[];
     plays(s: Span, notes: readonly Note[], o?: { floor?: number }): Pivot[];
+    /** "Build to the climax": floor, a build that never falls back up to the peak, 1 near it, a settle to floor */
+    toClimax(s: Span, curve: { hop: number; values: readonly number[]; start?: number } | null | undefined,
+      o?: { floor?: number; peaks?: readonly { t: number }[]; hold?: number; settle?: number; maxPivots?: number }): Pivot[];
   };
   MAX_PIVOTS: number;                                   // 256
   LOUDNESS_LAG: { open: number; close: number; mean: number };   // how late pack.loudness runs, in seconds
+  /** The loudness the climax reads (values[i] at start + i·hop, smoothed ±1.5 s, not cut off at the top); null with none */
+  climaxLane(song: ClimaxSong, o?: { smooth?: number }): { hop: number; values: number[]; start: number } | null;
+  /** The piece's loudest moments, the best first (suggestions) */
+  climaxes(song: ClimaxSong, o?: { smooth?: number; gap?: number; n?: number }): { t: number; v: number; score: number }[];
   // persist.js (T1 table and vis; T12 fills PERSIST)
   VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
   vis(a: number, cls: Persist): number;
@@ -60,6 +80,8 @@ export interface WaLayers {
   /** curves.ts makeLoudAt and paceAt, the same statements */
   loudCurve(lane: { hop: number; values: readonly number[] } | null | undefined, lead: number | undefined, energy?: EnergyLanesLike | null): (t: number) => number;
   paceAt(chords: readonly Chord[], t: number): number;
+  /** curves.ts makeRelAt, the same statements: louder than around it, on the lane loudCurve reads */
+  relCurve(lane: { hop: number; values: readonly number[] } | null | undefined, lead: number | undefined, energy?: EnergyLanesLike | null): (t: number) => number;
   /** curves.ts energyCurve and energyCorrection, the same statements; LOUD_DB = descriptors.ts LOUD_LO / LOUD_HI /
       REF_LOUDNESS and curves.ts ENERGY_GATE */
   LOUD_DB: { lo: number; hi: number; ref: number; gate: number };
@@ -88,9 +110,9 @@ export interface WaLayers {
   newFeatures(): Features;
   /** cold at t, as after a seek: ci = the first chord after t, pulse 0, fresh features but loud and pace at t (resets
       and comebacks) */
-  coldInstance(inst: InstanceState, t: number, loudAt?: (t: number) => number): void;
-  /** loud (from loudAt, absent → 0) and pace (of chords) at t into f: curves.ts setCurves */
-  curveFeatures(f: Features, chords: readonly Chord[], t: number, loudAt?: (t: number) => number): void;
+  coldInstance(inst: InstanceState, t: number, loudAt?: (t: number) => number, relAt?: (t: number) => number): void;
+  /** loud (from loudAt, absent → 0), pace (of chords) and rel (from relAt, absent → 0) at t into f: curves.ts setCurves */
+  curveFeatures(f: Features, chords: readonly Chord[], t: number, loudAt?: (t: number) => number, relAt?: (t: number) => number): void;
   /** drawLayered's step 1: the attacks the slot hears (advances inst.ci when routed) */
   deliveredChords(s: LayeredSlot): Chord[];
   /** drawLayered's step 3: weight × vis(a) with a curve, else the weight */

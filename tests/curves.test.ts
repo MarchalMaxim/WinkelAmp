@@ -1,4 +1,4 @@
-// The loud and pace drives (src/widgets/curves.ts): their curves, their copies in lab/layers/lines.js, and every place a
+// The loud, rel and pace drives (src/widgets/curves.ts): their curves, their copies in lab/layers/lines.js, and every place a
 // Features object is made or swapped giving them a finite value.
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
@@ -6,7 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { loadLayers } from '../scripts/node/layers';
 import { DRIVES, repairShow, validateShow, type Show } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
-import { energyCurve, makeLoudAt, paceAt } from '../src/widgets/curves';
+import { relative } from '../src/research/energy';
+import { energyCurve, makeLoudAt, makeRelAt, paceAt } from '../src/widgets/curves';
 import { knobValue, newFeatures } from '../src/widgets/features';
 import { readLabHarness } from '../src/widgets/lab-harness';
 import { WidgetRuntime } from '../src/widgets/runtime';
@@ -39,8 +40,13 @@ describe('the knob drives', () => {
     expect(knobValue(q, { base: 1, drive: '+pace', depth: 0.4 }, f)).toBeCloseTo(1.2, 12);
     expect(knobValue(q, { base: 1, drive: '-pace', depth: 0.4 }, f)).toBeCloseTo(0.8, 12);
   });
-  it('fresh features hold loud and pace at 0: a driven knob sits at its base', () => {
-    for (const d of ['+loud', '-loud', '+pace', '-pace'] as const) expect(knobValue(q, { base: 1, drive: d, depth: 0.5 }, newFeatures())).toBe(1);
+  it('+rel and -rel move a knob by rel', () => {
+    const f = { ...newFeatures(), loud: 0.9, rel: 0.75 };
+    expect(knobValue(q, { base: 1, drive: '+rel', depth: 0.4 }, f)).toBeCloseTo(1.6, 12);
+    expect(knobValue(q, { base: 1, drive: '-rel', depth: 0.4 }, f)).toBeCloseTo(0.4, 12);
+  });
+  it('fresh features hold loud, pace and rel at 0: a driven knob sits at its base', () => {
+    for (const d of ['+loud', '-loud', '+pace', '-pace', '+rel', '-rel'] as const) expect(knobValue(q, { base: 1, drive: d, depth: 0.5 }, newFeatures())).toBe(1);
     expect(WA.newFeatures()).toEqual(newFeatures());
   });
 });
@@ -107,6 +113,59 @@ describe('loud from the energy lane', () => {
   });
 });
 
+describe('rel', () => {
+  // 0.1 s samples over 60 s: a quiet first third (0.2) with a swell to 0.35 at 10..11 s, a loud middle (0.8) with its
+  // climax (0.95) at 30..31 s, then a middling end (0.5).
+  const values = Array.from({ length: 600 }, (_, i) => (i >= 100 && i < 110 ? 0.35 : i < 200 ? 0.2 : i >= 300 && i < 310 ? 0.95 : i < 400 ? 0.8 : 0.5));
+  const lane = () => ({ hop: 0.1, values: values.slice() });
+
+  it('is relative() of src/research/energy.ts, read at the samples\' centres', () => {
+    const rel = makeRelAt(lane(), 0), want = relative(values, 0.1);
+    for (let i = 0; i < values.length; i++) expect(rel((i + 0.5) * 0.1)).toBeCloseTo(want[i], 6);
+  });
+  it('a quiet passage still swells, and the real climax still reads highest', () => {
+    const rel = makeRelAt(lane(), 0), loud = makeLoudAt(lane(), 0);
+    expect(loud(10.5)).toBeLessThan(0.3);                   // loud hardly sees the swell
+    expect(rel(10.5) - rel(5)).toBeGreaterThan(0.3);        // rel does, more than loud
+    expect(rel(10.5) - rel(5)).toBeGreaterThan(loud(10.5) - loud(5));
+    expect(rel(10.5)).toBeGreaterThan(0.5);
+    let top = 0;
+    for (let t = 0; t < 60; t += 0.05) top = Math.max(top, rel(t));
+    expect(rel(30.5)).toBe(top);
+    expect(rel(30.5)).toBeGreaterThan(rel(10.5));
+  });
+  it('chooses its lane as loud does: energy as it is, else pack.loudness read the lead ahead', () => {
+    const db = values.map((v) => -50 + 38 * v), energy = { hop: 0.1, momentary: db, shortTerm: db };
+    const fromEnergy = makeRelAt(lane(), LEAD, energy), plain = makeRelAt(energyCurve({ energy }), 0);
+    for (let t = -1; t < 61; t += 0.37) expect(fromEnergy(t)).toBe(plain(t));
+    const led = makeRelAt(lane(), LEAD), unled = makeRelAt(lane(), 0);
+    for (let t = 0; t < 58; t += 0.37) expect(led(t)).toBeCloseTo(unled(t + LEAD), 12);
+    expect(makeRelAt(lane(), LEAD, { hop: 0.1, momentary: [], shortTerm: [] })(10.5 - LEAD)).toBe(led(10.5 - LEAD));
+  });
+  it('is 0 without a lane, with an empty or flat one, or without a lead; never NaN, always 0..1', () => {
+    for (const f of [makeRelAt(undefined, LEAD), makeRelAt(null, LEAD), makeRelAt({ hop: 0.1, values: [] }, LEAD),
+      makeRelAt({ hop: 0.1, values: [0.4, 0.4, 0.4] }, LEAD), makeRelAt(lane(), undefined), makeRelAt({ hop: 0, values }, LEAD),
+      makeRelAt(lane(), undefined, { hop: 0.1, momentary: [-20, -30], shortTerm: [-20, -30] })]) {
+      expect([f(0), f(3), f(NaN)]).toEqual([0, 0, 0]);
+    }
+    const r = makeRelAt({ hop: 0.1, values: [0.1, NaN, 0.9, Infinity, 0.5] }, 0);
+    for (const t of [NaN, -1, 0.1, 0.17, 0.33, 9]) { const v = r(t); expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
+  });
+  it('is worked out once per lane object', () => {
+    const l = lane(), before = makeRelAt(l, 0)(10.5);
+    l.values.fill(0.5);   // kept by identity, as pace keeps its chord list
+    expect(makeRelAt(l, 0)(10.5)).toBe(before);
+    expect(makeRelAt(lane(), 0)(10.5)).toBe(before);
+  });
+  it('is worked out on the first read, not when made, on both sides', () => {
+    for (const make of [makeRelAt, (l: { hop: number; values: number[] }, lead: number) => WA.relCurve(l, lead)]) {
+      const l = lane(), r = make(l, 0);
+      l.values.fill(0.5);   // a flat lane by the first read: nothing was worked out yet
+      expect(r(10.5)).toBe(0);
+    }
+  });
+});
+
 describe('pace', () => {
   // Calm: an attack every second for 20 s. Busy: eight a second for the next 20 s.
   const notes = notesAt([...range(0, 20, 1), ...range(20, 40, 0.125)]);
@@ -162,6 +221,28 @@ describe('lab/layers/lines.js has the same curves', () => {
       for (let i = 0; i < 400; i++) { const at = -3 + r() * (n * 0.1 + 6); expect(b(at)).toBe(a(at)); }
     }
   });
+  it('relCurve gives the same bits as makeRelAt, with and without an energy lane', () => {
+    const r = rng(13);
+    for (let k = 0; k < 20; k++) {
+      const n = 1 + Math.floor(r() * 600), lane = { hop: 0.1, values: Array.from({ length: n }, () => (r() < 0.02 ? NaN : r())) };
+      const m = Array.from({ length: n }, () => (r() < 0.05 ? -90 : -60 + r() * 55)), energy = { hop: 0.1, momentary: m, shortTerm: m.map((v) => v + 1) };
+      const a = makeRelAt(lane, LEAD), b = WA.relCurve(lane, LEAD), c = makeRelAt(lane, LEAD, energy), d = WA.relCurve(lane, LEAD, energy);
+      for (let i = 0; i < 400; i++) { const at = -3 + r() * (n * 0.1 + 6); expect(b(at)).toBe(a(at)); expect(d(at)).toBe(c(at)); }
+    }
+    const fine = { hop: 0.025, values: Array.from({ length: 900 }, () => r()) };   // a hop that holds the window's percentiles
+    const a = makeRelAt(fine, 0), b = WA.relCurve(fine, 0);
+    for (let t = -1; t < 24; t += 0.013) expect(b(t)).toBe(a(t));
+    expect([WA.relCurve(undefined, LEAD)(3), WA.relCurve(fine, undefined)(3)]).toEqual([0, 0]);
+  });
+  it('curveFeatures sets rel from relAt, 0 without it', () => {
+    const ch = groupChords(notesAt(range(0, 20, 0.5))), rel = makeRelAt({ hop: 0.1, values: range(0, 1, 0.01) }, LEAD);
+    const f = newFeatures();
+    WA.curveFeatures(f, ch, 5, undefined, rel);
+    expect(f.rel).toBe(rel(5));
+    expect(f.rel).toBeGreaterThan(0);
+    WA.curveFeatures(f, ch, 5);
+    expect(f.rel).toBe(0);
+  });
   it('curveFeatures sets loud and pace, and coldInstance starts them at t', () => {
     const ch = groupChords(notesAt(range(0, 20, 0.5))), loud = makeLoudAt({ hop: 0.1, values: range(0, 1, 0.01) }, LEAD);
     const f = newFeatures();
@@ -181,13 +262,16 @@ describe('the drive lists', () => {
     expect(h.drives).toContainEqual(['-loud', 'louder sound → less']);
     expect(h.drives).toContainEqual(['+pace', 'busier → more']);
     expect(h.drives).toContainEqual(['-pace', 'busier → less']);
+    expect(h.drives).toContainEqual(['+rel', 'louder than around it → more']);
+    expect(h.drives).toContainEqual(['-rel', 'louder than around it → less']);
     expect(h.drives).toContainEqual(['+level', 'louder notes → more']);
     expect(h.drives).toContainEqual(['-level', 'louder notes → less']);
   });
-  it('a show with +loud and +pace knobs validates and comes through repair unchanged', () => {
+  it('a show with +loud, +pace and +rel knobs validates and comes through repair unchanged', () => {
     const show: Show = { version: 3, id: 'demo', song: 'demo', clips: [
       { id: 'c1', start: 0, end: 10, track: 0, fade: 0, widget: 'w', knobs: { size: { base: 1, drive: '+loud', depth: 0.6 }, edge: { base: 0.2, drive: '-pace', depth: 0.5 } } },
-      { id: 'c2', start: 0, end: 10, track: 1, fade: 0, widget: 'w', knobs: { size: { base: 1, drive: '+pace', depth: 0.3 }, edge: { base: 0.2, drive: '-loud' } } }] };
+      { id: 'c2', start: 0, end: 10, track: 1, fade: 0, widget: 'w', knobs: { size: { base: 1, drive: '+pace', depth: 0.3 }, edge: { base: 0.2, drive: '-loud' } } },
+      { id: 'c3', start: 0, end: 10, track: 2, fade: 0, widget: 'w', knobs: { size: { base: 1, drive: '+rel', depth: 0.7 }, edge: { base: 0.2, drive: '-rel' } } }] };
     expect(validateShow(show).errors).toEqual([]);
     const r = repairShow(show, {});
     expect(r.fixed).toEqual([]);
@@ -266,6 +350,19 @@ describe('every Features object the runtime makes or swaps has loud and pace', (
     const fromEnergy = makeLoudAt(undefined, LEAD, ENERGY);
     for (const t of [3, 9.95, 10, 10.05, 15]) expect(rt.loudAt(t)).toBe(fromEnergy(t));
     expect(rt.ctx.feat.loud).toBe(rt.loudAt(20));
+  });
+  it('rel: the runtime reads the lane loud reads, into every Features object', () => {
+    const rt = run(LATE_LANE, WA, ENERGY), want = makeRelAt(undefined, LEAD, ENERGY);
+    expect(rt.errors).toEqual({});
+    for (const t of [3, 9.95, 10, 10.05, 15]) expect(rt.relAt(t)).toBe(want(t));
+    expect(rt.ctx.feat.rel).toBe(rt.relAt(20));
+    expect(rt.instance('probe@picks:p')!.feat.rel).toBe(rt.relAt(20));
+    rt.reset(10.5);
+    expect(rt.ctx.feat.rel).toBe(rt.relAt(10.5));
+    expect(rt.instance('probe@picks:p')!.feat.rel).toBe(rt.relAt(10.5));
+    expect(rt.relAt(10.5)).toBeGreaterThan(rt.relAt(5));
+    const bare = run(LANE, null);
+    expect([bare.relAt(5), bare.relAt(15), bare.ctx.feat.rel]).toEqual([0, 0, 0]);
   });
   it('an instance on its own notes (a set of picks) gets their pace, the song\'s loud', () => {
     run(LANE);

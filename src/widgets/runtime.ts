@@ -8,7 +8,7 @@
 // into ctx around each of its calls. A slot with a region (T15) is seen in a spot or a window (slot.js): a windowed
 // instance draws on its own canvas, through hdContext at S > 1, and reset() and resetWidget() clear it to black.
 import { groupChords, soundingAt } from './chords';
-import { makeLoudAt, setCurves } from './curves';
+import { makeLoudAt, makeRelAt, setCurves } from './curves';
 import { advanceFeatures, knobValue, newFeatures, pitch01, resolveKnobs } from './features';
 import { hdContext } from './hd-context';
 import { instantiate } from './instantiate';
@@ -45,6 +45,8 @@ export class WidgetRuntime implements RuntimeLike {
   /** The song's loud at song time t (curves.ts makeLoudAt): the energy lane as it is when the song has one, else the
       loudness lane led by the layer code's LOUDNESS_LAG.open; 0 without either lane or without layer code. */
   readonly loudAt: (t: number) => number;
+  /** The song's rel at song time t (curves.ts makeRelAt): louder than around it, on the lane loudAt reads. */
+  readonly relAt: (t: number) => number;
   private readonly g: CanvasRenderingContext2D;
   private readonly icon: IconLib;
   private readonly song: SongNotes;
@@ -84,6 +86,7 @@ export class WidgetRuntime implements RuntimeLike {
     this.song = song;
     this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js (T15)
     this.loudAt = makeLoudAt(song.loudness, lib.layers?.LOUDNESS_LAG.open, song.energy);
+    this.relAt = makeRelAt(song.loudness, lib.layers?.LOUDNESS_LAG.open, song.energy);
     this.chords = groupChords(song.notes);
     this.icon = makeIcon(lib.harness.iconSource);
     const knobs = this.knobs, onPicks = this.onPicks, cur = (this.cur = { key: '', notes: song.notes });
@@ -109,7 +112,7 @@ export class WidgetRuntime implements RuntimeLike {
     this.ctx = ctx;
     const make = (w: number, h: number) => Object.assign(document.createElement('canvas'), { width: w, height: h });
     const host: LayerHost & { windowG(inst: InstanceState): CanvasRenderingContext2D; error(inst: InstanceState, e: unknown): void } = {
-      ctx, g, canvas, S, loudAt: this.loudAt,
+      ctx, g, canvas, S, loudAt: this.loudAt, relAt: this.relAt,
       // host.ctx, not ctx: a windowed call runs with host.ctx set to the instance's window view (slot.js), whose canvas
       // is the window; the base transform at S > 1 goes on that canvas's context.
       call: (inst, fn, ch) => {
@@ -179,7 +182,7 @@ export class WidgetRuntime implements RuntimeLike {
           own: !!L && (!!spec.own || routed), routed, persist: L?.PERSIST[spec.widget] ?? 'redraw', win: null,
         };
         this.insts.set(key, inst);
-        L?.coldInstance(inst, this.stepT, this.loudAt);
+        L?.coldInstance(inst, this.stepT, this.loudAt, this.relAt);
         if (edited) this.safe(key, 'reset', this.g, this.ctx);
       } catch (e) {
         this.errors[key] = `load: ${e instanceof Error ? e.message : String(e)}`;
@@ -211,14 +214,14 @@ export class WidgetRuntime implements RuntimeLike {
   reset(t: number): void {
     const { ctx, g } = this;
     this.lastT = t; ctx.t = t; ctx.level = 0; ctx.rate = 0; ctx.hit = 0;
-    setCurves(ctx.feat, this.chords, t, this.loudAt);   // loud and pace are already those at t: a widget's reset may read them
+    setCurves(ctx.feat, this.chords, t, this.loudAt, this.relAt);   // loud, pace and rel are already those at t: a widget's reset may read them
     this.ci = this.chords.findIndex((ch) => ch.t > t); if (this.ci < 0) this.ci = this.chords.length;
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#000';
     if (this.S > 1) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillRect(0, 0, W * this.S, H * this.S); } else g.fillRect(0, 0, W, H);
     this.stepT = t; this.drawnPrev = new Set();
     if (this.layers) {
       for (const inst of this.insts.values()) {
-        this.layers.coldInstance(inst, t, this.loudAt);
+        this.layers.coldInstance(inst, t, this.loudAt, this.relAt);
         if (inst.win) this.layers.clearWindow(inst.win);   // windows go black with the shared canvas
       }
     }
@@ -241,7 +244,7 @@ export class WidgetRuntime implements RuntimeLike {
     const fired: Chord[] = [];
     while (this.ci < chords.length && chords[this.ci].t <= t) fired.push(chords[this.ci++]);
     advanceFeatures(ctx, ctx.feat, fired, ctx.sounding(), dt);
-    setCurves(ctx.feat, chords, t, this.loudAt);   // the song's loud and pace at t; an own instance gets its own in slot.js
+    setCurves(ctx.feat, chords, t, this.loudAt, this.relAt);   // the song's loud, pace and rel at t; an own instance gets its own in slot.js
     // Shared background: fade toward black; a light colour-burn takes the last 8-bit levels to black.
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     if (S > 1) g.setTransform(1, 0, 0, 1, 0, 0);
@@ -254,7 +257,7 @@ export class WidgetRuntime implements RuntimeLike {
       const inst = this.insts.get(slot.id)!;
       drawn.add(slot.id);
       if (L && (slot.layer || inst.own)) {
-        if (inst.own && !this.drawnPrev.has(slot.id)) L.coldInstance(inst, this.stepT, this.loudAt);   // back after an absence
+        if (inst.own && !this.drawnPrev.has(slot.id)) L.coldInstance(inst, this.stepT, this.loudAt, this.relAt);   // back after an absence
         L.drawLayered(this.host, { inst, receiving: slot.receiving, weight: slot.weight, layer: slot.layer ?? {}, fired, lastT: this.stepT, t, dt });
         continue;
       }

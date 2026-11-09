@@ -210,3 +210,33 @@ describe('intensityMoves', () => {
     expect(text.indexOf('"intensityMoves": "present"')).toBeGreaterThan(text.indexOf('"intensity":'));
   });
 });
+
+describe('thin (keep the strongest)', () => {
+  const curve = [{ t: 0, v: 0 }, { t: 30, v: 1 }];
+  const on = (more: Partial<Clip> = {}) => show(clip('c1', 0, 30, 0, 'gust', { intensity: curve, thin: 'loud', ...more }));
+
+  it('passes as loud', () => {
+    expect(errs(on())).toEqual([]);
+    expect(at(warns(on()), 'clips[0].thin')).toEqual([]);
+  });
+  it('refuses anything else', () => {
+    expect(at(errs(on({ thin: 'quiet' as never })), 'clips[0].thin')).toHaveLength(1);
+  });
+  it('says so on a curve that moves how present, which drops no notes', () => {
+    expect(at(warns(on({ widget: 'vine', intensityMoves: 'present' })), 'clips[0].thin')).toHaveLength(1);
+  });
+  it('is quiet on a widget without the how present slider: its curve fades it, and the flag thins', () => {
+    expect(at(warns(on({ widget: 'fold', intensityMoves: 'present' })), 'clips[0].thin')).toEqual([]);
+  });
+  it('a repair keeps loud and removes anything else', () => {
+    expect(repairShow(on(), c).show.clips[0].thin).toBe('loud');
+    const fixed = repairShow(on({ thin: 1 as never }), c);
+    expect(fixed.show.clips[0].thin).toBeUndefined();
+    expect(fixed.fixed.some((f) => f.path === 'clips[0].thin')).toBe(true);
+  });
+  it('is saved last, and a show without it is saved as before', () => {
+    const text = canonicalShow(on());
+    expect(text.indexOf('"thin": "loud"')).toBeGreaterThan(text.indexOf('"intensity":'));
+    expect(canonicalShow(on({ thin: undefined }))).not.toContain('thin');
+  });
+});

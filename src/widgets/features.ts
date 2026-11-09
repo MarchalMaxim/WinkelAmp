@@ -2,7 +2,7 @@
 import type { Chord, Features, KnobMap, KnobState, Param, SoundingNote } from './types';
 
 export function newFeatures(): Features {
-  return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0 };
+  return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0, rel: 0 };
 }
 
 /** The lab's ctx.p: base, moved by a drive (pitch centred on 0.5), clamped to the knob's range. */

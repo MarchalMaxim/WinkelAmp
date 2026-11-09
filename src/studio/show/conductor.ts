@@ -44,6 +44,7 @@ function slotLayer(w: ScheduledWidget, moved = false): SlotLayer | undefined {
   if (!pivots && !w.region) return undefined;
   const layer: SlotLayer = {};
   if (pivots) layer.pivots = pivots;
+  if (pivots && w.thin) layer.thin = w.thin;
   if (w.region) layer.region = w.region;
   return layer;
 }

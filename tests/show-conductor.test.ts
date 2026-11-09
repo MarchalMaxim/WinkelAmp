@@ -244,3 +244,35 @@ describe('a curve that moves how present', () => {
     expect(samePreview(moved({ intensityMoves: undefined }), moved(), 5)).toBe(false);
   });
 });
+
+describe('keep the strongest', () => {
+  const curve = [{ t: 0, v: 0.2 }, { t: 10, v: 1 }];
+  const s = (more: Partial<Clip> = {}): Show => ({ ...SHOW, clips: [clip('g', 0, 10, 0, 'squares', { fade: 0, intensity: curve, thin: 'loud', ...more })] });
+
+  it('goes to the slot with the curve', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, s(), meta);
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(slotsOf(rt, 5)?.[0].layer).toEqual({ pivots: curve, thin: 'loud' });
+  });
+  it('does nothing without a curve, and a slot without it is as before', () => {
+    const rt = new FakeRuntime(), c = new Conductor(rt, s({ intensity: undefined }), meta);
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(slotsOf(rt, 5)?.[0].layer).toBeUndefined();
+    const rt2 = new FakeRuntime(), c2 = new Conductor(rt2, s({ thin: undefined }), meta);
+    c2.reset(0);
+    c2.step(5, 0.05);
+    expect(slotsOf(rt2, 5)?.[0].layer).toEqual({ pivots: curve });
+  });
+  it('does nothing on a curve that moves how present', () => {
+    const PRESENT: WidgetMeta = { id: 'vine', name: 'vine', blurb: '', tag: '', verdict: null, params: [{ key: 'presence', min: 0, max: 1, value: 1, leads: true }] };
+    const rt = new FakeRuntime(), c = new Conductor(rt, s({ widget: 'vine', intensityMoves: 'present' }), (id) => (id === 'vine' ? PRESENT : META[id]));
+    c.reset(0);
+    c.step(5, 0.05);
+    expect(slotsOf(rt, 5)?.[0].layer).toBeUndefined();
+  });
+  it('a preview knows it changed', () => {
+    expect(samePreview(s(), s({ thin: undefined }), 5)).toBe(false);
+  });
+});

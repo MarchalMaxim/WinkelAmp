@@ -6,7 +6,7 @@
 <title>Energy lanes</title>
 <style>
   :root { --bg: #08070a; --fg: #e9e2da; --dim: #8d8379; --line: #2a2428; --panel: #110f12;
-    --today: #b9b2ac; --lane: #d9a441; --energy: #4cc9f0; --follow: #7bd88f; --rel: #b48cff; --peak: #ff5a5f; --stored: #ff9ed8; }
+    --today: #b9b2ac; --lane: #d9a441; --energy: #4cc9f0; --follow: #7bd88f; --rel: #b48cff; --peak: #ff5a5f; --climax: #f0a35e; --stored: #ff9ed8; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
   main { max-width: 1280px; margin: 0 auto; padding: 18px 16px 40px; }
@@ -58,6 +58,7 @@
           <span><i style="background:var(--energy)"></i>energy of the sound, centred 3 s window (no lag)</span>
           <span><i style="background:var(--follow)"></i>"follows the sound" intensity curve, as pivots</span>
           <span><i style="background:var(--rel)"></i>loudness judged against its surroundings</span>
+          <span><i style="background:repeating-linear-gradient(90deg, var(--climax) 0 6px, transparent 6px 9px)"></i>"build to the climax" intensity curve for the whole piece</span>
           <span><i style="background:var(--peak)"></i>the loudest moments, as suggestions</span>
         </div>
       </div>

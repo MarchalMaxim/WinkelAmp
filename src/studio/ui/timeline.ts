@@ -13,6 +13,7 @@ import type { SongPack } from '../pack/pack';
 import { edgeSeconds } from '../show/schedule';
 import { instanceKey, type Clip, type Show } from '../show/show';
 import { energyCurve } from '../../widgets/curves';
+import { studioLayers } from '../../widgets/layers-source';
 import type { Chord } from '../../widgets/types';
 import { duplicateSelected, removeSelected, selectedClip, splitAt } from './clip-actions';
 import { clipViewTime } from './clip-panel';
@@ -67,6 +68,8 @@ const PREFS = 'wa-studio.timeline';
 interface Deps {
   store: Store; song: SongPack; chords: Chord[]; marks: readonly Mark[];
   duration: () => number; time: () => number; seek(t: number): void; refresh(): void; names: (id: string) => string;
+  /** Whether a widget has the how present slider (show.ts hasHowPresent). */
+  howPresent?: (id: string) => boolean;
   /** Opens the way to add a widget at the playhead. */
   add(): void;
   /** Fills an empty timeline with a composed show. */
@@ -100,6 +103,8 @@ export class Timeline {
   private readonly clipEls = new Map<string, HTMLElement>();
   private marksKey = '';
   private snap = true;
+  /** The piece's loudest moments: suggestions to see, not marks (nothing snaps to them). */
+  private loudest: number[] | null = null;
 
   constructor(private readonly d: Deps) {
     try { this.snap = (JSON.parse(localStorage.getItem(PREFS) ?? '{}') as { snap?: boolean }).snap !== false; } catch { /* private window */ }
@@ -132,7 +137,7 @@ export class Timeline {
     this.wireZoom();
     this.wireBar();
     this.wireClips();
-    this.lanes = mountLanes(this.el.querySelector<HTMLElement>('.lanes-host')!, { store: d.store, song: d.song, duration: d.duration, names: d.names, hue: widgetHue, view: () => this.view });
+    this.lanes = mountLanes(this.el.querySelector<HTMLElement>('.lanes-host')!, { store: d.store, song: d.song, duration: d.duration, names: d.names, howPresent: d.howPresent, hue: widgetHue, view: () => this.view });
     new ResizeObserver(() => { this.drawnFor = ''; this.update(this.d.store.state); }).observe(this.el.querySelector('.tl-top')!);
   }
 
@@ -243,13 +248,26 @@ export class Timeline {
     scrub.addEventListener('pointermove', (e) => {
       const t = this.tAt(e.clientX);
       this.ghost.style.left = `${this.pc(t)}%`;
-      this.showTip(e.clientX, clock(t));
+      const near = this.loudestNear(e.clientX);
+      this.showTip(e.clientX, near === null ? clock(t) : `Loudest moment ${clock(near)} (a suggestion)`);
       if (down) seekSoon(t);
     });
     const up = () => { down = false; this.tip.hidden = true; };
     scrub.addEventListener('pointerup', up);
     scrub.addEventListener('pointercancel', up);
     scrub.addEventListener('pointerleave', () => { if (!down) this.tip.hidden = true; });
+  }
+
+  private climaxTimes(): number[] {
+    return (this.loudest ??= studioLayers().climaxes(this.d.song).map((c) => c.t));
+  }
+
+  /** The loudest moment within 5 px of the pointer, if there is one. */
+  private loudestNear(clientX: number): number | null {
+    const r = this.wave.getBoundingClientRect(), { a, b } = this.view;
+    if (!(r.width > 0)) return null;
+    for (const t of this.climaxTimes()) if (t >= a && t <= b && Math.abs(r.left + ((t - a) / (b - a)) * r.width - clientX) <= 5) return t;
+    return null;
   }
 
   private showTip(clientX: number, text: string): void {
@@ -472,6 +490,13 @@ export class Timeline {
       g.fillStyle = '#e9e2dacc';
       g.fillText(m.label, x + 3, 3);
       room = x + tw + 12;
+    }
+    // The loudest moments: a small warm triangle at the foot of the strip each (hover one to read it).
+    g.fillStyle = '#f0a35ecc';
+    for (const t of this.climaxTimes()) {
+      if (t < va || t > vb) continue;
+      const x = Math.round(X(t));
+      g.beginPath(); g.moveTo(x - 4, h); g.lineTo(x + 4, h); g.lineTo(x, h - 7); g.closePath(); g.fill();
     }
   }
 }

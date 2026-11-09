@@ -23,32 +23,36 @@
   'use strict';
 
   /** A fresh pulse's features: src/widgets/features.ts newFeatures. */
-  WA.newFeatures = function () { return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0 }; };
+  WA.newFeatures = function () { return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0, rel: 0 }; };
 
-  /** loud and pace at song time t (src/widgets/curves.ts setCurves): read from curves, never built up, so play, a seek
-      and a frame-by-frame render agree. pace counts all the chords the instance is given, whatever its intensity curve
-      lets through: thinning does not calm it. loudAt: the host's (lines.js loudCurve), absent → 0. */
-  WA.curveFeatures = function (f, chords, t, loudAt) {
+  /** loud, pace and rel at song time t (src/widgets/curves.ts setCurves): read from curves, never built up, so play, a
+      seek and a frame-by-frame render agree. pace counts all the chords the instance is given, whatever its intensity
+      curve lets through: thinning does not calm it. loudAt and relAt: the host's (lines.js loudCurve, relCurve),
+      absent → 0. */
+  WA.curveFeatures = function (f, chords, t, loudAt, relAt) {
     f.loud = loudAt ? loudAt(t) : 0;
     f.pace = WA.paceAt(chords, t);
+    f.rel = relAt ? relAt(t) : 0;
   };
 
   /** An instance starting cold at song time t, as after a seek: the next attack it hears is its first chord after t, its
-      pulse is 0 and its features fresh, but for loud and pace, which are already those at t (loudAt: the host's). The
-      hosts call it on every reset and when an own instance comes back after a step without a slot, so play and a seek
-      to the same time disagree no more than they do today. */
-  WA.coldInstance = function (inst, t, loudAt) {
+      pulse is 0 and its features fresh, but for loud, pace and rel, which are already those at t (loudAt, relAt: the
+      host's). The hosts call it on every reset and when an own instance comes back after a step without a slot, so
+      play and a seek to the same time disagree no more than they do today. */
+  WA.coldInstance = function (inst, t, loudAt, relAt) {
     var cs = inst.chords, i = 0;
     while (i < cs.length && cs[i].t <= t) i++;
     inst.ci = i;
     inst.pulse.level = 0; inst.pulse.rate = 0; inst.pulse.hit = 0;
     var f = WA.newFeatures();
     for (var k in f) inst.feat[k] = f[k];
-    WA.curveFeatures(inst.feat, cs, t, loudAt);
+    WA.curveFeatures(inst.feat, cs, t, loudAt, relAt);
   };
 
   /** The attacks a layered slot hears this step: the instance's own chords crossing (lastT, t] when it is routed, else
-      the step's fired chords; with a curve, only those that pass at their own time's intensity. */
+      the step's fired chords; with a curve, only those that pass at their own time's intensity: a share of them picked by
+      their hash, or with thin 'loud' the strongest around them first (passesStrongest, on the instance's chords: an
+      unrouted instance's are the song's, which the fired ones come from). */
   WA.deliveredChords = function (s) {
     var inst = s.inst, L = s.layer || {}, piv = L.pivots && L.pivots.length ? L.pivots : null;
     var src;
@@ -57,10 +61,10 @@
       while (inst.ci < inst.chords.length && inst.chords[inst.ci].t <= s.t) src.push(inst.chords[inst.ci++]);
     } else src = s.fired;
     if (!piv) return src;
-    var until = L.until !== undefined ? L.until : Infinity, out = [];
+    var until = L.until !== undefined ? L.until : Infinity, out = [], loud = L.thin === 'loud';
     for (var i = 0; i < src.length; i++) {
-      var ch = src[i];
-      if (WA.passes(ch.t, WA.automationAt(piv, Math.min(ch.t, until)), inst.salt)) out.push(ch);
+      var ch = src[i], a = WA.automationAt(piv, Math.min(ch.t, until));
+      if (loud ? WA.passesStrongest(inst.chords, ch, a, inst.salt) : WA.passes(ch.t, a, inst.salt)) out.push(ch);
     }
     return out;
   };
@@ -384,7 +388,7 @@
     var delivered = WA.deliveredChords(s);
     if (inst.own) {
       WA.advancePulse(inst.pulse, inst.feat, delivered, WA.soundingAt(inst.notes, s.t), s.dt);
-      WA.curveFeatures(inst.feat, inst.chords, s.t, h.loudAt);
+      WA.curveFeatures(inst.feat, inst.chords, s.t, h.loudAt, h.relAt);
     }
     var r = WA.slotRegion(s);
     if (r) {

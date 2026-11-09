@@ -11,7 +11,7 @@ import { characterLabel, sectionCharacters } from '../compose/character';
 import { Conductor } from '../show/conductor';
 import { markLabelAt, songMarks, structureTimes } from '../show/marks';
 import { clipsAt } from '../show/schedule';
-import { SHOW_VERSION, canonicalShow, repairShow, validateShow, widgetOfKey, type Show } from '../show/show';
+import { SHOW_VERSION, canonicalShow, hasHowPresent, repairShow, validateShow, widgetOfKey, type Show } from '../show/show';
 import { toMeta } from '../../widgets/catalogue';
 import { groupChords } from '../../widgets/chords';
 import { instantiate } from '../../widgets/instantiate';
@@ -285,6 +285,7 @@ async function boot(): Promise<void> {
   const timeline = new Timeline({
     store, song: pack, chords, marks, duration: () => player.duration || pack.duration, time: () => player.time, seek,
     refresh: () => player.refresh(), names: (id) => metas.get(id)?.name ?? id, add: openPalette,
+    howPresent: (id) => { const m = metas.get(id); return !!m && hasHowPresent(m.params); },
     compose: () => void compose().then((s) => store.dispatch({ type: 'loaded', song: pack, show: s, origin: 'auto', keepUndo: true })),
   });
   ui.timeline.append(timeline.el);

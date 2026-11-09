@@ -95,8 +95,8 @@ export function labCompat(rt: WidgetRuntime, only: readonly string[], moments: r
 
 
 /** A lab layer setting (plan §11, render mode's `layers=`): what one instance of a widget listens to, where it sits
-    and its intensity curve, in the show's field shapes. */
-export interface LabLayer { widget: string; listen?: Listen; region?: Region; intensity?: Pivot[] }
+    and its intensity curve, in the show's field shapes (thin 'loud': the curve keeps the strongest attacks). */
+export interface LabLayer { widget: string; listen?: Listen; region?: Region; intensity?: Pivot[]; thin?: 'loud' }
 
 /** widget, or widget@listen when it listens to a part (show.ts instanceKey). */
 export const labLayerKey = (l: LabLayer): string => (l.listen === undefined || l.listen === 'all' ? l.widget : `${l.widget}@${l.listen}`);
@@ -137,6 +137,7 @@ export function labLayers(rt: WidgetRuntime, only: readonly string[], layers: re
           const slot: Slot = { id: labLayerKey(l), receiving: true, weight };
           const layer: SlotLayer = {};
           if (l.intensity?.length) layer.pivots = l.intensity;
+          if (layer.pivots && l.thin === 'loud') layer.thin = 'loud';
           if (l.region) layer.region = l.region;
           if (layer.pivots || layer.region) slot.layer = layer;
           slots.push(slot);
