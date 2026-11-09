@@ -100,7 +100,7 @@ export class Picker {
       <div class="np-main">
         <div class="np-left">
           <div class="np-roll-host"></div>
-          <div class="np-scene"><div class="np-scene-head" hidden></div></div>
+          <div class="np-scene"><div class="np-scene-head" hidden></div><div class="np-scene-rows"></div></div>
         </div>
         <div class="np-right">
           <div class="np-card np-stage"><canvas aria-label="The scene"></canvas><div class="np-stage-label"></div></div>
@@ -378,10 +378,11 @@ export class Picker {
   }
 
   private buildRows(): void {
-    const box = this.$('.np-scene'), key = JSON.stringify(this.rows.map((r) => [r.id, r.widget, r.neverHeard]));
+    const box = this.$('.np-scene-rows'), key = JSON.stringify(this.rows.map((r) => [r.id, r.widget, r.neverHeard]));
     this.ticksView = null;
     if (key === this.rowsKey) return;
     this.rowsKey = key;
+    const had = new Set([...box.querySelectorAll<HTMLElement>('.np-set')].map((x) => x.dataset.set));
     box.querySelectorAll('.np-set, .np-empty').forEach((x) => x.remove());
     this.$('.np-scene-head').hidden = !this.rows.length;
     if (!this.rows.length) box.append(Object.assign(document.createElement('div'), { className: 'np-empty', textContent: 'The scene is empty. Widgets you connect land here, lined up with the notes above.' }));
@@ -405,6 +406,13 @@ export class Picker {
       x.addEventListener('click', () => { this.sceneEdited = true; this.d.store.dispatch({ type: 'edit', edit: { kind: 'removePicks', id: r.id } }); });
       row.append(x);
       box.append(row);
+    }
+    // The rows scroll once there are many (the notes keep their room): a set that was just connected is brought into sight.
+    const fresh = had.size ? [...box.querySelectorAll<HTMLElement>('.np-set')].find((x) => !had.has(x.dataset.set)) : undefined;
+    if (fresh) {
+      const top = fresh.offsetTop - box.offsetTop, bottom = top + fresh.offsetHeight;
+      if (top < box.scrollTop) box.scrollTop = top;
+      else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
     }
   }
 

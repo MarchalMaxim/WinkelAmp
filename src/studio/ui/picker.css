@@ -19,7 +19,9 @@
 .np-roll-top { cursor: crosshair; touch-action: none; }
 .np-tip { position: absolute; pointer-events: none; background: #000c; padding: 2px 7px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
 .np-strip { flex: none; height: 30px; width: 100%; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; }
-.np-scene { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; min-height: 46px; overflow: hidden; }
+/* At most a third of the window: with many sets the rows scroll, and the notes above keep their room. */
+.np-scene { position: relative; flex: none; display: flex; flex-direction: column; max-height: 34vh; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; min-height: 46px; overflow: hidden; }
+.np-scene-rows { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .np-scene-head { position: absolute; left: 0; top: 0; bottom: 0; width: 1.5px; background: #fff; pointer-events: none; z-index: 1; }
 .np-empty { color: var(--dim); padding: 6px 12px; font-size: 13px; }
 .np-set { position: relative; display: flex; align-items: center; height: 30px; }
