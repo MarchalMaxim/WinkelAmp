@@ -1,0 +1,71 @@
+{
+  "version": 3,
+  "id": "mountain-king-strongest-demo",
+  "song": "mountain-king",
+  "title": "Keep the strongest · the same slow build twice · left: a random selection of the notes · right: the strongest notes first",
+  "composer": {
+    "by": "claude",
+    "at": "2026-11-09T22:00:00.000Z"
+  },
+  "clips": [
+    {
+      "id": "random",
+      "start": 0,
+      "end": 161,
+      "track": 0,
+      "fade": 1,
+      "widget": "gust",
+      "region": {
+        "mode": "window",
+        "shape": "rect",
+        "x": 0.25,
+        "y": 0.5,
+        "w": 0.49,
+        "h": 0.9,
+        "feather": 0.04,
+        "fit": "contain"
+      },
+      "intensity": [
+        {
+          "t": 0,
+          "v": 0.2,
+          "bend": -0.45
+        },
+        {
+          "t": 161,
+          "v": 1
+        }
+      ]
+    },
+    {
+      "id": "strongest",
+      "start": 0,
+      "end": 161,
+      "track": 1,
+      "fade": 1,
+      "widget": "gust",
+      "region": {
+        "mode": "window",
+        "shape": "rect",
+        "x": 0.75,
+        "y": 0.5,
+        "w": 0.49,
+        "h": 0.9,
+        "feather": 0.04,
+        "fit": "contain"
+      },
+      "intensity": [
+        {
+          "t": 0,
+          "v": 0.2,
+          "bend": -0.45
+        },
+        {
+          "t": 161,
+          "v": 1
+        }
+      ],
+      "thin": "loud"
+    }
+  ]
+}
