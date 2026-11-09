@@ -891,8 +891,8 @@ let LAYER_RUN = new Map();
 let STEP_T = 0, DRAWN_PREV = new Set();   // the last step's time and the instances it drew (an own one missing comes back cold)
 const SONG_NOTES = () => ({ notes: NOTES, tracks: window.PACK?.tracks });
 const layerKey = (l) => (l.listen === undefined || l.listen === 'all' ? l.widget : `${l.widget}@${l.listen}`);
-/** window, except NOTES: the part's notes; functions bound to the real window (src/widgets/instantiate.ts). */
-const windowWithNotes = (notes) => new Proxy(window, { get(_, p) { if (p === 'NOTES') return notes; const v = window[p]; return typeof v === 'function' ? v.bind(window) : v; } });
+/** window, except NOTES: the part's notes, and SONG_NOTES: the whole song's; functions bound to the real window (src/widgets/instantiate.ts). */
+const windowWithNotes = (notes) => new Proxy(window, { get(_, p) { if (p === 'NOTES') return notes; if (p === 'SONG_NOTES') return window.NOTES; const v = window[p]; return typeof v === 'function' ? v.bind(window) : v; } });
 /** A second copy of a widget, as instantiate.ts runs one: routed, with the part's CHORDS and a window over its notes. */
 function instantiate(id, notes, chords) {
   const tools = [], src = `${TOOL_SRC[id]}\n//# sourceURL=lab/tools/${id}.js`;

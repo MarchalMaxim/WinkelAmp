@@ -172,7 +172,7 @@ export class WidgetRuntime implements RuntimeLike {
       }
       const chords = routed ? groupChords(notes) : this.chords;
       try {
-        const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes } : { icon: this.icon, chords: this.chords });
+        const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes, all: this.song.notes } : { icon: this.icon, chords: this.chords });
         this.tools.set(key, tool); this.order.push(key);
         if (spec.notes) this.onPicks.add(key);
         this.knobs[key] = knobs ?? resolveKnobs(Array.isArray(tool.params) ? tool.params : []);

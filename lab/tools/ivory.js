@@ -10,11 +10,14 @@
 // A picked note's intensity (the bar under it in the note picker), where it has one: a stronger key is bigger and snaps up, a
 // softer one is smaller, slower and fainter; on the stomp it sets how deep the crater goes and how far the ripple shakes; a key
 // sent back goes down as hard as its note. At the usual ×1 none of this changes anything.
+// A line of less than an octave does not fill the scale by itself: it takes its share of it, and stands and reaches where its
+// register lies in the whole piece. So one high note alone is a tall key on the right, not the lowest of its own set.
 // All of it is worked out from the notes in advance, so every frame is a function of song time: a seek needs no replay.
 (() => {
   const W = 1280, H = 720, BASE = H * 0.88, TOP = BASE * 0.9;
   const RISE = 0.2, SINK = 0.16, HOLD = 2, AGE = 1.5, RIPPLE_FOR = 3.2, FRONT = 430;   // seconds; FRONT: units a second the ripple runs at
   const MAX_ATTACKS = 60, THIN_TO = 36;                                   // more than this was not picked by hand: the prominent ones only
+  const FULL = 12;                                                         // semitones: a line spanning this much fills the scale, as it always has
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (v) => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
   const rng = (seed) => { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -31,8 +34,20 @@
     }
     return kept.sort((a, b) => a.t - b.t);
   }
-  /** What will happen: the keys in order of their first note, and the time of the stomp (null without notes). */
-  function planOf(chords) {
+  /** The piece's pitch range, from its 2nd to its 98th percentile note (one stray note at either end does not stretch it); null
+      when it is not known. window.SONG_NOTES is the whole song's notes where this copy hears a part (instantiate.ts); else
+      window.NOTES is. */
+  function pieceRange() {
+    const w = typeof window !== 'undefined' ? window : null, all = (w && (w.SONG_NOTES || w.NOTES)) || [];
+    if (!Array.isArray(all)) return null;
+    const ms = all.map((n) => n[2]).filter(Number.isFinite).sort((a, b) => a - b);
+    if (ms.length < 2) return null;
+    const lo = ms[Math.floor(0.02 * (ms.length - 1))], hi = ms[Math.ceil(0.98 * (ms.length - 1))];
+    return hi > lo ? { lo, hi } : null;
+  }
+  /** What will happen: the keys in order of their first note, and the time of the stomp (null without notes). piece: the
+      whole piece's pitch range { lo, hi }; without it every line fills the scale. */
+  function planOf(chords, piece) {
     let hits = [];
     for (const c of chords) for (const n of c.notes) hits.push({ t: c.t, m: n.m, i: n.amount ?? 1 });
     const picked = hits.length <= MAX_ATTACKS;
@@ -56,15 +71,23 @@
     const pitches = keys.map((k) => k.m), lo = Math.min(...pitches), range = Math.max(...pitches) - lo, span = Math.max(1, range);
     const wide = clamp(W * 0.84 / Math.max(1, keys.length - 1) * 2.1, 34, 84);
     const across = clamp(keys.length * wide * 0.72, W * 0.4, W * 0.84), left = (W - across) / 2;   // a short line stays together
+    // share: how much of the scale the line fills (1: an octave or more, or a piece not known). reg: where its middle lies in
+    // the piece, 0 the bottom and 1 the top. A narrow line keeps its own steps at that share, around its register, and its
+    // block of keys slides that way; one key alone stands across the whole width by its register.
+    const share = piece ? Math.min(1, range / FULL) : 1;
+    const reg = piece ? clamp((lo + range / 2 - piece.lo) / (piece.hi - piece.lo), 0, 1) : 0.5;
+    const slide = (1 - share) * (reg - 0.5) * (W * 0.84 - across), alone = !!piece && keys.length === 1;
     for (const k of keys) {
       const R = rng(k.m * 7919 + 13 + k.twin * 6151), u = (k.m - lo) / span, same = twins.get(k.m);
+      k.u = reg * (1 - share) + share * u;   // how high it reaches, 0..1
       k.w = wide * (0.88 + R() * 0.26) * (0.7 + 0.3 * k.i);
-      k.h = Math.min(TOP * (0.2 + 0.78 * u) * (0.97 + R() * 0.06) * (0.65 + 0.35 * k.i), BASE * 0.97);
+      k.h = Math.min(TOP * (0.2 + 0.78 * k.u) * (0.97 + R() * 0.06) * (0.65 + 0.35 * k.i), BASE * 0.97);
       k.rise = RISE / hardness(k.i);
       k.sink = SINK;
       k.show = Math.min(1, 0.1 + 0.9 * k.i);
       const beside = (k.twin - (same - 1) / 2) * Math.min(wide * 0.5, (range ? across / span : across) / same);
-      k.foot = clamp(left + (range || keys.length === 1 ? u : 0.5) * across + beside + (R() - 0.5) * wide * 0.25, wide / 2, W - wide / 2);
+      const at = alone ? W * (0.08 + 0.84 * reg) : left + slide + (range || keys.length === 1 ? u : 0.5) * across;
+      k.foot = clamp(at + beside + (R() - 0.5) * wide * 0.25, wide / 2, W - wide / 2);
       k.angle = (R() < 0.5 ? -1 : 1) * (0.022 + R() * 0.06);
       k.full = k.h + 30;           // it stands in the ground: a lean never shows its foot
     }
@@ -73,7 +96,7 @@
     const n = keys.length, sp = Math.min(wide * 1.1, across * 0.7 / Math.max(1, n - 1)), uw = sp / 1.1, half = (n - 1) / 2 * sp;
     const mid = clamp(keys.reduce((a, k) => a + k.foot, 0) / n, half + uw / 2, W - half - uw / 2), mean = 0.2 + 0.78 * 0.5;
     [...keys].sort((a, b) => a.m - b.m || a.t - b.t).forEach((k, i) => {
-      const f = 0.2 + 0.78 * (k.m - lo) / span;
+      const f = 0.2 + 0.78 * k.u;
       k.base = { w: k.w, h: k.h, full: k.full, foot: k.foot, angle: k.angle };
       k.tidy = { w: uw * (0.7 + 0.3 * k.i), h: Math.min(TOP * (mean + (f - mean) * 0.6) * (0.65 + 0.35 * k.i), BASE * 0.97), foot: mid + (i - (n - 1) / 2) * sp };
     });
@@ -152,7 +175,7 @@
   const settles = (want) => { const f = 0.12; want = clamp(want, 0, 1); return want >= 1 ? 1 : want * f / (1 - want * (1 - f)); };
 
   let plan = null, sheets = null, sheetsFor = '';
-  const planNow = () => plan || (plan = planOf(typeof CHORDS !== 'undefined' ? CHORDS : []));
+  const planNow = () => plan || (plan = planOf(typeof CHORDS !== 'undefined' ? CHORDS : [], pieceRange()));
   const seen = (t) => ({ keys: planNow().keys.filter((k) => k.t <= t), stomp: plan.stomp });
 
   // One key in its own leaning frame: the foot at the origin, standing up towards -y.

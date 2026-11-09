@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 interface Chord { t: number; notes: { m: number; v: number; d: number }[]; vel: number; lo: number; hi: number }
 interface Plan { keys: { m: number; t: number; w: number; h: number; foot: number; angle: number; press?: number }[]; stomp: number | null; last?: number }
 
-const tools: { id: string; plan: (c: Chord[]) => Plan; params: { key: string; value: number; min: number; max: number }[] }[] = [];
+const tools: { id: string; plan: (c: Chord[], piece?: { lo: number; hi: number }) => Plan; params: { key: string; value: number; min: number; max: number }[] }[] = [];
 new Function('TOOLS', 'ICON', 'CHORDS', readFileSync('lab/tools/ivory.js', 'utf8'))(tools, {}, []);
 const { plan, params } = tools[0];
 
@@ -151,5 +151,45 @@ describe('ivory huddle knob', () => {
   it('makes the staircase gentler than the plain one', () => {
     const sorted = [...keys].sort((a, b) => a.m - b.m);
     expect(sorted[4].tidy.h - sorted[0].tidy.h).toBeLessThan(sorted[4].base.h - sorted[0].base.h);
+  });
+});
+
+describe('ivory in the piece: a line of less than an octave stands by its register', () => {
+  const piece = { lo: 36, hi: 96 };
+  it('one note alone is tall and to the right when it is high, short and to the left when it is low', () => {
+    const high = plan([chord(1, 90)], piece).keys[0], low = plan([chord(1, 40)], piece).keys[0];
+    expect(high.h).toBeGreaterThan(low.h * 2.5);
+    expect(high.foot).toBeGreaterThan(1280 * 0.75);
+    expect(low.foot).toBeLessThan(1280 * 0.25);
+  });
+  it('without a piece one note is what it always was: the lowest of its own set', () => {
+    const k = plan([chord(1, 90)]).keys[0];
+    expect(k.h).toBeLessThan(720 * 0.88 * 0.9 * 0.21);
+    expect(k.foot).toBeLessThan(1280 / 2);
+  });
+  it('a line of an octave or more is unchanged by the piece', () => {
+    const line = [chord(1, 60), chord(2, 64), chord(3, 67), chord(4, 72)];
+    const a = plan(line), b = plan(line, piece);
+    expect(b.keys.map((k) => [k.h, k.foot, k.w])).toEqual(a.keys.map((k) => [k.h, k.foot, k.w]));
+  });
+  it('a narrow line keeps its steps, smaller, and moves with its register', () => {
+    const up = (base: number) => plan([chord(1, base), chord(2, base + 2), chord(3, base + 4)], piece).keys;
+    const own = plan([chord(1, 84), chord(2, 86), chord(3, 88)]).keys, high = up(84), low = up(40);
+    for (const ks of [high, low]) for (let i = 1; i < 3; i++) { expect(ks[i].h).toBeGreaterThan(ks[i - 1].h); expect(ks[i].foot).toBeGreaterThan(ks[i - 1].foot); }
+    expect(high[2].h - high[0].h).toBeLessThan((own[2].h - own[0].h) * 0.6);   // a third is not a whole staircase
+    expect(high[0].h).toBeGreaterThan(low[2].h);                               // the high line stands above the low one
+    expect(high[0].foot).toBeGreaterThan(low[0].foot);                         // and to its right
+    for (const k of [...high, ...low]) { expect(k.foot).toBeGreaterThan(0); expect(k.foot).toBeLessThan(1280); }
+  });
+  it('the same note twice in a piece: side by side, where its register lies', () => {
+    const ks = plan([chord(1, 90), chord(2, 90)], piece).keys;
+    expect(ks).toHaveLength(2);
+    expect(ks[0].foot).not.toBe(ks[1].foot);
+    expect((ks[0].foot + ks[1].foot) / 2).toBeGreaterThan(1280 / 2);
+  });
+  it('the tidy row follows: a high narrow line is tall there too', () => {
+    type T = { tidy: { h: number } };
+    const high = plan([chord(1, 84), chord(2, 86)], piece).keys as unknown as T[], low = plan([chord(1, 40), chord(2, 42)], piece).keys as unknown as T[];
+    expect(high[0].tidy.h).toBeGreaterThan(low[1].tidy.h);
   });
 });
