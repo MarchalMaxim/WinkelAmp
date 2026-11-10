@@ -70,8 +70,8 @@ try {
 
     // Listens to: the options, then Melody; saved; Ctrl+Z takes it away.
     const values = await page.$$eval('.lc-listen select option', (os) => os.map((o) => o.value));
-    if (!phone) check('the listen options: all notes, the violin track, the six lines (no family of one track), the five kinds of note',
-      JSON.stringify(values) === JSON.stringify(['all', 'violin', 'melody', 'bassline', 'inner', 'low', 'high', 'accents', 'chords', 'runs', 'trills', 'long', 'repeats']), values.join(','));
+    if (!phone) check('the listen options: all notes, the violin track, the six lines (no family of one track), the six kinds of note',
+      JSON.stringify(values) === JSON.stringify(['all', 'violin', 'melody', 'bassline', 'inner', 'low', 'high', 'accents', 'chords', 'runs', 'trills', 'long', 'repeats', 'rolls']), values.join(','));
     await page.selectOption('.lc-listen select', 'melody');
     await page.waitForTimeout(150);
     await shot(`panel-listen${sfx}`, '.panel .lc');

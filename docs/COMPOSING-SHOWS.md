@@ -95,7 +95,8 @@ values:
   `family:percussion`, `family:voice` (the union of that family's tracks).
 - **A kind of note** a rule finds in the notes, on every song: `chords` (attacks of 5 notes or more), `runs` (fast
   stepwise passages), `trills` (rare: 0 to 11 a song), `long` (on a piano: rings long, as the length is mostly the
-  pedal), `repeats` (one pitch struck again and again). Runs and trills go per track on an ensemble. There are no grace
+  pedal), `repeats` (one pitch struck again and again), `rolls` (rolled chords: a quick sweep of attacks one way, up or down in
+  leaps, that arrives and rings; the rule is `rollIds` in `lab/layers/lines.js`). Runs and trills go per track on an ensemble. There are no grace
   notes: the transcription cannot tell them from a pick-up or a dropped note. A song with none of
   a kind is a warning (`this song has no trills: this layer stays still`): the layer hears nothing, it never falls back
   to all notes.
@@ -104,7 +105,7 @@ values:
 - **A set of picks**: `picks:p1`, notes the user chose by hand in the studio, kept in the show (below).
 
 **A widget's usual note type.** Some widgets have one in `lab/tags.json` (`noteType`; the widget list below prints it as
-**Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`, honey `long`. When the studio places such a widget,
+**Note type**): stella `repeats`, pixelsort `chords`, martin `long`, flee `runs`, honey `long`, harp `rolls`. When the studio places such a widget,
 it sets `listen` to that type, but only if the clip holds enough of it: at least 3 attacks, one per 10 s on average,
 and half the clip within reach of one. Otherwise the clip plays on all notes. The panel says in words what the
 layer hears and has one click to switch between the usual type and all notes. A usual type is a default, not a rule: a
@@ -1488,6 +1489,22 @@ Feel: liquid, skittish, gusty · Suits: piano · Role: texture
 | `steam` | how much steam | 0..1 | 0.6 | fixed | How much steam comes off the drops and every note. Left: dry. Right: thick wisps that lean with the gust. Follows how present: 0.15 at its left end. |
 | `plate` | how much the plate glows | 0..1 | 1 | fixed | The hot plate under the drops, glowing in slow embers. Left: black, only the drops and their steam, to lay over other widgets. Right: the full glow. |
 | `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how far it pushes and how much steam rises. Left: small nudges, dry. Right: long slides in thick steam. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
+
+### Not judged yet
+
+#### `harp`: Harp string
+
+Each note pulls one upright string aside and lets it go. It swings for as long as the note rings, in a soft glow. A rolled chord is one sweep of strings: gold when the chord is major, silver blue when it is minor. A string stands where Ivory would stand a key of that note.
+
+Feel: warm, glowing, longing · Suits: plucked, piano · Role: accent · Note type: rolls
+
+| knob | label | range | default | driven by | what it does |
+|---|---|---|---|---|---|
+| `pull` | how far it is pulled | 0.3..2.5 | 1 | fixed | How far a note pulls its string aside. Left: a tremble. Right: a wide swing. Follows how present: 0.5 at its left end. |
+| `ring` | how long it rings | 0.3..2.5 | 1 | fixed | How long a string keeps swinging and glowing, against how long its note rings. Left: soon still. Right: more than twice as long. Follows how present: 0.4 at its left end. |
+| `aura` | how wide the glow is | 0..2.5 | 1 | fixed | The soft glow around a string. Left: the bare string. Right: a wide halo. Follows how present: 0.4 at its left end. |
+| `dream` | how dreamy | 0..1 | 0.6 | fixed | How much the string dissolves into light. Left: a sharp, drawn string. Right: no line at all, only a soft band of light that sways. |
+| `presence` | how present | 0..1 | 1 | fixed | How much each note leaves: how far its string swings, how long it rings and how wide it glows. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again. |
 
 ### Rated drop (still in the lab; do not use in new shows)
 

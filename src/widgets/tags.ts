@@ -16,9 +16,10 @@ export const ROLES: readonly Role[] = ['under', 'ground', 'base', 'texture', 'le
 
 /** The kinds of note a layer can listen to (spec 2026-11-01-note-types): those the measurements support. As in
     lab/layers/lines.js. 'long' on a piano means it rings long: the length is mostly the pedal. */
-export const NOTE_TYPES: readonly NoteType[] = ['chords', 'runs', 'trills', 'long', 'repeats'];
+export const NOTE_TYPES: readonly NoteType[] = ['chords', 'runs', 'trills', 'long', 'repeats', 'rolls'];
 export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
   chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes',
+  rolls: 'Rolled chords',
 };
 
 /** Every feel word, in vocabulary order (axis by axis, as the file lists them). */

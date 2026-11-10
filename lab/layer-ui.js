@@ -36,8 +36,8 @@
     percussion: 'All percussion', voice: 'All voices' };
   var LINES = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
   var LINE_LABELS = { melody: 'Melody', bassline: 'Bass line', inner: 'Inner voices', low: 'Low notes', high: 'High notes', accents: 'Accents' };
-  var NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats'];
-  var NOTE_TYPE_LABELS = { chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes' };
+  var NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats', 'rolls'];
+  var NOTE_TYPE_LABELS = { chords: 'Big chords', runs: 'Fast runs', trills: 'Trills', long: 'Long ringing notes', repeats: 'Repeated notes', rolls: 'Rolled chords' };
   /** The widgets that read the shared canvas (they cut or smear what is below). */
   var READERS = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
   var INST_FAMILY_WORDS = { keys: 'Keys', plucked: 'Plucked', strings: 'Strings', winds: 'Winds', brass: 'Brass', percussion: 'Percussion',

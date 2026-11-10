@@ -1,6 +1,7 @@
 {
   "perlin": {"feel":["viscous","swelling","dark","liquid"],"instruments":["cello","contrabass","tutti","piano"],"role":"base"},
   "gliss": {"feel":["warm","liquid","glowing","flowing"],"instruments":["piano"],"role":"accent","noteType":"runs"},
+  "harp": {"feel":["warm","glowing","longing"],"instruments":["plucked","piano"],"role":"accent","noteType":"rolls"},
   "johansson": {"feel":["precise","playful","grainy","still"],"instruments":["piano","strings"],"role":"ground"},
   "blocks": {"feel":["stabbing","brittle","flickering","panic"],"instruments":["piano","harpsichord"],"role":"top"},
   "boogie": {"feel":["playful","marching","vivid","warm"],"instruments":["piano","plucked","clarinet"],"role":"ground"},

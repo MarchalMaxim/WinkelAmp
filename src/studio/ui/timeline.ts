@@ -63,6 +63,8 @@ export const clock = (s: number): string => {
 const ROW = 26;
 /** How near a target a dragged edge snaps, in px. */
 const SNAP_PX = 8;
+/** A rolled chord's mark on the strip is at least this wide, in px, however short the roll. */
+const ROLL_MARK = 6;
 const PREFS = 'wa-studio.timeline';
 
 interface Deps {
@@ -105,6 +107,7 @@ export class Timeline {
   private snap = true;
   /** The piece's loudest moments: suggestions to see, not marks (nothing snaps to them). */
   private loudest: number[] | null = null;
+  private rolls: { t0: number; t1: number; up: boolean; n: number }[] | null = null;
 
   constructor(private readonly d: Deps) {
     try { this.snap = (JSON.parse(localStorage.getItem(PREFS) ?? '{}') as { snap?: boolean }).snap !== false; } catch { /* private window */ }
@@ -249,7 +252,9 @@ export class Timeline {
       const t = this.tAt(e.clientX);
       this.ghost.style.left = `${this.pc(t)}%`;
       const near = this.loudestNear(e.clientX);
-      this.showTip(e.clientX, near === null ? clock(t) : `Loudest moment ${clock(near)} (a suggestion)`);
+      const roll = near === null ? this.rollNear(e.clientX) : null;
+      this.showTip(e.clientX, near !== null ? `Loudest moment ${clock(near)} (a suggestion)`
+        : roll ? `Rolled chord ${clock(roll.t0)}: ${roll.n} notes, ${roll.up ? 'upwards' : 'downwards'} (found by a rule)` : clock(t));
       if (down) seekSoon(t);
     });
     const up = () => { down = false; this.tip.hidden = true; };
@@ -260,6 +265,28 @@ export class Timeline {
 
   private climaxTimes(): number[] {
     return (this.loudest ??= studioLayers().climaxes(this.d.song).map((c) => c.t));
+  }
+
+  /** The rolled chords the 'rolls' rule finds in the song: when each starts and arrives, which way it runs, how many notes. */
+  private rollSpans(): { t0: number; t1: number; up: boolean; n: number }[] {
+    if (this.rolls) return this.rolls;
+    const notes = studioLayers().listenNotes({ notes: this.d.song.notes, tracks: this.d.song.tracks }, 'rolls').notes;
+    const out: { t0: number; t1: number; up: boolean; n: number; first: number; last: number }[] = [];
+    for (const n of notes) {
+      const r = out[out.length - 1];
+      if (r && n[0] - r.t1 <= 0.4) { r.t1 = n[0]; r.last = n[2]; r.n++; r.up = r.last >= r.first; }
+      else out.push({ t0: n[0], t1: n[0], up: true, n: 1, first: n[2], last: n[2] });
+    }
+    return (this.rolls = out);
+  }
+
+  /** The rolled chord whose mark is within 4 px of the pointer, if there is one. */
+  private rollNear(clientX: number): { t0: number; t1: number; up: boolean; n: number } | null {
+    const r = this.wave.getBoundingClientRect(), { a, b } = this.view;
+    if (!(r.width > 0)) return null;
+    const X = (t: number) => r.left + ((t - a) / (b - a)) * r.width;
+    for (const roll of this.rollSpans()) if (roll.t1 >= a && roll.t0 <= b && clientX >= X(roll.t0) - 4 && clientX <= Math.max(X(roll.t0) + ROLL_MARK, X(roll.t1)) + 4) return roll;
+    return null;
   }
 
   /** The loudest moment within 5 px of the pointer, if there is one. */
@@ -490,6 +517,13 @@ export class Timeline {
       g.fillStyle = '#e9e2dacc';
       g.fillText(m.label, x + 3, 3);
       room = x + tw + 12;
+    }
+    // The rolled chords: a short gold slope each, rising or falling as the roll does, just above the attack ticks.
+    g.strokeStyle = '#e8b84a'; g.lineWidth = 1.5; g.lineCap = 'round';
+    for (const r of this.rollSpans()) {
+      if (r.t1 < va || r.t0 > vb) continue;
+      const x0 = X(r.t0), x1 = Math.max(x0 + ROLL_MARK, X(r.t1)), lo = h - 9, hi = h - 17;
+      g.beginPath(); g.moveTo(x0, r.up ? lo : hi); g.lineTo(x1, r.up ? hi : lo); g.stroke();
     }
     // The loudest moments: a small warm triangle at the foot of the strip each (hover one to read it).
     g.fillStyle = '#f0a35ecc';

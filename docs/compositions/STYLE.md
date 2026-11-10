@@ -16,6 +16,7 @@ Each stack is listed from the lead down.
 | Keys through fire | short Ivory rows, one per ff phrase; fireworks-snap on the ff chords; squares-snap on the bass octaves; fields | great | nocturne-micro-b2-fire (294.3) |
 | Keys climbing alone | huddled Ivory on a lone line; the current on its leaning notes; hammer on the far-apart low tolls; dim fields | nice | nocturne-micro-b4-climb (335.7) |
 | Bells, a flare and a sinking voice | Ivory on a broken-chord flare; handover on a slow recitative; crimp on knocking inner chords; small, calm squares-snap bells; on black | good | nocturne-micro-b3-collapse (315.2) |
+| Smoke and a lone key | gliss on each rolled chord; one long Ivory key on the roll's top note; short Ivory stacks on the plain chords between; snap squares on the bass; on black | best of three (2026-11-10) | chopin-nocturne-48-1-next-b (151) |
 | Lone light, then keys | (concerto) the current alone, then Ivory alone on black, for a solo entrance | pretty good | rach-concerto-2-full |
 
 All nocturne shows are on `claude/nocturne-micro-b-2c2dec` (micro-a merged into it). Open them as
@@ -30,6 +31,7 @@ All nocturne shows are on `claude/nocturne-micro-b-2c2dec` (micro-a merged into 
 - **Ivory:** keep the rows short, one per phrase, each ending as the next begins; or huddle them with a 0.6-wide region.
 - **Fireworks:** only on real ff blows, not on routine beat chords.
 - **The current:** a lone light for sad or solo entrances. It must not die off.
+- **Pluck:** for quick grace notes and trills (the user, 2026-11-10).
 - **Handover:** milky white (its default now), and only on long, slow notes. On a fast line it flashes.
 - **Snap squares:** small and calm, in their own red (not milky).
 - **Fields:** not under every scene. On black is fine.

@@ -18,7 +18,7 @@ describe('the shared list', () => {
   it('lab/layers/lines.js and src/widgets/tags.ts name the same types, each with a label, and grace notes and tremolo are not among them', () => {
     expect(WA.NOTE_TYPES).toEqual(NOTE_TYPES);
     expect(Object.keys(NOTE_TYPE_LABELS)).toEqual(NOTE_TYPES);
-    expect(NOTE_TYPES).toEqual(['chords', 'runs', 'trills', 'long', 'repeats']);
+    expect(NOTE_TYPES).toEqual(['chords', 'runs', 'trills', 'long', 'repeats', 'rolls']);
   });
 });
 
@@ -163,14 +163,37 @@ describe('listenNotes with a note type', () => {
   });
 });
 
+describe('rolls', () => {
+  // C2 G2 C3 E3 G3 C4 E4 G4: a chord rolled upwards, 0.1 s between notes, each ringing on.
+  const roll = (at = 1, gap = 0.1): Note[] => [36, 43, 48, 52, 55, 60, 64, 67].map((m, i) => [at + i * gap, at + i * gap + 3, m, 70] as Note);
+  it('finds a rolled chord, rising or falling, and lets one note out of line through', () => {
+    expect(heard(roll(), 'rolls')).toEqual(roll());
+    const down = roll().map((n, i, all) => [n[0], n[1], all[all.length - 1 - i][2], n[3]] as Note);
+    expect(heard(down, 'rolls')).toEqual(down);
+    const stray = roll(); stray[5] = [stray[5][0], stray[5][1], 50, 70];
+    expect(heard(stray, 'rolls')).toEqual(stray);
+  });
+  it('wants it to arrive and ring: more notes straight after, and it is not a roll', () => {
+    const on: Note[] = [[1.9, 2.1, 69, 70], [2.1, 2.3, 65, 70], [2.3, 2.5, 67, 70], [2.5, 2.7, 62, 70]];
+    expect(heard([...roll(), ...on], 'rolls')).toEqual([]);
+    expect(heard([...roll(), [2.3, 3, 72, 70]], 'rolls')).toEqual(roll());   // 0.6 s later: the roll had arrived
+  });
+  it('leaves out a scale, a chord struck unevenly, and three slow notes', () => {
+    expect(heard(seq(8, 0.1, (i) => 60 + i), 'rolls')).toEqual([]);                  // steps: a run
+    expect(heard(roll(1, 0.012), 'rolls')).toEqual([]);                              // 0.08 s in all
+    expect(heard(seq(4, 0.3, (i) => 48 + i * 4), 'rolls')).toEqual([]);              // slow needs five
+    expect(heard(roll(1, 0.3), 'rolls')).toEqual(roll(1, 0.3));                      // slow, eight, all in line
+  });
+});
+
 describe('noteTypeAttacks', () => {
   it('gives the attack times per type', () => {
     const big: Note[] = [48, 55, 60, 64, 67].map((m) => [0, 1, m, 80]);
     const hits = seq(4, 0.25, () => 90, 5);
-    expect(WA.noteTypeAttacks({ notes: [...big, ...hits] })).toEqual({ chords: [0], runs: [], trills: [], long: [], repeats: [5, 5.25, 5.5, 5.75] });
+    expect(WA.noteTypeAttacks({ notes: [...big, ...hits] })).toEqual({ chords: [0], runs: [], trills: [], long: [], repeats: [5, 5.25, 5.5, 5.75], rolls: [] });
   });
   it('is empty for a song with no notes', () => {
-    expect(WA.noteTypeAttacks({ notes: [] })).toEqual({ chords: [], runs: [], trills: [], long: [], repeats: [] });
+    expect(WA.noteTypeAttacks({ notes: [] })).toEqual({ chords: [], runs: [], trills: [], long: [], repeats: [], rolls: [] });
   });
 });
 

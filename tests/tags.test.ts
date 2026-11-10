@@ -28,7 +28,7 @@ describe('note types in lab/tags.json', () => {
   });
   it('an unknown note type is an error, naming the widget', () => {
     const bad = { flee: { feel: [], instruments: [], role: 'accent', noteType: 'grace' } };
-    expect(validateTags(bad, words, ['flee']).errors).toEqual(["flee: noteType 'grace' is not one of chords, runs, trills, long, repeats"]);
+    expect(validateTags(bad, words, ['flee']).errors).toEqual(["flee: noteType 'grace' is not one of chords, runs, trills, long, repeats, rolls"]);
     const ok = { flee: { feel: [], instruments: [], role: 'accent', noteType: 'runs' } };
     expect(validateTags(ok, words, ['flee']).errors).toEqual([]);
   });

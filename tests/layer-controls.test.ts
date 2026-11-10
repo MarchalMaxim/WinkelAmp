@@ -32,7 +32,7 @@ describe('listenOptions', () => {
     expect(o.slice(5, 11).every((x) => x.group === 'From the notes')).toBe(true);
     expect(o.slice(5, 11).map((x) => x.label)).toEqual(['Melody', 'Bass line', 'Inner voices', 'Low notes', 'High notes', 'Accents']);
     expect(o.slice(11).every((x) => x.group === 'Kinds of note')).toBe(true);
-    expect(o.slice(11).map((x) => x.label)).toEqual(['Big chords', 'Fast runs', 'Trills', 'Long ringing notes', 'Repeated notes']);
+    expect(o.slice(11).map((x) => x.label)).toEqual(['Big chords', 'Fast runs', 'Trills', 'Long ringing notes', 'Repeated notes', 'Rolled chords']);
   });
 
   it('without tracks (or with empty ones): all notes and the lines', () => {

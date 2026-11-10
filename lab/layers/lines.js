@@ -353,7 +353,48 @@
     return out;
   };
 
-  var NOTE_RULES = { chords: bigChordIds, runs: runIds, trills: trillIds, long: longIds, repeats: repeatIds };
+  /** A rolled chord: a quick sweep of attacks one way that arrives and rings. Its attacks are at most 0.4 s apart and
+      nothing new starts for 0.4 s after the last one. Going back from that last attack, each earlier attack lies lower
+      (by its top note; higher, by its bottom note, in a falling roll): the roll is the longest such line of attacks, and
+      at most a third as many attacks inside it are out of line as in it. It has at least 3 attacks in line and 4 notes, lasts
+      0.12 to 2.5 s (shorter is a chord struck unevenly), spans at least 7 semitones and moves at least 2.5 semitones an
+      attack on average (a scale does not). A slow one, with more than 0.15 s between attacks at the median, needs 5
+      attacks, all in line. */
+  var rollIds = function (notes) {
+    var at = [], out = [], i, e;
+    for (i = 0; i < notes.length; i++) {
+      var a = at[at.length - 1];
+      if (a && notes[i][0] - a.t < 0.04) { a.ids.push(i); a.hi = Math.max(a.hi, notes[i][2]); a.lo = Math.min(a.lo, notes[i][2]); }
+      else at.push({ t: notes[i][0], ids: [i], hi: notes[i][2], lo: notes[i][2] });
+    }
+    var sweep = function (end, dir) {
+      var front = function (x) { return dir > 0 ? x.hi : x.lo; };
+      // The longest line of attacks that ends on the last one, each further along than the one before (ties: the latest start).
+      var from = end, best = [], first = end, conf = 1, count = 0, gaps = [], k, j;
+      while (from > 0 && at[from].t - at[from - 1].t <= 0.4 && at[end].t - at[from - 1].t <= 2.5) from--;
+      best[end] = 1;
+      for (k = end - 1; k >= from; k--) {
+        best[k] = 0;
+        for (j = k + 1; j <= end; j++) if (best[j] && (front(at[j]) - front(at[k])) * dir > 0 && best[j] + 1 > best[k]) best[k] = best[j] + 1;
+        if (best[k] > conf) { conf = best[k]; first = k; }
+      }
+      var bad = end - first + 1 - conf;
+      for (k = first; k <= end; k++) { count += at[k].ids.length; if (k > first) gaps.push(at[k].t - at[k - 1].t); }
+      gaps.sort(function (x, y) { return x - y; });
+      var span = Math.abs(front(at[end]) - front(at[first])), slow = gaps[Math.floor((gaps.length - 1) / 2)] > 0.15;
+      if (conf < 3 || count < 4 || bad > conf / 3 || span < 7 || span / (conf - 1) < 2.5) return null;
+      if (at[end].t - at[first].t < 0.12 || (slow && (conf < 5 || bad))) return null;
+      return { first: first, conf: conf };
+    };
+    for (e = 0; e < at.length; e++) {
+      if (e + 1 < at.length && at[e + 1].t - at[e].t <= 0.4) continue;
+      var up = sweep(e, 1), down = sweep(e, -1), roll = up && down ? (up.conf >= down.conf ? up : down) : up || down;
+      if (roll) for (var k = roll.first; k <= e; k++) out.push.apply(out, at[k].ids);
+    }
+    return out;
+  };
+
+  var NOTE_RULES = { chords: bigChordIds, runs: runIds, trills: trillIds, long: longIds, repeats: repeatIds, rolls: rollIds };
 
   /** A note type's notes in one list, as the input's tuples in the input's order. */
   var ruleNotes = function (notes, type) {
@@ -411,7 +452,7 @@
   };
 
   var LINES = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
-  WA.NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats'];
+  WA.NOTE_TYPES = ['chords', 'runs', 'trills', 'long', 'repeats', 'rolls'];
   /** §1's TrackId order: a family's union concatenates its tracks in this order before the stable sort. */
   var TRACK_ORDER = ['piano', 'plucked', 'violin', 'viola', 'cello', 'contrabass', 'strings', 'timpani', 'voice',
     'horn', 'trumpet', 'trombone', 'brass', 'flute', 'oboe', 'clarinet', 'bassoon', 'saxophone'];
