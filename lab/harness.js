@@ -165,7 +165,7 @@ const makeIcon = () => {
 };
 
 // Load and draw order of the widgets that have one; unlisted lab/tools files load after these, by name. Append, never reorder: the order is part of the seeded pixels.
-const ORDER = ['harp', 'perlin', 'gliss', 'ivory', 'johansson', 'tree', 'fireworks', 'clumsy', 'gust', 'duet', 'vine', 'royal', 'comfort', 'honey', 'lazy',
+const ORDER = ['harp', 'perlin', 'gliss', 'ivory', 'johansson', 'tree', 'fireworks', 'clumsy', 'gust', 'duet', 'vine', 'royal', 'comfort', 'lazy',
   'timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
   'matisse', 'kusama', 'ikeda', 'horizon',
   'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
@@ -189,7 +189,6 @@ const VERDICTS = {
   vine: { v: 'love', on: 'new' },
   royal: { v: 'drop', on: 'new' },
   comfort: { v: 'needs work', on: 'new' },
-  honey: { v: 'drop', on: 'new' },
   lazy: { v: 'drop', on: 'new' },
   timeslice: { v: 'love', on: 'new' },
   fold: { v: 'keep', on: 'new' },

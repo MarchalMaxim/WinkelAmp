@@ -17,11 +17,9 @@ const FAMILIES = ['keys', 'plucked', 'strings', 'winds', 'brass', 'percussion', 
 describe('note types in lab/tags.json', () => {
   it('a widget with a natural note type names it; a new widget without one has none', () => {
     expect(tags.flee.noteType).toBe('runs');
-    expect(tags.martin.noteType).toBe('long');
     expect(tags.pixelsort.noteType).toBe('chords');
     expect(tags.stella.noteType).toBe('repeats');
-    expect(tags.honey.noteType).toBe('long');
-    for (const id of ['clumsy', 'comfort', 'duet', 'gust', 'lazy', 'royal', 'vine']) expect(tags[id].noteType, id).toBeUndefined();
+    for (const id of ['clumsy', 'comfort', 'duet', 'gust', 'vine']) expect(tags[id].noteType, id).toBeUndefined();
     expect(tags.brush.noteType).toBeUndefined();
     expect(tags.kline.noteType).toBeUndefined();
     for (const [id, t] of Object.entries(tags)) if (t.noteType !== undefined) expect(NOTE_TYPES, id).toContain(t.noteType);

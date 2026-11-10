@@ -232,14 +232,6 @@
           "quiet": 0.6
         }
       },
-      "droopy": {
-        "looks": "Everything hangs and sags under its own weight, stretching down and never quite letting go.",
-        "sounds": "Falling lines: sighs, slow descents, dragged-out cadences.",
-        "fit": {
-          "quiet": 0.4,
-          "low": 0.2
-        }
-      },
       "lazy": {
         "looks": "Big things that can barely be bothered: they answer late and only halfway, then flop back.",
         "sounds": "Low, drowsy, dragging music: a heavy pulse, long sighing phrases.",
@@ -772,8 +764,6 @@
     "comfy": "comfortable",
     "unhurried": "slow",
     "leisurely": "slow",
-    "drooping": "droopy",
-    "sagging": "droopy",
     "honey": "viscous",
     "syrupy": "viscous",
     "sticky": "viscous",
