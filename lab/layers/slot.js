@@ -1,9 +1,9 @@
-// One layered slot (plan §6, spec Decisions 4, 6 and 7): the attacks an instance hears (its own part's chords when it is
+// One layered slot: the attacks an instance hears (its own part's chords when it is
 // routed, thinned by its intensity curve), its own pulse, and how visible it is (the paste weight vis(a) × the slot's
 // weight), then the runtime's per-slot statements with that weight. A slot with no layer whose instance keeps no pulse
 // of its own never comes here: the hosts run today's statements for it.
 //
-// Regions (T15): a spot runs the widget on the shared canvas as today and pastes the picture from before it back
+// Regions: a spot runs the widget on the shared canvas as today and pastes the picture from before it back
 // through the region's mask (destination-out at the weight), so it is seen only inside; what it queues to draw "after
 // the others" runs at the end of the step as without a region, each pass pasted back through the mask the same way.
 // A window gives the instance its own canvas the size of the shared one (with the same fade and burn), lets it draw

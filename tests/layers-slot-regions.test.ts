@@ -1,6 +1,6 @@
 /// <reference types="node" />
-// lab/layers/slot.js, the region part (T15): which region a slot is seen in, and the spot and window statements in
-// order, on recording fake canvases (the pixels are proven in Chrome by npm run runtime-check).
+// lab/layers/slot.js, the region part: which region a slot is seen in, and the spot and window statements in
+// order, on recording fake canvases.
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { groupChords } from '../src/widgets/chords';

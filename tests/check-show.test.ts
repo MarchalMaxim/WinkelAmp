@@ -145,3 +145,32 @@ describe('npm run check-show', () => {
     expect(check([f]).code).toBe(1);
   }, 60_000);
 });
+
+describe('npm run check-show -- --summary', () => {
+  const full = {
+    ...show([[0, 50, 'squares'], [50, 100, 'kandinsky', 1]]),
+    clips: [
+      { id: 'c1', start: 0, end: 50, track: 0, widget: 'squares', knobs: { size: 3, speed: 1 }, thin: 'loud', fade: 2, intensity: [{ t: 0, v: 1 }, { t: 50, v: 0.2 }] },
+      { id: 'c2', start: 50, end: 100, track: 1, widget: 'kandinsky', listen: 'picks:p1' },
+    ],
+    picks: { p1: { notes: [[50.5, 51, 60, 80], [60, 61, 62, 80]] } },
+  };
+
+  it('prints a line per clip and per set of picks, without the notes, by path or by show id', () => {
+    const f = join(tmp, 'summary.json');
+    writeFileSync(f, JSON.stringify(full));
+    writeFileSync(join(shows, 'summary.json'), JSON.stringify(full));
+    const lines = [f, 'summary'].map((which) => check(['--summary', which]).out.trimEnd().split(/\r?\n/));
+    expect(lines[1]).toEqual(lines[0]);
+    expect(lines[0]).toEqual([
+      'demo  song demo  2 clips',
+      'c1  0-50  track 0  squares  listen all  knobs size,speed  thin=loud fade=2 intensity(2)',
+      'c2  50-100  track 1  kandinsky  listen picks:p1  knobs -',
+      'picks p1  2 notes  50.5-60',
+    ]);
+  }, 60_000);
+
+  it('exits 1 on a show that is not there', () => {
+    expect(check(['--summary', 'nowhere']).code).toBe(1);
+  }, 60_000);
+});

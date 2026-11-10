@@ -1,9 +1,10 @@
-// Film (docs/mockups/nature/plans/film.md): one ink-blue sail whose corners are the last notes. Drawn statelessly from CHORDS and x.t.
+// Film: one ink-blue sail whose corners are the last notes. Drawn statelessly from CHORDS and x.t.
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const SRC = readFileSync(new URL('../lab/tools/film.js', import.meta.url), 'utf8');
@@ -21,7 +22,7 @@ const DEFAULTS = { corners: 3, slack: 0.6, kick: 0.14, stay: 2, tips: 1, presenc
 type Knobs = Partial<typeof DEFAULTS>;
 function make(notes: Note[]) {
   const chords: Chord[] = groupChords(notes);
-  const tool = instantiate('film', SRC, { icon: mkIcon(), chords }) as ToolDef;
+  const tool = instantiate('film', SRC, { kit: kit(), icon: mkIcon(), chords }) as ToolDef;
   return { chords, tool };
 }
 const frameAt = (tool: ToolDef, t: number, knobs: Knobs, log: string[]) => {

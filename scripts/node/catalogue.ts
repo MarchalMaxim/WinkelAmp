@@ -1,13 +1,12 @@
 // The widget catalogue in Node (check-show, describe-song, widget-docs, the dev API): each lab/tools/*.js evaluated in
-// node:vm with a canvas whose 2D context draws nothing, so only names, blurbs and knobs come out. lab/tools/dropped/
-// is never read (only *.js directly in lab/tools/).
+// node:vm with a canvas whose 2D context draws nothing, so only names, blurbs and knobs come out.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 import { toMeta } from '../../src/widgets/catalogue';
-import { readLabHarness } from '../../src/widgets/lab-harness';
+import { evalLabHarness, widgetOrder } from '../../src/widgets/lab-harness';
 import { tagsOf, type TagWords } from '../../src/widgets/tags';
-import type { IconLib, ToolDef, WidgetMeta, WidgetTags } from '../../src/widgets/types';
+import type { IconLib, Kit, LabHarness, ToolDef, WidgetMeta, WidgetTags } from '../../src/widgets/types';
 import { REPO } from './pack-io';
 
 /** Anything: callable, every property another stub, assignments kept. Gradients, patterns, paths, matrices. */
@@ -80,27 +79,38 @@ export function readLabTagWords(repo: string = REPO): TagWords {
 
 export interface Catalogue { widgets: Map<string, WidgetMeta>; failed: { id: string; error: string }[] }
 
-/** Every lab widget's WidgetMeta: TOOL_IDS order, then any other lab/tools/*.js (by name). `sources` replaces the files.
+/** The lab's harness (lab/harness.js). */
+export function readLabHarness(repo: string = REPO): LabHarness {
+  return evalLabHarness(readFileSync(resolve(repo, 'lab', 'harness.js'), 'utf8'), readFileSync(resolve(repo, 'lab', 'kit.js'), 'utf8'));
+}
+
+/** The ids of the files in lab/tools, in load and draw order (the dev API's /api/widgets). */
+export function labWidgetIds(repo: string = REPO): string[] {
+  const ids = readdirSync(resolve(repo, 'lab', 'tools'), { withFileTypes: true }).filter((d) => d.isFile() && d.name.endsWith('.js')).map((d) => d.name.slice(0, -3));
+  return widgetOrder(readLabHarness(repo).order, ids);
+}
+
+/** Every lab widget's WidgetMeta: LAB.ORDER first, then any other lab/tools/*.js (by name). `sources` replaces the files.
     `meta.tags` is the widget's lab/tags.json entry, or null (untagged, or no lab/tags.json). */
 export function loadCatalogue(o: { repo?: string; sources?: Record<string, string> } = {}): Catalogue {
   const repo = o.repo ?? REPO;
-  const harness = readLabHarness(readFileSync(resolve(repo, 'lab', 'index.html'), 'utf8'));
+  const harness = readLabHarness(repo);
   const sources = o.sources ?? Object.fromEntries(
     readdirSync(resolve(repo, 'lab', 'tools'), { withFileTypes: true })
       .filter((d) => d.isFile() && d.name.endsWith('.js'))
       .map((d) => [d.name.slice(0, -3), readFileSync(resolve(repo, 'lab', 'tools', d.name), 'utf8')]),
   );
-  const ids = [...harness.toolIds.filter((id) => id in sources), ...Object.keys(sources).filter((id) => !harness.toolIds.includes(id)).sort()];
+  const ids = widgetOrder(harness.order, Object.keys(sources));
   const tags = readLabTags(repo);
   const ctx = realm();
-  const icon = runInContext(`(${harness.iconSource})`, ctx, { filename: 'lab/index.html#ICON' }) as IconLib;
+  const icon: IconLib = harness.makeIcon();
   const widgets = new Map<string, WidgetMeta>(), failed: Catalogue['failed'] = [];
   for (const id of ids) {
     try {
-      const run = runInContext(`(function (TOOLS, ICON, CHORDS) {\n${sources[id]}\n})`, ctx, { filename: `lab/tools/${id}.js` }) as
-        (tools: ToolDef[], icon: IconLib, chords: unknown[]) => void;
+      const run = runInContext(`(function (TOOLS, ICON, CHORDS, KIT) {\n${sources[id]}\n})`, ctx, { filename: `lab/tools/${id}.js` }) as
+        (tools: ToolDef[], icon: IconLib, chords: unknown[], kit: Kit) => void;
       const tools: ToolDef[] = [];
-      run(tools, icon, []);
+      run(tools, icon, [], harness.kit);
       if (tools.length !== 1 || tools[0]?.id !== id) throw new Error(`must push exactly one tool with id '${id}' (pushed: ${tools.map((t) => t?.id).join(', ') || 'none'})`);
       widgets.set(id, toMeta(tools[0], harness.verdicts[id] ?? null, tagsOf(tags, id)));
     } catch (e) {

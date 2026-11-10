@@ -4,11 +4,9 @@
 //   npm run render-show -- <show id | show.json> [--scale 2] [--fps 60] [--hz 60] [--crf 13] [--preset slow]
 //                          [--master x264|x264-444|prores] [--share | --no-share] [--share-mb-per-min 15]
 //                          [--from 0] [--to <end>] [--out renders/<id>.mp4] [--framemd5 <file>] [--eta-probes K]
-//                          [--headed] [--keep] [--compose]
+//                          [--headed] [--keep]
 //
-// The show is shows/<id>.json (or the file given); a song with no show of its own gets the one the studio would compose
-// for it (--compose: even when it has one), from the widgets' tags, its instrument tracks and the feel words of
-// shows/<id>.description.md. Its own Vite server (from port 5190) and headless system Chrome open
+// The show is shows/<id>.json (or the file given). Its own Vite server (from port 5190) and headless system Chrome open
 // render.html?show=<id>&scale=S (the studio's runtime and Conductor on a 1280·S × 720·S canvas, widgets still in 1280×720
 // units), which draws on demand: frame k shows the song at from + k/fps after stepping there in substeps of 1/hz s, so
 // an attack is drawn on the first frame at or after its time, and the same show gives the same frames every time
@@ -48,9 +46,9 @@ import { masterArgs, shareArgs, shareVideoKbps } from './lib/encode.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const USAGE = 'usage: npm run render-show -- <show id | show.json> [--scale 2] [--fps 60] [--hz 60] [--crf 13] [--preset slow] '
   + '[--master x264|x264-444|prores] [--share | --no-share] [--share-mb-per-min 15] [--from 0] [--to <end>] [--out renders/<id>.mp4] '
-  + '[--framemd5 <file>] [--eta-probes K] [--headed] [--keep] [--compose]';
+  + '[--framemd5 <file>] [--eta-probes K] [--headed] [--keep]';
 const VALUED = ['out', 'fps', 'hz', 'from', 'to', 'crf', 'framemd5', 'scale', 'preset', 'master', 'share-mb-per-min', 'eta-probes'];
-const FLAGS = ['headed', 'keep', 'share', 'no-share', 'compose'];
+const FLAGS = ['headed', 'keep', 'share', 'no-share'];
 const argv = process.argv.slice(2);
 const opts = {}, pos = [];
 for (let i = 0; i < argv.length; i++) {
@@ -167,10 +165,8 @@ process.on('message', (m) => {
 });
 try {
   const { validateShow } = await vite.ssrLoadModule('/src/studio/show/show.ts');
-  const { composeShow } = await vite.ssrLoadModule('/src/studio/compose/compose.ts');
-  const { loadCatalogue, readLabTagWords } = await vite.ssrLoadModule('/scripts/node/catalogue.ts');
+  const { loadCatalogue } = await vite.ssrLoadModule('/scripts/node/catalogue.ts');
   const { loadLayers } = await vite.ssrLoadModule('/scripts/node/layers.ts');
-  const { feelWordsIn } = await vite.ssrLoadModule('/src/widgets/tags.ts');
   const { songsDir, showsDir } = await vite.ssrLoadModule('/scripts/node/pack-io.ts');
   const songs = songsDir(), widgets = loadCatalogue().widgets;
   const readPack = (id) => {
@@ -179,26 +175,14 @@ try {
     return JSON.parse(readFileSync(f, 'utf8'));
   };
 
-  // The show: a file, shows/<id>.json, or (a song without a show, or --compose) the one the studio composes for it.
+  // The show: a file, or shows/<id>.json.
   const arg = pos[0];
-  const compose = (id) => {
-    const f = path.join(showsDir(), `${id}.description.md`), description = existsSync(f) ? readFileSync(f, 'utf8') : '';
-    const words = readLabTagWords(), feel = feelWordsIn(description, words);
-    console.log(`composing ${id}: ${description ? `the feel words of its description: ${feel.join(', ') || 'none'}` : 'no description'}`);
-    return composeShow({ pack: readPack(id), widgets, description, layers: loadLayers(), words });
-  };
-  let show, from = 'file';
-  if (opts.compose) {
-    show = compose(arg);
-    from = 'composed';
-  } else if (arg.endsWith('.json') || existsSync(arg)) {
+  let show;
+  if (arg.endsWith('.json') || existsSync(arg)) {
     show = JSON.parse(readFileSync(path.resolve(arg), 'utf8'));
   } else if (existsSync(path.join(showsDir(), `${arg}.json`))) {
     show = JSON.parse(readFileSync(path.join(showsDir(), `${arg}.json`), 'utf8'));
-  } else if (existsSync(path.join(songs, arg, 'pack.json'))) {
-    show = compose(arg);
-    from = 'composed';
-  } else throw new Error(`no show ${arg}: not a file, not in ${showsDir()}, and no song pack ${arg} in ${songs}`);
+  } else throw new Error(`no show ${arg}: not a file and not in ${showsDir()}`);
   const pack = readPack(show.song);
   const v = validateShow(show, { duration: pack.duration, widgets, tracks: Object.keys(pack.tracks ?? {}), noteTypes: loadLayers().noteTypeAttacks(pack) });
   for (const w of v.warnings) console.log(`warning  ${w.path}: ${w.message}`);
@@ -221,7 +205,7 @@ try {
   tmp = mkdtempSync(path.join(tmpdir(), 'wa-render-show-'));
   console.log(`work folder → ${tmp}`);   // the export job removes it if this process is killed before its cleanup
   const W = 1280 * SCALE, H = 720 * SCALE;
-  console.log(`${show.title ?? pack.title} (${from === 'composed' ? (opts.compose ? 'composed for the song (--compose)' : 'composed for the song: no shows/' + show.id + '.json') : `${show.clips.length} clips`}): `
+  console.log(`${show.title ?? pack.title} (${show.clips.length} clips): `
     + `${clock(start)}–${clock(end)}, ${n} frames of ${W}×${H} at ${FPS} fps (${HZ} Hz steps, scale ${SCALE}) → ${out}`);
 
   await vite.listen();

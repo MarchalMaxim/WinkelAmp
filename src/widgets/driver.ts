@@ -57,7 +57,7 @@ declare global {
   }
 }
 
-/** The lab's render API on window (plan §3), plus a frame hash and the raw pixels for the fidelity test. */
+/** The lab's render API on window, plus a frame hash and the raw pixels for the fidelity test. */
 export function exposeRenderApi(s: Stepper, rt: WidgetRuntime, reseed: (seed: number) => void, hz: number): void {
   const ctx = rt.ctx;
   window.renderSeek = (t, seed = 1) => {
@@ -94,7 +94,7 @@ export function labCompat(rt: WidgetRuntime, only: readonly string[], moments: r
 }
 
 
-/** A lab layer setting (plan §11, render mode's `layers=`): what one instance of a widget listens to, where it sits
+/** A lab layer setting (render mode's `layers=`): what one instance of a widget listens to, where it sits
     and its intensity curve, in the show's field shapes (thin 'loud': the curve keeps the strongest attacks). */
 export interface LabLayer { widget: string; listen?: Listen; region?: Region; intensity?: Pivot[]; thin?: 'loud' }
 
@@ -117,10 +117,9 @@ export function labLayerSpecs(toolIds: readonly string[], layers: readonly LabLa
 
 /** The lab with layers (render.html?labSong&layers=): every loaded widget gets resets; the active ones (only, and every
     widget with an entry) draw in load (lab) order, a widget with entries as those instances in its place, with their
-    curves and regions. probe sets one widget's slot weight (persist-probe). Without layers or probe it is labCompat. */
-export function labLayers(rt: WidgetRuntime, only: readonly string[], layers: readonly LabLayer[], moments: readonly LabMoment[],
-  probe?: { id: string; weight: number }): Stepper {
-  const on = new Set([...only, ...layers.map((l) => l.widget), ...(probe ? [probe.id] : [])]);
+    curves and regions. Without layers it is labCompat. */
+export function labLayers(rt: WidgetRuntime, only: readonly string[], layers: readonly LabLayer[], moments: readonly LabMoment[]): Stepper {
+  const on = new Set([...only, ...layers.map((l) => l.widget)]);
   const byWidget = new Map<string, LabLayer[]>();
   for (const l of layers) byWidget.set(l.widget, [...(byWidget.get(l.widget) ?? []), l]);
   return {
@@ -130,11 +129,10 @@ export function labLayers(rt: WidgetRuntime, only: readonly string[], layers: re
       const slots: Slot[] = [];
       for (const id of rt.loaded()) {
         if (!on.has(id)) continue;
-        const weight = probe && probe.id === id ? probe.weight : 1;
         const mine = byWidget.get(id);
-        if (!mine) { slots.push({ id, receiving: true, weight }); continue; }
+        if (!mine) { slots.push({ id, receiving: true, weight: 1 }); continue; }
         for (const l of mine) {
-          const slot: Slot = { id: labLayerKey(l), receiving: true, weight };
+          const slot: Slot = { id: labLayerKey(l), receiving: true, weight: 1 };
           const layer: SlotLayer = {};
           if (l.intensity?.length) layer.pivots = l.intensity;
           if (layer.pivots && l.thin === 'loud') layer.thin = 'loud';

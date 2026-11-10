@@ -203,7 +203,7 @@
     blurb: 'Thin threads braid through moving water: the melody steers the white-gold one, inner voices and the bass weave around it and cross on their own notes, swelling as they play. Chords pour coloured dye that the water spreads; tempo sets how fast the water runs and big chords tear vortices. New: a <b>how present</b> slider sets how much current there is, from one lone thread in slow water to the full braid.',
     params: [
       // Six knobs: five with the keys, ranges, defaults and drives of v3, so saved settings still apply, and how present.
-      { key: 'threads', label: 'how many threads', min: 1, max: 5, step: 1, value: 3, less: 1,
+      { key: 'threads', perNote: false, label: 'how many threads', min: 1, max: 5, step: 1, value: 3, less: 1,
         hint: 'How many threads braid together. Left: the melody’s white-gold line alone. Right: five, with the inner voices and the bass.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 4);
           for (let i = n - 1; i >= 0; i--) strand(g, w, h, n > 1 ? 8 : 0, (i / n) * Math.PI * 2, tc(i), i ? 1.2 : 1.6, 1); } },

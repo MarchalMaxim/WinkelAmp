@@ -107,7 +107,7 @@
     id: 'martin', name: 'Agnes Martin', tag: 'new',
     blurb: 'After Agnes Martin: pale bands of washed colour under a fine pencil grid, the keyboard from bass (bottom) to treble. A soft note faintly deepens its band; a held note tints its own thin stripe in the colour of the harmony. Loud music is nearly ignored: it is for the chorale and the oboe cadenza. Paints its own canvas; turn <b>how present</b> down and the page keeps only its resting bands under a few ruled lines, with marks that are faint and soon gone.',
     params: [
-      { key: 'paper', label: 'night or day paper', min: 0, max: 1, value: 1,
+      { key: 'paper', perNote: false, label: 'night or day paper', min: 0, max: 1, value: 1,
         hint: 'The ground the bands sit on. Left: a very dark canvas with chalk lines. Right: warm off-white paper with pencil lines.',
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, PAPER_ICON(v)); const c = ICON.lerp('#d6d0c6', '#3e3c42', v);
           for (const y of [8, 13, 18]) ICON.line(g, 5, y, w - 5, y, c, 0.8); } },
@@ -124,7 +124,7 @@
       { key: 'stay', label: 'how long a mark stays', min: 1, max: 20, value: 10, less: 2.5, drive: '-rate',
         hint: 'How long a deepened band or tinted stripe takes to fade back. Left: a breath. Right: it lingers for many seconds. Set to fade faster when the music gets busy.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, '#d8a2a2', 'square') },
-      { key: 'grid', label: 'how fine the grid', min: 0, max: 1, value: 0.6, less: 0.2,
+      { key: 'grid', perNote: false, label: 'how fine the grid', min: 0, max: 1, value: 0.6, less: 0.2,
         hint: 'The pencil grid over the bands. Left: only the ruled lines between the bands. Right: a fine, dense mesh of small rectangles.',
         icon: (g, v, w, h) => { ICON.rect(g, 2, 2, w - 4, h - 4, '#ece7dc'); const { hs, nv } = gridSteps(v), c = 'rgba(62,60,66,0.75)';
           const nh = Math.round(12 / hs); for (let i = 0; i <= nh; i++) { const y = 4 + (i / nh) * (h - 8); ICON.line(g, 4, y, w - 4, y, c, 0.7); }

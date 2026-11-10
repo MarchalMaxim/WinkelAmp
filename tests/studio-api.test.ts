@@ -58,6 +58,12 @@ describe('studio dev API', () => {
     expect(json(await call('GET', '/api/health'))).toEqual({ ok: true, api: 1 });
   });
 
+  it('lists the widget files in load order', async () => {
+    const ids = json(await call('GET', '/api/widgets')) as string[];
+    expect(ids).toContain('casket');
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('lists songs: a valid pack, a broken one with its error; a folder without pack.json is ignored', async () => {
     const r = await call('GET', '/api/songs');
     expect(r.status).toBe(200);

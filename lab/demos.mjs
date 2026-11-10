@@ -5,7 +5,7 @@
 // Needs the Vite dev server (npm run dev), system Chrome and ffmpeg on the PATH. lab/demos.json says, per widget, which song,
 // where it starts and how many seconds, and optionally `over` (a widget to draw it over, for the ones that only cut into what
 // is below) and `warm` (seconds of warm-up, 5 unless it says more, for the widgets that build up slowly).
-// Like lab/render.mjs: the page runs in render mode, no audio; this script steps the song clock frame by frame, so every frame
+// Like a render run: the page runs in render mode, no audio; this script steps the song clock frame by frame, so every frame
 // is drawn by the same code as the live lab at the default knobs. The warm-up is drawn but not captured, so the picture is alive
 // from the first frame; a start earlier than its warm-up would warm nothing, so such an entry is refused.
 // One widget at a time. Re-running replaces a file only once its new clip is whole and the widget threw nothing: if a clip fails,

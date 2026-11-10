@@ -321,7 +321,7 @@
       { key: 'fat', label: 'how fat the masses are', min: 0.5, max: 1.7, value: 1, less: 0.6,
         hint: 'How thick the stains are. Left: slim. Right: huge, overlapping everything.',
         icon: (g, v, w, h) => limbIcon(g, w, h, 6, 1.5 + 9 * v, '#7c9a2f') },
-      { key: 'limbs', label: 'how many masses', min: 4, max: 15, step: 1, value: 12, less: 4,
+      { key: 'limbs', perNote: false, label: 'how many masses', min: 4, max: 15, step: 1, value: 12, less: 4,
         hint: 'How many masses lie in the heap. Left: a few. Right: a big heap.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5); for (let i = 0; i < n; i++) ICON.line(g, 4 + (i % 2) * 6, h - 4 - i * 3.4, w - 4 - ((i + 1) % 2) * 6, h - 5 - i * 3.4, i % 2 ? '#7c9a2f' : '#4f6b22', 2.6); } },
       { key: 'green', label: 'which green', min: 0, max: 1, value: 0.5,

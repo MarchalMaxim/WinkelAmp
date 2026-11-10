@@ -1,95 +1,38 @@
-// Reads the lab's own lists out of lab/index.html at run time, so the studio never keeps a copy that drifts:
-// TOOL_IDS (load and draw order), VERDICTS (the user's ratings), DRIVES (the drive words), the ICON library's source
-// and SONGS (the two recordings with their moments: step() sets ctx.moment from them).
-import type { Drive, IconLib, LabHarness, LabMoment, LabSong, Verdict } from './types';
+// The lab's own lists (lab/harness.js: ORDER, VERDICTS, DRIVES, SONGS, the ICON factory), evaluated from its text so the
+// studio and Node never keep a copy that drifts.
+import type { Kit, LabHarness, LabMoment } from './types';
 
-/** The end (exclusive) of the JS expression starting at `from`: the first `;` (or unmatched closer) at bracket depth 0,
-    skipping strings, template literals (with nested `${}`), comments and regex literals. */
-function expressionEnd(src: string, from: number): number {
-  const stack: string[] = [];
-  let i = from, prev = '(';                     // last significant char, to tell a regex from a division
-  const close: Record<string, string> = { '(': ')', '[': ']', '{': '}' };
-  while (i < src.length) {
-    const c = src[i];
-    if (c === '/' && src[i + 1] === '/') { const n = src.indexOf('\n', i); i = n < 0 ? src.length : n; continue; }
-    if (c === '/' && src[i + 1] === '*') { const n = src.indexOf('*/', i + 2); i = n < 0 ? src.length : n + 2; continue; }
-    if (c === '"' || c === "'") { i = skipQuoted(src, i, c); prev = c; continue; }
-    if (c === '`') { i = skipTemplate(src, i); prev = c; continue; }
-    if (c === '/' && /[(,=:[!&|?{};+\-*%<>~^]/.test(prev)) { i = skipRegex(src, i); prev = '/'; continue; }
-    if (c === '(' || c === '[' || c === '{') stack.push(close[c]);
-    else if (c === ')' || c === ']' || c === '}') {
-      if (!stack.length) return i;
-      if (stack.pop() !== c) throw new Error(`unbalanced ${c} at ${i}`);
-    } else if (c === ';' && !stack.length) return i;
-    if (!/\s/.test(c)) prev = c;
-    i++;
-  }
-  if (stack.length) throw new Error('unterminated expression');
-  return i;
-}
-function skipQuoted(src: string, i: number, q: string): number {
-  for (i++; i < src.length; i++) { if (src[i] === '\\') i++; else if (src[i] === q) return i + 1; }
-  throw new Error('unterminated string');
-}
-function skipTemplate(src: string, i: number): number {
-  for (i++; i < src.length; i++) {
-    if (src[i] === '\\') i++;
-    else if (src[i] === '`') return i + 1;
-    else if (src[i] === '$' && src[i + 1] === '{') { const e = expressionEnd(src, i + 2); if (src[e] !== '}') throw new Error('bad template'); i = e; }
-  }
-  throw new Error('unterminated template');
-}
-function skipRegex(src: string, i: number): number {
-  let cls = false;
-  for (i++; i < src.length; i++) {
-    const c = src[i];
-    if (c === '\\') i++;
-    else if (c === '[') cls = true;
-    else if (c === ']') cls = false;
-    else if (c === '/' && !cls) { i++; while (/[a-z]/i.test(src[i] ?? '')) i++; return i; }
-    else if (c === '\n') throw new Error('unterminated regex');
-  }
-  throw new Error('unterminated regex');
+/** Runs lab/kit.js's text against a fresh `window` and returns its KIT. */
+export function evalKit(src: string): Kit {
+  const win: { KIT?: Kit } = {};
+  new Function('window', src)(win);
+  if (!win.KIT || typeof win.KIT.SNAP !== 'object') throw new Error('lab/kit.js did not set window.KIT');
+  return win.KIT;
 }
 
-/** The source text of the expression assigned after `marker` (e.g. 'const TOOL_IDS ='). */
-function expressionAfter(html: string, marker: string): string {
-  const at = html.indexOf(marker);
-  if (at < 0) throw new Error(`lab/index.html: no "${marker}" block`);
-  const from = at + marker.length;
-  return html.slice(from, expressionEnd(html, from)).trim();
-}
-const evaluate = (expr: string): unknown => new Function(`"use strict"; return (${expr});`)();
-
-export function readLabHarness(html: string): LabHarness {
-  const toolIds = evaluate(expressionAfter(html, 'const TOOL_IDS ='));
-  const verdicts = evaluate(expressionAfter(html, 'const VERDICTS ='));
-  const drives = evaluate(expressionAfter(html, 'const DRIVES ='));
-  const iconSource = expressionAfter(html, 'window.ICON =');
-  if (!Array.isArray(toolIds) || !toolIds.every((x) => typeof x === 'string')) throw new Error('lab/index.html: TOOL_IDS is not a list of ids');
-  if (!verdicts || typeof verdicts !== 'object') throw new Error('lab/index.html: VERDICTS is not an object');
-  if (!Array.isArray(drives)) throw new Error('lab/index.html: DRIVES is not a list');
-  return { toolIds, verdicts: verdicts as Record<string, Verdict>, drives: drives as [Drive, string][], iconSource };
-}
-
-declare module './types' {
-  interface LabSong {
-    /** The song's pack data for the lab (plan 2026-10-31 §11): lab/pack-<id>.js, written by `npm run lab-notes -- <id>`
-        (git-ignored), sets window.PACK = { tracks, beats, loudness, energy? }. Both the lab and render.html?labSong load it. */
-    pack?: string;
+/** Runs lab/harness.js's text against a fresh `window` and checks the shape of what it sets; kitSrc is lab/kit.js's text. */
+export function evalLabHarness(src: string, kitSrc: string): LabHarness {
+  const win: { LAB?: Record<string, unknown> } = {};
+  new Function('window', src)(win);
+  const lab = win.LAB;
+  if (!lab) throw new Error('lab/harness.js did not set window.LAB');
+  const { ORDER, VERDICTS, DRIVES, SONGS, makeIcon } = lab;
+  if (!Array.isArray(ORDER) || !ORDER.every((x) => typeof x === 'string')) throw new Error('lab/harness.js: ORDER is not a list of ids');
+  if (!VERDICTS || typeof VERDICTS !== 'object') throw new Error('lab/harness.js: VERDICTS is not an object');
+  if (!Array.isArray(DRIVES)) throw new Error('lab/harness.js: DRIVES is not a list');
+  if (!SONGS || typeof SONGS !== 'object') throw new Error('lab/harness.js: SONGS is not an object');
+  for (const [id, s] of Object.entries(SONGS as LabHarness['songs'])) {
+    if (typeof s?.notes !== 'string' || !Array.isArray(s.moments) || !s.moments.length) throw new Error(`lab/harness.js: SONGS.${id} has no notes or moments`);
+    if (s.pack !== undefined && (typeof s.pack !== 'string' || !/^pack-[\w.-]+\.js$/.test(s.pack))) throw new Error(`lab/harness.js: SONGS.${id}.pack is not a pack-<id>.js file name`);
   }
+  if (typeof makeIcon !== 'function' || typeof (makeIcon() as { gauge?: unknown }).gauge !== 'function') throw new Error('lab/harness.js: makeIcon did not give an ICON library');
+  return { order: ORDER, verdicts: VERDICTS, drives: DRIVES, songs: SONGS, makeIcon, kit: evalKit(kitSrc) } as LabHarness;
 }
 
-/** The lab's songs (`const SONGS =`): id → title, notes file (relative to lab/), length and moments, and the pack
-    file when it names one. */
-export function readLabSongs(html: string): Record<string, LabSong> {
-  const songs = evaluate(expressionAfter(html, 'const SONGS ='));
-  if (!songs || typeof songs !== 'object') throw new Error('lab/index.html: SONGS is not an object');
-  for (const [id, s] of Object.entries(songs as Record<string, LabSong>)) {
-    if (typeof s?.notes !== 'string' || !Array.isArray(s.moments) || !s.moments.length) throw new Error(`lab/index.html: SONGS.${id} has no notes or moments`);
-    if (s.pack !== undefined && (typeof s.pack !== 'string' || !/^pack-[\w.-]+\.js$/.test(s.pack))) throw new Error(`lab/index.html: SONGS.${id}.pack is not a pack-<id>.js file name`);
-  }
-  return songs as Record<string, LabSong>;
+/** The widgets in load and draw order: the ids in `order` that exist first, then the rest by name. */
+export function widgetOrder(order: readonly string[], ids: Iterable<string>): string[] {
+  const have = new Set(ids);
+  return [...order.filter((id) => have.delete(id)), ...[...have].sort()];
 }
 
 /** ctx.moment before the first step: the lab starts every song at 'dread' (its ctx literal), whatever the song's moments. */
@@ -100,11 +43,4 @@ export function momentAt(moments: readonly LabMoment[], t: number): string {
   let m = moments[0][1];
   for (const [s, n] of moments) if (t >= s) m = n;
   return m;
-}
-
-/** A fresh ICON library from the lab's `window.ICON = (() => {…})()` source. */
-export function makeIcon(iconSource: string): IconLib {
-  const icon = new Function(`return (${iconSource});`)() as IconLib;
-  if (!icon || typeof icon.gauge !== 'function') throw new Error('lab ICON source did not give an ICON library');
-  return icon;
 }

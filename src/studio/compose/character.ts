@@ -1,6 +1,6 @@
 /**
  * The character of each stretch of a song, from its attacks (the lab's chords): how loud, dense, low, fast and quiet it
- * is, each 0..1 and relative to the song's other stretches (plan §6).
+ * is, each 0..1 and relative to the song's other stretches.
  */
 import { groupChords } from '../../widgets/chords';
 import type { Chord, Note } from '../../widgets/types';

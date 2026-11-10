@@ -1,28 +1,16 @@
 /**
  * Show edits the studio makes with the mouse, pure: applyEdit never mutates its input, shares what it did not touch, and
- * returns the input itself when an edit cannot apply (so the caller records nothing). Edits name clips by id. From a valid
- * show the result is valid: clips stay in the song and last at least MIN_CLIP, and one track holds no overlaps.
- *
- * A clip that lands on an occupied spot goes to the nearest free track at or above it (freeTrack), so nothing is lost; the
- * drag passes the track under the pointer each time, so it comes back when the spot is free again. An edge drag instead
- * stops at the neighbour on its track: dragging an edge is about when the clip ends, not where it sits.
- *
- * Intensity pivots are in song seconds and belong to their clip: moving a clip moves them. Shortening one removes the
- * pivots that fall outside and adds an edge pivot with the curve's value there (env.curve, WaLayers.automationAt), so the
- * visible curve is unchanged; a resize passes the curve it started with (`from`), so one drag there and back loses nothing.
- *
- * A set of picks lives as long as a clip uses it: an edit that removes its last clip removes it too, and no edit leaves a
- * picks listen without its set. Placing, updating and removing a set are one edit each, so one undo step.
+ * returns the input itself when an edit cannot apply (so the caller records nothing). From a valid show the result is valid.
  */
 import type { Listen, Pivot, Region } from '../../widgets/types';
 import { matchMarks, type Mark } from './melody';
 import type { PickNote } from './note-values';
 import {
-  DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_CLIP, freeTrack, isListen, nextClipId, overlaps, picksId, picksListen, repairPickNotes, repairPivots, repairRegion, topTrack,
-  type Clip, type KnobSetting, type PickSet, type Show, type Span,
+  DEFAULT_FADE, LONGEST_STEP, MAX_FADE, MAX_PIVOTS, MIN_CLIP, clipEnums, freeTrack, isListen, nextClipId, overlaps, picksId, picksListen, repairPickNotes, repairPivots, repairRegion, topTrack,
+  type Clip, type ClipEnumKey, type ClipEnums, type KnobSetting, type PickSet, type Show, type Span,
 } from './show';
 
-export type ClipPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; intensityMoves?: 'present' | null; thin?: 'loud' | null; fade?: number | null };
+export type ClipPatch = { listen?: Listen | null; region?: Region | null; intensity?: Pivot[] | null; fade?: number | null } & { [K in ClipEnumKey]?: ClipEnums[K] | null };
 
 export type ShowEdit =
   /** A new clip; without a track, on top of what plays over its span. */
@@ -246,14 +234,11 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
         if (p.region === null) delete next.region;
         else { const r = repairRegion(p.region); if (!r) return show; next.region = r; }
       }
-      if (p.intensityMoves !== undefined) {
-        if (p.intensityMoves === null) delete next.intensityMoves;
-        else if (p.intensityMoves === 'present') next.intensityMoves = p.intensityMoves;
-        else return show;
-      }
-      if (p.thin !== undefined) {
-        if (p.thin === null) delete next.thin;
-        else if (p.thin === 'loud') next.thin = p.thin;
+      for (const [k, allowed] of clipEnums) {
+        const v = p[k];
+        if (v === undefined) continue;
+        if (v === null) delete next[k];
+        else if (allowed.includes(v)) Object.assign(next, { [k]: v });
         else return show;
       }
       if (p.intensity !== undefined) {

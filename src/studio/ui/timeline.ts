@@ -1,12 +1,6 @@
 /**
- * The timeline, as in DJ software: the song's loudness as a silhouette with the attacks as ticks beneath and its
- * structure marks over it (click or drag there to move the playhead); below it the clips on their tracks, the top track
- * drawn last, as you see them. Drag a clip to move it, across tracks too, drag its edges to resize it, click to select,
- * double-click to go to it. It snaps to beats, clip edges and the marks (the Snap button, or Alt, turns that off). Under
- * them the selected clip's intensity lane (lanes.ts).
- *
- * The x axis zooms, as the note picker's does: Ctrl-scroll where the pointer is, the +/− buttons or keys, scroll to move,
- * a strip of the whole song to drag. The lane follows the same view.
+ * The timeline, as in DJ software: the song's loudness, attacks and structure marks over the clips on their tracks (move,
+ * resize, select), with the selected clip's intensity lane (lanes.ts) below; the x axis zooms as the note picker's does.
  */
 import type { Mark } from '../show/marks';
 import type { SongPack } from '../pack/pack';
@@ -17,7 +11,8 @@ import { studioLayers } from '../../widgets/layers-source';
 import type { Chord } from '../../widgets/types';
 import { duplicateSelected, removeSelected, selectedClip, splitAt } from './clip-actions';
 import { clipViewTime } from './clip-panel';
-import { mountLanes, listenWord, type Lanes } from './lanes';
+import { partWords } from './layer-controls';
+import { mountLanes, type Lanes } from './lanes';
 import { moveView, zoomView, type View } from './picker-logic';
 import type { Store, StudioState } from './store';
 import { handleWidth, rowCount, snapMove, snapPoint, snapTargets, trackAtHeight } from './timeline-logic';
@@ -74,8 +69,6 @@ interface Deps {
   howPresent?: (id: string) => boolean;
   /** Opens the way to add a widget at the playhead. */
   add(): void;
-  /** Fills an empty timeline with a composed show. */
-  compose(): void;
 }
 
 export class Timeline {
@@ -125,7 +118,7 @@ export class Timeline {
       <div class="tl-top"><div class="scrub" title="Click or drag to move the playhead. Ctrl-scroll zooms."><canvas class="wave"></canvas><div class="ghost"></div>
         <div class="tl-zoom" role="group" aria-label="Zoom the timeline"><button type="button" data-z="-1" aria-label="Zoom out" title="Zoom out (−)">−</button><button type="button" data-z="1" aria-label="Zoom in" title="Zoom in (+)">+</button><button type="button" data-z="0" title="Show the whole song (0)">Whole song</button></div></div>
       <div class="tracks-scroll"><div class="tracks" role="listbox" aria-label="Clips on the timeline"><div class="tl-marks"></div><div class="tl-snap" hidden></div></div>
-        <div class="tracks-empty" hidden><p>Nothing placed yet. Add a widget: it lands at the playhead.</p><p><button type="button" data-tl="add">Add widget</button> <button type="button" data-tl="compose" title="A show made from the song's structure and your verdicts. One undo takes it away.">Compose a show for me</button></p></div>
+        <div class="tracks-empty" hidden><p>Nothing placed yet. Add a widget: it lands at the playhead.</p><p><button type="button" data-tl="add">Add widget</button></p></div>
       </div><div class="playhead"></div><div class="tip" hidden></div></div>
       <div class="tl-over" hidden title="The whole song: drag to move the view"><div class="tl-win"></div><div class="tl-at"></div></div><div class="lanes-host"></div>`;
     this.wave = this.el.querySelector('.wave')!;
@@ -212,7 +205,6 @@ export class Timeline {
       const b = (e.target as Element).closest<HTMLElement>('[data-tl]');
       switch (b?.dataset.tl) {
         case 'add': this.d.add(); break;
-        case 'compose': this.d.compose(); break;
         case 'duplicate': duplicateSelected(store); break;
         case 'split': splitAt(store, time()); break;
         case 'remove': removeSelected(store); break;
@@ -228,7 +220,7 @@ export class Timeline {
   private syncBar(s: StudioState): void {
     const sel = selectedClip(s), locked = s.ui.recording;
     const on = (name: string, enabled: boolean) => this.el.querySelectorAll<HTMLButtonElement>(`[data-tl="${name}"]`).forEach((b) => { b.disabled = !enabled; });
-    on('add', !locked); on('compose', !locked); on('duplicate', !!sel && !locked); on('remove', !!sel && !locked);
+    on('add', !locked); on('duplicate', !!sel && !locked); on('remove', !!sel && !locked);
     this.syncSplit(s);
     this.el.querySelector('[data-tl="snap"]')!.setAttribute('aria-pressed', String(this.snap));
     this.el.querySelector('.tl-hint')!.textContent = sel ? `${this.d.names(sel.widget)}: drag to move, its edges to resize` : '';
@@ -382,7 +374,7 @@ export class Timeline {
 
   private placeClip(el: HTMLElement, c: Clip, on: boolean, span: number, width: number): void {
     const { a } = this.view, px = ((c.end - c.start) / span) * width, name = this.d.names(c.widget);
-    const words = c.listen && c.listen !== 'all' ? `${name} · ${listenWord(c.listen)}` : name, f = edgeSeconds(c) / (c.end - c.start) * 100;
+    const words = c.listen && c.listen !== 'all' ? `${name} · ${partWords(c.listen)}` : name, f = edgeSeconds(c) / (c.end - c.start) * 100;
     el.classList.toggle('on', on);
     el.setAttribute('aria-selected', String(on));
     el.style.left = `${this.pc(c.start)}%`;

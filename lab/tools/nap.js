@@ -1,6 +1,6 @@
 // Nap: the black canvas is velvet. Each note strokes one long tilted band of pile into it, with toothed edges of cut fibre and a
 // burst of bone hairs on its attack step. Stroking the same note again turns its band off; where bands cross the pile cancels to black.
-// Drawn statelessly from CHORDS (docs/mockups/nature/plans/nap.md). No SNAP block: the body is a held field, not an envelope.
+// Drawn statelessly from CHORDS. No SNAP block: the body is a held field, not an envelope.
 (() => {
   const HOLD = 0.033, BONE = [236, 226, 208];
   const flash = (t) => t < 0 ? 0 : t < HOLD ? 1 : Math.pow(0.5, (t - HOLD) / 0.06);   // used only to pick the attack steps (flash === 1)

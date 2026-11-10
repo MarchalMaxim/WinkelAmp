@@ -4,8 +4,7 @@ import { loadLayers } from '../scripts/node/layers';
 import type { WaLayers } from '../src/widgets/layers';
 import type { Persist, Region } from '../src/widgets/types';
 
-// The pure parts of lab/layers/region.js (plan Task 5). buildMask draws with canvas operations, so it is looked at in a
-// browser by scripts/checks/region-masks.mjs, which also compares its pixels to featherAlpha and vis.
+// The pure parts of lab/layers/region.js . buildMask draws with canvas operations, so no unit test covers it.
 // maskStops is region.js's own helper (the gradient stops buildMask bakes), not part of WaLayers.
 const WA = loadLayers() as WaLayers & { maskStops(feather: number, cls: Persist): [number, number][] };
 const R = (o: Partial<Region> = {}): Region => ({ mode: 'window', shape: 'rect', x: 0.5, y: 0.5, w: 0.5, h: 0.5, ...o });

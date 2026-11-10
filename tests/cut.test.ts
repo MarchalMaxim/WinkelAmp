@@ -1,10 +1,11 @@
 // Cut (nature widgets, 2026-11-06): slabs erode only on later attacks. Knobs, the lazily baked stages and their corner-first masks, the attack step, stillness between
-// notes, stage counts, silence, determinism and seek. Plan: docs/mockups/nature/plans/cut.md.
+// notes, stage counts, silence, determinism and seek.
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const SRC = readFileSync(new URL('../lab/tools/cut.js', import.meta.url), 'utf8');
@@ -43,7 +44,7 @@ function play(knobs: Record<string, number> = {}, secs = 12, { throwRandom = fal
       return c;
     },
   };
-  const tool = instantiate('cut', SRC, { icon: ICON, chords });
+  const tool = instantiate('cut', SRC, { kit: kit(), icon: ICON, chords });
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   let sd = 7;
   const rnd = (a = 0, b = 1) => { sd = (sd + 0x6D2B79F5) | 0; let t = Math.imul(sd ^ (sd >>> 15), 1 | sd); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return a + (b - a) * (((t ^ (t >>> 14)) >>> 0) / 4294967296); };

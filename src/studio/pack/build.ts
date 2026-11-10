@@ -29,7 +29,7 @@ export interface BuildInput {
    * they stand in for YourMT3's everywhere, which then only counts as having run. `keyboard` says whose the piano lane is.
    */
   muscriptor?: { rows: Ymt3Row[]; levels: number[]; model: string; seconds: number; instruments: string[]; keyboard: 'ymt3' | 'muscriptor' | null } | null;
-  /** Forced by --kind; else spec Decisions 1. */
+  /** Forced by --kind. */
   kind?: 'piano' | 'ensemble';
   /** auto: by kind; hybrid: gap-fill whatever the kind; ymt3: YourMT3's notes alone. */
   notesMode?: 'auto' | 'hybrid' | 'ymt3';
@@ -37,7 +37,7 @@ export interface BuildInput {
 
 /** Below this share of the attacks heard, a transcription is filled in with approximate notes (a non-piano recording). */
 export const MIN_COVERAGE = 0.35;
-/** YourMT3's piano share at or above which a song is solo piano (spec Decisions 1). */
+/** YourMT3's piano share at or above which a song is solo piano. */
 export const PIANO_SHARE = 0.6;
 /** Without YourMT3: the piano model's onset coverage at or above which a song is solo piano. */
 export const PIANO_COVERAGE = 0.6;
@@ -65,7 +65,7 @@ export function buildPack(i: BuildInput): SongPack {
   const ymt3Notes: Note[] = est ? rows.map((r, k): Note => [r[0], r[1], r[2], est.vel[k]]) : [];
   const hasY = ymt3Notes.length > 0;
 
-  // Spec Decisions 1: YourMT3's labels decide; without them, the piano model's coverage; without either, undecided.
+  // YourMT3's labels decide; without them, the piano model's coverage; without either, undecided.
   const kind: SongPack['kind'] = i.kind
     ?? (hasY && share !== null ? (share >= PIANO_SHARE ? 'piano' : 'ensemble')
       : pianoCoverage !== null ? (pianoCoverage >= PIANO_COVERAGE ? 'piano' : 'ensemble') : undefined);

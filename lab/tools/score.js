@@ -202,7 +202,7 @@
       { key: 'weight', label: 'weight of the ink', min: 0.4, max: 2.4, value: 1, drive: '+level',
         hint: 'How heavy the pen is. Left: fine hairlines and small dots. Right: thick beams and big black marks.',
         icon: (g, v, w, h) => { const lw = 0.6 + v * 4.4; ICON.rect(g, 13, h / 2 - lw / 2, w - 17, lw); ICON.dot(g, 9, h / 2, 1.6 + v * 4); } },
-      { key: 'paper', label: 'night or paper', min: 0, max: 1, step: 1, value: 1,
+      { key: 'paper', perNote: false, label: 'night or paper', min: 0, max: 1, step: 1, value: 1,
         hint: 'The page. Left: pale ink on black, like chalk at night. Right: black ink on bone paper, like a printed score.',
         icon: (g, v, w, h) => { const night = v < 0.5, bg = night ? '#0d0c0b' : '#e9e1cf', ink = night ? '#e6dcca' : '#16130f';
           ICON.rect(g, 2, 2, w - 4, h - 4, bg); if (night) { g.strokeStyle = '#4a4038'; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); }

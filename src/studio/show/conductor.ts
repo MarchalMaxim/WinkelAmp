@@ -16,7 +16,7 @@ import { hasHowPresent, instanceKey, listenOf, picksId, sortedClips, widgetOfKey
 
 /** A slot with its layer. */
 export type ShowSlot = Slot & { layer?: SlotLayer };
-/** What the Conductor needs of a runtime: RuntimeLike, with load taking instance specs and slots their layers (§6). */
+/** What the Conductor needs of a runtime: RuntimeLike, with load taking instance specs and slots their layers. */
 export interface ShowRuntime extends Omit<RuntimeLike, 'load' | 'step'> {
   load(specs: readonly (string | InstanceSpec)[]): void;
   step(t: number, dt: number, slots: readonly ShowSlot[]): void;
@@ -30,11 +30,6 @@ export function showInstances(show: Show): InstanceSpec[] {
     return { key: instanceKey(c), widget: c.widget, ...(listen !== undefined ? { listen } : {}), own: listen !== undefined || !!c.intensity?.length,
       ...(id !== null ? { notes: heardPicks(show.picks?.[id]?.notes ?? []) } : {}) };
   });
-}
-
-/** The instance keys of a show, in that order. */
-export function showWidgets(show: Show): string[] {
-  return showInstances(show).map((s) => s.key);
 }
 
 /** The layer a slot carries, or undefined when the clip has no curve and no region (today's path). moved: its curve moves
@@ -90,20 +85,21 @@ function previewSteps(t: number, w: Warmup): { t0: number; times: number[] } {
 }
 
 /** What the widgets are given at x: who plays, how strongly, with which knobs, what they hear, where and how intensely. */
-const scheduleKey = (show: Show, x: number, own: ReadonlySet<string>) => JSON.stringify(scheduleAt(show, x).map((w) =>
-  [w.id, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w), w.moves]));
+type MetaOf = Parameters<typeof scheduleAt>[2];
+const scheduleKey = (show: Show, x: number, own: ReadonlySet<string>, meta?: MetaOf) => JSON.stringify(scheduleAt(show, x, meta).map((w) =>
+  [w.id, w.weight, w.knobs, w.listen, own.has(w.id), slotLayer(w), w.intensityMoves]));
 const ownKeys = (show: Show): Set<string> => new Set(showInstances(show).filter((s) => s.own).map((s) => s.key));
 
 /** Would preview(t) (QUICK or SETTLED) draw the same picture for show b as for show a? It compares what the Conductor would
     hand the runtime at the reset and at every preview step (and who it resets on the way), so an edit to a clip the preview
     does not reach leaves a paused picture as it is. Picks are not in the schedule, so any change of them counts. */
-export function samePreview(a: Show, b: Show, t: number): boolean {
+export function samePreview(a: Show, b: Show, t: number, meta?: MetaOf): boolean {
   if (a === b) return true;
   if (a.picks !== b.picks && JSON.stringify(a.picks) !== JSON.stringify(b.picks)) return false;
   const ownA = ownKeys(a), ownB = ownKeys(b);
   for (const w of [QUICK, SETTLED]) {
     const { t0, times } = previewSteps(t, w);
-    for (const x of [t0, ...times]) if (scheduleKey(a, x, ownA) !== scheduleKey(b, x, ownB)) return false;
+    for (const x of [t0, ...times]) if (scheduleKey(a, x, ownA, meta) !== scheduleKey(b, x, ownB, meta)) return false;
     if (JSON.stringify(entriesBetween(a, t0, t)) !== JSON.stringify(entriesBetween(b, t0, t))) return false;
   }
   return true;
@@ -121,7 +117,7 @@ export class Conductor implements Stepper {
   private widgetOf = new Map<string, string>();
 
   /** meta: by widget id. marks: the times of the song's structure marks, sorted: what ctx.moment follows. */
-  constructor(private readonly rt: ShowRuntime, show: Show, private readonly meta: (widget: string) => WidgetMeta | undefined,
+  constructor(private readonly rt: ShowRuntime, show: Show, readonly meta: (widget: string) => WidgetMeta | undefined,
     private readonly marks: readonly number[] = []) {
     this.show = show;
     const specs = showInstances(show);
@@ -137,7 +133,7 @@ export class Conductor implements Stepper {
     const was = new Set(clipsAt(this.show, this.lastT).map(instanceKey));
     this.show = show;
     this.load(showInstances(show));
-    const playing = scheduleAt(show, this.lastT);
+    const playing = scheduleAt(show, this.lastT, this.meta);
     for (const w of playing) if (!was.has(w.id)) { this.applyKnobs(w.id, w.knobs); this.rt.resetWidget(w.id); }
     for (const w of playing) this.applyKnobs(w.id, this.knobsAt(w, this.lastT));
   }
@@ -146,7 +142,7 @@ export class Conductor implements Stepper {
   reset(t: number): void {
     const show = this.show;
     this.setMomentAt(t);   // before reset(): lewitt's reset() remembers the moment
-    const playing = scheduleAt(show, t);
+    const playing = scheduleAt(show, t, this.meta);
     for (const w of playing) this.applyKnobs(w.id, w.knobs);   // a reset may read a knob: it gets what a note holds at t, not yet a curve's
     this.rt.reset(t);
     this.lastT = t;
@@ -154,7 +150,7 @@ export class Conductor implements Stepper {
   }
 
   step(t: number, dt: number): void {
-    const show = this.show, playing = scheduleAt(show, t);
+    const show = this.show, playing = scheduleAt(show, t, this.meta);
     for (const e of entriesBetween(show, this.lastT, t)) {
       const w = playing.find((p) => p.id === e.id);
       if (w) this.applyKnobs(w.id, w.knobs);
@@ -183,7 +179,7 @@ export class Conductor implements Stepper {
 
   /** Whether a clip's curve moves how present: asked for, and the widget has the slider. */
   private moved(w: ScheduledWidget): boolean {
-    const m = w.moves ? this.meta(w.widget) : undefined;
+    const m = w.intensityMoves === 'present' ? this.meta(w.widget) : undefined;
     return !!m && hasHowPresent(m.params);
   }
 

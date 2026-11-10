@@ -3,8 +3,8 @@ import { DescriptorExtractor, MAG_POWER_TO_RMS, groupHarmonics, keyEstimate, rou
 import { emptyFeatures } from '../src/audio/features';
 import { SpectrumAnalyser } from '../src/audio/fft';
 import { AnalysisChain, analyzeOffline } from '../src/audio/offline';
-import { PcmRing } from '../src/audio/pcm';
-import type { Descriptors } from '../src/character/types';
+import { ArrayPcm } from '../src/audio/pcm';
+import type { Descriptors } from '../src/audio/types';
 
 const SR = 44100;
 
@@ -71,10 +71,11 @@ describe('level & loudness', () => {
     const pcm = secs(2);
     for (let i = 0; i < pcm.length; i++) pcm[i] = amp * Math.sin((2 * Math.PI * 997 * i) / SR);
     const chain = new AnalysisChain();
-    const ring = new PcmRing(SR);
-    ring.write(pcm);
-    const src = { sampleRate: SR, written: pcm.length, latest: (o: Float32Array) => ring.latest(o), copyEndingAt: (e: number, o: Float32Array) => ring.copyEndingAt(e, o) };
-    for (let h = 1; h <= 100; h++) chain.runHop(src, Math.round((h * SR) / 60));
+    const src = new ArrayPcm(pcm, SR);
+    for (let h = 1; h <= 100; h++) {
+      src.written = Math.round((h * SR) / 60);
+      chain.runHop(src, src.written);
+    }
     expect(chain.descriptorExtractor.debug.dbfs).toBeCloseTo(-20, 0);
     // Without PCM (magnitudes only), the same within ~0.5 dB.
     const ex = new DescriptorExtractor();
@@ -345,36 +346,6 @@ describe('one code path, any frame rate, any sample rate', () => {
     for (const k of Object.keys(a) as (keyof Descriptors)[]) {
       expect(Number.isFinite(b[k])).toBe(true);
       expect(Math.abs(a[k] - b[k])).toBeLessThan(0.1);
-    }
-  });
-
-  it('live stepping in irregular chunks equals offline analysis exactly', () => {
-    const pcm = piece(SR);
-    const offline = analyzeOffline(pcm, SR);
-    const chain = new AnalysisChain();
-    const ring = new PcmRing(SR);
-    const src = {
-      sampleRate: SR,
-      get written() {
-        return ring.written;
-      },
-      latest: (o: Float32Array) => ring.latest(o),
-      copyEndingAt: (e: number, o: Float32Array) => ring.copyEndingAt(e, o),
-    };
-    // Audio arrives in 128-sample quanta (worklet chunks of 512); the "display"
-    // polls at a jittery 30–165 Hz.
-    let pos = 0;
-    while (pos < pcm.length) {
-      const n = Math.min(pcm.length - pos, 512 * (1 + Math.floor(rnd() * 3)));
-      ring.write(pcm.subarray(pos, pos + n));
-      pos += n;
-      chain.step(src, 8);
-    }
-    const hops = Math.floor((pcm.length * 60) / SR);
-    // The live chain starts on the first chunk boundary, so compare the end state.
-    const last = offline.descriptors[hops - 1];
-    for (const k of Object.keys(last) as (keyof Descriptors)[]) {
-      expect(chain.descriptors[k], k).toBeCloseTo(last[k], 2);
     }
   });
 

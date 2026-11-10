@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
-/** Mono float PCM of any file ffmpeg reads (the same call as scripts/analyze-file.ts). */
+/** Mono float PCM of any file ffmpeg reads (one ffmpeg call). */
 export function decodeMono(file: string, rate = 44100): Float32Array {
   const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', String(rate), '-f', 'f32le', '-'], {
     maxBuffer: 1 << 30,

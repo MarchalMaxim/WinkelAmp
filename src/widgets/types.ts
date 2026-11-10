@@ -1,7 +1,5 @@
-/**
- * The widget contract: what `lab/tools/*.js` expect, nothing more (plan §2).
- * Song packs (T1) need only the note; the runtime's types join it here.
- */
+/** The widget contract: what `lab/tools/*.js` expect, and the types the runtime and the studio share. */
+import type { FeatureKey } from './features';
 
 /** A transcribed note, as the lab's `window.NOTES`: song seconds, MIDI pitch, velocity 0..127. */
 /** amount: only on a picked note, set by hand: how strongly it counts, 0..2, its velocity already scaled by it. Absent: 1. */
@@ -9,8 +7,8 @@ export type Note = [start: number, end: number, midi: number, vel: number, amoun
 /** One attack: notes whose onsets fall within 40 ms of the first one (the lab's CHORDS entry). */
 export interface Chord { t: number; notes: { m: number; v: number; d: number; amount?: number }[]; vel: number; lo: number; hi: number }
 export interface SoundingNote { m: number; v: number; start: number; end: number }
-export type Drive = '' | '+level' | '-level' | '+rate' | '-rate' | '+pitch' | '-pitch' | '+bass' | '-bass' | '+density' | '-density' | '+hit' | '-hit'
-  | '+loud' | '-loud' | '+pace' | '-pace' | '+rel' | '-rel';
+/** What a knob follows: '' (fixed) or a feature with its sign (FEATURE_KEYS in features.ts). */
+export type Drive = '' | `${'+' | '-'}${FeatureKey}`;
 export interface Param {
   key: string; label?: string; min: number; max: number; step?: number; value: number; drive?: Drive;
   hint?: string; icon?: (g: CanvasRenderingContext2D, v: number, w: number, h: number) => void;
@@ -18,6 +16,8 @@ export interface Param {
   leads?: boolean;
   /** Follows how present: the value at the slider's left end; at the right end it is `value`. */
   less?: number;
+  /** false: a picked note may not set it (it restarts or wipes the widget, or replays the past with one value). */
+  perNote?: boolean;
 }
 export interface ToolDef {
   id: string; name: string; blurb?: string; tag?: string; on?: boolean; params?: Param[];
@@ -27,7 +27,7 @@ export interface ToolDef {
     loud: the recording's loudness; pace: how busy the attacks are around now; rel: how much louder than the seconds
     around it the recording is (src/widgets/curves.ts). All three are read from curves at the step's song time, not
     built up step by step. */
-export interface Features { level: number; rate: number; pitch: number; bass: number; density: number; hit: number; loud: number; pace: number; rel: number }
+export type Features = Record<FeatureKey, number>;
 /** The lab's PST entry for one knob. */
 export interface KnobState { base: number; drive: Drive; depth: number }
 export type KnobMap = Record<string, KnobState>;
@@ -53,23 +53,30 @@ export interface WidgetCtx {
   p(key: string): number | undefined;
 }
 
+export type Kit = Record<string, any>;
 export type IconLib = Record<string, any> & { ink: string; gauge(g: CanvasRenderingContext2D, v: number, w: number, h: number): void };
 export interface Verdict { v: 'love' | 'keep' | 'needs work' | 'drop'; on: string; note?: string }
 /** A section start in the lab's SONGS: song s, mood name (what ctx.moment holds), button label. */
 export type LabMoment = [start: number, mood: string, label?: string];
-export interface LabSong { title: string; audio?: string; notes: string; dur: number; moments: LabMoment[] }
-export interface LabHarness { toolIds: string[]; verdicts: Record<string, Verdict>; drives: [Drive, string][]; iconSource: string }
+export interface LabSong { title: string; audio?: string; notes: string; dur: number; moments: LabMoment[];
+  /** The song's pack data for the lab: lab/pack-<id>.js, written by `npm run lab-notes -- <id>` (git-ignored), sets window.PACK = { tracks, beats, loudness, energy? }. */
+  pack?: string }
+export interface LabHarness { order: string[]; verdicts: Record<string, Verdict>; drives: [Drive, string][]; songs: Record<string, LabSong>; makeIcon(): IconLib;
+  /** lab/kit.js's window.KIT, handed to every widget like ICON. */
+  kit: Kit }
 export interface WidgetMeta { id: string; name: string; blurb: string; tag: string; verdict: Verdict | null; params: Omit<Param, 'icon'>[];
-  /** lab/tags.json's entry (T6); absent or null: untagged */
+  /** lab/tags.json's entry; absent or null: untagged */
   tags?: WidgetTags | null }
 
-// Instruments, regions and intensity (plan 2026-10-31-instruments-regions-automation-hd §1).
+// Instruments, regions and intensity.
 
-/** A line derived from the notes at run time. */
-export type Line = 'melody' | 'bassline' | 'inner' | 'low' | 'high' | 'accents';
+/** The lines derived from the notes at run time, and the instrument families: the one list each type comes from. */
+export const LINES = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'] as const;
+export const FAMILIES = ['keys', 'plucked', 'strings', 'winds', 'brass', 'percussion', 'voice'] as const;
+export type Line = (typeof LINES)[number];
 /** A kind of note a rule finds in the notes at run time (lab/layers/lines.js). A Listen too. */
 export type NoteType = 'chords' | 'runs' | 'trills' | 'long' | 'repeats' | 'rolls';
-export type Family = 'keys' | 'plucked' | 'strings' | 'winds' | 'brass' | 'percussion' | 'voice';
+export type Family = (typeof FAMILIES)[number];
 export type TrackId = 'piano' | 'plucked' | 'violin' | 'viola' | 'cello' | 'contrabass' | 'strings' | 'timpani' | 'voice'
   | 'horn' | 'trumpet' | 'trombone' | 'brass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'saxophone';
 /** 'all' | a TrackId | `family:${Family}` | a Line | `picks:${id}`. Absent = 'all'. */

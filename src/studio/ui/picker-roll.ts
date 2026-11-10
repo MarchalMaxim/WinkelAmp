@@ -1,5 +1,5 @@
 /**
- * The note picker's roll and whole-song strip (spec 2026-11-01-note-picker). The bars sit on a cached canvas, redrawn only
+ * The note picker's roll and whole-song strip. The bars sit on a cached canvas, redrawn only
  * when the view, the marks, the hidden instruments or the sets change; the playhead, the hover and the box on a canvas above
  * it, so playing costs next to nothing even on the Four Seasons. The strip is cached too.
  */

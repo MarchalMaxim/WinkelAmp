@@ -202,7 +202,7 @@
     blurb: 'One white key for each picked note, standing up like a bar chart: where it stands and how tall both follow the pitch, and the same note played again stands beside the first. They stay. On the last note of the climb, or of the descent if the line falls, the ground takes a very faint crater and a ripple runs out of it through the keys. Any notes picked after that press the keys back into the ground one by one, tallest first; two seconds after the last note everything ages and is gone, for good. Made for a line of notes picked by hand.',
     plan: planOf,
     params: [
-      { key: 'floor', label: 'where the crater is', min: 0, max: 1, step: 1, value: 0,
+      { key: 'floor', perNote: false, label: 'where the crater is', min: 0, max: 1, step: 1, value: 0,
         hint: 'Left: round, behind the keys, as if you look down at the ground. Right: a flat oval on the floor under them.',
         icon: (g, v, w, h) => { g.beginPath(); g.ellipse(w / 2, h / 2 + v * 6, w * 0.32, h * 0.38 * (1 - v * 0.7), 0, 0, 6.3); g.strokeStyle = ICON.ink; g.stroke(); } },
       { key: 'crater', label: 'how deep the crater is', min: 0, max: 1, value: 0.35,
@@ -211,7 +211,7 @@
       { key: 'ripple', label: 'how far the ripple shifts them', min: 0, max: 8, value: 2.6,
         hint: 'How far the slices of a key move as the ripple goes through. Left: not at all. Right: they shake. On a note: only from the last note on.',
         icon: (g, v, w, h) => ICON.wave(g, w, h, v, 3, ICON.ink, 1.5) },
-      { key: 'cracks', label: 'how many cracks', min: 0, max: 8, value: 1.5,
+      { key: 'cracks', perNote: false, label: 'how many cracks', min: 0, max: 8, value: 1.5,
         hint: 'Hairline cracks on each key. Left: spotless. Right: well worn.',
         icon: (g, v, w, h) => ICON.lines(g, Math.round(v * 6), w, h, { dir: 'v' }) },
       { key: 'strike', label: 'how hard the keys strike', min: 0, max: 1, value: 0,

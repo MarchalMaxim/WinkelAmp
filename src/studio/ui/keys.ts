@@ -1,5 +1,5 @@
 /**
- * The studio's keys (plan §7): Space play/pause · ←/→ ∓5 s · Shift+←/→ the previous/next mark or clip start · F full
+ * The studio's keys: Space play/pause · ←/→ ∓5 s · Shift+←/→ the previous/next mark or clip start · F full
  * screen · H hide the controls · S split at the playhead · Delete (or Backspace) remove the selected clip · Ctrl+D
  * duplicate it · Esc let go of it · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+S save · Ctrl+P find a widget · +/− zoom
  * the timeline, 0 the whole song. Ignored while typing; arrows are left to a focused slider or list.

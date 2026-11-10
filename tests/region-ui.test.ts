@@ -1,5 +1,5 @@
 // lab/region-ui.js as the studio evaluates it: the global stays untouched, and tidy() gives regions the show keeps
-// (validator ranges, −180..180°, four decimals). The gestures themselves run in a browser: npm run overlay-check.
+// (validator ranges, −180..180°, four decimals). The gestures themselves need a browser.
 import { describe, expect, it } from 'vitest';
 import { repairRegion } from '../src/studio/show/show';
 import { CANVAS_READERS, regionUi } from '../src/studio/ui/region-overlay';

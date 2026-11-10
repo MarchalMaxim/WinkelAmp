@@ -1,69 +1,78 @@
 /// <reference types="node" />
 import { existsSync, readFileSync } from 'node:fs';
+import { createContext, runInContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { LAB_FIRST_MOMENT, makeIcon, momentAt, readLabHarness, readLabSongs } from '../src/widgets/lab-harness';
+import { evalLabHarness, LAB_FIRST_MOMENT, momentAt, widgetOrder } from '../src/widgets/lab-harness';
 import { labRandom } from '../src/widgets/random';
 
 const ROOT = new URL('../', import.meta.url);
 const HTML = readFileSync(new URL('lab/index.html', ROOT), 'utf8');
+const HARNESS = readFileSync(new URL('lab/harness.js', ROOT), 'utf8');
+const KIT_SRC = readFileSync(new URL('lab/kit.js', ROOT), 'utf8');
 
-describe('readLabHarness (the real lab/index.html)', () => {
-  const h = readLabHarness(HTML);
+describe('evalLabHarness (the real lab/harness.js)', () => {
+  const h = evalLabHarness(HARNESS, KIT_SRC);
 
-  it('reads TOOL_IDS in card order, each with a file', () => {
-    // relative order (the lab puts new widgets in front of these)
-    expect(['harmonograph', 'kline', 'score'].map((id) => h.toolIds.indexOf(id))).toEqual(
-      ['harmonograph', 'kline', 'score'].map((id) => h.toolIds.indexOf(id)).sort((a, b) => a - b));
-    expect(h.toolIds.indexOf('harmonograph')).toBeGreaterThanOrEqual(0);
-    expect(h.toolIds).toContain('casket');
-    for (const id of h.toolIds) expect(existsSync(new URL(`lab/tools/${id}.js`, ROOT)), id).toBe(true);
+  it('lists the widgets that have an order, each with a file', () => {
+    expect(h.order).toContain('casket');
+    for (const id of h.order) expect(existsSync(new URL(`lab/tools/${id}.js`, ROOT)), id).toBe(true);
   });
 
   it('reads the verdicts', () => {
     expect(h.verdicts.casket.v).toBe('love');
-    expect(h.verdicts.pixelsort.v).toBe('keep');
   });
 
   it('reads the drives with their words', () => {
-    expect(h.drives.length).toBe(19);
     expect(h.drives[0]).toEqual(['', 'fixed']);
     expect(h.drives).toContainEqual(['+density', 'fuller chords → more']);
-    expect(h.drives).toContainEqual(['+hit', 'each note → jump']);
     expect(h.drives).toContainEqual(['+rel', 'louder than around it → more']);
   });
 
-  it('builds the ICON library from its source', () => {
-    const icon = makeIcon(h.iconSource);
-    for (const k of 'dot ring square rect line arrow lines dots wave blur alpha palette pie fade shake keys trail glyph shape gauge rng lerp'.split(' '))
-      expect(typeof icon[k], k).toBe('function');
+  it('makes a fresh ICON library each time', () => {
+    const icon = h.makeIcon();
+    expect(typeof icon.gauge).toBe('function');
     expect(typeof icon.of.size).toBe('function');
     expect(icon.ink).toBe('#e9e2da');
+    expect(h.makeIcon()).not.toBe(icon);
   });
 
-  it('names a missing block', () => {
-    expect(() => readLabHarness('<html></html>')).toThrow(/TOOL_IDS/);
-  });
-});
-
-describe('readLabSongs (the real lab/index.html)', () => {
-  const songs = readLabSongs(HTML);
-
-  it('reads both songs with their notes file, length and moments', () => {
+  it('reads the songs with their notes file, length and moments', () => {
+    const songs = h.songs;
     expect(songs.prelude.notes).toBe('notes.js');
     expect(songs.prelude.dur).toBeCloseTo(232.1);
     expect(songs.prelude.moments).toContainEqual([124, 'casket', 'The casket']);
-    expect(songs.prelude.moments).toContainEqual([208, 'agitato']);
     expect(songs.b5.notes).toBe('notes-b5.js');
     expect(songs.b5.moments[0]).toEqual([0, 'casket', 'Fate knocks']);
   });
 
-  it('names a missing block', () => {
-    expect(() => readLabSongs('<html></html>')).toThrow(/SONGS/);
+  it('runs in a vm realm whose global is window, and sets only window.LAB', () => {
+    const ctx = createContext({ document: {} } as Record<string, unknown>);
+    runInContext('this.window = this;', ctx);
+    runInContext(HARNESS, ctx);
+    const lab = (ctx as { window: { LAB: Record<string, unknown> } }).window.LAB;
+    expect(Object.keys(lab).sort()).toEqual(['DRIVES', 'ORDER', 'SONGS', 'VERDICTS', 'makeIcon']);
+    expect(Object.keys(ctx).sort()).toEqual(['LAB', 'document', 'window']);
+  });
+
+  it('names what is wrong', () => {
+    expect(() => evalLabHarness('', KIT_SRC)).toThrow(/window.LAB/);
+    expect(() => evalLabHarness(HARNESS.replace("pack: 'pack-prelude.js'", 'pack: 7'), KIT_SRC)).toThrow(/SONGS.prelude.pack/);
+    expect(() => evalLabHarness(HARNESS.replace("pack: 'pack-prelude.js'", "pack: '../x.js'"), KIT_SRC)).toThrow(/SONGS.prelude.pack/);
   });
 
   it('the first moment the lab holds before any step', () => {
     expect(LAB_FIRST_MOMENT).toBe('dread');
     expect(HTML).toMatch(/moment: 'dread',/);
+  });
+});
+
+describe('widgetOrder', () => {
+  it('puts the ordered ids that exist first, then the rest by name', () => {
+    expect(widgetOrder(['b', 'gone', 'a'], ['z', 'a', 'c', 'b'])).toEqual(['b', 'a', 'c', 'z']);
+  });
+  it('lists an id once and accepts any iterable', () => {
+    expect(widgetOrder(['a', 'a'], new Set(['a', 'b']))).toEqual(['a', 'b']);
+    expect(widgetOrder([], [])).toEqual([]);
   });
 });
 

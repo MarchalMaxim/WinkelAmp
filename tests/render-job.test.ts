@@ -69,7 +69,7 @@ describe('render-show lines (the shapes render-show keeps for this job)', () => 
   });
 });
 
-describe('the HD render job (plan §10)', () => {
+describe('the HD render job', () => {
   let job = '';
 
   it('a POST from elsewhere is refused, and so is a GET of the jobs', async () => {

@@ -1,9 +1,9 @@
 /**
- * The studio's dev API (plan §8): a Vite plugin, dev only, so the studio can list songs, read packs and audio, and
- * read and save shows and their descriptions on disk. The static build has none of this (the studio then saves by
- * download). Writes come only from this machine (the dev server listens on the LAN: server.host is true).
+ * The studio's dev API: a Vite plugin, dev only, so the studio can list songs, read packs and audio, and
+ * read and save shows and their descriptions on disk. Writes come only from this machine (the dev server listens on the LAN: server.host is true).
  *
  *   GET  /api/health                      { ok: true, api: 1 }
+ *   GET  /api/widgets                     the ids of lab/tools/*.js in load order (the lab's order hint first, then by name)
  *   GET  /api/songs                       { songs: LibraryEntry[] } (an invalid pack is listed with `error`)
  *   PUT  /api/songs/<id>?name=<file>      the audio (≤ 1 GB) → songs/<id>/audio.<ext>
  *   PUT  /api/songs/<id>/pack             validatePack, else 400 { errors }
@@ -15,9 +15,9 @@
  *   GET  /api/melodies/<song>             the song's marked melody; an empty one (not a 404) when it has no file
  *   PUT  /api/melodies/<song>             validateMelody, for this song, else 400 { errors }; writes canonicalMelody, 204
  *   GET  /songs/<id>/pack.json|audio.*    from the songs dir (WINKELAMP_SONGS too), with byte ranges for seeking
- *   POST /api/render/<show id>?scale=2&from=&to=   an HD master job (plan §10): `npm run render-show` of the show sent
- *                                         as the body (what the studio shows, saved or not), else shows/<id>.json, else
- *                                         the one composed for the song; 202 { job }, 409 while one runs (one at a time)
+ *   POST /api/render/<show id>?scale=2&from=&to=   an HD master job: `npm run render-show` of the show sent
+ *                                         as the body (what the studio shows, saved or not), else shows/<id>.json;
+ *                                         202 { job }, 409 while one runs (one at a time)
  *   GET  /api/render/jobs                 { job: the latest | null }
  *   GET|DELETE /api/render/jobs/<job>     RenderJobView: state, progress, eta, message, files; DELETE cancels it
  *   The render routes answer only this machine, reads included: they start a long job and name files on disk.
@@ -33,7 +33,7 @@ import type { Connect, Plugin } from 'vite';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
 import { canonicalMelody, emptyMelody, validateMelody, type Melody } from '../src/studio/show/melody';
 import { canonicalShow, validateShow, type Show } from '../src/studio/show/show';
-import { loadCatalogue } from './node/catalogue';
+import { labWidgetIds, loadCatalogue } from './node/catalogue';
 import { isSlug, melodiesDir, REPO, showsDir, songsDir } from './node/pack-io';
 
 import type { LibraryEntry } from '../src/studio/ui/api';
@@ -235,8 +235,7 @@ function renderJobs(dirs: { songs: string; shows: string }, spawnRender: RenderS
     if (![1, 2, 3].includes(scale)) throw new HttpError(400, `?scale= is 1, 2 or 3, not ${scale}`);
     const from = queryNumber(url, 'from'), to = queryNumber(url, 'to');
     if (from !== undefined && to !== undefined && !(to > from)) throw new HttpError(400, `?to= (${to}) must come after ?from= (${from})`);
-    // The show: the body (what the studio shows, saved or not) in a temp file, else the saved one, else the one
-    // render-show composes for the song.
+    // The show: the body (what the studio shows, saved or not) in a temp file, else the saved one.
     let show: string, tmp: string | null = null;
     if (body.length) {
       const s = parseJson(body) as { id?: unknown } | null;
@@ -369,6 +368,7 @@ export function apiMiddleware(dirs: { songs: string; shows: string; melodies?: s
 
     const parts = path.slice('/api/'.length).split('/').map((p) => decodeURIComponent(p));
     if (parts[0] === 'health' && parts.length === 1 && method === 'GET') return send(res, 200, { ok: true, api: 1 });
+    if (parts[0] === 'widgets' && parts.length === 1 && method === 'GET') return send(res, 200, labWidgetIds());
 
     if (parts[0] === 'render') {
       if (!LOOPBACK.has(req.socket?.remoteAddress ?? '')) throw new HttpError(403, 'HD renders only from this machine');

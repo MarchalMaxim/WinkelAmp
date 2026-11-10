@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 /**
- * The region overlay on the studio's stage (plan T17): lab/region-ui.js, the same file the lab runs, evaluated here
+ * The region overlay on the studio's stage: lab/region-ui.js, the same file the lab runs, evaluated here
  * and bound to the store. It shows while the selected clip has a region, and hides with the controls or while
  * recording. Each gesture (a drag, a double-click, a held arrow) is one undo step: its edits share the group
  * `region:<clip>:<n>`, n counting gestures, since History merges a run of one group.
@@ -36,7 +36,7 @@ export function regionUi(): WaRegionUi {
   return (ui = scope.WA_REGION_UI);
 }
 
-/** The widgets that read the shared canvas: in a window they cut only their own picture (spec Decisions 6). */
+/** The widgets that read the shared canvas: in a window they cut only their own picture. */
 export const CANVAS_READERS: readonly string[] = ['casket', 'pixelsort', 'tunnel', 'blocks', 'fold', 'timeslice'];
 export const READER_HINT = 'In a window, it cuts only its own picture.';
 

@@ -10,17 +10,16 @@ Each stack is listed from the lead down.
 
 | theme | the stack | verdict | show (start s) |
 |---|---|---|---|
-| Lantern and keys | the current (a lone light) on the first melody notes, then huddled Ivory on the rising line; hammer on the off-beat chords; snap squares on the bass; fields | loved | nocturne-micro-a1 (3.0) |
-| Octave storm | fireworks on hammered ff chords; interlock on climbing or trembling bass octaves; pluck on the left-hand arpeggios; hammer through the whole falling octave melody (the user's own edit); fields | loved | nocturne-micro-a5 (216.6) |
-| Slabs and threads | milky handover on the melody's long notes; pluck on a turn; snap squares on the off-beat chords; hammer on the bass; fields | great | nocturne-micro-a2 (23.0) |
+| Lantern and keys | the current (a lone light) on the first melody notes, then huddled Ivory on the rising line; hammer on the off-beat chords; snap squares on the bass; fields | loved | nocturne-micro-a1-lantern-and-keys (3.0) |
+| Octave storm | fireworks on hammered ff chords; interlock on climbing or trembling bass octaves; pluck on the left-hand arpeggios; hammer through the whole falling octave melody (the user's own edit); fields | loved | nocturne-micro-a5-octave-storm (216.6) |
+| Slabs and threads | milky handover on the melody's long notes; pluck on a turn; snap squares on the off-beat chords; hammer on the bass; fields | great | nocturne-micro-a2-slabs-and-threads (23.0) |
 | Keys through fire | short Ivory rows, one per ff phrase; fireworks-snap on the ff chords; squares-snap on the bass octaves; fields | great | nocturne-micro-b2-fire (294.3) |
 | Keys climbing alone | huddled Ivory on a lone line; the current on its leaning notes; hammer on the far-apart low tolls; dim fields | nice | nocturne-micro-b4-climb (335.7) |
 | Bells, a flare and a sinking voice | Ivory on a broken-chord flare; handover on a slow recitative; crimp on knocking inner chords; small, calm squares-snap bells; on black | good | nocturne-micro-b3-collapse (315.2) |
 | Smoke and a lone key | gliss on each rolled chord; one long Ivory key on the roll's top note; short Ivory stacks on the plain chords between; snap squares on the bass; on black | best of three (2026-11-10) | chopin-nocturne-48-1-next-b (151) |
 | Lone light, then keys | (concerto) the current alone, then Ivory alone on black, for a solo entrance | pretty good | rach-concerto-2-full |
 
-All nocturne shows are on `claude/nocturne-micro-b-2c2dec` (micro-a merged into it). Open them as
-`/?show=<id>`.
+Open a scene with `/?show=<id>&t=<start>`.
 
 ## Rules
 

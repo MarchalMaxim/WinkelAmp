@@ -1,20 +1,20 @@
 // The lab's harness (lab/index.html) as a class: the same ctx, chord firing, feature arithmetic, shared fading canvas
-// and per-widget save/restore, so a widget draws the lab's pixels. Plan §3; the step order below is pinned.
+// and per-widget save/restore, so a widget draws the lab's pixels. The step order below is pinned.
 //
-// Instances (plan 2026-10-31 §6, spec Decisions 4 and 7): the runtime runs instances, keyed `widget` or
+// Instances: the runtime runs instances, keyed `widget` or
 // `widget@listen`. A slot with no layer whose instance keeps no pulse of its own takes today's statements, verbatim;
 // any other goes through the shared drawLayered (lab/layers/slot.js). A routed instance hears its part: it is evaluated
 // with the part's NOTES and CHORDS, gets the part's chords, and its own pulse, features and sounding notes are swapped
-// into ctx around each of its calls. A slot with a region (T15) is seen in a spot or a window (slot.js): a windowed
+// into ctx around each of its calls. A slot with a region is seen in a spot or a window (slot.js): a windowed
 // instance draws on its own canvas, through hdContext at S > 1, and reset() and resetWidget() clear it to black.
 import { groupChords, soundingAt } from './chords';
 import { makeLoudAt, makeRelAt, setCurves } from './curves';
 import { advanceFeatures, knobValue, newFeatures, pitch01, resolveKnobs } from './features';
 import { hdContext } from './hd-context';
 import { instantiate } from './instantiate';
-import { LAB_FIRST_MOMENT, makeIcon } from './lab-harness';
+import { LAB_FIRST_MOMENT } from './lab-harness';
 import type { InstanceState, LayerHost, WaLayers } from './layers';
-import type { Chord, IconLib, InstanceSpec, KnobMap, LabHarness, Note, SlotLayer, SongNotes, SoundingNote, ToolDef, WidgetCtx } from './types';
+import type { Chord, IconLib, InstanceSpec, Kit, KnobMap, LabHarness, Note, SlotLayer, SongNotes, SoundingNote, ToolDef, WidgetCtx } from './types';
 
 /** A widget drawn this step: weight 1 = exactly as the lab draws it; receiving = it gets this step's attacks; layer =
     its curve, its region and its glide. id is the instance key. */
@@ -24,7 +24,7 @@ export interface RuntimeLike {
   load(specs: readonly (string | InstanceSpec)[]): void; setKnobs(key: string, knobs: KnobMap): void; setMoment(label: string): void;
   reset(t: number): void; resetWidget(key: string): void; step(t: number, dt: number, slots: readonly Slot[]): void;
 }
-/** scale S (plan §7): the canvas is 1280·S × 720·S; widgets draw in 1280×720 units through hdContext. */
+/** scale S: the canvas is 1280·S × 720·S; widgets draw in 1280×720 units through hdContext. */
 export interface RuntimeOptions { scale?: 1 | 2 | 3 }
 
 const W = 1280, H = 720;
@@ -49,6 +49,7 @@ export class WidgetRuntime implements RuntimeLike {
   readonly relAt: (t: number) => number;
   private readonly g: CanvasRenderingContext2D;
   private readonly icon: IconLib;
+  private readonly kit: Kit;
   private readonly song: SongNotes;
   private readonly layers: (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;
   private readonly tools = new Map<string, ToolDef>();
@@ -84,11 +85,12 @@ export class WidgetRuntime implements RuntimeLike {
     if (!g) throw new Error('no 2D canvas');
     this.g = g;
     this.song = song;
-    this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js (T15)
+    this.layers = lib.layers as (WaLayers & { clearWindow(win: HTMLCanvasElement): void }) | undefined;   // slot.js
     this.loudAt = makeLoudAt(song.loudness, lib.layers?.LOUDNESS_LAG.open, song.energy);
     this.relAt = makeRelAt(song.loudness, lib.layers?.LOUDNESS_LAG.open, song.energy);
     this.chords = groupChords(song.notes);
-    this.icon = makeIcon(lib.harness.iconSource);
+    this.icon = lib.harness.makeIcon();
+    this.kit = lib.harness.kit;
     const knobs = this.knobs, onPicks = this.onPicks, cur = (this.cur = { key: '', notes: song.notes });
     const ctx: WidgetCtx = {
       g: hdContext(g, S, () => ctx.tool?.id ?? 'a widget'), W, H, canvas,
@@ -172,7 +174,7 @@ export class WidgetRuntime implements RuntimeLike {
       }
       const chords = routed ? groupChords(notes) : this.chords;
       try {
-        const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, chords, notes, all: this.song.notes } : { icon: this.icon, chords: this.chords });
+        const tool = instantiate(spec.widget, src, routed ? { icon: this.icon, kit: this.kit, chords, notes, all: this.song.notes } : { icon: this.icon, kit: this.kit, chords: this.chords });
         this.tools.set(key, tool); this.order.push(key);
         if (spec.notes) this.onPicks.add(key);
         this.knobs[key] = knobs ?? resolveKnobs(Array.isArray(tool.params) ? tool.params : []);

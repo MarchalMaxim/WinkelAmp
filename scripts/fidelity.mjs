@@ -19,7 +19,7 @@
 // runtime change). A lab hash that moved while the lab is off its control this run is reported as unstable. The GPU
 // is not perfectly repeatable between runs either (a few edge pixels): re-run a flagged case with --only before
 // believing it. Comparisons missing from the file are listed, not failed.
-// Layer cases (plan 2026-10-31 T23): the same widgets with a list of layer settings, lab/index.html?render=1&layers=
+// Layer cases: the same widgets with a list of layer settings, lab/index.html?render=1&layers=
 // against render.html?labSong&layers=, under the same pass rule: a spot, a turned window, a curve that thins, routed
 // instances. --only layers keeps just them. The Vivaldi case needs lab/pack-vivaldi-winter.js (npm run lab-notes) and
 // is skipped, with a message, without it.
@@ -44,16 +44,17 @@ for (const f of ['lab/notes.js', 'lab/notes-b5.js']) {
   if (!existsSync(path.join(ROOT, f))) { console.log(`fidelity: skipped (no ${f}: the lab's transcriptions are local only)`); process.exit(0); }
 }
 
-// The lab's lists, read the way the studio reads them.
+// The lab's lists, read the way the studio reads them: harness.js, and every file in lab/tools.
 const vite = await createServer({ root: ROOT, logLevel: 'error', server: { host: '127.0.0.1', port: Number(process.env.WINKELAMP_PORT) || 5190, strictPort: false, hmr: false } });
 await vite.listen();
 const BASE = vite.resolvedUrls.local[0].replace(/\/$/, '');
-const { readLabHarness } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');
-const harness = readLabHarness(readFileSync(path.join(ROOT, 'lab/index.html'), 'utf8'));
+const { evalLabHarness, widgetOrder } = await vite.ssrLoadModule('/src/widgets/lab-harness.ts');
+const harness = evalLabHarness(readFileSync(path.join(ROOT, 'lab/harness.js'), 'utf8'), readFileSync(path.join(ROOT, 'lab/kit.js'), 'utf8'));
+const toolIds = widgetOrder(harness.order, readdirSync(path.join(ROOT, 'lab/tools')).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)));
 
 // The cases: [song, ids, start, checks?, layer case?] (a layer case: { name, layers: [{ widget, listen?, region?, intensity? }] }).
 const cases = [];
-for (const id of harness.toolIds) { cases.push(['prelude', id, 126], ['b5', id, 0]); }
+for (const id of toolIds) { cases.push(['prelude', id, 126], ['b5', id, 0]); }
 for (const id of Object.keys(harness.verdicts)) {
   for (const s of [0, 86, 176]) cases.push(['prelude', id, s]);
   cases.push(['b5', id, 345]);
@@ -61,7 +62,7 @@ for (const id of Object.keys(harness.verdicts)) {
 cases.push(['prelude', 'squares,casket', 126], ['b5', 'kandinsky,rorschach', 0]);
 // Long cases, one per song, across a section change (prelude 124 'casket', b5 20 'agitato') 8 s after the seek
 // (seek = start - PREROLL): every widget that reads ctx.moment, and the two-widget sets.
-const momentReaders = harness.toolIds.filter((id) => /\.moment\b/.test(readFileSync(path.join(ROOT, 'lab/tools', `${id}.js`), 'utf8')));
+const momentReaders = toolIds.filter((id) => /\.moment\b/.test(readFileSync(path.join(ROOT, 'lab/tools', `${id}.js`), 'utf8')));
 for (const ids of [...momentReaders, 'squares,casket']) cases.push(['prelude', ids, 119, [4.5, 6, 8, 11]]);
 for (const ids of [...momentReaders, 'kandinsky,rorschach']) cases.push(['b5', ids, 15, [4.5, 6, 8, 11]]);
 // The layer cases. Curves come from the shared presets (lab/layers/automation.js), the text the lab and the studio run.

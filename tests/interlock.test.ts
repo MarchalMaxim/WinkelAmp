@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 function recorder(log: string[]) {
@@ -16,7 +17,6 @@ function recorder(log: string[]) {
 }
 
 const SRC = readFileSync(new URL('../lab/tools/interlock.js', import.meta.url), 'utf8');
-const ENV = readFileSync(new URL('../lab/snap/envelope.js', import.meta.url), 'utf8');
 
 const G = globalThis as Record<string, unknown>;
 let saved: Record<string, unknown>;
@@ -32,7 +32,7 @@ function play(notes: Note[], knobs: Record<string, number>, secs: number, { cold
   G.window = { NOTES: notes };
   const log: string[] = [];
   const g = recorder(log);
-  const tool = instantiate('interlock', SRC, { icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: groupChords(notes) }) as ToolDef;
+  const tool = instantiate('interlock', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: groupChords(notes) }) as ToolDef;
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   const x = { g, t: 0, dt: 1 / 60, W: 1280, H: 720, feat: { rate: 0.3, bass: 0.2, level: 0.5, pitch: 0.5, density: 0.3 },
     rnd: () => { throw new Error('x.rnd used'); }, p: (k: string) => vals[k], picked } as unknown as WidgetCtx & { t: number };
@@ -82,11 +82,6 @@ describe('interlock', () => {
     for (const p of tool.params!) { const q = p as unknown as Record<string, unknown>; expect(q.label).toBeTruthy(); expect(q.hint).toBeTruthy(); expect(typeof q.icon).toBe('function'); }
   });
 
-  it('carries the SNAP block byte for byte, with LF endings', () => {
-    const cut = (s: string) => s.slice(s.indexOf('// SNAP v1 begin'), s.indexOf('// SNAP v1 end') + '// SNAP v1 end'.length);
-    expect(cut(SRC)).toBe(cut(ENV));
-    expect(SRC.includes('\r')).toBe(false);
-  });
 
   it('strikes bone and hot on the attack step', () => {
     const { frames } = play([one(0.2, 50, 40), one(1, 60, 80)], {}, 1.2);

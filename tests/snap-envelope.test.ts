@@ -1,19 +1,11 @@
 /// <reference types="node" />
-// The snap envelope (lab/snap/envelope.js, docs/mockups/snap/DESIGN.md sections 1 and 2): the paper curve, what it
-// becomes on the shared canvas, the roll detector, and that every widget's pasted copy is the canonical one.
-import { readdirSync, readFileSync } from 'node:fs';
+// The snap envelope (SNAP in lab/kit.js): the paper curve, what it becomes on the shared canvas, the roll detector.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { kit } from './helpers/widget';
 import { groupChords } from '../src/widgets/chords';
 import type { Chord, Note } from '../src/widgets/types';
 
-const BEGIN = '// SNAP v1 begin', END = '// SNAP v1 end';
-/** The block from its begin marker through its end marker, as raw text (no line-ending normalising: byte for byte). */
-function blockOf(src: string): string {
-  const a = src.indexOf(BEGIN), b = src.indexOf(END);
-  return src.slice(a, b + END.length);
-}
-const canonical = readFileSync('lab/snap/envelope.js', 'utf8');
-const block = blockOf(canonical);
 
 interface Env { E: number; flash: number; body: number; P: number; L: number }
 interface NoteIn { v: number; m: number; d?: number; a?: number }
@@ -30,8 +22,7 @@ interface Snap {
   launch(t: number, dist: number, tau?: number): number;
   rolls(chords: Chord[]): Map<number, 'member' | 'top'>;
 }
-// Evaluated the way a widget holds it: pasted into a function, with no globals but what it defines.
-const SNAP = new Function(block + '\nreturn SNAP;')() as Snap;
+const SNAP = kit().SNAP as Snap;
 
 const DT = 1 / 60;
 /** The shared canvas at 60 Hz, starting from black: fade by rgba(0,0,0,0.12), colour-burn with 252, then the mark in
@@ -199,21 +190,5 @@ describe('rolls', () => {
     const down = SNAP.rolls([c(0, 72), c(0.07, 67), c(0.14, 64), c(0.21, 60)]);
     expect(down.get(0)).toBe('top');
     expect(down.get(3)).toBe('member');
-  });
-});
-
-describe('pasted copies', () => {
-  it('the canonical file holds the block once', () => {
-    expect(canonical.split(BEGIN).length).toBe(2);
-    expect(canonical.split(END).length).toBe(2);
-    expect(canonical.indexOf(BEGIN)).toBeLessThan(canonical.indexOf(END));
-  });
-  it('every lab/tools widget holding the markers holds the canonical block byte for byte', () => {
-    for (const f of readdirSync('lab/tools').filter((f) => f.endsWith('.js'))) {
-      const src = readFileSync(`lab/tools/${f}`, 'utf8');
-      if (!src.includes(BEGIN) && !src.includes(END)) continue;
-      expect(src.split(BEGIN).length, f).toBe(2);
-      expect(blockOf(src), f).toBe(block);
-    }
   });
 });

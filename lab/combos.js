@@ -2,7 +2,7 @@
 // same passages, and the stills were looked at before it went in here (round 7). The lab shows them under the (i) on each
 // member's card and in the "Combinations" list above the cards; docs/COMPOSING-SHOWS.md lists them for show composing.
 //
-//   ids:   the widgets, by id. The lab draws them in TOOL_IDS order (lab/index.html) and they were judged that way
+//   ids:   the widgets, by id. The lab draws them in load order (ORDER in lab/harness.js) and they were judged that way
 //          (marbling under blocks, riley under fifths, miro under rorschach); a show lists them as layers bottom → top
 //          in that order (docs/COMPOSING-SHOWS.md, "Combinations"). Pixel sort, time slice, fold and stella act on the
 //          finished picture after every other widget, wherever they sit.

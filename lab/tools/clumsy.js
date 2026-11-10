@@ -301,7 +301,7 @@
     id: 'clumsy', name: 'Clumsy', tag: 'new',
     blurb: 'A crowd of mismatched shapes hop towards a line: bad landings, too much spin, the last one still scrambling. Give them a gap and they just about make it and stand still; every attack knocks them over again, and in a storm of notes they never get there.',
     params: [
-      { key: 'crowd', label: 'how many', min: 3, max: 30, step: 1, value: 16, less: 4,
+      { key: 'crowd', perNote: false, label: 'how many', min: 3, max: 30, step: 1, value: 16, less: 4,
         hint: 'How many shapes are trying to keep up. Left: three or four. Right: a jostling mob.',
         icon: ICON.of.count(22, '#b03826') },
       { key: 'disorder', label: 'how hard an attack knocks them', min: 0.2, max: 2, value: 1, less: 0.5,

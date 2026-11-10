@@ -1,4 +1,4 @@
-// The ffmpeg arguments of the HD master and the share copy (plan §7): pure builders in scripts/lib/encode.mjs.
+// The ffmpeg arguments of the HD master and the share copy: pure builders in scripts/lib/encode.mjs.
 import { describe, expect, it } from 'vitest';
 import { level, masterArgs, shareArgs, shareVideoKbps } from '../scripts/lib/encode.mjs';
 

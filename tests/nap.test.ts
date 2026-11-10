@@ -1,10 +1,11 @@
-// Nap (docs/mockups/nature/plans/nap.md): the knobs, the attack step, a held field that does not change between notes, the off switch
+// Nap: the knobs, the attack step, a held field that does not change between notes, the off switch
 // on a repeat, memory, the silence fade, determinism, seeking, and the one-note guard. Loads only lab/tools/nap.js (no catalogue).
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 /** A 2D context that writes every call and every set into `log` (canvases by number, numbers to 3 places). */
@@ -35,7 +36,7 @@ function play(notes: Note[], { secs = 16, knobs = {}, picked = false, only = nul
   const rec = recorder(log, ids), jrec = recorder(junk, junkIds);
   G.window = { NOTES: notes };
   G.document = { createElement: () => { const c: Record<string, unknown> = { width: 0, height: 0 }; junkIds.set(c, junkIds.size); c.getContext = () => (c.g ??= jrec(c)); return c; } };
-  const tool = instantiate('nap', SRC, { icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords });
+  const tool = instantiate('nap', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords });
   const vals: Record<string, number> = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   const rnd = () => { throw new Error('x.rnd in nap'); };
   const x = { g: rec({}), t: 0, dt: 1 / 60, W: 1280, H: 720, feat: { rate: 0.3, bass: 0.2, level: 0.5, pitch: 0.5, density: 0.3, hit: 0 }, rnd, p: (k: string) => vals[k], picked } as unknown as WidgetCtx & { t: number };

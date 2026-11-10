@@ -292,7 +292,7 @@ export class Panel {
       try {
         await this.d.api.saveDescription(id, ta.value);
         this.desc = { text: ta.value, saved: ta.value };
-        state.textContent = this.d.api.writable ? `saved to shows/${id}.description.md` : 'kept in this browser';
+        state.textContent = `saved to shows/${id}.description.md`;
       } catch (e) { state.textContent = String((e as Error).message ?? e); }
     });
     this.syncShow(s);
@@ -302,7 +302,7 @@ export class Panel {
     const p = this.d.song, show = s.show!;
     const by = { auto: 'composed automatically from the song', claude: 'composed by Claude', user: 'shaped by you' }[show.composer?.by ?? 'user'];
     const facts = this.body.querySelector('.facts');
-    const redo = this.d.api.writable ? '<br><button type="button" class="link" data-act="redo-transcription">Redo the transcription…</button>' : '';
+    const redo = '<br><button type="button" class="link" data-act="redo-transcription">Redo the transcription…</button>';
     const html = `
       <dt>Song</dt><dd>${esc(p.title)}, ${clock(p.duration)}</dd>
       <dt>Show</dt><dd>${show.clips.length} clip${show.clips.length === 1 ? '' : 's'}, ${by}${s.origin === 'auto' ? ' (not saved yet)' : ''}</dd>

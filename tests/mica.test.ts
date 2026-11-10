@@ -1,4 +1,4 @@
-// Mica (docs/mockups/nature/plans/mica.md): the knobs, the colour law, the geometry of the shards (one angle per pitch class,
+// Mica: the knobs, the colour law, the geometry of the shards (one angle per pitch class,
 // at least 6:1), that nothing moves, that a seek gives the same stone, velocity as a prefix, the bone budget, determinism.
 /// <reference types="node" />
 import { createHash } from 'node:crypto';
@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 type Op = [string, number, number];
@@ -31,7 +32,7 @@ beforeAll(() => { saved = { window: G.window, Path2D: G.Path2D }; G.window = { N
 afterAll(() => { G.window = saved.window; G.Path2D = saved.Path2D; });
 
 const ICONLIB = { ink: '#fff', gauge() {} } as unknown as IconLib;
-const load = (chords: Chord[] = CHORDS) => instantiate('mica', SRC, { icon: ICONLIB, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
+const load = (chords: Chord[] = CHORDS) => instantiate('mica', SRC, { kit: kit(), icon: ICONLIB, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
 
 /** Plays a fresh mica from `from` to `to` s at 60 Hz (the first frame is at `from`); returns every fill, the per-frame call log and the saves. */
 function play(opts: { from?: number; to?: number; knobs?: Record<string, number>; chords?: Chord[]; picked?: boolean } = {}) {

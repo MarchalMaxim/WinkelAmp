@@ -1,5 +1,5 @@
 /**
- * The note picker's logic (spec 2026-11-01-note-picker), pure: which notes the roll shows and how they are coloured, what
+ * The note picker's logic, pure: which notes the roll shows and how they are coloured, what
  * a pointer hits, what Suggest and Loudest choose, how the popup's chips lie, how marks and picks find their notes again,
  * and the draft show the preview plays. The roll, the popup and the overlay (picker*.ts) only draw and listen.
  */

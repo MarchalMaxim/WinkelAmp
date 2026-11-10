@@ -1,19 +1,16 @@
 /**
- * A show: widgets placed on a song's timeline, as in DJ software. Each clip has a start, an end and a track, and its own
- * knobs, part to listen to, region, intensity curve and fade. A clip belongs to nothing but the timeline: clips overlap
- * freely across tracks, the same widget can overlap itself (two independent instances), and a stretch with nothing placed
- * is just empty. Track order is draw order, 0 at the bottom. One track holds no overlaps: a clip that lands on an occupied
- * spot goes to the nearest free track at or above it (freeTrack).
- * shows/<id>.json holds canonicalShow(show). validateShow says what is wrong (errors) or odd (warnings), each with a path
- * like 'clips[2].knobs.size'; repairShow fixes what can be fixed without asking.
- * Picks (spec 2026-11-01-note-picker): show.picks holds sets of hand-picked notes, the notes themselves, and a clip with
- * listen 'picks:<id>' answers those notes only. A picks listen never turns into one that hears every note.
+ * A show: widgets placed as clips on a song's timeline. A clip has a start, an end, a track (0 at the bottom, draw order)
+ * and its own knobs, part to listen to, region, intensity curve and fade; clips overlap freely across tracks, but one
+ * track holds none (freeTrack moves a clip to the nearest free one). shows/<id>.json holds canonicalShow(show);
+ * validateShow says what is wrong (errors) or odd (warnings) by path, repairShow fixes what needs no asking.
+ * show.picks holds sets of hand-picked notes; a clip with listen 'picks:<id>' answers those notes only, never all notes.
  */
 import { isSlug } from '../pack/pack';
 import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';
-import type { NoteType } from '../../widgets/types';
+import { DRIVES } from '../../widgets/features';
+import { FAMILIES, LINES } from '../../widgets/types';
+import type { Drive, KnobState, Listen, Note, NoteType, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
 import { TRACKS, isTrackId } from '../pack/instruments';
-import type { Drive, Family, KnobState, Line, Listen, Note, Pivot, Region, Shape, WidgetMeta } from '../../widgets/types';
 import { badValue, valuesOf, withValues, type NoteValues, type PickNote } from './note-values';
 
 export const SHOW_VERSION = 3, DEFAULT_FADE = 1, MAX_LAYERS = 6, MIN_CLIP = 0.25, MAX_FADE = 10;
@@ -24,11 +21,19 @@ export const END_SLACK = 0.5;
 
 /** number = base; the object is the lab's PST entry ("Copy settings" pastes in). */
 export type KnobSetting = number | Partial<KnobState>;
-/** What a clip plays. listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t.
+/** A new per-clip flag: add it here, then its consumer (lab/layers/slot.js via conductor slotLayer) and its control in the UI.
+    Validation, repair, the saved key order, setClip and the schedule follow from this table.
     intensityMoves 'present': the curve moves how present instead of fading the clip and thinning its attacks.
     thin 'loud': where the curve is turned down, the loudest attacks stay and the weak ones go first (none without a curve). */
-export interface Layer { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[]; intensityMoves?: 'present';
-  thin?: 'loud' }
+export const CLIP_ENUMS = { intensityMoves: ['present'], thin: ['loud'] } as const;
+export type ClipEnumKey = keyof typeof CLIP_ENUMS;
+/** The optional enum fields of a clip, typed from CLIP_ENUMS. */
+export type ClipEnums = { [K in ClipEnumKey]?: (typeof CLIP_ENUMS)[K][number] };
+/** The table as pairs, for the loops over it. */
+export const clipEnums = Object.entries(CLIP_ENUMS) as [ClipEnumKey, readonly string[]][];
+const CLIP_ENUM_KEYS = clipEnums.map(([k]) => k);
+/** listen absent or 'all': all notes. intensity: pivots in song seconds inside the clip, sorted by t. */
+export interface Layer extends ClipEnums { widget: string; listen?: Listen; knobs?: Record<string, KnobSetting>; region?: Region; intensity?: Pivot[] }
 /** Whether a curve can move how present: the widget has the slider. Without it, the curve fades. */
 export const hasHowPresent = (params: readonly { key: string }[]): boolean => params.some((q) => q.key === 'presence');
 /** A widget placed on the timeline. id: stable, unique in the show. track: 0 is drawn first (the bottom). fade: seconds it
@@ -48,21 +53,18 @@ export interface ShowContext { duration?: number; widgets?: ReadonlyMap<string, 
   /** Attack times per note type in this song (WaLayers.noteTypeAttacks); undefined: no such warnings. */
   noteTypes?: Partial<Record<NoteType, readonly number[]>> }
 
-export const DRIVES: readonly Drive[] = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit',
-  '+loud', '-loud', '+pace', '-pace', '+rel', '-rel'];
 const COMPOSERS = ['auto', 'claude', 'user'];
 const KEYS = {
   show: ['version', 'id', 'song', 'title', 'composer', 'clips', 'picks'],
   composer: ['by', 'at'],
-  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity', 'intensityMoves', 'thin'],
+  clip: ['id', 'start', 'end', 'track', 'fade', 'widget', 'listen', 'knobs', 'region', 'intensity', ...CLIP_ENUM_KEYS],
   knob: ['base', 'drive', 'depth'],
   region: ['mode', 'shape', 'x', 'y', 'w', 'h', 'rot', 'feather', 'blend', 'fit'],
   pivot: ['t', 'v', 'shape', 'bend'],
   pickSet: ['notes'],
 } as const;
 
-export const LINES: readonly Line[] = ['melody', 'bassline', 'inner', 'low', 'high', 'accents'];
-export const FAMILIES: readonly Family[] = ['keys', 'plucked', 'strings', 'winds', 'brass', 'percussion', 'voice'];
+export { FAMILIES, LINES };
 const MODES = ['spot', 'window'], REGION_SHAPES = ['rect', 'ellipse'], BLENDS = ['clear', 'over', 'lighten'], FITS = ['cover', 'contain', 'stretch'];
 const SHAPES: readonly Shape[] = ['linear', 'ease', 'hold'];
 /** Region size (fraction of the canvas) and centre limits. */
@@ -232,14 +234,10 @@ function validateLayer(l: Record<string, unknown>, at: string, span: Span | null
   }
   if (l.region !== undefined) validateRegion(l.region, `${at}.region`, err, warn, typos);
   if (l.intensity !== undefined) validateIntensity(l.intensity, `${at}.intensity`, span, err, warn, typos);
-  if (l.intensityMoves !== undefined) {
-    if (l.intensityMoves !== 'present') err(`${at}.intensityMoves`, "not 'present'");
-    else if (meta && !hasHowPresent(meta.params)) warn(`${at}.intensityMoves`, `'${l.widget}' has no how present slider: its curve fades it`);
-  }
-  if (l.thin !== undefined) {
-    if (l.thin !== 'loud') err(`${at}.thin`, "not 'loud'");
-    else if (l.intensityMoves === 'present' && meta && hasHowPresent(meta.params)) warn(`${at}.thin`, 'its curve moves how present, which drops no attacks');
-  }
+  for (const [k, allowed] of clipEnums) if (l[k] !== undefined && !allowed.includes(l[k] as string)) err(`${at}.${k}`, `not ${allowed.map((a) => `'${a}'`).join(' or ')}`);
+  const present = l.intensityMoves === 'present' && !!meta;
+  if (present && !hasHowPresent(meta!.params)) warn(`${at}.intensityMoves`, `'${l.widget}' has no how present slider: its curve fades it`);
+  if (l.thin === 'loud' && present && hasHowPresent(meta!.params)) warn(`${at}.thin`, 'its curve moves how present, which drops no attacks');
   if (l.knobs === undefined) return;
   if (!isObj(l.knobs)) { err(`${at}.knobs`, 'not an object { key: value }'); return; }
   for (const [key, v] of Object.entries(l.knobs)) {
@@ -513,8 +511,9 @@ function repairClip(x: Clip, at: string, c: ShowContext, sets: ReadonlySet<strin
     const p = repairPivots(l.intensity, `${at}.intensity`, { start: x.start, end: x.end }, fix);
     if (p) l.intensity = p; else delete l.intensity;
   }
-  if (l.intensityMoves !== undefined && l.intensityMoves !== 'present') { fix(`${at}.intensityMoves`, "was not 'present': removed"); delete l.intensityMoves; }
-  if (l.thin !== undefined && l.thin !== 'loud') { fix(`${at}.thin`, "was not 'loud': removed"); delete l.thin; }
+  for (const [k, allowed] of clipEnums) {
+    if (l[k] !== undefined && !allowed.includes(l[k] as string)) { fix(`${at}.${k}`, `was not ${allowed.map((a) => `'${a}'`).join(' or ')}: removed`); delete l[k]; }
+  }
   if (l.knobs !== undefined && !isObj(l.knobs)) { fix(`${at}.knobs`, 'was not an object: removed'); delete l.knobs; }
   for (const [key, v] of Object.entries(l.knobs ?? {})) {
     const kp = `${at}.knobs.${key}`, q = meta?.params.find((p) => p.key === key);

@@ -70,7 +70,7 @@ function analyzeInWorker(msg: WorkerIn, onProgress: (f: number) => void): Promis
 
 /**
  * A dropped recording → a song pack with approximate notes, analysed in a Worker (the page stays responsive) and kept
- * by `store` (on disk through the dev API; in this browser in the static build). Progress 0..1.
+ * by `store` (on disk through the dev API). Progress 0..1.
  */
 export async function ingestInBrowser(file: File, store: ShowStore, onProgress: (f: number) => void): Promise<SongPack> {
   onProgress(0);

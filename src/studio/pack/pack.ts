@@ -9,7 +9,7 @@ import { TRACKS, isTrackId } from './instruments';
 /** What ingest writes now; validatePack still reads 1 (no kind, tracks or transcribers). */
 export const PACK_VERSION = 2;
 export type NotesSource = 'gpu' | 'file' | 'approx' | 'merged' | 'hybrid' | 'ymt3' | 'bp-hybrid' | 'ms-hybrid';
-/** One instrument's notes, from YourMT3+ (spec Decisions 2) or MuScriptor. */
+/** One instrument's notes, from YourMT3+ or MuScriptor. */
 export interface Track {
   /** Plain English for the UI ("Violins", "French horns"). */
   label: string;
@@ -60,7 +60,7 @@ export interface SongPack {
   // v2 (all optional, so a v1 pack is a v2 pack without them).
   /** Solo piano keeps the piano model's notes; an ensemble gets the hybrid and tracks. Absent: not decided (no notes model). */
   kind?: 'piano' | 'ensemble';
-  /** The track-making transcriber's piano share (spec Decisions 1); null without one. */
+  /** The track-making transcriber's piano share; null without one. */
   pianoShare?: number | null;
   /** Only an ensemble with YourMT3 or MuScriptor has tracks; only tracks with enough notes are written. */
   tracks?: Partial<Record<TrackId, Track>>;

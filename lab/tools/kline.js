@@ -87,10 +87,10 @@
     // dry streaks scratched through the loaded middle: in bunches (a few bristles that ran dry together), more of them
     // toward the end where the paint runs out, each a tapered sliver following the bend, some only half cut (grey)
     c.globalCompositeOperation = 'destination-out';
-    const streak = (a, b, f, wd) => {
+    const streak = (a, b, f, wd) => {   // points left of the stroke's start have no height: skipped
       const n = Math.max(2, Math.ceil((b - a) / 28)); c.beginPath();
-      for (let i = 0; i <= n; i++) { const xx = a + ((b - a) * i) / n; c.lineTo(pad + xx, yAt(xx, f) - wd * 0.5 * Math.sqrt(Math.sin((Math.PI * i) / n)) - 0.05); }
-      for (let i = n; i >= 0; i--) { const xx = a + ((b - a) * i) / n; c.lineTo(pad + xx, yAt(xx, f) + wd * 0.5 * Math.sqrt(Math.sin((Math.PI * i) / n)) + 0.05); }
+      for (let i = 0; i <= n; i++) { const xx = a + ((b - a) * i) / n; if (xx < 0) continue; c.lineTo(pad + xx, yAt(xx, f) - wd * 0.5 * Math.sqrt(Math.sin((Math.PI * i) / n)) - 0.05); }
+      for (let i = n; i >= 0; i--) { const xx = a + ((b - a) * i) / n; if (xx < 0) continue; c.lineTo(pad + xx, yAt(xx, f) + wd * 0.5 * Math.sqrt(Math.sin((Math.PI * i) / n)) + 0.05); }
       c.closePath(); c.fill();
     };
     for (let bn = 0, nBunch = 2 + Math.round(3 * dry + R() * 2); bn < nBunch; bn++) {
@@ -308,12 +308,12 @@
             g.save(); g.translate(2 + cx * (w - 4), 2 + cy * (h - 4)); g.rotate(a); ICON.rect(g, -L / 2, -t / 2, L, t, BLACK); g.restore();
           }
         } },
-      { key: 'ground', label: 'black or bone', min: 0, max: 1, step: 1, value: 1,
+      { key: 'ground', perNote: false, label: 'black or bone', min: 0, max: 1, step: 1, value: 1,
         hint: 'The colours. Left: black bars on a bone-white ground. Right: bone-white bars on black.',
         icon: (g, v, w, h) => { const m = v >= 0.5; ICON.rect(g, 2, 2, w - 4, h - 4, m ? NIGHT : BONE);
           g.save(); g.translate(w / 2, h / 2); g.rotate(-0.35); ICON.rect(g, -13, -3.5, 26, 7, m ? BONE_INK : BLACK); g.restore();
           if (m) { g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); } } },
-      { key: 'colour', label: 'what colour', min: 0, max: 3, step: 1, value: 0,
+      { key: 'colour', perNote: false, label: 'what colour', min: 0, max: 3, step: 1, value: 0,
         hint: 'The paint. 0: ink (black on bone, bone on black). 1: blood red. 2: yellow. 3: blue. The ground stays black or bone.',
         icon: (g, v, w, h) => { const i = clamp(Math.round(v), 0, 3); ICON.rect(g, 2, 2, w - 4, h - 4, NIGHT);
           g.save(); g.translate(w / 2, h / 2); g.rotate(-0.35); ICON.rect(g, -13, -3.5, 26, 7, INKS[i][1]); g.restore();

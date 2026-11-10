@@ -1,5 +1,5 @@
 /**
- * Instrument tracks: which YourMT3+ classes (MT3_FULL_PLUS) make which track of a pack v2 (spec Decisions 2).
+ * Instrument tracks: which YourMT3+ classes (MT3_FULL_PLUS) make which track of a pack v2.
  * Classes with no track (Drums, synths, Organ, Chromatic Percussion, Orchestra Hit) still count in all notes.
  */
 import type { Family, TrackId } from '../../widgets/types';

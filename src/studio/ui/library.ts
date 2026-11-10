@@ -56,7 +56,7 @@ export class Library {
   private ears: EarsState | null = null;
   private readonly overlay: HTMLElement;
 
-  constructor(private readonly current: string | null, private readonly writable: boolean, private readonly onFile: (f: File) => void) {
+  constructor(private readonly current: string | null, private readonly onFile: (f: File) => void) {
     this.el = document.createElement('div');
     this.el.className = 'library';
     this.el.hidden = true;
@@ -75,7 +75,7 @@ export class Library {
         <ul class="songs"></ul>
         <div class="library-how"></div>
         <footer>
-          ${writable ? '<a href="lab/index.html">Widget lab</a><span class="dim">where widgets are sketched and rated</span>' : ''}
+          <a href="lab/index.html">Widget lab</a><span class="dim">where widgets are sketched and rated</span>
         </footer>
       </nav>`;
     this.el.querySelectorAll('[data-close]').forEach((x) => x.addEventListener('click', () => this.toggle(false)));
@@ -127,9 +127,7 @@ export class Library {
 
   private howToAdd(): void {
     const e = this.ears, how = this.el.querySelector('.add-how')!;
-    how.textContent = !this.writable
-      ? 'Or drop one on the page. This browser analyses it and keeps it here: approximate notes, no transcription.'
-      : !e ? 'Or drop one on the page.'
+    how.textContent = !e ? 'Or drop one on the page.'
       : !e.up ? 'The ears server is not running, so this browser makes approximate notes. For notes transcribed on the GPU, start npm run ears first.'
       : isChecking(e.transcriber) ? 'Or drop one on the page. The ears server is checking its transcriber (loading the piano model takes a few seconds)…'
       : e.transcriber.ok ? `Or drop one on the page. Its notes are transcribed on the ${e.transcriber.device === 'cuda' ? 'GPU' : 'CPU'} by npm run ears.`
@@ -165,8 +163,6 @@ export class Library {
           <span class="badge ${s.hasShow ? 'show-own' : 'show-auto'}">${s.hasShow ? 'your show' : 'no show yet'}</span></span>
         ${s.error ? `<span class="err small">${esc(s.error)}</span>` : ''}</a></li>`;
     }).join('') : '<li class="dim">No songs yet.</li>';
-    this.el.querySelector('.library-how')!.innerHTML = this.writable
-      ? `<p class="dim small">From a terminal: <code>npm run ingest -- &lt;audio file&gt;</code> does the same as dropping a file with <code>npm run ears</code> running.</p>`
-      : `<p class="dim small">Songs added here stay in this browser. Run the studio from the project (<code>npm run dev</code>) to keep them as files, with notes transcribed on the GPU.</p>`;
+    this.el.querySelector('.library-how')!.innerHTML = `<p class="dim small">From a terminal: <code>npm run ingest -- &lt;audio file&gt;</code> does the same as dropping a file with <code>npm run ears</code> running.</p>`;
   }
 }

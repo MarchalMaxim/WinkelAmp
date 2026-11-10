@@ -1,8 +1,6 @@
-// The marks must not go missing (spec 2026-11-01-note-picker): a flush when the page goes, a warning before leaving on a
-// failed save, and a static save that says when the browser refused it.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+// The marks must not go missing: a flush when the page goes, and a warning before leaving on a failed save.
+import { describe, expect, it } from 'vitest';
 import { emptyMelody, LEAVING_MAX, type Melody } from '../src/studio/show/melody';
-import { staticStore } from '../src/studio/ui/api';
 import { MarksSaver } from '../src/studio/ui/picker-logic';
 
 const melody = (k: number): Melody => ({ ...emptyMelody('demo'), notes: Array.from({ length: k }, (_, i) => [i, i + 1, 60, 80] as [number, number, number, number]) });
@@ -114,22 +112,5 @@ describe('MarksSaver', () => {
     s.changed(); s.save(); s.leaving();
     expect(writes).toEqual([]);
     expect(s.atRisk()).toBe(true);
-  });
-});
-
-describe('the static store', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('a write the browser refuses rejects, so the notice appears', async () => {
-    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('quota'); } });
-    await expect(staticStore().saveMelody(melody(1))).rejects.toThrow(/browser/);
-  });
-
-  it('a write it takes, it keeps', async () => {
-    const kept = new Map<string, string>();
-    vi.stubGlobal('localStorage', { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => { kept.set(k, v); } });
-    const store = staticStore();
-    await store.saveMelody(melody(1));
-    expect(await store.melody('demo')).toEqual(melody(1));
   });
 });

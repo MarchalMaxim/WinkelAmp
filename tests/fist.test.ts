@@ -1,4 +1,4 @@
-// Fist of spines (lab/tools/fist.js, once urchin.js; docs/mockups/nature/plans/urchin.md): the entry and its knobs, the SNAP copy, the attack
+// Fist of spines (lab/tools/fist.js): the entry and its knobs, the SNAP copy, the attack
 // in a bone bucket, the black spot, the rest field, a field that does not move between notes, determinism, a stateless seek,
 // velocity normalisation, and a repeat that clenches again.
 /// <reference types="node" />
@@ -6,10 +6,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const SRC = readFileSync(new URL('../lab/tools/fist.js', import.meta.url), 'utf8');
-const ENV = readFileSync(new URL('../lab/snap/envelope.js', import.meta.url), 'utf8');
 
 function recorder(log: string[]) {
   const fmt = (v: unknown): string => typeof v === 'number' ? v.toFixed(3) : typeof v === 'object' ? 'obj' : String(v);
@@ -34,7 +34,7 @@ interface Opts { knobs?: Record<string, number>; seed?: number; throws?: boolean
 /** Plays `chords` at 60 Hz and returns the draw log of every step (index = step number). */
 function play(chords: Chord[], secs: number, o: Opts = {}) {
   const log: string[] = [], rec = recorder(log);
-  const tool = instantiate('fist', SRC, { icon: ICON, chords }) as ToolDef;
+  const tool = instantiate('fist', SRC, { kit: kit(), icon: ICON, chords }) as ToolDef;
   const vals: Record<string, number> = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...(o.knobs ?? {}) };
   const rnd = rngFn(o.seed ?? 7);
   const x = { g: rec, t: 0, dt: 1 / 60, W: 1280, H: 720, rnd: (a: number, b: number) => a + (b - a) * rnd(), p: (k: string) => vals[k], picked: !!o.picked, level: 0.5, rate: 0.3, hit: 0 } as unknown as WidgetCtx & { t: number };
@@ -61,7 +61,7 @@ const count = (l: string[], name: string) => l.filter((s) => s.startsWith(name +
 const joined = (steps: string[][]) => steps.map((s) => (s ?? []).join('|')).join('\n');
 
 describe('fist: the entry', () => {
-  const tool = instantiate('fist', SRC, { icon: ICON, chords: [] }) as ToolDef;
+  const tool = instantiate('fist', SRC, { kit: kit(), icon: ICON, chords: [] }) as ToolDef;
   it('is Fist of spines, new, with the planned knobs', () => {
     expect(tool.id).toBe('fist'); expect(tool.name).toBe('Fist of spines'); expect(tool.tag).toBe('new');
     const keys = tool.params!.map((p) => p.key);
@@ -78,13 +78,6 @@ describe('fist: the entry', () => {
   });
 });
 
-describe('fist: the SNAP copy', () => {
-  it('holds the envelope block byte for byte and has no CR', () => {
-    const a = ENV.indexOf('// SNAP v1 begin'), b = ENV.indexOf('// SNAP v1 end') + '// SNAP v1 end'.length;
-    expect(SRC).toContain(ENV.slice(a, b));
-    expect(SRC.includes('\r')).toBe(false);
-  });
-});
 
 describe('fist: the picture', () => {
   const CH = mk(SPREAD as unknown as number[][]);

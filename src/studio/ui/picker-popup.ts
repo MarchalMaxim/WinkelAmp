@@ -1,5 +1,5 @@
 /**
- * The note picker's popup (spec 2026-11-01-note-picker): the widget, the melody as a strip of chips to pick from, and a
+ * The note picker's popup: the widget, the melody as a strip of chips to pick from, and a
  * preview through the real widget. The preview is a second WidgetRuntime and Conductor on the popup's own canvas, playing a
  * draft show with the same audio element as its clock; the store, the history, the disk and the live instances never see
  * it. While the popup is open the studio's player rests, so only one picture is drawn.
@@ -13,6 +13,7 @@ import { startLive } from '../../widgets/driver';
 import type { WaLayers } from '../../widgets/layers';
 import { WidgetRuntime } from '../../widgets/runtime';
 import { labTagWords, labTags } from '../../widgets/sources';
+import { songNotesOf } from '../../widgets/studio-lib';
 import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
@@ -236,7 +237,7 @@ export class PickerPopup {
   /** The knobs a note can set on this widget, in the lane's words. */
   private laneScales(): LaneScale[] {
     const edit = this.opened?.edit, own = edit && edit.widget === this.widget ? edit.knobs : undefined;
-    return [INTENSITY_LANE, ...noteKnobs(this.widget, this.d.catalogue.get(this.widget)?.meta.params ?? []).map((q) => knobLane(q, own?.[q.key]))];
+    return [INTENSITY_LANE, ...noteKnobs(this.d.catalogue.get(this.widget)?.meta.params ?? []).map((q) => knobLane(q, own?.[q.key]))];
   }
 
   private lane(): LaneScale { return this.laneScales().find((s) => s.key === this.laneKey) ?? INTENSITY_LANE; }
@@ -337,7 +338,7 @@ export class PickerPopup {
     this.buildChips();
     this.el.hidden = false;
     const canvas = this.$<HTMLCanvasElement>('canvas');
-    this.runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, lib);
+    this.runtime = new WidgetRuntime(canvas, songNotesOf(pack), lib);
     this.conductor = new Conductor(this.runtime, this.draftNow(), meta);
     this.conductor.reset(player.time);
     this.stopLive = startLive(this.conductor, this.runtime, player.audio, (t) => this.frame(t));

@@ -4,18 +4,19 @@
  * its whole span and is reset as it starts; its edges fade (edgeWeight), inside its span, so two clips that touch on a
  * track never overlap, not even while fading. What it leaves on the shared canvas fades on its own.
  */
-import type { Listen, Pivot, Region } from '../../widgets/types';
+import type { Listen, Param, Pivot, Region } from '../../widgets/types';
 import { heldValues, perNote } from './note-values';
-import { DEFAULT_FADE, instanceKey, listenOf, picksId, sortedClips, type Clip, type KnobSetting, type Show } from './show';
 
-export interface ScheduledWidget {
+type Params = readonly Pick<Param, 'key' | 'perNote'>[] | undefined;
+type MetaOf = (widget: string) => { params: NonNullable<Params> } | undefined;
+import { DEFAULT_FADE, clipEnums, instanceKey, listenOf, picksId, sortedClips, type Clip, type ClipEnums, type KnobSetting, type Show } from './show';
+
+/** The clip's CLIP_ENUMS flags come along only with pivots: intensityMoves says its curve is to move how present (if the
+    widget has the slider: the Conductor knows the widgets), thin that it keeps the strongest attacks. */
+export interface ScheduledWidget extends ClipEnums {
   /** the instance key */
   id: string; clip: string; widget: string; listen?: Listen; receiving: boolean; weight: number;
   knobs: Record<string, KnobSetting>; region?: Region; pivots?: Pivot[];
-  /** Its curve is to move how present (if the widget has the slider: the Conductor knows the widgets). */
-  moves?: boolean;
-  /** Its curve keeps the strongest attacks (show.ts Layer.thin); only with pivots. */
-  thin?: 'loud';
 }
 
 /** How long a clip takes to come in and to go: its fade, at most half its length. */
@@ -36,13 +37,13 @@ export const clipsAt = (show: Show, t: number): Clip[] =>
   show.clips.filter((c) => c.start <= t && t < c.end).sort((a, b) => a.track - b.track);
 
 /** A clip's knobs at t: its own, with the values its set's last attack holds as the base, a drive kept. */
-function knobsAt(show: Show, c: Clip, t: number): Record<string, KnobSetting> {
+function knobsAt(show: Show, c: Clip, t: number, params: Params): Record<string, KnobSetting> {
   const knobs = c.knobs ?? {}, id = picksId(c.listen), notes = id !== null ? show.picks?.[id]?.notes : undefined;
   const held = notes ? heldValues(notes, c.start, t) : null;
   if (!held) return knobs;
   const out = { ...knobs };
   for (const [key, base] of Object.entries(held)) {
-    if (!perNote(c.widget, key)) continue;
+    if (!perNote(params, key)) continue;
     const s = out[key];
     out[key] = s !== undefined && typeof s !== 'number' ? { ...s, base } : base;
   }
@@ -50,21 +51,20 @@ function knobsAt(show: Show, c: Clip, t: number): Record<string, KnobSetting> {
 }
 
 /** A clip's instance as scheduled at t: only the fields it has. */
-function entry(show: Show, c: Clip, t: number): ScheduledWidget {
-  const w: ScheduledWidget = { id: instanceKey(c), clip: c.id, widget: c.widget, receiving: true, weight: edgeWeight(c, t), knobs: knobsAt(show, c, t) };
+function entry(show: Show, c: Clip, t: number, meta?: MetaOf): ScheduledWidget {
+  const w: ScheduledWidget = { id: instanceKey(c), clip: c.id, widget: c.widget, receiving: true, weight: edgeWeight(c, t), knobs: knobsAt(show, c, t, meta?.(c.widget)?.params) };
   const listen = listenOf(c);
   if (listen !== undefined) w.listen = listen;
   if (c.region) w.region = c.region;
   if (c.intensity?.length) {
     w.pivots = c.intensity;
-    if (c.intensityMoves === 'present') w.moves = true;
-    if (c.thin === 'loud') w.thin = 'loud';
+    for (const [k] of clipEnums) if (c[k] !== undefined) Object.assign(w, { [k]: c[k] });
   }
   return w;
 }
 
-/** The clips playing at t, bottom first, as the runtime is to draw them. */
-export const scheduleAt = (show: Show, t: number): ScheduledWidget[] => clipsAt(show, t).map((c) => entry(show, c, t));
+/** The clips playing at t, bottom first, as the runtime is to draw them. meta: a widget's params, which say what a note may set. */
+export const scheduleAt = (show: Show, t: number, meta?: MetaOf): ScheduledWidget[] => clipsAt(show, t).map((c) => entry(show, c, t, meta));
 
 /** Clips starting at a time b with t0 < b ≤ t1, in the order they load: the Conductor resets them as it crosses b. id: the
     instance key. */

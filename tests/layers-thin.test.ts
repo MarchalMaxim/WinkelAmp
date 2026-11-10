@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// "Keep the strongest" (a layer's thin: 'loud', docs/research/audio-to-picture.md item 6): automation.js thinRanks and
+// "Keep the strongest" (a layer's thin: 'loud'): automation.js thinRanks and
 // passesStrongest, and slot.js deliveredChords with and without the flag.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

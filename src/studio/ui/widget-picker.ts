@@ -1,5 +1,5 @@
 /**
- * The widget picker (plan 2026-10-31 T16): the collection grouped by the user's verdicts, each widget with its feel
+ * The widget picker: the collection grouped by the user's verdicts, each widget with its feel
  * words as chips, above it a filter on feel words (by axis) and instruments (by family), and "suits this song" (one of
  * its instruments plays in this recording). The tags are lab/tags.json's, in lab/tag-words.json's vocabulary.
  */

@@ -1,19 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "vite/client"]
+    "types": [
+      "node",
+      "vite/client"
+    ]
   },
   "include": [
-    "scripts/ingest.ts",
-    "scripts/check-show.ts",
-    "scripts/describe-song.ts",
-    "scripts/widget-docs.ts",
-    "scripts/studio-api.ts",
-    "scripts/setup-ymt3.ts",
-    "scripts/setup-muscriptor.ts",
-    "scripts/lab-notes.ts",
-    "scripts/augment-pack.ts",
-    "scripts/ears/**/*.ts",
-    "scripts/node/**/*.ts"
+    "scripts/**/*.ts"
   ]
 }

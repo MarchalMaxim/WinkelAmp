@@ -1,4 +1,4 @@
-// Intensity curves (plan §2, spec Decisions 4 and 5): the curve through a layer's pivots, the deterministic thinning
+// Intensity curves: the curve through a layer's pivots, the deterministic thinning
 // that decides which attacks a layer hears, and the presets that write ordinary pivots into a section.
 //
 // One implementation: the lab loads this file as a classic <script>; the studio and Node evaluate the same text with
@@ -12,7 +12,7 @@
 
   /** How late the song's loudness lane (pack.loudness) runs behind the sound, in seconds. It is an average of power
       looking only backwards, so it rises sooner than it falls. Measured 2026-11-08 on six pieces against the sound's
-      own energy (docs/research/audio-to-picture.md): it crosses upwards about 1.1 s late and downwards about 2.4 s
+      own energy: it crosses upwards about 1.1 s late and downwards about 2.4 s
       late (medians of 34 and 33 crossings); 1.7 s on average. */
   WA.LOUDNESS_LAG = { open: 1.1, close: 2.4, mean: 1.7 };
 
@@ -205,7 +205,7 @@
     return out;
   };
 
-  // ---- the loudest moments (docs/research/audio-to-picture.md item 7) --------------------------------------------
+  // ---- the loudest moments --------------------------------------------
 
   /** Where a song's loudness for the climax comes from: the energy lane's 3 s curve, else pack.loudness, else null. */
   var climaxSource = function (song) {
@@ -247,7 +247,7 @@
     return entry.lane;
   };
 
-  /** The piece's loudest moments, as suggestions (src/research/energy.ts climaxes): the peaks of WA.climaxLane, each
+  /** The piece's loudest moments, as suggestions: the peaks of WA.climaxLane, each
       scored by its height × its prominence (how far it stands above the higher of the lowest points on either side
       before anything higher), the best first, at least `gap` s (20) apart, at most `n` (3). [{ t, v, score }]: t the
       song time (0 or later), v the lane's value there. Empty with no loudness. */

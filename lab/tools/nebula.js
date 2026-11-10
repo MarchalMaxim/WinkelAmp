@@ -55,7 +55,7 @@
             g.strokeStyle = ICON.blue; g.lineWidth = 1.2; g.beginPath(); P.forEach(([X, Y], i) => (i ? g.lineTo(X, Y) : g.moveTo(X, Y))); g.stroke();
             const [x1, y1] = P[P.length - 2], [x2, y2] = P[P.length - 1]; ICON.arrow(g, x1, y1, x2, y2, ICON.blue, 1.2); }
           ICON.dot(g, w / 2, h / 2, 1.6, ICON.ink); } },
-      { key: 'amount', label: 'how much dust', min: 1000, max: 7000, step: 100, value: 4000, less: 1000,
+      { key: 'amount', perNote: false, label: 'how much dust', min: 1000, max: 7000, step: 100, value: 4000, less: 1000,
         hint: 'How many grains there are. Left: a sparse sprinkle. Right: a thick, milky cloud.',
         icon: (g, v, w, h) => ICON.dots(g, 5 + v * 70, w, h, { r: 0.75, col: ICON.ink, pad: 2, seed: 9 }) },
       { key: 'threads', label: 'grains or threads', min: 0.5, max: 6, value: 1.4,

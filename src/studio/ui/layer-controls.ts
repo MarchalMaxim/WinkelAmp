@@ -1,11 +1,6 @@
 /**
- * The open layer's controls under its knobs (plan 2026-10-31 T16), in plain words:
- * - Listens to: all notes, an instrument track of this recording, a family of them, or a line derived from the notes,
- *   with a small picture of where that part plays in the clip. A layer on hand-picked notes says how many instead,
- *   with a way back to the picker: the select could only orphan its set.
- * - Where: the whole screen, a spotlight (the widget seen only through a shape) or a window (the whole widget shrunk
- *   into a shape); its shape, edge softness, and for a window whether the layers below show through and how it fits.
- * Every change is one setClip edit, one undo step.
+ * The open layer's controls under its knobs: which part it listens to (with a picture of where that part plays) and where
+ * on the screen it draws (whole, spotlight or window). Every change is one setClip edit, one undo step.
  */
 import './layer-controls.css';
 import { NOTE_TYPES, NOTE_TYPE_LABELS } from '../../widgets/tags';

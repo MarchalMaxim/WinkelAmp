@@ -4,7 +4,6 @@
  * so what plays here is what the lab draws.
  */
 import './style.css';
-import { composeShow } from '../compose/compose';
 import { isChecking } from '../ingest/ears-client';
 import type { SongPack } from '../pack/pack';
 import { characterLabel, sectionCharacters } from '../compose/character';
@@ -15,10 +14,11 @@ import { SHOW_VERSION, canonicalShow, hasHowPresent, repairShow, validateShow, w
 import { toMeta } from '../../widgets/catalogue';
 import { groupChords } from '../../widgets/chords';
 import { instantiate } from '../../widgets/instantiate';
-import { makeIcon } from '../../widgets/lab-harness';
+import { widgetOrder } from '../../widgets/lab-harness';
 import { studioLayers } from '../../widgets/layers-source';
 import { WidgetRuntime } from '../../widgets/runtime';
-import { labHarness, labSongs, labTags, labTagWords, labWidgetSources } from '../../widgets/sources';
+import { labTags } from '../../widgets/sources';
+import { songNotesOf, studioLib } from '../../widgets/studio-lib';
 import { tagsOf } from '../../widgets/tags';
 import type { WidgetMeta } from '../../widgets/types';
 import { SongAdder, takeFlash } from './add-song';
@@ -114,19 +114,17 @@ function renderNotices(box: HTMLElement, notices: Notice[], store: Store, action
   }
 }
 
-function emptyState(ui: Record<string, HTMLElement>, api: ShowStore, choose: () => void, problem?: string): void {
+function emptyState(ui: Record<string, HTMLElement>, choose: (() => void) | null, problem?: string): void {
   ui.poster.hidden = false;
   ui.poster.classList.add('empty');
   ui.poster.innerHTML = `<div class="poster-inner">
       <p class="composer">WinkelAmp studio</p>
       <h2>Bring a recording</h2>
-      <p>${problem ? esc(problem) : api.writable
-        ? 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with an empty timeline, ready to place widgets on.'
-        : 'Drop a recording anywhere on this page: this browser analyses it (approximate notes, no transcription) and it opens with an empty timeline, ready to place widgets on.'}</p>
-      <p><button type="button" class="primary" data-choose>Choose a recording…</button></p>
-      ${api.writable ? '<p class="links"><a href="lab/index.html">Open the widget lab</a></p>' : ''}
+      <p>${problem ? esc(problem) : 'Drop a recording anywhere on this page. With <code>npm run ears</code> running its notes are transcribed on your GPU; without it, this browser makes approximate ones. It opens with an empty timeline, ready to place widgets on.'}</p>
+      ${choose ? '<p><button type="button" class="primary" data-choose>Choose a recording…</button></p>' : ''}
+      <p class="links"><a href="lab/index.html">Open the widget lab</a></p>
     </div>`;
-  ui.poster.querySelector('[data-choose]')!.addEventListener('click', choose);
+  if (choose) ui.poster.querySelector('[data-choose]')!.addEventListener('click', choose);
   ui.piece.textContent = 'Studio';
 }
 
@@ -134,7 +132,8 @@ async function boot(): Promise<void> {
   const ui = shell();
   let songLength = Infinity;
   const store = new Store({ curve: (p, t) => studioLayers().automationAt(p, t), duration: () => songLength });   // edge pivots keep a curve on a resize; clips stay in the song
-  const api = await connectStore();
+  let api: ShowStore;
+  try { api = await connectStore(); } catch (e) { emptyState(ui, null, (e as Error).message); return; }
   const params = new URLSearchParams(location.search);
 
   let songs: LibraryEntry[] = [];
@@ -152,7 +151,7 @@ async function boot(): Promise<void> {
   const entry = songs.find((s) => s.id === want && !s.error) ?? songs.find((s) => !s.error) ?? null;
   if (openShow && entry?.id !== openShow.song) openShow = null;   // its song cannot be played: fall back to the usual way
   const showId = openShow ? showParam! : entry?.id ?? '';   // the show file this page reads and saves
-  const library = new Library(entry?.id ?? null, api.writable, (f) => void adder.add(f));
+  const library = new Library(entry?.id ?? null, (f) => void adder.add(f));
   library.render(songs);
   document.body.append(library.el);
   ui.songs.addEventListener('click', () => library.toggle());
@@ -169,7 +168,7 @@ async function boot(): Promise<void> {
   });
   library.onOpen = () => void adder.earsSettled();
 
-  if (!entry) { emptyState(ui, api, () => library.choose()); document.body.classList.add('no-song'); return; }
+  if (!entry) { emptyState(ui, () => library.choose()); document.body.classList.add('no-song'); return; }
   for (const n of takeFlash(entry.id)) store.dispatch({ type: 'notice', notice: n });
   if (!openShow && params.get('song') && params.get('song') !== entry.id) {
     store.dispatch({ type: 'notice', notice: { id: 'missing-song', level: 'warn', text: `There is no playable song '${params.get('song')}': here is ${entry.title}.` } });
@@ -177,33 +176,30 @@ async function boot(): Promise<void> {
   lsSet(LAST_SONG, entry.id);
 
   let pack: SongPack;
-  try { pack = await api.pack(entry.id); } catch (e) { emptyState(ui, api, () => library.choose(), `Could not open ${entry.title}: ${(e as Error).message}`); return; }
+  try { pack = await api.pack(entry.id); } catch (e) { emptyState(ui, () => library.choose(), `Could not open ${entry.title}: ${(e as Error).message}`); return; }
   const [composer, piece] = splitTitle(pack.title);
   ui.composer.textContent = composer; ui.piece.textContent = piece;
   document.title = `${piece} · WinkelAmp studio`;
 
   // The song's notes, before any widget file runs: several read window.NOTES when they load.
   (window as { NOTES?: unknown }).NOTES = pack.notes;
-  const harness = labHarness(), sources = labWidgetSources(), icon = makeIcon(harness.iconSource);
+  const lib = studioLib(), { harness, sources } = lib, icon = harness.makeIcon();
   const chords = groupChords(pack.notes);
-  const order = [...harness.toolIds.filter((id) => id in sources), ...Object.keys(sources).filter((id) => !harness.toolIds.includes(id)).sort()];
+  const order = widgetOrder(harness.order, Object.keys(sources));
   // One template instance per widget (never drawn) gives the names, knobs, pictures and, with the verdicts, the collection.
   const catalogue = new Map<string, CatalogueEntry>(), metas = new Map<string, WidgetMeta>(), failed: string[] = [];
   for (const id of order) {
     try {
-      const tool = instantiate(id, sources[id], { icon, chords });
+      const tool = instantiate(id, sources[id], { icon, kit: harness.kit, chords });
       const meta = toMeta(tool, harness.verdicts[id] ?? null, tagsOf(labTags(), id));
       catalogue.set(id, { meta, tool }); metas.set(id, meta);
     } catch (e) { failed.push(`${id} (${(e as Error).message})`); }
   }
   if (failed.length) store.dispatch({ type: 'notice', notice: { id: 'widgets', level: 'warn', text: `Some widgets did not load: ${failed.join('; ')}.` } });
 
-  // The show: the saved one, repaired if it must be, or an empty timeline to place widgets on. The composer is one click
-  // away there: from the widgets' tags, the instruments the song has and the feel words of its description.
   songLength = pack.duration;
+  // The show: the saved one, repaired if it must be, or an empty timeline to place widgets on.
   const ctxShow = { duration: pack.duration, widgets: metas, tracks: Object.keys(pack.tracks ?? {}) };
-  const compose = async () => composeShow({ pack, widgets: metas, at: new Date().toISOString(),
-    description: await api.description(pack.id).catch(() => ''), layers: studioLayers(), words: labTagWords() });
   const emptyShow = (): Show => ({ version: SHOW_VERSION, id: showId, song: pack.id, title: pack.title, clips: [] });
   let show: Show = emptyShow(), origin: 'file' | 'auto' | 'repaired' = 'auto';
   let saved: Show | null = null;
@@ -235,10 +231,10 @@ async function boot(): Promise<void> {
     store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'info', text: 'The piano model heard little of this recording: approximate notes fill the rest.' } });
   } else if (pack.notesFrom === 'approx') {
     const approx = 'This song has approximate notes from the analysis, not a transcription: the widgets follow it less closely.';
-    store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: api.writable ? `${approx} Start npm run ears to transcribe it.` : approx } });
+    store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: `${approx} Start npm run ears to transcribe it.` } });
     // With the ears server up, offer the transcription; with its transcriber unable to run, say why.
     // Right after npm run ears starts it is still checking its transcriber: say so, and decide once it has a verdict.
-    if (api.writable) void adder.earsSettled(() => store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn',
+    void adder.earsSettled(() => store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn',
       text: `${approx} The ears server is checking its transcriber…` } })).then((e) => {
       if (!e.up) return;
       if (isChecking(e.transcriber)) { store.dispatch({ type: 'notice', notice: { id: 'notes', level: 'warn', text: approx } }); return; }
@@ -257,7 +253,7 @@ async function boot(): Promise<void> {
 
   // The picture and the clock.
   const canvas = document.getElementById('c') as HTMLCanvasElement;
-  const runtime = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, { sources, harness, layers: studioLayers() });
+  const runtime = new WidgetRuntime(canvas, songNotesOf(pack), lib);
   const structure = structureTimes(pack.sections);
   const conductor = new Conductor(runtime, show, (id) => metas.get(id) ?? (runtime.tool(id) ? toMeta(runtime.tool(id)!, null) : undefined), structure);
   const audio = new Audio();
@@ -271,7 +267,7 @@ async function boot(): Promise<void> {
   const seek = (t: number) => { ui.poster.hidden = true; player.seek(t); };
 
   // The song's structure as marks: the lab's names for its moments where it has them, else what each stretch is like.
-  const labSong = Object.entries(labSongs()).find(([id, x]) => id === pack.id || (x as { pack?: string }).pack === `pack-${pack.id}.js`)?.[1];
+  const labSong = Object.entries(harness.songs).find(([id, x]) => id === pack.id || x.pack === `pack-${pack.id}.js`)?.[1];
   const named = (labSong?.moments ?? []).flatMap(([t, , label]) => (label ? [[t, label] as const] : []));
   const words = sectionCharacters(pack.notes, pack.sections, chords).map(characterLabel);
   const marks = songMarks(pack.sections, words, named);
@@ -286,12 +282,11 @@ async function boot(): Promise<void> {
     store, song: pack, chords, marks, duration: () => player.duration || pack.duration, time: () => player.time, seek,
     refresh: () => player.refresh(), names: (id) => metas.get(id)?.name ?? id, add: openPalette,
     howPresent: (id) => { const m = metas.get(id); return !!m && hasHowPresent(m.params); },
-    compose: () => void compose().then((s) => store.dispatch({ type: 'loaded', song: pack, show: s, origin: 'auto', keepUndo: true })),
   });
   ui.timeline.append(timeline.el);
   const palette = new WidgetPalette();
   const picker = new Picker({
-    store, player, api, pack, canvas, catalogue, order, palette, lib: { sources, harness, layers: studioLayers() },
+    store, player, api, pack, canvas, catalogue, order, palette, lib,
     meta: (id) => metas.get(id), notify: (notice) => store.dispatch({ type: 'notice', notice }),
   });
   // Its seeks show the picture there, as the studio's do: the poster would hide it on the way back.
@@ -325,8 +320,7 @@ async function boot(): Promise<void> {
   let shown: Show | null = null, lastSecond = -1, lastNow = '';
   const drawHeader = () => {
     const s = store.state, dirty = isDirty(s);
-    ui.saveState.textContent = !api.writable ? (dirty ? 'Unsaved changes; Save downloads the show' : 'Save downloads the show')
-      : dirty ? 'Unsaved changes' : s.origin === 'auto' ? (s.show?.clips.length ? 'Composed for this song, not saved yet' : 'Nothing placed yet') : 'Saved';
+    ui.saveState.textContent = dirty ? 'Unsaved changes' : s.origin === 'auto' ? 'Nothing placed yet' : 'Saved';
     ui.saveState.classList.toggle('dirty', dirty);
     (ui.undo as HTMLButtonElement).disabled = !store.history.canUndo || s.ui.recording;
     (ui.redo as HTMLButtonElement).disabled = !store.history.canRedo || s.ui.recording;
@@ -384,7 +378,7 @@ async function boot(): Promise<void> {
   // Export: record the show to an MP4 here (the song plays through once), or the command for a frame-exact one.
   const recorder = installExport({
     store, player, canvas, host: ui.play.parentElement!, before: ui.hide,
-    renderCommand: api.writable ? `npm run render-show -- ${showId}` : null,
+    renderCommand: `npm run render-show -- ${showId}`,
     notify: (level, text) => store.dispatch({ type: 'notice', notice: { id: 'record', level, text } }),
   });
 
@@ -396,7 +390,7 @@ async function boot(): Promise<void> {
       await api.saveShow(s);
       store.dispatch({ type: 'saved' });
       store.dispatch({ type: 'dismiss', id: 'repaired' });
-      store.dispatch({ type: 'notice', notice: { id: 'saved', level: 'info', text: api.writable ? `Saved to shows/${s.id}.json.` : `Downloaded ${s.id}.json (and kept a draft in this browser).` } });
+      store.dispatch({ type: 'notice', notice: { id: 'saved', level: 'info', text: `Saved to shows/${s.id}.json.` } });
       setTimeout(() => store.dispatch({ type: 'dismiss', id: 'saved' }), 3000);
     } catch (e) {
       const errs = e instanceof ApiError && e.errors.length ? e.errors.slice(0, 3).map((x) => `${x.path ? `${x.path}: ` : ''}${x.message}`).join('; ') : (e as Error).message;

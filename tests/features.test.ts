@@ -2,11 +2,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FeatureExtractor, estimateBpm, pitchClass } from '../src/audio/features';
-import { advanceFeatures, knobValue, newFeatures } from '../src/widgets/features';
-import { readLabHarness } from '../src/widgets/lab-harness';
-import { DRIVES } from '../src/studio/show/show';
+import { DRIVES, advanceFeatures, knobValue, newFeatures } from '../src/widgets/features';
+import { evalLabHarness } from '../src/widgets/lab-harness';
 import type { Chord } from '../src/widgets/types';
-import { fifthsPosition, noteHue, paletteColor, PALETTES } from '../src/visual/color';
 
 const SR = 48000;
 const FFT = 4096;
@@ -120,26 +118,6 @@ describe('estimateBpm', () => {
   });
 });
 
-describe('color', () => {
-  it('places fifths next to each other', () => {
-    expect(fifthsPosition(0)).toBe(0); // C
-    expect(fifthsPosition(7)).toBeCloseTo(1 / 12); // G
-    expect(fifthsPosition(2)).toBeCloseTo(2 / 12); // D
-    expect(noteHue(0)).toBe(0);
-  });
-  it('glides continuously between notes', () => {
-    const mid = fifthsPosition(0.5); // halfway C → C♯ (C♯ is 7 fifths away, i.e. -5)
-    expect(mid).toBeGreaterThan(0.7);
-  });
-  it('samples palettes and wraps', () => {
-    const sunset = PALETTES.find((p) => p.id === 'sunset')!;
-    expect(paletteColor(sunset, 0)).toEqual(paletteColor(sunset, 1));
-    const c = paletteColor(sunset, 0.37);
-    expect(c.h).toBeGreaterThanOrEqual(0);
-    expect(c.h).toBeLessThan(360);
-  });
-});
-
 // The widgets' pulse (src/widgets/features.ts), not the audio extractor above: the +hit drive, "each note → jump".
 describe('feat.hit, the +hit drive', () => {
   const chord = (vel: number): Chord => ({ t: 0, notes: [{ m: 60, v: vel, d: 1 }], vel, lo: 60, hi: 60 });
@@ -192,7 +170,7 @@ describe('feat.hit, the +hit drive', () => {
   });
 
   it("is in the lab's drive menu with its words, and the studio accepts it in a show", () => {
-    const h = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
+    const h = evalLabHarness(readFileSync(new URL('../lab/harness.js', import.meta.url), 'utf8'), readFileSync(new URL('../lab/kit.js', import.meta.url), 'utf8'));
     expect(h.drives).toContainEqual(['+hit', 'each note → jump']);
     expect(h.drives).toContainEqual(['-hit', 'each note → dip']);
     expect(DRIVES).toContain('+hit');

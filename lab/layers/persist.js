@@ -1,8 +1,7 @@
-// How visible a layer is at an intensity: the paste weight that shows a wanted fraction of it (plan §2, spec
-// Decisions 3). On the persistent, fading canvas a paste weight is not an opacity: content redrawn every frame settles
+// How visible a layer is at an intensity: the paste weight that shows a wanted fraction of it. On the persistent, fading canvas a paste weight is not an opacity: content redrawn every frame settles
 // near m·P / (0.12 + 0.88·m), so the 'redraw' class (the default) maps through the measured table, the mean of the
 // two measured ground rows. A widget whose newest stroke is linear in the weight is 'strokes': vis(a) = a.
-// PERSIST names each widget's class; npm run persist-probe (T12) writes it between the markers.
+// PERSIST names each widget's class.
 //
 // One implementation: the lab loads this file as a classic <script>; the studio and Node evaluate the same text with
 // new Function('WA', src) (src/widgets/layers.ts).
@@ -12,9 +11,8 @@
   /** [visible fraction, paste weight], piecewise linear. */
   WA.VIS_REDRAW = [[0, 0], [0.1, 0.044], [0.25, 0.069], [0.5, 0.15], [0.75, 0.31], [0.9, 0.561], [1, 1]];
 
-  // persist:start
   WA.PERSIST = {
-    // npm run persist-probe: r = brightness at slot weight 0.25 ÷ at 1 (prelude 120, b5 0, 5 s); r ≥ 0.5 → redraw
+    // r = brightness at slot weight 0.25 ÷ at 1 (prelude 120, b5 0, 5 s); r ≥ 0.5 → redraw
     "timeslice": 'redraw',          // r 1.00
     "fold": 'redraw',               // r 1.00
     "stella": 'redraw',             // r 1.00
@@ -60,7 +58,6 @@
     "pointillism": 'strokes',       // r 0.35
     "casket": 'strokes',            // r 0.31
   };
-  // persist:end
 
   /** The paste weight that shows a fraction a (clamped to 0..1) of a layer of class cls ('strokes', else 'redraw'). */
   WA.vis = function (a, cls) {

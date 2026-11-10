@@ -39,8 +39,7 @@
     if (RS !== 1) {
       mid = document.createElement('canvas'); mid.width = W; mid.height = H; mg = mid.getContext('2d');
       mg.globalCompositeOperation = 'copy'; mg.imageSmoothingEnabled = true; mg.imageSmoothingQuality = 'high';   // a 3:1 reduction needs it
-      // At 3× this is close to hd-check's gate: moved 0.095 against 0.1 at b5 60 (0.153 with 'low'). A change to this
-      // reduction path is re-checked with `npm run hd-check -- --only timeslice --scale 3`, not only at 2×.
+      // At 3× a 'low' quality reduction visibly moves the picture; look at 3× after changing this path, not only at 2×.
     }
   }
   let IV = 0.03;

@@ -1,7 +1,7 @@
 /**
  * Repairs what MuScriptor large gets wrong in ways the overnight checks measured: notes in the padding past the end,
  * chords stuck for a whole 5 s chunk, notes in digital silence, notes outside their instrument's range, doubled notes
- * and drones chopped into butting pieces (plan 2026-11-01, T1, with the rulings on why each pass is as narrow as it is).
+ * and drones chopped into butting pieces.
  * Label swaps no pass can see stay as they are. Pure: no randomness, and the input is never written to.
  */
 import { TRACKS, TRACK_IDS } from './instruments';

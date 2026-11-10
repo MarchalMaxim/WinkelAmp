@@ -182,7 +182,7 @@
       { key: 'which', label: 'which notes count', min: 0, max: 1, value: 0.5,
         hint: 'Which attacks add a frame. Left: only the bass, so it marks the left hand’s pulse. Middle: every attack. Right: only the top line, the melody.',
         icon: (g, v, w, h) => (v < 0.34 ? ICON.keys(g, w, h, 0, 0.35, ICON.red) : v > 0.66 ? ICON.keys(g, w, h, 0.65, 1, ICON.red) : ICON.keys(g, w, h, 0, 1, ICON.red)) },
-      { key: 'beat', label: 'on the beat', min: 0, max: 1, value: 0,
+      { key: 'beat', perNote: false, label: 'on the beat', min: 0, max: 1, value: 0,
         hint: 'When frames come. Left: on every attack. Right: snapped to the beat it hears, so only the metre shows.',
         icon: (g, v, w, h) => {
           const irr = [0.04, 0.17, 0.23, 0.41, 0.52, 0.58, 0.79, 0.93];

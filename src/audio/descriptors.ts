@@ -1,5 +1,5 @@
 /**
- * Medium-timescale musical descriptors (see Descriptors in character/types.ts):
+ * Medium-timescale musical descriptors (see Descriptors in types.ts):
  * what the music is *like* over the last few seconds, not what it does this frame.
  *
  * Pure code, no Web Audio: the engine feeds it live and `analyzeOffline` feeds
@@ -13,7 +13,7 @@
  * to measure" (loudness, tonal content), so silence freezes the picture instead
  * of dragging every descriptor to zero.
  */
-import { neutralDescriptors, type Descriptors } from '../character/types';
+import { neutralDescriptors, type Descriptors } from './types';
 import type { Features } from './features';
 
 // ---------- small helpers ----------

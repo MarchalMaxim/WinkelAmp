@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
 import { evalLayers } from '../src/widgets/layers';
@@ -49,9 +48,7 @@ describe('loadLayers (lab/layers on disk)', () => {
     for (let i = 0; i <= 1000; i++) { const v = WA.vis(i / 1000, 'redraw'); expect(v).toBeGreaterThanOrEqual(last); last = v; }
   });
 
-  it('keeps the PERSIST block between its markers, for persist-probe to rewrite', () => {
-    const src = readFileSync(new URL('../lab/layers/persist.js', import.meta.url), 'utf8');
-    expect(src).toMatch(/\/\/ persist:start\n\s*WA\.PERSIST = \{[^]*?\};\n\s*\/\/ persist:end/);
+  it('has a PERSIST table', () => {
     expect(typeof WA.PERSIST).toBe('object');
   });
 });

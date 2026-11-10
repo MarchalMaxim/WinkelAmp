@@ -1,14 +1,13 @@
 /// <reference types="node" />
 // On a set of picks the composer chose the notes, so a widget's own idea of which notes count gives way (x.picked).
 // Off picks these widgets are as they were.
-import { readFileSync } from 'node:fs';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newFeatures } from '../src/widgets/features';
-import { instantiate } from '../src/widgets/instantiate';
+import { loadWidget } from './helpers/widget';
 import type { Chord, IconLib, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const icon = { ink: '#fff', rng: () => () => 0.5 } as unknown as IconLib;
-const tool = (id: string): ToolDef => instantiate(id, readFileSync(new URL(`../lab/tools/${id}.js`, import.meta.url), 'utf8'), { icon, chords: [] });
+const tool = (id: string): ToolDef => loadWidget(id, { icon });
 const attack = (t: number, m: number, v: number, d = 0.5): Chord => ({ t, notes: [{ m, v, d }], vel: v, lo: m, hi: m });
 
 /** A context that takes every call, and counts the rectangles and what is painted. */

@@ -97,14 +97,6 @@ describe('labLayers', () => {
     expect(f.steps[0].slots).toEqual([{ id: 'timeslice', receiving: true, weight: 1 }]);
   });
 
-  it('probe sets one widget\'s weight on every one of its slots and draws it even without an entry', () => {
-    const f = fakeRuntime(order);
-    labLayers(f.rt, [], layers, MOMENTS, { id: 'strings', weight: 0.25 }).step(1, 1 / 60);
-    expect(f.steps[0].slots.map((s) => [s.id, s.weight])).toEqual([['squares', 1], ['strings@bassline', 0.25], ['strings@melody', 0.25]]);
-    const g = fakeRuntime(order);
-    labLayers(g.rt, [], [], MOMENTS, { id: 'kandinsky', weight: 0.5 }).step(1, 1 / 60);
-    expect(g.steps[0].slots).toEqual([{ id: 'kandinsky', receiving: true, weight: 0.5 }]);
-  });
 
   it('sets the moment before each step and passes resets through', () => {
     const f = fakeRuntime(order), s = labLayers(f.rt, ['squares'], [], MOMENTS);

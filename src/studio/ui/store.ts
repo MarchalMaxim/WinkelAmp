@@ -1,5 +1,5 @@
 /**
- * The studio's state (plan §7): the song, its show, what is selected and saved, the notices. Show edits go through
+ * The studio's state: the song, its show, what is selected and saved, the notices. Show edits go through
  * applyEdit and are recorded for undo; a selected clip that is gone (a delete, an undo) is no longer selected.
  */
 import type { SongPack } from '../pack/pack';

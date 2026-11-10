@@ -1,8 +1,7 @@
 // Flee's snap slider (2026-11-05: flee-snap.js folded into flee.js behind a switch, then the switch made a slider): the knob,
 // that 0 and 1 draw exactly what the old switch drew off and on (digests of the draw log taken from flee.js before the
 // slider, with Math.random seeded on the old side), that the values between are a third look, and that the snap side is
-// drawn from song time and x.rnd only, on the note's own step. That 0 draws what flee drew before is also proved on pixels
-// by scripts/checks/snap-scenes-check.mjs (Liebesleid has flee on its accents).
+// drawn from song time and x.rnd only, on the note's own step.
 /// <reference types="node" />
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -10,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 /** A 2D context that writes every call and every set into `log` (canvases by number, numbers to 3 places). */
@@ -41,7 +41,7 @@ afterAll(() => { G.document = saved.document; G.window = saved.window; });
 function play(knobs: Record<string, number>, secs = 6, { flipAt = -1, randomThrows = false, seededRandom = false, noOnPicks = false } = {}) {
   const log: string[] = [], ids = new Map<unknown, number>(), rec = recorder(log, ids);
   G.document = { createElement: () => { const c: Record<string, unknown> = { width: 0, height: 0 }; ids.set(c, ids.size); c.getContext = () => (c.g ??= rec(c)); return c; } };
-  const tool = instantiate('flee', SRC, { icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: CHORDS }) as ToolDef & Record<string, (...a: unknown[]) => void>;
+  const tool = instantiate('flee', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: CHORDS }) as ToolDef & Record<string, (...a: unknown[]) => void>;
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   let seed = 7;
   const rnd = (a: number, b: number) => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return a + (b - a) * (((t ^ (t >>> 14)) >>> 0) / 4294967296); };

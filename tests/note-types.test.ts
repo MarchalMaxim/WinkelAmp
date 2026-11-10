@@ -149,7 +149,7 @@ describe('listenNotes with a note type', () => {
     const chord: Note[] = [[0.98, 2, 30, 80], [0.99, 2, 34, 80]];   // 20 ms before the run's first note
     const notes = [...chord, ...run].sort(byStart);
     // Frozen: a type that sorted or edited the song's notes would throw or be seen here. That each routed instance
-    // groups its own copy is runtime.ts's and lab/index.html's code, which only npm run runtime-check runs.
+    // groups its own copy is runtime.ts's and lab/index.html's code, which no unit test runs.
     notes.forEach((n) => Object.freeze(n));
     Object.freeze(notes);
     const before = JSON.stringify(WA.groupChords(notes));

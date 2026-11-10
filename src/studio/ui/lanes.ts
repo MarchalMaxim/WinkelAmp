@@ -1,30 +1,15 @@
 /**
- * The intensity lane under the timeline (the user's "modulator"): the selected clip's curve, like an automation lane in DJ
- * software, in the widget's hue, the attacks of the part it listens to as ticks, the loudness faint behind.
- *
- * - Click on empty space: a pivot there (snapped to the nearest beat when Snap is on), and keep the button down to
- *   drag it at once.
- * - Drag a pivot: it stays between its neighbours; Shift is fine (no snap, a tenth of the speed), Alt only unsnaps.
- * - Drag a sloped segment up or down to bend it (its midpoint follows the pointer); a flat or held segment moves
- *   up and down instead.
- * - Double-click or right-click a pivot: delete it. Right-click a segment: Linear / Ease / Hold.
- * - The shapes on the strip above the lanes (or right-click empty space): the shared presets (lab/layers/automation.js)
- *   in one click, shown on the lane as a dashed line while the pointer is on one. They fill the clip. "Lowest" sets how far
- *   they go down.
- * - Draw: drag across the lane and the line you draw becomes the curve there, in one gesture.
- * - Bigger: a taller open lane; the picture gives up the room.
- * - Every gesture is one undo step. The lane follows the timeline's zoom, inside the clip.
- *
- * The curve is drawn and hit-tested through the shared automationAt: no second formula here.
+ * The intensity lane under the timeline: the selected clip's curve as an automation lane, edited with the mouse (pivots,
+ * bends, shapes, drawing), every gesture one undo step. The curve is drawn and hit-tested through the shared automationAt.
  */
 import './lanes.css';
 import type { SongPack } from '../pack/pack';
 import { heardSets } from '../show/note-values';
 import { picksId, type Clip, type Show } from '../show/show';
-import { NOTE_TYPE_LABELS } from '../../widgets/tags';
 import type { Span, WaLayers } from '../../widgets/layers';
 import { studioLayers } from '../../widgets/layers-source';
 import type { Chord, Pivot, Shape } from '../../widgets/types';
+import { partWords } from './layer-controls';
 import type { Store, StudioState } from './store';
 
 // ---- pure helpers (tests/lanes-math.test.ts) --------------------------------------------------------------------
@@ -189,11 +174,6 @@ const ICONS = {
   gate: 'M1 11 H5 V1 H10 V11 H14 V1 H23', follow: 'M1 9 L4 6 L6 8 L9 2 L12 4 L14 3 L17 8 L20 7 L23 9', plays: 'M1 11 H3 V1 H16 V11 H23', half: 'M1 6 H23', clear: 'M1 1 H23',
   climax: 'M1 9 H6 L9 7 L12 6 L15 3 L17 1 H19 L21 9 H23',
 };
-const LISTEN_WORDS: Record<string, string> = {
-  melody: 'melody', bassline: 'bass line', inner: 'inner voices', low: 'low notes', high: 'high notes', accents: 'accents',
-  ...Object.fromEntries(Object.entries(NOTE_TYPE_LABELS).map(([t, label]) => [t, label.toLowerCase()])),
-};
-export const listenWord = (l: string): string => (picksId(l) !== null ? 'your picks' : LISTEN_WORDS[l] ?? (l.startsWith('family:') ? l.slice(7) : l));
 const pct = (v: number): string => `${Math.round(v * 100)} %`;
 const stamp = (t: number): string => {
   t = Math.max(0, t);
@@ -356,7 +336,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     ];
     if (l?.listen && l.listen !== 'all') {
       const listen = l.listen;
-      chips.push({ id: 'plays', label: 'While it plays', menu: 'While its part plays', note: listenWord(listen), icon: ICONS.plays,
+      chips.push({ id: 'plays', label: 'While it plays', menu: 'While its part plays', note: partWords(listen), icon: ICONS.plays,
         make: (sp, floor) => P.plays(sp, L.listenNotes({ notes: d.song.notes, tracks: d.song.tracks, picks: heardSets(show()?.picks) }, listen).notes, { floor }) });
     }
     chips.push({ id: 'half', label: 'Half', menu: 'Half', note: 'a steady 50 %', icon: ICONS.half, make: (sp) => P.level(sp, 0.5) });
@@ -419,7 +399,7 @@ export function mountLanes(host: HTMLElement, d: LaneDeps): Lanes {
     const el = document.createElement('div');
     el.className = 'lane open';
     el.style.setProperty('--hue', String(d.hue(c.widget)));
-    const name = d.names(c.widget) + (c.listen && c.listen !== 'all' ? ` · ${listenWord(c.listen)}` : '');
+    const name = d.names(c.widget) + (c.listen && c.listen !== 'all' ? ` · ${partWords(c.listen)}` : '');
     el.innerHTML = `<canvas></canvas><span class="lane-name"></span>`;
     el.querySelector('.lane-name')!.textContent = name;
     const cv = el.querySelector('canvas')!;

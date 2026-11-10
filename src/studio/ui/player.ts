@@ -71,7 +71,7 @@ export class Player {
   refresh(): void {
     if (!this.audio.paused) return;
     const t = this.time, show = this.conductor.current, p = this.pictured;
-    if (p && at(p.t, t) && samePreview(p.show, show, t)) this.pictured = { show, t };
+    if (p && at(p.t, t) && samePreview(p.show, show, t, this.conductor.meta)) this.pictured = { show, t };
     else { this.preview(t); this.runtime.lastT = t; }
   }
 

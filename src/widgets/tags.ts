@@ -1,4 +1,4 @@
-// Widget tags (plan 2026-10-31 §8): feel words, suited instruments and a stack role per widget, from lab/tags.json, in
+// Widget tags: feel words, suited instruments and a stack role per widget, from lab/tags.json, in
 // the vocabulary of lab/tag-words.json. Pure: the callers read the two files (sources.ts in the browser, readFileSync
 // in Node).
 import type { NoteType, Role, WidgetTags } from './types';

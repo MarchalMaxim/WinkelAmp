@@ -1,5 +1,5 @@
 /**
- * Undo for show edits (plan §7). record(before) is called with the show as it was before each edit; records in the
+ * Undo for show edits. record(before) is called with the show as it was before each edit; records in the
  * same group in a row (a slider drag, a boundary drag) are one step. Shows are immutable, so steps hold references.
  */
 import type { Show } from './show';

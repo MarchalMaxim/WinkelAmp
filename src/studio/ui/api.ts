@@ -1,10 +1,6 @@
-/**
- * Where the studio's songs and shows live (plan §7): the dev API (npm run dev, scripts/studio-api.ts) reads and writes
- * them on disk; without it (the static build) the studio has only the songs added in this browser (kept in IndexedDB),
- * and Save downloads the show and keeps a draft in this browser.
- */
+/** Where the studio's songs and shows live: the dev API (npm run dev, scripts/studio-api.ts) reads and writes them on disk. */
 import type { NotesSource, SongPack } from '../pack/pack';
-import { canonicalMelody, emptyMelody, LEAVING_MAX, type Melody } from '../show/melody';
+import { canonicalMelody, LEAVING_MAX, type Melody } from '../show/melody';
 import { canonicalShow, type Show } from '../show/show';
 
 /** A row of a song's notes.ymt3.json: label is the transcriber's guess at the instrument. */
@@ -13,8 +9,6 @@ export type LabelNote = [start: number, end: number, midi: number, vel: number, 
 export interface LibraryEntry { id: string; title: string; duration: number; notesFrom: NotesSource; hasShow: boolean; error?: string }
 
 export interface ShowStore {
-  /** false without the dev API (static build): Save downloads <id>.json, drafts in localStorage 'wa-studio.draft.<id>'. */
-  readonly writable: boolean;
   songs(): Promise<LibraryEntry[]>;
   pack(id: string): Promise<SongPack>;
   /** /songs/<id>/<audio> */
@@ -23,13 +17,13 @@ export interface ShowStore {
   saveShow(s: Show): Promise<void>;
   description(id: string): Promise<string>;
   saveDescription(id: string, text: string): Promise<void>;
-  /** The song's marked melody; an empty one when it has none. Static: localStorage 'wa-studio.melody.<id>'. */
+  /** The song's marked melody; an empty one when it has none. */
   melody(song: string): Promise<Melody>;
   /** leaving: the page is going, so the write must outlast it. */
   saveMelody(m: Melody, leaving?: boolean): Promise<void>;
-  /** The transcriber's instrument labels, for a song without tracks. Static: none. */
+  /** The transcriber's instrument labels, for a song without tracks. */
   labels(song: string): Promise<LabelNote[]>;
-  /** The in-browser fallback's result (static: this browser's IndexedDB, else memory for this page). */
+  /** The in-browser fallback's result. */
   addSong(p: SongPack, audio: Blob): Promise<void>;
 }
 
@@ -57,7 +51,6 @@ async function check(r: Response, what: string): Promise<Response> {
 function devStore(): ShowStore {
   const b = base();
   return {
-    writable: true,
     async songs() { return ((await (await check(await fetch(`${b}/api/songs`), 'songs')).json()) as { songs: LibraryEntry[] }).songs; },
     async pack(id) { return (await (await check(await fetch(`${b}/songs/${id}/pack.json`, { cache: 'no-store' }), `song ${id}`)).json()) as SongPack; },
     audioUrl: (p) => `${b}/songs/${p.id}/${p.audio}`,
@@ -86,94 +79,7 @@ function devStore(): ShowStore {
   };
 }
 
-const draftKey = (id: string) => `wa-studio.draft.${id}`;
-const descKey = (id: string) => `wa-studio.description.${id}`;
-const melodyKey = (id: string) => `wa-studio.melody.${id}`;
-function lsGet(k: string): string | null { try { return localStorage.getItem(k); } catch { return null; } }
-function lsSet(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* private window */ } }
-
-/** Hands the browser a file to save. */
-export function download(name: string, text: string | Blob, type = 'application/json'): void {
-  const blob = typeof text === 'string' ? new Blob([text], { type }) : text;
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-}
-
-/** IndexedDB 'wa-studio', store 'songs' ({ pack, audio } by pack id); null where the browser refuses it. */
-function songDb(): Promise<IDBDatabase | null> {
-  return new Promise((ok) => {
-    try {
-      const r = indexedDB.open('wa-studio', 1);
-      r.onupgradeneeded = () => { r.result.createObjectStore('songs'); };
-      r.onsuccess = () => ok(r.result);
-      r.onerror = () => ok(null);
-      r.onblocked = () => ok(null);
-    } catch { ok(null); }
-  });
-}
-function idb<T>(db: IDBDatabase, mode: IDBTransactionMode, op: (s: IDBObjectStore) => IDBRequest): Promise<T> {
-  return new Promise((ok, fail) => {
-    const r = op(db.transaction('songs', mode).objectStore('songs'));
-    r.onsuccess = () => ok(r.result as T);
-    r.onerror = () => fail(r.error ?? new Error('IndexedDB failed'));
-  });
-}
-
-/**
- * Without the dev API: songs added in the studio (the in-browser fallback) live in this browser's IndexedDB, so opening
- * one (a fresh page, see §2) finds it; where IndexedDB is refused they live in memory for this page only.
- */
-export function staticStore(): ShowStore {
-  const songs = new Map<string, { pack: SongPack; url: string }>();
-  const db = songDb();
-  const remember = (pack: SongPack, audio: Blob) => {
-    const old = songs.get(pack.id);
-    if (old) URL.revokeObjectURL(old.url);
-    songs.set(pack.id, { pack, url: URL.createObjectURL(audio) });
-    return pack;
-  };
-  const stored = async (): Promise<SongPack[]> => {
-    const d = await db;
-    if (!d) return [];
-    try { return (await idb<{ pack: SongPack }[]>(d, 'readonly', (s) => s.getAll())).map((x) => x.pack); } catch { return []; }
-  };
-  return {
-    writable: false,
-    async songs() {
-      const all = new Map<string, SongPack>();
-      for (const p of await stored()) all.set(p.id, p);
-      for (const { pack } of songs.values()) all.set(pack.id, pack);
-      return [...all.values()].sort((a, b) => a.id.localeCompare(b.id))
-        .map((p) => ({ id: p.id, title: p.title, duration: p.duration, notesFrom: p.notesFrom, hasShow: lsGet(draftKey(p.id)) != null }));
-    },
-    async pack(id) {
-      const s = songs.get(id);
-      if (s) return s.pack;
-      const d = await db;
-      const x = d ? await idb<{ pack: SongPack; audio: Blob } | undefined>(d, 'readonly', (st) => st.get(id)).catch(() => undefined) : undefined;
-      if (!x) throw new ApiError(404, `no song ${id} in this browser`);
-      return remember(x.pack, x.audio);
-    },
-    audioUrl: (p) => songs.get(p.id)?.url ?? '',
-    async show(id) { const d = lsGet(draftKey(id)); return d ? (JSON.parse(d) as Show) : null; },
-    async saveShow(s) { const text = canonicalShow(s); lsSet(draftKey(s.id), text); download(`${s.id}.json`, text); },
-    async description(id) { return lsGet(descKey(id)) ?? ''; },
-    async saveDescription(id, text) { lsSet(descKey(id), text); },
-    async melody(song) { const m = lsGet(melodyKey(song)); return m ? (JSON.parse(m) as Melody) : emptyMelody(song); },
-    async saveMelody(m) {
-      try { localStorage.setItem(melodyKey(m.song), canonicalMelody(m)); } catch (e) { throw new Error(`the browser would not keep it (${(e as Error).message})`); }
-    },
-    async labels() { return []; },
-    async addSong(p, audio) {
-      remember(p, audio);
-      const d = await db;
-      if (d) await idb(d, 'readwrite', (s) => s.put({ pack: p, audio }, p.id)).catch(() => { /* full or refused: this page only */ });
-    },
-  };
-}
-
-/** GET /api/health answers → the dev store, else the static store. */
+/** The dev store when GET /api/health answers; otherwise an error to show the person. */
 export async function connectStore(): Promise<ShowStore> {
   try {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 1500);
@@ -181,5 +87,5 @@ export async function connectStore(): Promise<ShowStore> {
     clearTimeout(timer);
     if (r.ok && ((await r.json()) as { api?: number }).api === 1) return devStore();
   } catch { /* no dev server */ }
-  return staticStore();
+  throw new Error('Run npm run dev: the studio needs its dev server');
 }

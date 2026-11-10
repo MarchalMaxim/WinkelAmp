@@ -1,23 +1,19 @@
 /**
- * A song pack in words, for composing its show (docs/COMPOSING-SHOWS.md): markdown on stdout.
+ * A song pack in words, for composing its show: markdown on stdout.
  *
  *   npm run describe-song -- <id>
  *
  * Title, length, where the notes came from and how much to trust them, the analysis sections with their character,
- * loudness and attacks per second every 10 s, where each instrument track plays (pack v2), and the show the
- * auto-composer would make.
+ * loudness and attacks per second every 10 s, and where each instrument track plays (pack v2).
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { characterLabel, sectionCharacters } from '../src/studio/compose/character';
-import { composeShow } from '../src/studio/compose/compose';
 import { TRACK_IDS } from '../src/studio/pack/instruments';
 import { MS_MODEL } from '../src/studio/pack/muscriptor';
 import { validatePack, type SongPack } from '../src/studio/pack/pack';
-import { sortedClips } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
 import type { Note } from '../src/widgets/types';
-import { loadCatalogue } from './node/catalogue';
 import { isSlug, showsDir, songsDir } from './node/pack-io';
 
 const id = process.argv[2];
@@ -85,16 +81,10 @@ if (present.length) {
   }
 }
 
-const { widgets } = loadCatalogue();
-const auto = composeShow({ pack, widgets });
-out.push('', "## The auto-composer's default", '', 'What "Compose a show for me" places on an empty timeline: a starting point, not a verdict.', '');
-out.push('| start | end | track | widget | hears |', '|---|---|---|---|---|');
-for (const c of sortedClips(auto.clips)) out.push(`| ${clock(c.start)} | ${clock(c.end)} | ${c.track} | ${c.widget} | ${c.listen ?? 'all notes'} |`);
 console.log(out.join('\n'));
 
 /**
- * The share of a span's 0.5 s bins in which some note sounds (overlaps the bin). The composer's presence (plan §9,
- * T19's src/studio/compose/instruments.ts) means the same; this copy goes once that module lands.
+ * The share of a span's 0.5 s bins in which some note sounds (overlaps the bin).
  */
 function presence(notes: readonly Note[], s: { start: number; end: number }): number {
   const BIN = 0.5, n = Math.ceil((s.end - s.start) / BIN - 1e-9);

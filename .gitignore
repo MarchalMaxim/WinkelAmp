@@ -3,7 +3,6 @@ dist
 *.log
 .DS_Store
 .superpowers/
-studies-out/
 
 # The lab plays local recordings; their audio and the notes transcribed from them stay out of git.
 lab/*.mp3
@@ -12,10 +11,6 @@ lab/*.ogg
 lab/notes*.js
 # The lab's per-song pack data (npm run lab-notes): tracks, beats and loudness computed from the recordings.
 lab/pack-*.js
-
-# Showcase videos (lab/render.mjs) carry the recordings: local only.
-lab/showcase/*.mp4
-lab/showcase/*.png
 
 # Widget demo clips (npm run widget-demos): rendered, local only.
 lab/demos/*.mp4

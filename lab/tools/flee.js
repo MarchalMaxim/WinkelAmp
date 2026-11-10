@@ -6,7 +6,7 @@
 // cool, flight slows, they barely tremble, and only the hardest notes and attacks of the song call them up or scatter them.
 // A slider, snap (the user, 2026-11-05: first "behind a switch", then after the morning reel "let's make it a slider
 // perhaps?"): at 0 (the default) every line below runs exactly as before; above 0, the chords and frames go to snapMode,
-// candidate C10 of docs/mockups/snap/DESIGN.md (formerly lab/tools/flee-snap.js), with its own flock, and the slider sets
+// with its own flock, and the slider sets
 // how snappy it is: at 1 exactly the old switch-on look, below that a longer freeze, a later bolt, a weaker flash and a
 // longer ember, towards the old flee. Crossing 0 either way starts both afresh.
 (() => {
@@ -213,8 +213,7 @@
       for (let i = 0; i < NEV * life / 2; i++) { t += -Math.log(1 - r()) / TW_MAX; if (t > life) break; ev.push({ t, u: r(), m: r(), sg: r() < 0.5 ? -1 : 1 }); }
       return ev;
     }
-    // DESIGN section 1: the alpha that takes a screen showing Tprev (after the 0.12 fade) to T. lab/snap/envelope.js has the
-    // same formula as SNAP.alpha; this file does not wait for that script to be loaded.
+    // The alpha that takes a screen showing Tprev (after the 0.12 fade) to T; the same formula as KIT.SNAP.alpha, kept local so flee stays free of it.
     const snapAlpha = (T, Tp) => Math.max(0, Math.min(1, (T - 0.88 * Tp) / (1 - 0.88 * Tp)));
     // What the slider adds to a newborn shape, called right after its twitchEvents and drawn from that seed, so no x.rnd is
     // used and nothing shifts at k = 1: the freeze before the bolt, its own bolt time T as the old flee had it, a tremble seed.

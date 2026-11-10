@@ -1,5 +1,11 @@
 // The lab's step() arithmetic (lab/index.html), in the same operation order, so knob values match to the last bit.
-import type { Chord, Features, KnobMap, KnobState, Param, SoundingNote } from './types';
+import type { Chord, Drive, Features, KnobMap, KnobState, Param, SoundingNote } from './types';
+
+/** Every feature a knob can follow: adding one here (and to newFeatures) adds its two drives everywhere. */
+export const FEATURE_KEYS = ['level', 'rate', 'pitch', 'bass', 'density', 'hit', 'loud', 'pace', 'rel'] as const;
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
+/** '' (fixed), then '+key' and '-key' for every feature. */
+export const DRIVES: readonly Drive[] = ['', ...FEATURE_KEYS.flatMap((k): Drive[] => [`+${k}`, `-${k}`])];
 
 export function newFeatures(): Features {
   return { level: 0, rate: 0, pitch: 0.5, bass: 0, density: 0, hit: 0, loud: 0, pace: 0, rel: 0 };
@@ -8,7 +14,7 @@ export function newFeatures(): Features {
 /** The lab's ctx.p: base, moved by a drive (pitch centred on 0.5), clamped to the knob's range. */
 export function knobValue(q: Param, s: KnobState, f: Features): number {
   let v = s.base;
-  if (s.drive) v += (s.drive[0] === '+' ? 1 : -1) * s.depth * (q.max - q.min) * (f[s.drive.slice(1) as keyof Features] - (s.drive.endsWith('pitch') ? 0.5 : 0));
+  if (s.drive) v += (s.drive[0] === '+' ? 1 : -1) * s.depth * (q.max - q.min) * (f[s.drive.slice(1) as FeatureKey] - (s.drive.endsWith('pitch') ? 0.5 : 0));
   return Math.max(q.min, Math.min(q.max, v));
 }
 

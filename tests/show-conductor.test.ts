@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Conductor, SETTLED, momentAt, samePreview, showInstances, showWidgets } from '../src/studio/show/conductor';
+import { Conductor, SETTLED, momentAt, samePreview, showInstances } from '../src/studio/show/conductor';
 import { applyEdit, type ShowEdit } from '../src/studio/show/edit';
 import type { Clip, Show } from '../src/studio/show/show';
 import type { Slot } from '../src/widgets/runtime';
@@ -43,7 +43,7 @@ function play(c: Conductor, from: number, to: number, dt = 0.05) {
 
 describe('showInstances', () => {
   it('one per clip, in the order a show is saved: overlapping copies are distinct', () => {
-    expect(showWidgets(SHOW)).toEqual(['squares#c1', 'kandinsky#c2', 'casket#c3', 'casket#c4']);
+    expect(showInstances(SHOW).map((s) => s.key)).toEqual(['squares#c1', 'kandinsky#c2', 'casket#c3', 'casket#c4']);
   });
   it('own: a part or a curve; notes for a set of picks', () => {
     const s: Show = { ...SHOW, clips: [clip('a', 0, 1, 0, 'squares', { listen: 'melody' }), clip('b', 0, 1, 1, 'squares', { intensity: [{ t: 0, v: 1 }] }), clip('c', 0, 1, 2, 'squares', { listen: 'picks:p1' }), clip('d', 0, 1, 3, 'squares')],

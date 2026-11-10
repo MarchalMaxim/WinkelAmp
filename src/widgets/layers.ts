@@ -1,4 +1,4 @@
-// The shared layer maths (plan §2): lab/layers/*.js, written once. The lab loads each file as a classic <script>;
+// The shared layer maths: lab/layers/*.js, written once. The lab loads each file as a classic <script>;
 // the studio (src/widgets/layers-source.ts) and Node (scripts/node/layers.ts) evaluate the same text here. Pure: no
 // Vite, no fs, so both loaders can import it.
 import type { Chord, EnergyLanesLike, Features, Line, Listen, Note, NoteType, Param, Persist, Pivot, Region, SlotLayer, SongNotes, SoundingNote, WidgetCtx } from './types';
@@ -34,7 +34,7 @@ export interface LayeredSlot { inst: InstanceState; receiving: boolean; weight: 
 /** Everything lab/layers/*.js put on WA. Members land with their tasks (T1 persist.js; T4 automation.js and lines.js;
     T5 region.js; T12/T15 slot.js): until then only the type exists. */
 export interface WaLayers {
-  // automation.js (T4)
+  // automation.js
   automationAt(p: readonly Pivot[] | undefined, t: number): number;
   fnv32(s: string): number;
   passes(t: number, a: number, salt: number): boolean;
@@ -71,7 +71,7 @@ export interface WaLayers {
   // persist.js (T1 table and vis; T12 fills PERSIST)
   VIS_REDRAW: readonly (readonly [number, number])[]; PERSIST: Record<string, Persist>;
   vis(a: number, cls: Persist): number;
-  // lines.js (T4)
+  // lines.js
   NOTE_TYPES: readonly NoteType[]; noteTypeAttacks(song: SongNotes): Record<NoteType, number[]>;   // attack times per type
   groupChords(notes: readonly Note[]): Chord[]; soundingAt(notes: readonly Note[], t: number): SoundingNote[];
   lineNotes(notes: readonly Note[], line: Line): Note[];
@@ -94,7 +94,7 @@ export interface WaLayers {
   // present.js
   presentValues(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less'>[] | undefined, s: number): Record<string, number>;
   presentAt(params: readonly Pick<Param, 'key' | 'min' | 'max' | 'step' | 'value' | 'less' | 'leads'>[] | undefined, now: Readonly<Record<string, number>> | undefined, g: number): Record<string, number>;
-  // region.js (T5)
+  // region.js
   regionBox(r: Region, cw: number, ch: number): { cx: number; cy: number; w: number; h: number; rot: number };   // device px, radians
   featherAlpha(d: number, feather: number): number;     // d: 0 centre … 1 edge → 1 … 0
   glideRegion(a: Region, b: Region, u: number): Region; // smoothstep(u) on x y w h rot feather; mode/shape/blend/fit of b

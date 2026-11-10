@@ -1,5 +1,5 @@
 /**
- * The note picker (spec 2026-11-01-note-picker), over the whole studio for the current song: mark the melody on a roll,
+ * The note picker, over the whole studio for the current song: mark the melody on a roll,
  * connect a few of those notes to a widget in a popup, and the widget answers those notes only. This file is the overlay:
  * its tools, the legend, the three steps, the stage mirror, the set rows, the marks with their own undo and saving, the
  * tones, and the keys, which it takes before the studio does while it is open. Each opening, and each connection, starts

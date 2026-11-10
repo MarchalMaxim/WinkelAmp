@@ -17,24 +17,15 @@ export const INTENSITY = 'intensity';
 /** A note's intensity is a factor on its velocity, 0..MAX_AMOUNT, and 1 is no value at all. */
 export const MAX_AMOUNT = 2;
 
-/**
- * Knobs a note can't set, though they may work on a clip. Those that restart or wipe the widget; that make it replay the
- * past with one value, or wait on the clock, so seeks and renders would differ from playing; that freeze or re-roll what
- * is on screen; and those that rebuild something costly at every note, or a whole page's ground. `presence` never: it
- * draws nothing itself, or is what a clip's curve moves, and intensity is the per-note word for it.
- */
-const NOT_PER_NOTE = new Set([
-  'johansson.stride', 'johansson.height', 'johansson.maxStep', 'boogie.lanes', 'rorschach.sym', 'lazy.limbs', 'comfort.size', 'stella.beat',
-  'tree.leaves', 'tree.twigs', 'tree.wither', 'gliss.number', 'gliss.push', 'gliss.size', 'gliss.linger',
-  'nebula.amount', 'fields.n', 'clumsy.crowd', 'current.threads', 'scribble.pens',
-  'ivory.floor', 'ivory.cracks', 'kline.ground', 'kline.colour', 'martin.paper', 'martin.grid', 'score.paper', 'tree.colours', 'klee.size', 'boogie.ground',
-]);
-export const notPerNote = (): ReadonlySet<string> => NOT_PER_NOTE;
+type PerNoteParam = Pick<Param, 'key' | 'perNote'>;
 
-export const perNote = (widget: string, key: string): boolean => key !== 'presence' && key !== INTENSITY && !NOT_PER_NOTE.has(`${widget}.${key}`);
+/** Whether a note can set this knob of a widget (its params, if known): not `presence`, which draws nothing itself or is
+    what a clip's curve moves (intensity is the per-note word for it), and not a knob that says `perNote: false`. */
+export const perNote = (params: readonly PerNoteParam[] | undefined, key: string): boolean =>
+  key !== 'presence' && key !== INTENSITY && params?.find((q) => q.key === key)?.perNote !== false;
 
-/** The knobs a note can set on this widget. */
-export const noteKnobs = <P extends Pick<Param, 'key'>>(widget: string, params: readonly P[]): P[] => params.filter((q) => perNote(widget, q.key));
+/** The knobs a note can set on a widget with these params. */
+export const noteKnobs = <P extends PerNoteParam>(params: readonly P[]): P[] => params.filter((q) => perNote([q], q.key));
 
 /** A note's values, read only. */
 export const valuesOf = (n: PickNote): Readonly<NoteValues> => (typeof n[4] === 'number' ? { [INTENSITY]: n[4] } : n[4] ?? {});

@@ -1,4 +1,4 @@
-// Crimp (nature widget, docs/mockups/nature/plans/crimp.md): fuzzy to sharp. The entry, the straight strike, the wool,
+// Crimp: fuzzy to sharp. The entry, the straight strike, the wool,
 // the still between notes, the gone time, the repeat in place, velocity gain, the one-note guard, the cap, the bone
 // budget, and that it is stateless (determinism and seeks).
 /// <reference types="node" />
@@ -7,16 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit, recorder } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
-
-function recorder(log: string[], ids: Map<unknown, number>) {
-  const fmt = (v: unknown): string => typeof v === 'number' ? v.toFixed(3) : ids.has(v) ? `#${ids.get(v)}` : typeof v === 'object' ? 'obj' : String(v);
-  const grad = { addColorStop() {} };
-  return (canvas: unknown) => new Proxy({ canvas } as Record<string, unknown>, {
-    get: (o, k) => k in o ? o[k as string] : (...a: unknown[]) => { log.push(`${String(k)}(${a.map(fmt).join(',')})`); return grad; },
-    set: (o, k, v) => { o[k as string] = v; log.push(`${String(k)}=${fmt(v)}`); return true; },
-  });
-}
 
 const SRC = readFileSync(new URL('../lab/tools/crimp.js', import.meta.url), 'utf8');
 const G = globalThis as Record<string, unknown>;
@@ -33,7 +25,7 @@ function play(notes: Note[], knobs: Record<string, number> = {}, { secs = 6, pic
   const chords: Chord[] = groupChords(notes);
   const log: string[] = [], ids = new Map<unknown, number>(), rec = recorder(log, ids);
   G.document = { createElement: () => { const c: Record<string, unknown> = { width: 0, height: 0 }; ids.set(c, ids.size); c.getContext = () => (c.g ??= rec(c)); return c; } };
-  const tool = instantiate('crimp', SRC, { icon, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
+  const tool = instantiate('crimp', SRC, { kit: kit(), icon, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
   const vals: Record<string, number> = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   const x = { g: rec({}), t: 0, dt: 1 / 60, W: 1280, H: 720, rnd: (a: number) => a, p: (k: string) => vals[k], picked } as unknown as WidgetCtx & { t: number };
   const random = Math.random;
@@ -68,7 +60,7 @@ describe('crimp: the entry', () => {
   it('is one tool with the right shape and knobs', () => {
     const chords: Chord[] = [];
     G.document = { createElement: () => ({ getContext: () => recorder([], new Map())({}) }) };
-    const tool = instantiate('crimp', SRC, { icon, chords });
+    const tool = instantiate('crimp', SRC, { kit: kit(), icon, chords });
     expect(tool).toMatchObject({ id: 'crimp', name: 'Crimp', tag: 'new' });
     expect(tool.blurb!.length).toBeGreaterThan(20);
     const ps = tool.params!;

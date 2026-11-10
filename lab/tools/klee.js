@@ -124,7 +124,7 @@
       { key: 'stay', label: 'how long the colour stays', min: 3, max: 40, value: 14, less: 3,
         hint: 'How long the paint stays on the tiles. Left: a few seconds, only the last phrase. Right: the whole passage builds up.',
         icon: (g, v, w, h) => ICON.fade(g, w, h, 0.12 + v * 0.88, GL[OCHRE]) },
-      { key: 'size', label: 'size of the tiles', min: 12, max: 40, step: 1, value: 20,
+      { key: 'size', perNote: false, label: 'size of the tiles', min: 12, max: 40, step: 1, value: 20,
         hint: 'How big the mosaic\'s squares are. Left: a fine mosaic of many small tiles. Right: a few big tiles.',
         icon: ICONS.size },
       { key: 'thick', label: 'how wide each voice paints', min: 0.6, max: 4, value: 1.7, less: 0.6, drive: '+level',

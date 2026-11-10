@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ChangeDetector, findDrops, segment, type StructureRow } from '../src/audio/structure';
+import { segment, type StructureRow } from '../src/audio/structure';
 
 let seed = 11;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -65,57 +65,5 @@ describe('segment', () => {
     for (let i = 1; i < b.length; i++) expect(b[i] - b[i - 1]).toBeGreaterThanOrEqual(6 - 1e-9);
     expect(b[0]).toBeGreaterThanOrEqual(6);
     expect(90 - b[b.length - 1]).toBeGreaterThanOrEqual(6);
-  });
-});
-
-describe('findDrops', () => {
-  const hop = 1 / 60;
-  const signal = (seconds: number, at: (t: number) => number) =>
-    Float32Array.from({ length: Math.round(seconds / hop) }, (_, i) => at(i * hop));
-
-  it('finds a drop', () => {
-    const d = findDrops(signal(40, (t) => (t < 20 ? 0.1 : 0.8)), hop);
-    expect(d).toHaveLength(1);
-    expect(Math.abs(d[0].time - 20)).toBeLessThanOrEqual(0.5);
-    expect(d[0].strength).toBeGreaterThan(0.5);
-    expect(d[0].strength).toBeLessThanOrEqual(1);
-    // Steady kicks: a punch every 0.5 s, or the bass alternating 0.7 / 0.2 every 0.5 s.
-    expect(findDrops(signal(40, (t) => (t % 0.5 < 0.15 ? 0.7 : 0.2)), hop)).toHaveLength(0);
-    expect(findDrops(signal(40, (t) => (Math.floor(t / 0.5) % 2 ? 0.2 : 0.7)), hop)).toHaveLength(0);
-  });
-});
-
-describe('ChangeDetector', () => {
-  /** Feeds 60 Hz frames; returns the events with their times. */
-  function run(det: ChangeDetector, seconds: number, at: (t: number) => { s: State; bass: number }, t0 = 0) {
-    const out: { time: number; kind: string; strength: number }[] = [];
-    for (let i = 0; i < seconds * 60; i++) {
-      const t = t0 + i / 60;
-      const { s, bass } = at(t);
-      const e = det.update(row(s), bass, t);
-      if (e) out.push({ time: t, ...e });
-    }
-    return out;
-  }
-
-  it('live detector min gap', () => {
-    const ev = run(new ChangeDetector(), 90, (t) => ({ s: Math.floor(t / 5) % 2 ? FS_LOUD_STACCATO : C_QUIET_LEGATO, bass: 0.3 }));
-    expect(ev.length).toBeGreaterThanOrEqual(2);
-    for (let i = 1; i < ev.length; i++) expect(ev[i].time - ev[i - 1].time).toBeGreaterThanOrEqual(15);
-  });
-
-  it('live detector: one section on a change, a drop pre-empts it, nothing in steady music', () => {
-    const det = new ChangeDetector();
-    expect(run(det, 40, () => ({ s: C_QUIET_LEGATO, bass: 0.2 }))).toHaveLength(0);
-    const sec = run(det, 40, (t) => ({ s: t < 60 ? C_QUIET_LEGATO : FS_LOUD_STACCATO, bass: 0.2 }), 40);
-    expect(sec.map((e) => e.kind)).toEqual(['section']);
-    expect(sec[0].time).toBeGreaterThan(60);
-    expect(sec[0].time).toBeLessThan(64);
-
-    // A seek back resets: the same change with the bass coming in hard is a drop, reported at once.
-    const drop = run(det, 40, (t) => (t < 20 ? { s: C_QUIET_LEGATO, bass: 0.1 } : { s: FS_LOUD_STACCATO, bass: 0.8 }));
-    expect(drop.map((e) => e.kind)).toEqual(['drop']);
-    expect(drop[0].time - 20).toBeLessThan(0.5);
-    expect(drop[0].time - 20).toBeGreaterThanOrEqual(0);
   });
 });

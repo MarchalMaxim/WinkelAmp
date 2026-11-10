@@ -167,7 +167,7 @@
     // Six knobs: the five old ones (keys, ranges and drives unchanged, so saved settings still apply) and how present (v3);
     // the other nine are fixed in FIX above.
     params: [
-      { key: 'sym', label: 'mirror pattern', min: 1, max: 8, step: 1, value: 1,
+      { key: 'sym', perNote: false, label: 'mirror pattern', min: 1, max: 8, step: 1, value: 1,
         hint: 'How the ink is mirrored. Left: one fold down the middle, like a folded page. Next: four-way. Right: a kaleidoscope star of up to 8 folds.',
         icon: (g, v, w, h) => mirrorIcon(g, Math.round(1 + v * 7), w, h) },
       { key: 'ink', label: 'ink colour', min: 0, max: 5, step: 0.01, value: 0,

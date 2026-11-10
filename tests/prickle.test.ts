@@ -1,4 +1,4 @@
-// Prickle (lab/tools/prickle.js, plan docs/mockups/nature/plans/prickle.md): one flat thorn per note, from the side edges only, struck
+// Prickle (lab/tools/prickle.js): one flat thorn per note, from the side edges only, struck
 // red with a bone tip, held still as a lighten tone, withdrawn straight back when the next note lands. Stateless from CHORDS.
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadCatalogue } from '../scripts/node/catalogue';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 /** A 2D context that writes every call and every set into `log` (numbers to 3 places). */
@@ -40,7 +41,7 @@ function play(notes: Note[], knobs: Record<string, number> = {}, secs = 4, { ran
   const chords: Chord[] = groupChords(notes);
   const log: string[] = [], rec = recorder(log);
   G.document = { createElement: () => { const c: Record<string, unknown> = { width: 0, height: 0 }; c.getContext = () => (c.g ??= rec(c)); return c; } };
-  const tool = instantiate('prickle', SRC, { icon: { ink: '#fff', gauge() {}, red: '#c43a2c' } as unknown as IconLib, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
+  const tool = instantiate('prickle', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {}, red: '#c43a2c' } as unknown as IconLib, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   const x = { g: rec({}), t: 0, dt: 1 / 60, W: 1280, H: 720, feat: { rate: 0.3, bass: 0.2, level: 0.5, pitch: 0.5, density: 0.3 },
     rnd: () => 0.5, p: (k: string) => vals[k], picked: false } as unknown as WidgetCtx & { t: number };

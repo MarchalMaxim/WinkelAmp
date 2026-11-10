@@ -1,4 +1,4 @@
-// Supersampling (plan §7): at scale S the canvas is 1280·S × 720·S and widgets keep drawing in 1280×720 units through
+// Supersampling: at scale S the canvas is 1280·S × 720·S and widgets keep drawing in 1280×720 units through
 // a thin proxy of the real context. The runtime sets the base transform scale(S) before every widget call; the proxy
 // keeps it under the calls that would lose it (setTransform, resetTransform), reads the transform back in widget units,
 // scales the lengths the canvas takes in device pixels (shadows, filter px), and refuses pixel reads and writes of the

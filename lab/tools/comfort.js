@@ -134,7 +134,7 @@
       { key: 'press', label: 'how far a note presses', min: 0.15, max: 2, value: 1,
         hint: 'How far a note pushes in the edge of a field, and how wide it blushes. Left: a faint touch. Right: a deep, slow give.',
         icon: (g, v, w, h) => { ICON.dot(g, w / 2, h / 2 + 3, 9.5, '#b8694a'); ICON.dot(g, w / 2, h / 2 - 9 + v * 7, 3 + v * 4, '#241a14'); } },
-      { key: 'size', label: 'how big the fields are', min: 0, max: 1, value: 0.5,
+      { key: 'size', perNote: false, label: 'how big the fields are', min: 0, max: 1, value: 0.5,
         hint: 'How many fields share the picture. Left: many small ones. Right: a few huge ones.',
         icon: (g, v, w, h) => { const n = v < 0.34 ? 3 : v < 0.67 ? 2 : 1, r = n === 1 ? 10 : n === 2 ? 7 : 5; for (let i = 0; i < n; i++) ICON.dot(g, w * ((i + 0.5) / n), h / 2, r, '#d9c4a0'); } },
       { key: 'warmth', label: 'how warm the colours are', min: 0, max: 1, value: 0.5,

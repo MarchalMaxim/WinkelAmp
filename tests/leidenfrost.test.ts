@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const SRC = readFileSync(new URL('../lab/tools/leidenfrost.js', import.meta.url), 'utf8');
@@ -34,7 +35,7 @@ function play(knobs: Record<string, number> = {}, { secs = 4, notes = [], throwR
   const log: string[] = [];
   G.document = { createElement: () => { const c: Record<string, unknown> = { width: 0, height: 0 }; c.getContext = () => ctx2d(log); return c; } };
   const chords: Chord[] = groupChords([...notes].sort((a, b) => a[0] - b[0]));
-  const tool = instantiate('leidenfrost', SRC, { icon: ICON, chords }) as Tool;
+  const tool = instantiate('leidenfrost', SRC, { kit: kit(), icon: ICON, chords }) as Tool;
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   let sd = seed;
   const rnd = (a = 0, b = 1) => { sd = (sd + 0x6D2B79F5) | 0; let t = Math.imul(sd ^ (sd >>> 15), 1 | sd); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return a + (b - a) * (((t ^ (t >>> 14)) >>> 0) / 4294967296); };

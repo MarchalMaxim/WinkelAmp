@@ -6,10 +6,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { groupChords } from '../src/widgets/chords';
 import { instantiate } from '../src/widgets/instantiate';
+import { kit } from './helpers/widget';
 import type { Chord, IconLib, Note, ToolDef, WidgetCtx } from '../src/widgets/types';
 
 const SRC = readFileSync(new URL('../lab/tools/pluck.js', import.meta.url), 'utf8');
-const ENV = readFileSync(new URL('../lab/snap/envelope.js', import.meta.url), 'utf8');
 
 function recorder(log: string[]) {
   const fmt = (v: unknown): string => typeof v === 'number' ? v.toFixed(3) : typeof v === 'object' ? 'obj' : String(v);
@@ -24,7 +24,7 @@ type Run = { log: string[]; frames: string[][] };
 /** Plays `notes` at 60 Hz from `from` to `to` seconds (onChord for every chord passed from 0), one frame per step. */
 function play(notes: Note[], knobs: Record<string, number> = {}, to = 6, { from = 0, picked = false, randomThrows = false } = {}): Run {
   const chords: Chord[] = groupChords(notes);
-  const tool = instantiate('pluck', SRC, { icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
+  const tool = instantiate('pluck', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords }) as ToolDef & Record<string, (...a: unknown[]) => void>;
   const vals = { ...Object.fromEntries(tool.params!.map((q) => [q.key, q.value])), ...knobs };
   const log: string[] = [], g = recorder(log);
   let seed = 3;
@@ -55,7 +55,7 @@ const lastDraw = (r: Run) => { let at = -1; r.frames.forEach((f, i) => { if (dra
 
 describe('pluck', () => {
   it('has the entry and the six knobs', () => {
-    const tool = instantiate('pluck', SRC, { icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: [] }) as ToolDef;
+    const tool = instantiate('pluck', SRC, { kit: kit(), icon: { ink: '#fff', gauge() {} } as unknown as IconLib, chords: [] }) as ToolDef;
     expect(tool).toMatchObject({ id: 'pluck', name: 'Plucked corner', tag: 'new' });
     const ps = tool.params!;
     expect(ps.map((p) => p.key)).toEqual(['pull', 'corner', 'shiver', 'ring', 'touch', 'presence']);
@@ -66,11 +66,6 @@ describe('pluck', () => {
     for (const p of ps) { expect(p.hint).toBeTruthy(); expect(typeof p.icon).toBe('function'); }
   });
 
-  it('holds the SNAP block byte for byte, with LF only', () => {
-    const cut = (s: string) => s.slice(s.indexOf('// SNAP v1 begin'), s.indexOf('// SNAP v1 end') + '// SNAP v1 end'.length);
-    expect(cut(SRC)).toBe(cut(ENV));
-    expect(SRC).not.toContain('\r');
-  });
 
   it('draws nothing before the first chord', () => {
     const r = play([N(1, 1.3, 60, 80)], {}, 0.9);

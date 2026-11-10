@@ -38,7 +38,7 @@ export const REL_HALF = 8;
 
 const relCache = new WeakMap<object, number[]>();
 
-/** rel of each sample of a 0..1 lane (src/research/energy.ts relative): 0.5 at the median of the ±REL_HALF s around
+/** rel of each sample of a 0..1 lane: 0.5 at the median of the ±REL_HALF s around
     it, 0 and 1 a spread below and above (the window's 10th to 95th percentile, at least 0.16), half and half with its
     place between the whole piece's 10th and 95th percentile. The window's percentiles are taken every 0.1 s and held
     in between. A flat lane: all 0. Worked out once, kept by `key`. */

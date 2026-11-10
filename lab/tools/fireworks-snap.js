@@ -1,4 +1,4 @@
-// Fireworks-snap: Fireworks, sharpened for single notes (docs/mockups/snap/DESIGN.md, C14). On picked notes no attack is dropped:
+// Fireworks-snap: Fireworks, sharpened for single notes. On picked notes no attack is dropped:
 // one that lands inside the quiet gap still goes off, at half power. Each burst gets a bone-coloured heart disc for two steps,
 // drawn over the fluid so the eye can count the notes, and the sparks start at full brightness and fall fast: they are seen for 0.6 as
 // long (the wakes they drag through the smoke last as before). Ages are measured from the chord's own time, so seeking and rendering agree. (Fireworks, below, is the unchanged original.)

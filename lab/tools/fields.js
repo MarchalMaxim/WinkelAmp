@@ -116,7 +116,7 @@
           fieldIcon(g, 22, 5, 15, h - 10, ICON.lerp('#b4522c', '#d86a3a', v), 0.3);
           ICON.alpha(g, v, () => ICON.blur(g, 2, () => ICON.dot(g, 31, h / 2, 1.5 + 3 * v, '#ffd0a0')));
         } },
-      { key: 'n', label: 'how many fields', min: 1, max: 4, step: 1, value: 3, less: 1,
+      { key: 'n', perNote: false, label: 'how many fields', min: 1, max: 4, step: 1, value: 3, less: 1,
         hint: 'How many fields are stacked. Left: one enormous field. Right: four, one per register, bass at the bottom.',
         icon: (g, v, w, h) => {
           const n = 1 + Math.round(v * 3), gap = 2, fh = (h - 4 - gap * (n - 1)) / n, cols = ['#d0602e', '#8a2a24', '#4a5f96', '#c8903a'];

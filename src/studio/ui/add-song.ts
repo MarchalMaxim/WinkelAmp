@@ -77,7 +77,6 @@ export class SongAdder {
 
   /** Is the ears server up, and can its transcriber run? Asked at most every 5 s. */
   ears(): Promise<EarsState> {
-    if (!this.d.api.writable) return Promise.resolve({ up: false });
     if (!this.earsState || performance.now() - this.earsAt > 5000) {
       this.earsAt = performance.now();
       this.earsState = probeEars().then(toState);
@@ -139,7 +138,7 @@ export class SongAdder {
         await this.finish(id, file.name, toolNotes((last as Job | null)?.warnings ?? []));
       } else {
         this.busy = 'browser';
-        const why = this.d.api.writable ? 'the ears server is not running' : 'this copy of the studio has no ears server';
+        const why = 'the ears server is not running';
         const pack = await ingestInBrowser(file, this.d.api, (f) => library.progress({
           name: file.name, progress: f, approximate: true,
           message: `${f < 0.08 ? 'Decoding in this browser' : f < 0.96 ? 'Analysing in this browser' : 'Keeping the song'} · ${pct(f)} · ${took()} · approximate notes: ${why}`,

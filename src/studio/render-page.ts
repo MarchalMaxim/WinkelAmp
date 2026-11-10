@@ -1,13 +1,12 @@
-// render.html: frames on demand, through the same runtime the studio plays with (plan §10).
+// render.html: frames on demand, through the same runtime the studio plays with.
 //   ?labSong=prelude|b5&only=<ids>[&hz=60]   the lab itself (its notes files, all its widgets in its order), for the
 //                                            fidelity test against lab/index.html?render=1
 //   ?show=<id>[&hz=60]                       a show: shows/<id>.json through the dev API, its song's pack, a Conductor
-//   &scale=1|2|3 (both modes)                supersampled: a 1280·S × 720·S canvas, widgets in 1280×720 units (plan §7)
-//   labSong mode, also (plan 2026-10-31 §11, T12):
+//   &scale=1|2|3 (both modes)                supersampled: a 1280·S × 720·S canvas, widgets in 1280×720 units
+//   labSong mode, also:
 //   &layers=<url-encoded JSON of { widget, listen?, region?, intensity? }[]>   the lab's layer settings: each entry is
 //                                            an instance drawn in its widget's place (two entries of one widget on
 //                                            different parts are two instances); routed ones load after every base tool
-//   &probe=<id>:<weight>                     that widget's slot weight (npm run persist-probe)
 //   &tracks=same                             a test hook: tracks piano and violin whose notes are all the notes
 //   &warm=<n>                                a test hook: n Math.random calls before the layer instances load
 //   The song's pack file (/lab/pack-<id>.js, window.PACK = { tracks, beats, loudness, energy? }) loads when its SONGS entry names one.
@@ -19,10 +18,10 @@ import type { Show } from './show/show';
 import type { SongPack } from './pack/pack';
 import { toMeta } from '../widgets/catalogue';
 import { exposeRenderApi, labCompat, labLayerSpecs, labLayers, type LabLayer, type Stepper } from '../widgets/driver';
-import { studioLayers } from '../widgets/layers-source';
+import { widgetOrder } from '../widgets/lab-harness';
 import { installSeededRandom } from '../widgets/random';
 import { WidgetRuntime, type RuntimeOptions } from '../widgets/runtime';
-import { labHarness, labSongs, labWidgetSources } from '../widgets/sources';
+import { songNotesOf, studioLib } from '../widgets/studio-lib';
 import type { Note, SongNotes } from '../widgets/types';
 
 const reseed = installSeededRandom(1);
@@ -61,15 +60,13 @@ function run(rt: WidgetRuntime, stepper: Stepper, info: { duration: number; titl
 }
 
 async function labSongMode(id: string): Promise<void> {
-  const songs = labSongs(), song = songs[id] as (typeof songs)[string] & { pack?: string };   // the lab's own SONGS: notes file, title, length, moments
+  const songs = studioLib().harness.songs, song = songs[id];   // the lab's own SONGS: notes file, title, length, moments
   if (!song) throw new Error(`unknown labSong ${id} (${Object.keys(songs).join(' or ')})`);
   await loadScript(`/lab/${song.notes}`);
   const notes = (window as { NOTES?: Note[] }).NOTES;
   if (!Array.isArray(notes)) throw new Error(`/lab/${song.notes} did not set window.NOTES`);
   const layers = JSON.parse(params.get('layers') ?? '[]') as LabLayer[];
   if (!Array.isArray(layers)) throw new Error('layers= is a JSON list of { widget, listen?, region?, intensity? }');
-  const probeArg = params.get('probe'), probe = probeArg ? { id: probeArg.split(':')[0], weight: Number(probeArg.split(':')[1]) } : undefined;
-  if (probe && !(probe.weight >= 0)) throw new Error(`probe=${probeArg}: <id>:<weight>`);
   let tracks: SongNotes['tracks'], loudness: SongNotes['loudness'], energy: SongNotes['energy'];
   if (params.get('tracks') === 'same') tracks = { piano: { notes, family: 'keys' }, violin: { notes, family: 'strings' } };
   else if (song.pack) {
@@ -77,14 +74,14 @@ async function labSongMode(id: string): Promise<void> {
     const pack = (window as { PACK?: { tracks?: SongNotes['tracks']; loudness?: SongNotes['loudness']; energy?: SongNotes['energy'] } }).PACK;
     tracks = pack?.tracks; loudness = pack?.loudness; energy = pack?.energy;
   }
-  const harness = labHarness();
-  const rt = new WidgetRuntime(canvas, { notes, tracks, loudness, energy }, { sources: labWidgetSources(), harness, layers: studioLayers() }, opts);
-  rt.load(harness.toolIds);   // ALL of them, in lab order: load-time randomness (rorschach's paper) is part of the pixels
+  const lib = studioLib(), order = widgetOrder(lib.harness.order, Object.keys(lib.sources));
+  const rt = new WidgetRuntime(canvas, { notes, tracks, loudness, energy }, lib, opts);
+  rt.load(order);   // ALL of them, in lab order: load-time randomness (rorschach's paper) is part of the pixels
   for (let n = Number(params.get('warm')) || 0; n > 0; n--) Math.random();
-  rt.load(labLayerSpecs(harness.toolIds, layers));   // then the routed and own instances, in TOOL_IDS order
+  rt.load(labLayerSpecs(order, layers));   // then the routed and own instances, in the same order
   const only = (params.get('only') ?? '').split(',').filter(Boolean);
-  const stepper = layers.length || probe ? labLayers(rt, only, layers, song.moments, probe) : labCompat(rt, only, song.moments);
-  run(rt, stepper, { duration: song.dur, title: song.title }, [...new Set([...only, ...layers.map((l) => l.widget), ...(probe ? [probe.id] : [])])]);
+  const stepper = layers.length ? labLayers(rt, only, layers, song.moments) : labCompat(rt, only, song.moments);
+  run(rt, stepper, { duration: song.dur, title: song.title }, [...new Set([...only, ...layers.map((l) => l.widget),])]);
 }
 
 async function json<T>(url: string): Promise<T> {
@@ -98,7 +95,7 @@ async function showMode(id: string): Promise<void> {
   const show = await json<Show>(`${base}/api/shows/${encodeURIComponent(id)}`);
   const pack = await json<SongPack>(`${base}/songs/${encodeURIComponent(show.song)}/pack.json`);
   (window as { NOTES?: Note[] }).NOTES = pack.notes;   // before any widget file runs: several read it when they load
-  const rt = new WidgetRuntime(canvas, { notes: pack.notes, tracks: pack.tracks, loudness: pack.loudness, energy: pack.energy }, { sources: labWidgetSources(), harness: labHarness(), layers: studioLayers() }, opts);
+  const rt = new WidgetRuntime(canvas, songNotesOf(pack), studioLib(), opts);
   const conductor = new Conductor(rt, show, (w) => { const t = rt.tool(w); return t ? toMeta(t, null) : undefined; }, structureTimes(pack.sections));
   const ids = [...new Set(show.clips.map((c) => c.widget))];
   run(rt, conductor, { duration: pack.duration, title: show.title ?? pack.title }, ids);

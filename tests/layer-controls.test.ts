@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// The layer panel's pure parts (plan 2026-10-31 T16): what a layer can listen to, where a new region sits, and the
+// The layer panel's pure parts: what a layer can listen to, where a new region sits, and the
 // widget picker's tag filter.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

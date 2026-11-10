@@ -4,12 +4,11 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadLayers } from '../scripts/node/layers';
-import { DRIVES, repairShow, validateShow, type Show } from '../src/studio/show/show';
+import { repairShow, validateShow, type Show } from '../src/studio/show/show';
 import { groupChords } from '../src/widgets/chords';
-import { relative } from '../src/research/energy';
 import { energyCurve, makeLoudAt, makeRelAt, paceAt } from '../src/widgets/curves';
-import { knobValue, newFeatures } from '../src/widgets/features';
-import { readLabHarness } from '../src/widgets/lab-harness';
+import { DRIVES, knobValue, newFeatures } from '../src/widgets/features';
+import { evalLabHarness } from '../src/widgets/lab-harness';
 import { WidgetRuntime } from '../src/widgets/runtime';
 import type { Chord, LabHarness, Note } from '../src/widgets/types';
 
@@ -119,10 +118,6 @@ describe('rel', () => {
   const values = Array.from({ length: 600 }, (_, i) => (i >= 100 && i < 110 ? 0.35 : i < 200 ? 0.2 : i >= 300 && i < 310 ? 0.95 : i < 400 ? 0.8 : 0.5));
   const lane = () => ({ hop: 0.1, values: values.slice() });
 
-  it('is relative() of src/research/energy.ts, read at the samples\' centres', () => {
-    const rel = makeRelAt(lane(), 0), want = relative(values, 0.1);
-    for (let i = 0; i < values.length; i++) expect(rel((i + 0.5) * 0.1)).toBeCloseTo(want[i], 6);
-  });
   it('a quiet passage still swells, and the real climax still reads highest', () => {
     const rel = makeRelAt(lane(), 0), loud = makeLoudAt(lane(), 0);
     expect(loud(10.5)).toBeLessThan(0.3);                   // loud hardly sees the swell
@@ -255,9 +250,10 @@ describe('lab/layers/lines.js has the same curves', () => {
 
 describe('the drive lists', () => {
   it('the lab\'s menu and the studio\'s show format know the same drives, with the new words', () => {
-    const h = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
+    const h = evalLabHarness(readFileSync(new URL('../lab/harness.js', import.meta.url), 'utf8'), readFileSync(new URL('../lab/kit.js', import.meta.url), 'utf8'));
     expect(new Set(h.drives.map(([d]) => d))).toEqual(new Set(DRIVES));
     expect(h.drives).toHaveLength(DRIVES.length);
+    for (const d of DRIVES) expect(h.drives.map(([x]) => x), `a label for '${d}'`).toContain(d);
     expect(h.drives).toContainEqual(['+loud', 'louder sound → more']);
     expect(h.drives).toContainEqual(['-loud', 'louder sound → less']);
     expect(h.drives).toContainEqual(['+pace', 'busier → more']);
@@ -298,7 +294,7 @@ const PROBE = `TOOLS.push({ id: 'probe', name: 'probe',
   reset(x) { (window.__seen.reset ??= []).push({ t: x.t, size: x.p('size'), edge: x.p('edge') }); },
   frame(x) { (window.__seen[x.picked ? 'picks' : 'all'] ??= []).push({ t: x.t, size: x.p('size'), edge: x.p('edge') }); },
 });`;
-const HARNESS: LabHarness = { toolIds: ['probe'], verdicts: {}, drives: [], iconSource: '{ ink: "#000", gauge() {} }' };
+const HARNESS: LabHarness = { order: ['probe'], verdicts: {}, drives: [], songs: {}, makeIcon: () => ({ ink: '#000', gauge() {} }), kit: {} };
 /** Busy for 10 s (5 a second), calm for 10 (1 a second). */
 const SONG: Note[] = notesAt([...range(0.1, 10, 0.2), ...range(10, 20, 1)]);
 /** Picks: calm where the song is busy, busy where it is calm. */

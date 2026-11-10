@@ -1,5 +1,5 @@
 /**
- * A song's melody, marked by hand in the note picker (spec 2026-11-01-note-picker), pure. melodies/<song>.json holds
+ * A song's melody, marked by hand in the note picker, pure. melodies/<song>.json holds
  * canonicalMelody: the notes themselves, not indexes, so a new transcription doesn't silently move the marks onto other
  * notes; matchMarks finds them again and says which it can't. One per song, reused by every widget.
  */

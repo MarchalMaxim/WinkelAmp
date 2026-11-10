@@ -148,7 +148,7 @@
       // Fade the figure's own canvas by "how long the lines stay" (half-life in seconds); the colour-burn takes the last
       // few 8-bit levels to black so no grey ghosts stick. Not when paused (dt 0): the burn alone would eat the picture.
       // In a supersampled render the burn's per-pixel 8-bit floor (it takes 1 or 2 levels a frame off every lit pixel)
-      // falls on finer pixels, so thin old lines fade a little differently at their edges: hd-check's `moved` reads
+      // falls on finer pixels, so thin old lines fade a little differently at their edges: the share of moved pixels reads
       // 0.17 at prelude 126 (0.07 with the burn off at both sizes; a bilinear resample of the 1× frame itself reads
       // 0.15), same figure, same places. Not a shared-canvas read: reproducing the 1× floor exactly would need pixel math.
       const stay = x.p('stay');

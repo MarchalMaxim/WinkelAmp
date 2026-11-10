@@ -9,16 +9,16 @@ const chords: Chord[] = [{ t: 1, notes: [{ m: 60, v: 80, d: 1 }], vel: 80, lo: 6
 
 describe('instantiate (a lab/tools file, unchanged)', () => {
   it('runs the file with TOOLS, ICON and CHORDS and returns its tool', () => {
-    const t = instantiate('demo', "(() => { TOOLS.push({ id: 'demo', name: 'Demo', n: CHORDS.length, ink: ICON.ink }); })();", { icon, chords });
+    const t = instantiate('demo', "(() => { TOOLS.push({ id: 'demo', name: 'Demo', n: CHORDS.length, ink: ICON.ink }); })();", { icon, kit: {}, chords });
     expect(t).toMatchObject({ id: 'demo', name: 'Demo', n: 1, ink: '#fff' });
   });
   it('fails naming the file when it pushes another id, none or two', () => {
-    expect(() => instantiate('demo', "TOOLS.push({ id: 'other', name: 'x' });", { icon, chords })).toThrow(/lab\/tools\/demo\.js.*'demo'/);
-    expect(() => instantiate('demo', '', { icon, chords })).toThrow(/pushed: none/);
-    expect(() => instantiate('demo', "TOOLS.push({ id: 'demo' }, { id: 'demo' });", { icon, chords })).toThrow(/exactly one/);
+    expect(() => instantiate('demo', "TOOLS.push({ id: 'other', name: 'x' });", { icon, kit: {}, chords })).toThrow(/lab\/tools\/demo\.js.*'demo'/);
+    expect(() => instantiate('demo', '', { icon, kit: {}, chords })).toThrow(/pushed: none/);
+    expect(() => instantiate('demo', "TOOLS.push({ id: 'demo' }, { id: 'demo' });", { icon, kit: {}, chords })).toThrow(/exactly one/);
   });
   it('a throwing file throws', () => {
-    expect(() => instantiate('demo', 'throw new Error("boom")', { icon, chords })).toThrow(/boom/);
+    expect(() => instantiate('demo', 'throw new Error("boom")', { icon, kit: {}, chords })).toThrow(/boom/);
   });
 });
 

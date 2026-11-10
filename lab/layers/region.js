@@ -1,4 +1,4 @@
-// Where a layer is seen (plan §2, spec Goals 3 and Decisions 6): the region's box in device pixels, the feather's
+// Where a layer is seen: the region's box in device pixels, the feather's
 // alpha profile, the glide across a section boundary, the window's fit, and the soft mask, built with canvas
 // operations only (no filter, no pixel reads) once per region change.
 //

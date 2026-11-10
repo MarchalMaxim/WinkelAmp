@@ -1,4 +1,4 @@
-// What a layer hears (plan §2, spec Decisions 3 and 4): the derived lines of a song's notes (melody, bassline, inner,
+// What a layer hears: the derived lines of a song's notes (melody, bassline, inner,
 // low, high, accents), its note types (big chords, runs, trills, long notes, repeated notes), the notes of a `listen`
 // (a line, a note type, a track, a family), and the per-instance pulse.
 //

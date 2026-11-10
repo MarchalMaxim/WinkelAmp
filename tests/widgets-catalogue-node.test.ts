@@ -1,10 +1,9 @@
 /// <reference types="node" />
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { loadCatalogue } from '../scripts/node/catalogue';
-import { readLabHarness } from '../src/widgets/lab-harness';
-
-const DRIVES = ['', '+level', '-level', '+rate', '-rate', '+pitch', '-pitch', '+bass', '-bass', '+density', '-density', '+hit', '-hit', '+loud', '-loud', '+pace', '-pace', '+rel', '-rel'];
+import { labWidgetIds, loadCatalogue, readLabHarness } from '../scripts/node/catalogue';
+import { DRIVES } from '../src/widgets/features';
+import { widgetOrder } from '../src/widgets/lab-harness';
 
 describe('loadCatalogue (every lab/tools file in node:vm)', () => {
   const { widgets, failed } = loadCatalogue();
@@ -15,11 +14,10 @@ describe('loadCatalogue (every lab/tools file in node:vm)', () => {
     expect([...widgets.keys()].sort()).toEqual(files.sort());
   });
 
-  it('keeps the lab order (TOOL_IDS first)', () => {
+  it('keeps the lab order: its order hint first, then the other files by name', () => {
     const ids = [...widgets.keys()];
-    expect(ids.indexOf('harmonograph')).toBeLessThan(ids.indexOf('kline'));
-    expect(ids.indexOf('kline')).toBeLessThan(ids.indexOf('score'));
-    expect(ids.indexOf('kandinsky')).toBeLessThan(ids.indexOf('casket'));
+    expect(ids).toEqual(widgetOrder(readLabHarness().order, ids));
+    expect(labWidgetIds()).toEqual(ids);
   });
 
   it('gives each a name and sane knobs', () => {
@@ -36,15 +34,8 @@ describe('loadCatalogue (every lab/tools file in node:vm)', () => {
   });
 
   it('carries the lab verdicts, whatever the current round says', () => {
-    const { verdicts } = readLabHarness(readFileSync(new URL('../lab/index.html', import.meta.url), 'utf8'));
+    const { verdicts } = readLabHarness();
     for (const [id, m] of widgets) expect(m.verdict, id).toEqual(verdicts[id] ?? null);
-    expect(widgets.get('casket')?.verdict?.v).toBe('love');
-    expect(widgets.get('pixelsort')?.verdict?.v).toBe('keep');
-  });
-
-  it('never loads lab/tools/dropped/', () => {
-    const dropped = readdirSync(new URL('../lab/tools/dropped/', import.meta.url)).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3));
-    for (const id of dropped) expect(widgets.has(id), id).toBe(false);
   });
 
   it('reports a broken file and keeps going', () => {

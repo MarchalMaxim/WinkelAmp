@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RECORDER_OPTIONS, pickMimeType } from '../src/visual/recorder';
+import { DEFAULT_RECORDER_OPTIONS, pickMimeType } from '../src/studio/ui/recorder';
 import { mbPerMinute, RECORD_PRESETS, recordingName } from '../src/studio/ui/record';
 
-describe('record presets (plan §10)', () => {
+describe('record presets', () => {
   it('share is about 15.2 MB a minute, high about 61.4', () => {
     expect(RECORD_PRESETS.share).toEqual({ videoBitsPerSecond: 1_900_000, audioBitsPerSecond: 128_000, fps: 30 });
     expect(RECORD_PRESETS.high).toEqual({ videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000, fps: 30 });

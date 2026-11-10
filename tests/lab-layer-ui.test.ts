@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// The lab cards' layer controls (plan 2026-10-31 T22): lab/layer-ui.js's pure parts offer the same parts, places and
+// The lab cards' layer controls: lab/layer-ui.js's pure parts offer the same parts, places and
 // curves as the studio's layer panel (src/studio/ui/layer-controls.ts) and filter as its widget picker does.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

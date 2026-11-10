@@ -1,5 +1,5 @@
 /**
- * YourMT3+ rows into pack v2 tracks, the gap-filled all-notes and estimated velocities (spec Decisions 1–2). Pure.
+ * YourMT3+ rows into pack v2 tracks, the gap-filled all-notes and estimated velocities. Pure.
  */
 import type { Note, TrackId } from '../../widgets/types';
 import { TRACKS, TRACK_IDS, trackOf } from './instruments';
@@ -9,7 +9,7 @@ import { stableByStart } from './notes';
 /** One YourMT3 note as ymt3.py writes it: song s, MIDI pitch, vel (always 100 or 0), MT3_FULL_PLUS class name. */
 export type Ymt3Row = [start: number, end: number, midi: number, vel: number, cls: string];
 
-/** Pooled percentiles of the three solo-piano packs: quantile → velocity (spec Decisions 2). */
+/** Pooled percentiles of the three solo-piano packs: quantile → velocity. */
 export const ANCHORS: readonly (readonly [number, number])[] = [[0.05, 46], [0.5, 69], [0.95, 95]];
 /** A YourMT3 note this close (s) to a piano-model note's start adds nothing to all notes. */
 export const HYBRID_PAD = 0.15;
@@ -141,7 +141,7 @@ function fromAnchors(r: number): number {
 const toVel = (v: number): number => Math.min(127, Math.max(1, Math.round(v)));
 
 /**
- * Velocities for YourMT3 rows (spec Decisions 2). A piano-model note of the same pitch within ±0.05 s lends its
+ * Velocities for YourMT3 rows. A piano-model note of the same pitch within ±0.05 s lends its
  * velocity (the nearest; ties: the earlier). Otherwise the row's level, as a mid-rank among all rows' levels, is read off
  * the song's piano-model velocities (≥ 50 notes) or the anchors. `levels` is aligned with `rows`; integers in 1..127.
  */

@@ -1,16 +1,14 @@
 /**
- * Recording the show in the studio (plan §10): the canvas and the song into an MP4 (H.264 + AAC) the browser writes
+ * Recording the show in the studio: the canvas and the song into an MP4 (H.264 + AAC) the browser writes
  * while the song plays once, at a bit rate that keeps a minute to a few MB (WhatsApp). For a frame-exact HD video
  * there is `npm run render-show`.
  */
-import { download, pickMimeType, Recorder, type RecorderOptions } from '../../visual/recorder';
+import { download, pickMimeType, Recorder, type RecorderOptions } from './recorder';
 import type { Player } from './player';
 import type { Store } from './store';
 
-/** share: sharp enough to send (≈ 15.2 MB a minute, WhatsApp's budget, as render-show's share copy); high: for keeping
-    (≈ 61). Both record 30 frames a second at 1280×720 (the live canvas): Chrome's H.264 encoder writes about twice the
-    rate asked at 60 fps, and close to it at 30 fps. Measured on the Prelude from 126 s, 20 s each (2026-10-31): share
-    16.4 MB a minute, high 64.3; round 1's 1 Mbit/s share wrote 9.2 and smeared squares' edges and the ink into blocks. */
+/** share: sharp enough to send (about 16 MB a minute, WhatsApp's budget); high: for keeping (about 64). 30 fps, because
+    Chrome's H.264 encoder writes about twice the rate asked at 60 fps. */
 export const RECORD_PRESETS = {
   share: { videoBitsPerSecond: 1_900_000, audioBitsPerSecond: 128_000, fps: 30 },
   high: { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000, fps: 30 },

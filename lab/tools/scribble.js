@@ -107,7 +107,7 @@
       { key: 'loops', label: 'how loopy', min: 0, max: 1, value: 0.5, drive: '+rate',
         hint: 'The shape of the scrawl. Left: long open arcs. Right: tight coils, loop over loop.',
         icon: (g, v, w, h) => coilIcon(g, 3, w - 3, h / 2, 8.5 - 3.5 * v, 0.45 + 5.5 * v, ICON.ink, 1.3) },
-      { key: 'pens', label: 'how many pens', min: 1, max: 6, step: 1, value: 3, less: 1,
+      { key: 'pens', perNote: false, label: 'how many pens', min: 1, max: 6, step: 1, value: 3, less: 1,
         hint: 'How many pens draw at once, each for its own part of the keyboard. Left: one lone pen. Right: six.',
         icon: (g, v, w, h) => { const n = Math.round(1 + v * 5), rh = (h - 4) / n;
           for (let i = 0; i < n; i++) coilIcon(g, 3 + (i % 2) * 4, w - 7 + (i % 2) * 4, 2 + rh * (i + 0.5), Math.min(4, rh * 0.4), 2.2, ICON.ink, 1.1); } },

@@ -47,7 +47,7 @@ ${probe('fussy')}`;
 /** What x.picked says while it runs. */
 const ASKS = `TOOLS.push({ id: 'asks', name: 'asks', onChord(ch, x) { (window.__asked ??= []).push(x.picked); }, frame() {} });`;
 const SOURCES = { pick: probe('pick'), plain: probe('plain'), other: probe('other'), late: LATE, fussy: FUSSY, asks: ASKS };
-const HARNESS: LabHarness = { toolIds: Object.keys(SOURCES), verdicts: {}, drives: [], iconSource: '{ ink: "#000", gauge() {} }' };
+const HARNESS: LabHarness = { order: Object.keys(SOURCES), verdicts: {}, drives: [], songs: {}, makeIcon: () => ({ ink: '#000', gauge() {} }), kit: {} };
 const META: WidgetMeta = { id: 'x', name: 'x', blurb: '', tag: '', verdict: null, params: [{ key: 'size', min: 0, max: 9, value: 1 }] };
 
 /** 100 attacks, one every 0.3 s from 0.1 s. */
@@ -334,7 +334,7 @@ describe('Dread squares and the notes it is given', () => {
   function sizes(clip: Partial<Clip>, song: Note[], picks?: Note[]): number[] {
     const canvas = fakeCanvas(), seen: number[] = [];
     (canvas.getContext('2d') as unknown as { fillRect: unknown }).fillRect = (x: number, _y: number, w: number) => { if (x < 0) seen.push(w); };
-    const rt = new WidgetRuntime(canvas, { notes: song }, { sources: { squares: SQUARES }, harness: { ...HARNESS, toolIds: ['squares'] }, layers: WA });
+    const rt = new WidgetRuntime(canvas, { notes: song }, { sources: { squares: SQUARES }, harness: { ...HARNESS, order: ['squares'] }, layers: WA });
     const s: Show = { version: 3, id: 'demo', song: 'demo', clips: [{ id: 'p', start: 0, end: 5, track: 0, fade: 0, widget: 'squares', ...clip }], ...(picks ? { picks: { p1: { notes: picks } } } : {}) };
     const c = new Conductor(rt, s, () => META_SQ);
     c.reset(0);

@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Conductor, showInstances } from '../src/studio/show/conductor';
 import { applyEdit } from '../src/studio/show/edit';
-import { heardPicks, heldValues, noteKnobs, notPerNote, perNote, valuesOf, withValues, type NoteValues, type PickNote } from '../src/studio/show/note-values';
+import { INTENSITY, heardPicks, heldValues, noteKnobs, perNote, valuesOf, withValues, type NoteValues, type PickNote } from '../src/studio/show/note-values';
 import { scheduleAt } from '../src/studio/show/schedule';
 import { canonicalShow, repairPickNotes, repairShow, validateShow, type Show } from '../src/studio/show/show';
 import { addedChips, amountBars, attackMates, barWords, draftShow, INTENSITY_LANE, knobLane, laneShare, laneValue, picksOnRoll, popupChips, renumberLost, toPicks, type Chip, type RollNote } from '../src/studio/ui/picker-logic';
@@ -157,7 +157,8 @@ const onSet = (knobs?: Show['clips'][number]['knobs'], start = 0): Show => ({
   version: 3, id: 'demo', song: 'demo', clips: [{ id: 'a', start, end: 10, track: 0, widget: 'ivory', listen: 'picks:p1', ...(knobs ? { knobs } : {}) }],
   picks: { p1: { notes: LOCKS } },
 } as Show);
-const knobsAt = (s: Show, t: number) => scheduleAt(s, t)[0].knobs;
+const META = (id: string) => (id === 'ivory' ? { params: [{ key: 'crater' }, { key: 'cracks', perNote: false }] } : undefined);
+const knobsAt = (s: Show, t: number) => scheduleAt(s, t, META)[0].knobs;
 
 describe('a knob on a note, stored', () => {
   it('is an object in the fifth place, one form for equal values', () => {
@@ -232,21 +233,20 @@ describe('a knob on a note, heard', () => {
 describe('which knobs a note can set', () => {
   const widgets = new Map(readdirSync('lab/tools').filter((f) => f.endsWith('.js')).map((f) => [f.slice(0, -3), readFileSync(`lab/tools/${f}`, 'utf8')]));
   const keysOf = (src: string) => [...src.matchAll(/key:\s*'(\w+)'/g)].map((m) => m[1]);
-  it('names only knobs that exist on the list of exceptions', () => {
-    for (const entry of notPerNote()) {
-      const [widget, key] = entry.split('.');
-      expect(keysOf(widgets.get(widget) ?? ''), entry).toContain(key);
-    }
+  it('only ever says perNote: false', () => {
+    for (const [id, src] of widgets) for (const m of src.matchAll(/perNote:\s*(\w+)/g)) expect(m[1], id).toBe('false');
   });
   it('has no widget knob called intensity, which a note\'s value would take for itself', () => {
     for (const [id, src] of widgets) expect(keysOf(src), id).not.toContain('intensity');
   });
   it('leaves most of them, never how present, and a new widget\'s all', () => {
-    expect(perNote('ivory', 'presence')).toBe(false);
-    expect(perNote('ivory', 'cracks')).toBe(false);
-    expect(perNote('ivory', 'crater')).toBe(true);
-    expect(perNote('brand-new', 'anything')).toBe(true);
-    expect(noteKnobs('ivory', [{ key: 'crater' }, { key: 'presence' }, { key: 'floor' }]).map((q) => q.key)).toEqual(['crater']);
+    const params = [{ key: 'crater' }, { key: 'cracks', perNote: false }, { key: 'presence' }, { key: 'floor', perNote: false }];
+    expect(perNote(params, 'presence')).toBe(false);
+    expect(perNote(params, 'cracks')).toBe(false);
+    expect(perNote(params, 'crater')).toBe(true);
+    expect(perNote(undefined, 'anything')).toBe(true);
+    expect(perNote(params, INTENSITY)).toBe(false);
+    expect(noteKnobs(params).map((q) => q.key)).toEqual(['crater']);
   });
 });
 

@@ -37,7 +37,7 @@
     id: 'boogie', name: 'Boogie woogie', tag: 'new', on: false,
     blurb: 'After Mondrian\'s Broadway Boogie Woogie: yellow lanes on cream. Each note drops a small red, blue or grey block where its pitch lane (low notes left) meets the row of its harmony, and every attack makes all the blocks hop along their lanes, so rhythm drives the traffic: fast passages boogie, a slow chorale barely moves. Big loud chords flash a whole crossing.',
     params: [
-      { key: 'lanes', label: 'how many lanes', min: 6, max: 16, step: 1, value: 10, less: 6,
+      { key: 'lanes', perNote: false, label: 'how many lanes', min: 6, max: 16, step: 1, value: 10, less: 6,
         hint: 'How dense the city is. Left: a few wide lanes. Right: a tight grid of thin ones.',
         icon: (g, v, w, h) => {
           const nv = 2 + Math.round(v * 5), nh = 1 + Math.round(v * 3), lw = 3.6 - 2.4 * v;
@@ -63,7 +63,7 @@
           const s = 5 + v * 15; ICON.rect(g, w / 2 - s * 0.65, h / 2 - s / 2, s * 1.3, s, ICON.blue);
           ICON.square(g, w / 2 + s * 0.15, h / 2, s * 0.4, ICON.red);
         } },
-      { key: 'ground', label: 'background', min: 0, max: 1, value: 0,
+      { key: 'ground', perNote: false, label: 'background', min: 0, max: 1, value: 0,
         hint: 'The colour under the lanes. Left: Mondrian\'s cream. Right: night black.',
         icon: (g, v, w, h) => {
           ICON.rect(g, 3, 3, w - 6, h - 6, ICON.lerp('#ece6d7', '#0c0b0b', v));

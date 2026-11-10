@@ -1,4 +1,4 @@
-// The studio in a real browser (plan T4 step 5): a 30 s test song in temp songs/shows folders, its own Vite server,
+// The studio in a real browser: a 30 s test song in temp songs/shows folders, its own Vite server,
 // system Chrome with autoplay allowed. Checks the library, playing, letterboxing on resize, hiding the controls, a
 // clip drag and its undo, adding the casket and its knob rows, knob pictures equal to the lab card's, Ctrl+S, a
 // broken show opening repaired, a fading slot drawing between "without" and "with", a paused picture holding still,
@@ -8,7 +8,7 @@
 // offered). Last, adding a recording from the file input: with the ears server down (analysed in the browser,
 // approximate notes) and up without a transcriber (the real ingest CLI, the reason said; the same file twice).
 //
-//   npm run studio-check [-- --headed] [--keep]
+//   npm run e2e [-- --headed] [--keep]
 //
 // Local only: needs ffmpeg and system Chrome (and lab/notes.js + lab/prelude.mp3 for the lab-card comparison, which is
 // skipped without them).
@@ -302,7 +302,7 @@ try {
     const n = await p.locator('.notice').allInnerTexts();
     const st = await p.evaluate(() => ({ url: location.search, origin: window.__studio?.store.state.origin, clips: window.__studio?.store.state.show?.clips.length }));
     check('it opens with an empty timeline and a notice saying the notes are approximate', st.origin === 'auto' && st.clips === 0 && n.some((x) => /approximate/.test(x)), `${JSON.stringify(st)} ${n.join(' | ')}`);
-    await p.click('[data-tl="compose"]');
+    await p.evaluate(() => window.__studio.store.dispatch({ type: 'edit', edit: { kind: 'addClip', widget: 'squares', start: 0, end: 20 } }));
     await p.waitForFunction(() => window.__studio.store.state.show.clips.length > 0, null, { timeout: 10_000 });
     await p.evaluate(() => window.__studio.player.play());
     await p.waitForTimeout(3000);
