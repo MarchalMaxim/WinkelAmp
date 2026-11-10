@@ -75,17 +75,3 @@ describe('Flee', () => {
     expect(painted(true, 40)).toBeGreaterThan(painted(false, 40));
   });
 });
-
-describe('Martin', () => {
-  const inkAfter = (picked: boolean, v: number) => {
-    const t = tool('martin'), c = ctxOf(t, picked), alphas: number[] = [];
-    Object.defineProperty(c.x.g, 'globalAlpha', { set: (a: number) => { alphas.push(a); }, get: () => 1, configurable: true });
-    t.reset?.(c.x); t.onChord?.(attack(1, 60, v), c.x);
-    for (let i = 0; i < 60; i++) t.frame?.(c.x);
-    return alphas.reduce((a, b) => a + b, 0);
-  };
-  it('on picks a loud note marks about as much as a soft one', () => {
-    expect(inkAfter(true, 110)).toBeCloseTo(inkAfter(true, 60), 1);
-    expect(inkAfter(false, 110)).toBeLessThan(inkAfter(false, 60));
-  });
-});

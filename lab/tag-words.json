@@ -231,14 +231,6 @@
         "fit": {
           "quiet": 0.6
         }
-      },
-      "lazy": {
-        "looks": "Big things that can barely be bothered: they answer late and only halfway, then flop back.",
-        "sounds": "Low, drowsy, dragging music: a heavy pulse, long sighing phrases.",
-        "fit": {
-          "quiet": 0.5,
-          "low": 0.4
-        }
       }
     },
     "light and colour": {
@@ -282,13 +274,6 @@
         "looks": "On or off, black or white: no greys, no hue, no in-between.",
         "sounds": "Hard, clear attacks with silence between: staccato, a dry piano.",
         "fit": {}
-      },
-      "green": {
-        "looks": "Greens from moss to acid, damp and low-lit.",
-        "sounds": "Pastoral and drowsy: drones, soft winds, slow modal harmony.",
-        "fit": {
-          "quiet": 0.5
-        }
       }
     },
     "atmosphere": {
@@ -390,11 +375,6 @@
         "fit": {
           "quiet": 0.3
         }
-      },
-      "dismissive": {
-        "looks": "A slow turn away: whatever comes near is flicked aside, with no hurry.",
-        "sounds": "Cool cadences, phrases cut off with a shrug, soft answers to loud calls.",
-        "fit": {}
       },
       "comfortable": {
         "looks": "Soft rounded forms nestled together in warm lamp-light, breathing slowly.",
@@ -756,9 +736,6 @@
     "stately": "royal",
     "graceful": "elegant",
     "poised": "elegant",
-    "haughty": "dismissive",
-    "disdainful": "dismissive",
-    "aloof": "dismissive",
     "relaxing": "comfortable",
     "relaxed": "comfortable",
     "comfy": "comfortable",
@@ -766,11 +743,6 @@
     "leisurely": "slow",
     "honey": "viscous",
     "syrupy": "viscous",
-    "sticky": "viscous",
-    "lethargic": "lazy",
-    "sluggish": "lazy",
-    "drowsy": "lazy",
-    "verdant": "green",
-    "mossy": "green"
+    "sticky": "viscous"
   }
 }

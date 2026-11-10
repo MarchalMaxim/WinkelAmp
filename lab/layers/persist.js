@@ -21,7 +21,6 @@
     "lenlye": 'redraw',             // r 0.51
     "klee": 'redraw',               // r 0.60
     "miro": 'redraw',               // r 0.71
-    "delaunay": 'redraw',           // r 0.62
     "lewitt": 'redraw',             // r 0.72
     "ridges": 'redraw',             // r 0.56
     "matisse": 'redraw',            // r 0.71
@@ -36,7 +35,6 @@
     "nebula": 'strokes',            // r 0.26
     "pixelsort": 'redraw',          // r 1.00
     "mandala": 'redraw',            // r 0.59
-    "martin": 'redraw',             // r 0.72
     "murmuration": 'strokes',       // r 0.47
     "marbling": 'redraw',           // r 0.62
     "kandinsky": 'strokes',         // r 0.48

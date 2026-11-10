@@ -165,14 +165,14 @@ const makeIcon = () => {
 };
 
 // Load and draw order of the widgets that have one; unlisted lab/tools files load after these, by name. Append, never reorder: the order is part of the seeded pixels.
-const ORDER = ['harp', 'perlin', 'gliss', 'ivory', 'johansson', 'tree', 'fireworks', 'clumsy', 'gust', 'duet', 'vine', 'royal', 'comfort', 'lazy',
-  'timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'delaunay', 'lewitt', 'ridges',
+const ORDER = ['harp', 'perlin', 'gliss', 'ivory', 'johansson', 'tree', 'fireworks', 'clumsy', 'gust', 'duet', 'vine', 'comfort',
+  'timeslice', 'fold', 'stella', 'fischinger', 'mclaren', 'lenlye', 'klee', 'miro', 'lewitt', 'ridges',
   'matisse', 'kusama', 'ikeda', 'horizon',
-  'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala', 'martin',
+  'harmonograph', 'kline', 'score', 'boogie', 'cells', 'nebula', 'pixelsort', 'mandala',
   'murmuration', 'marbling', 'kandinsky', 'rorschach', 'squares', 'flee', 'current', 'strings', 'fields',
   'brush', 'blocks', 'riley', 'halftone', 'fifths', 'suprematism', 'contours', 'tunnel', 'scribble', 'pointillism', 'casket',
   'squares-snap', 'fireworks-snap', 'hammer', 'handover',
-  'prickle', 'nap', 'crimp', 'interlock', 'pluck', 'film', 'mica', 'fist', 'cut',
+  'prickle', 'crimp', 'interlock', 'pluck', 'film', 'mica', 'fist', 'cut',
   'leidenfrost'];
 
 // The user's verdicts, with the version (tag) each was judged on. drop: rated drop, not removed yet (see the GitHub issues).
@@ -187,9 +187,7 @@ const VERDICTS = {
   gust: { v: 'love', on: 'new' },
   duet: { v: 'love', on: 'new' },
   vine: { v: 'love', on: 'new' },
-  royal: { v: 'drop', on: 'new' },
   comfort: { v: 'needs work', on: 'new' },
-  lazy: { v: 'drop', on: 'new' },
   timeslice: { v: 'love', on: 'new' },
   fold: { v: 'keep', on: 'new' },
   stella: { v: 'keep', on: 'new' },
@@ -198,7 +196,6 @@ const VERDICTS = {
   lenlye: { v: 'keep', on: 'v2' },
   klee: { v: 'needs work', on: 'v2' },
   miro: { v: 'love', on: 'new' },
-  delaunay: { v: 'drop', on: 'new' },
   lewitt: { v: 'keep', on: 'new' },
   ridges: { v: 'love', on: 'v2' },
   matisse: { v: 'needs work', on: 'v2' },
@@ -213,7 +210,6 @@ const VERDICTS = {
   nebula: { v: 'keep', on: 'v2' },
   pixelsort: { v: 'keep', on: 'v2', note: 'already combines with other widgets in a very cool way' },
   mandala: { v: 'love', on: 'v2' },
-  martin: { v: 'drop', on: 'new' },
   murmuration: { v: 'needs work', on: 'v3' },
   marbling: { v: 'love', on: 'v2', note: 'extremely high potential' },
   kandinsky: { v: 'love', on: 'v2', note: 'a complete visualization by itself' },
@@ -239,7 +235,6 @@ const VERDICTS = {
   hammer: { v: 'love', on: 'new' },
   handover: { v: 'keep', on: 'snap' },
   prickle: { v: 'love', on: 'new' },
-  nap: { v: 'drop', on: 'new' },
   crimp: { v: 'keep', on: 'new' },
   interlock: { v: 'love', on: 'new' },
   pluck: { v: 'love', on: 'new' },
