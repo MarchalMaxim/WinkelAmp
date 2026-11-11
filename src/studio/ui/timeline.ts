@@ -439,7 +439,7 @@ export class Timeline {
         let line: number | null = null, word = '';
         if (edge) {
           const raw = this.tAt(ev.clientX), s = free ? { t: raw, kind: null } : snapPoint(raw, T, r);
-          store.dispatch({ type: 'edit', edit: { kind: 'resizeClip', clip: id, edge, t: s.t, ...(c0.intensity ? { from: c0.intensity } : {}) }, group });
+          store.dispatch({ type: 'edit', edit: { kind: 'resizeClip', clip: id, edge, t: s.t, track: c0.track, ...(c0.intensity ? { from: c0.intensity } : {}) }, group });
           line = s.kind ? s.t : null; word = s.kind === 'edge' ? ', on an edge or mark' : s.kind === 'beat' ? ', on a beat' : '';
         } else {
           const raw = this.tAt(ev.clientX) - grab, s = free ? { start: raw, at: null, kind: null } : snapMove(raw, len, T, r);

@@ -18,8 +18,9 @@ export type ShowEdit =
   | { kind: 'removeClip'; clip: string }
   /** To this start (kept in the song) on this track, or the nearest free one above it. Its curve moves along. */
   | { kind: 'moveClip'; clip: string; start: number; track: number }
-  /** This edge to t: not past the other edge, the neighbour on its track or the song. from: the curve when the drag began. */
-  | { kind: 'resizeClip'; clip: string; edge: 'start' | 'end'; t: number; from?: Pivot[] }
+  /** This edge to t: not past the other edge or the song; over a neighbour it goes up to a free track. from, track: the
+      curve and the track when the drag began, so it comes back down once it fits again. */
+  | { kind: 'resizeClip'; clip: string; edge: 'start' | 'end'; t: number; from?: Pivot[]; track?: number }
   /** A copy of its own, right after it when the track has room there, else over it on a free track. */
   | { kind: 'duplicateClip'; clip: string }
   /** Two clips with the same settings, each with its part of the curve. */
@@ -175,18 +176,13 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
     case 'resizeClip': {
       const c = byId(e.clip);
       if (!c || !Number.isFinite(e.t)) return show;
-      const neighbours = C.filter((x) => x.id !== c.id && x.track === c.track);
       let start = c.start, end = c.end;
-      if (e.edge === 'start') {
-        const floor = neighbours.reduce((lo, x) => (x.end <= c.start + 5e-4 ? Math.max(lo, x.end) : lo), 0);
-        start = ms(clamp(e.t, floor, Math.max(floor, end - MIN_CLIP)));
-      } else {
-        const ceil = neighbours.reduce((hi, x) => (x.start >= c.end - 5e-4 ? Math.min(hi, x.start) : hi), D);
-        end = ms(clamp(e.t, Math.min(ceil, start + MIN_CLIP), ceil));
-      }
-      if (end - start < MIN_CLIP - 1e-6 || (start === c.start && end === c.end && !e.from)) return show;
+      if (e.edge === 'start') start = ms(clamp(e.t, 0, Math.max(0, end - MIN_CLIP)));
+      else end = ms(clamp(e.t, Math.min(D, start + MIN_CLIP), D));
+      const track = freeTrack(C, { start, end }, e.track ?? c.track, c.id);
+      if (end - start < MIN_CLIP - 1e-6 || (start === c.start && end === c.end && track === c.track && !e.from)) return show;
       const base = e.from ?? c.intensity, p = trimPivots(base, start, end, env);
-      const next: Clip = { ...c, start, end };
+      const next: Clip = { ...c, start, end, track };
       const out = p ? withPivots(next, p) : withPivots(next, base);
       return JSON.stringify(out) === JSON.stringify(c) ? show : withClip(show, out);
     }

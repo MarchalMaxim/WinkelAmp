@@ -1,3 +1,3 @@
 /* icons.ts: 16 px beside a label, in the text colour; an icon-only button sizes it itself (style.css button.icon svg). */
 .ico { flex: none; vertical-align: -3px; }
-button:not(.icon):has(> .ico) { display: inline-flex; align-items: center; gap: 6px; }
+button:not(.icon, .play):has(> .ico) { display: inline-flex; align-items: center; gap: 6px; }

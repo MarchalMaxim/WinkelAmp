@@ -79,14 +79,19 @@ describe('moveClip', () => {
 
 describe('resizeClip', () => {
   const two = () => show(clip('a', 10, 20, 0), clip('b', 30, 40, 0), clip('c', 12, 35, 1));
-  it('moves one edge, stopping at the neighbour on its track, the other edge and the song', () => {
+  it('moves one edge, stopping at the other edge and the song', () => {
     expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'end', t: 25 }), 'a')).toMatchObject({ start: 10, end: 25, track: 0 });
-    expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'end', t: 33 }), 'a').end).toBe(30);
-    expect(of(apply(two(), { kind: 'resizeClip', clip: 'b', edge: 'start', t: 15 }), 'b').start).toBe(20);
     expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'start', t: -3 }), 'a').start).toBe(0);
     expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'end', t: 5 }), 'a').end).toBe(10.25);
     expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'start', t: 50 }), 'a').start).toBe(19.75);
     expect(of(apply(two(), { kind: 'resizeClip', clip: 'b', edge: 'end', t: 500 }), 'b').end).toBe(100);
+  });
+  it('over a neighbour it goes up to a free track, and comes back down once it fits', () => {
+    expect(of(apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'end', t: 33 }), 'a')).toMatchObject({ start: 10, end: 33, track: 2 });
+    expect(of(apply(two(), { kind: 'resizeClip', clip: 'b', edge: 'start', t: 15 }), 'b')).toMatchObject({ start: 15, end: 40, track: 2 });
+    const far = apply(two(), { kind: 'resizeClip', clip: 'a', edge: 'end', t: 90, track: 0 });
+    expect(of(far, 'a')).toMatchObject({ end: 90, track: 2 });
+    expect(of(apply(far, { kind: 'resizeClip', clip: 'a', edge: 'end', t: 28, track: 0 }), 'a')).toMatchObject({ end: 28, track: 0 });
   });
   it('shortening keeps the curve drawn there, and a drag back brings the rest back', () => {
     const p: Pivot[] = [{ t: 10, v: 0 }, { t: 20, v: 1 }];
