@@ -56,11 +56,23 @@ describe('moveClip', () => {
     expect(of(s, 'a')).toMatchObject({ start: 12.5, end: 22.5, track: 3 });
     expect(of(s, 'b')).toBe(of(s0, 'b'));
   });
-  it('a clip landing on an occupied spot goes to a free track above it, and comes back when the spot is free', () => {
-    let s = apply(two(), { kind: 'moveClip', clip: 'a', start: 35, track: 0 });
-    expect(of(s, 'a')).toMatchObject({ start: 35, end: 45, track: 1 });
-    s = apply(s, { kind: 'moveClip', clip: 'a', start: 50, track: 0 });
-    expect(of(s, 'a')).toMatchObject({ start: 50, track: 0 });
+  it('a clip landing on an occupied spot takes it, and what was there goes up a track', () => {
+    const s = apply(two(), { kind: 'moveClip', clip: 'a', start: 35, track: 0 });
+    expect(of(s, 'a')).toMatchObject({ start: 35, end: 45, track: 0 });
+    expect(of(s, 'b').track).toBe(1);
+  });
+  it('a long clip goes down under the short ones, which stack above it in their order', () => {
+    const s0 = show(clip('a', 0, 10, 0), clip('b', 20, 30, 0), clip('c', 5, 25, 1), clip('long', 0, 90, 2));
+    const s = apply(s0, { kind: 'moveClip', clip: 'long', start: 0, track: 0 });
+    expect(['long', 'a', 'b', 'c'].map((id) => of(s, id).track)).toEqual([0, 1, 1, 2]);
+  });
+  it('during a drag, the clips it has left come back down', () => {
+    const s0 = two(), tracks = { a: 0, b: 0 };
+    const over = apply(s0, { kind: 'moveClip', clip: 'a', start: 35, track: 0, tracks });
+    expect(of(over, 'b').track).toBe(1);
+    const past = apply(over, { kind: 'moveClip', clip: 'a', start: 50, track: 0, tracks });
+    expect(of(past, 'a')).toMatchObject({ start: 50, track: 0 });
+    expect(of(past, 'b').track).toBe(0);
   });
   it('stays in the song', () => {
     expect(of(apply(two(), { kind: 'moveClip', clip: 'a', start: -5, track: 0 }), 'a').start).toBe(0);

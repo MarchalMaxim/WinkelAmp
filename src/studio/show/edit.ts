@@ -16,8 +16,9 @@ export type ShowEdit =
   /** A new clip; without a track, on top of what plays over its span. */
   | { kind: 'addClip'; widget: string; start: number; end: number; track?: number; listen?: Listen }
   | { kind: 'removeClip'; clip: string }
-  /** To this start (kept in the song) on this track, or the nearest free one above it. Its curve moves along. */
-  | { kind: 'moveClip'; clip: string; start: number; track: number }
+  /** To this start (kept in the song) on this track; clips in its way there go up a track. Its curve moves along.
+      tracks: the other clips' tracks when the drag began, so those it has left come back down. */
+  | { kind: 'moveClip'; clip: string; start: number; track: number; tracks?: Readonly<Record<string, number>> }
   /** This edge to t: not past the other edge or the song; over a neighbour it goes up to a free track. from, track: the
       curve and the track when the drag began, so it comes back down once it fits again. */
   | { kind: 'resizeClip'; clip: string; edge: 'start' | 'end'; t: number; from?: Pivot[]; track?: number }
@@ -166,12 +167,24 @@ export function applyEdit(show: Show, e: ShowEdit, env?: EditEnv): Show {
       const c = byId(e.clip);
       if (!c || !Number.isFinite(e.start) || !Number.isFinite(e.track)) return show;
       const len = c.end - c.start, start = ms(clamp(e.start, 0, Math.max(0, D - len))), end = ms(start + len);
-      const track = freeTrack(C, { start, end }, e.track, c.id);
-      if (start === c.start && track === c.track) return show;
-      const dt = start - c.start;
+      const dt = start - c.start, track = Math.max(0, Math.round(e.track));
       const next: Clip = { ...c, start, end, track };
       if (c.intensity?.length && dt !== 0) next.intensity = c.intensity.map((p) => ({ ...p, t: ms(p.t + dt) }));
-      return withClip(show, next);
+      const same = start === c.start && track === c.track;
+      const clips = C.map((x) => {
+        if (x.id === c.id) return same ? c : next;
+        const t0 = e.tracks?.[x.id];
+        return t0 === undefined || t0 === x.track ? x : { ...x, track: t0 };
+      });
+      // Whatever it lands on goes up a track, and so does whatever that lands on.
+      for (const pushers = [next]; pushers.length;) {
+        const m = pushers.pop()!;
+        clips.forEach((x, i) => {
+          if (x.id === m.id || x.id === c.id || x.track !== m.track || !overlaps(x, m)) return;
+          pushers.push(clips[i] = { ...x, track: m.track + 1 });
+        });
+      }
+      return clips.every((x, i) => x === C[i]) ? show : { ...show, clips };
     }
     case 'resizeClip': {
       const c = byId(e.clip);

@@ -424,6 +424,7 @@ export class Timeline {
       this.drag++;
       const edge = (target.closest<HTMLElement>('.clip-edge')?.dataset.edge ?? null) as 'start' | 'end' | null;
       const group = `clip:${id}:${this.drag}`, x0 = e.clientX, y0 = e.clientY, grab = this.tAt(e.clientX) - c0.start, len = c0.end - c0.start;
+      const tracks0 = Object.fromEntries(show.clips.map((c) => [c.id, c.track]));
       const T = snapTargets(show.clips, id, this.d.marks.map((m) => m.t), this.d.song.beats);
       let moved = false;
       const radius = () => (SNAP_PX / Math.max(1, this.tracks.clientWidth)) * (this.view.b - this.view.a);
@@ -445,7 +446,7 @@ export class Timeline {
           const raw = this.tAt(ev.clientX) - grab, s = free ? { start: raw, at: null, kind: null } : snapMove(raw, len, T, r);
           const rect = this.tracks.getBoundingClientRect();
           const track = trackAtHeight(rect.bottom - ev.clientY, ROW, this.frozenRows!);
-          store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: id, start: s.start, track }, group });
+          store.dispatch({ type: 'edit', edit: { kind: 'moveClip', clip: id, start: s.start, track, tracks: tracks0 }, group });
           line = s.at; word = s.kind === 'edge' ? ', on an edge or mark' : s.kind === 'beat' ? ', on a beat' : '';
         }
         const now = store.state.show!.clips.find((c) => c.id === id);

@@ -56,6 +56,17 @@
       "listen": "picks:p5"
     },
     {
+      "id": "c45",
+      "start": 23.722,
+      "end": 118.214,
+      "track": 21,
+      "widget": "miro",
+      "listen": "high",
+      "knobs": {
+        "sheet": 0
+      }
+    },
+    {
       "id": "c6",
       "start": 29.785,
       "end": 36,
