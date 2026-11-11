@@ -18,6 +18,7 @@ import { tagsOf } from '../../widgets/tags';
 import type { LabHarness, WidgetMeta } from '../../widgets/types';
 import { GROUPS, groupOf, verdictTag, type CatalogueEntry } from './panel';
 import { amountBars, attackMates, barWords, chipLayout, chipRuler, clock, countWords, draftKey, draftShow, everyOther, fineClock, INTENSITY_LANE, knobLane, laneShare, laneValue, loudest, nameOf, phraseOf, pickedSpan, pitchClass, previewSpan, renumberLost, sweptChips, toPicks, type Chip, type LaneScale, type Instrument, type RollNote } from './picker-logic';
+import { withIcon } from './icons';
 import type { Player } from './player';
 import { widgetHue } from './timeline';
 import type { WidgetPalette } from './widget-palette';
@@ -117,7 +118,7 @@ export class PickerPopup {
               <button type="button" data-clear>Clear</button>
             </div>
             <div class="np-row">
-              <button type="button" data-play>▶ Preview</button>
+              <button type="button" data-play>${withIcon('play', 'Preview')}</button>
               <span class="dim">Compare:</span>
               <button type="button" data-cmp="pick" aria-pressed="true">Your picks</button>
               <button type="button" data-cmp="all" aria-pressed="false">Every note, as it is today</button>
@@ -408,7 +409,7 @@ export class PickerPopup {
     if (!audio.paused && this.until !== null && t >= this.until) audio.pause();
     if (!audio.paused !== this.lastPlaying) {
       this.lastPlaying = !audio.paused;
-      this.$('[data-play]').textContent = this.lastPlaying ? '❚❚ Stop' : '▶ Preview';
+      this.$('[data-play]').innerHTML = this.lastPlaying ? withIcon('stop', 'Stop') : withIcon('play', 'Preview');
     }
     if (!audio.paused && this.mode === 'pick') {
       for (const n of this.picked()) if (n.t > this.heard && n.t <= t && t - this.heard < 1) this.flash(n.id);

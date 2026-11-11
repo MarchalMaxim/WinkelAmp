@@ -1,4 +1,4 @@
-// Miró (after Joan Miró's Constellations, 1940-41): a pale washed sheet slowly fills with a poetic sky. The melody is a
+// Miró (after Joan Miró's Constellations, 1940-41): a pale washed sheet (or, switched off, whatever is below) slowly fills with a poetic sky. The melody is a
 // pen: a thin black line that wanders over the page, turning with every step of the tune (up = it bends one way, down
 // the other, big leaps curl it into loops), and each melody note leaves a little star or dot right on the line. Short
 // notes drop dots; held notes swell into biomorphic blobs that grow for as long as the note sounds; loud deep notes set
@@ -7,7 +7,9 @@
 // shape: the Constellations' interlocking. Thin straight lines tie the stars of a chord, and each new star to a neighbour.
 (() => {
   const TAU = Math.PI * 2;
-  const INK = [20, 17, 15], RED = [205, 40, 30], BLUE = [28, 70, 160], YEL = [238, 186, 36], PAPER = [240, 232, 214];
+  // INK and PAPER are swapped in place each frame (shapes hold INK by reference): dark on the sheet, pale on a black canvas
+  const DARK = [20, 17, 15], PALE = [240, 232, 214];
+  const INK = DARK.slice(), PAPER = PALE.slice(), RED = [205, 40, 30], BLUE = [28, 70, 160], YEL = [238, 186, 36];
   const COLS = [RED, BLUE, YEL];
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -115,6 +117,13 @@
       ICON.shape(g, 'star', 31, 15, 11, ICON.lerp(ICON.ink, ICON.gold, v));
       ICON.dot(g, 20, 20, 2.2, ICON.ink);
     },
+    sheet(g, v, w, h) {                      // the same few marks: loose on the canvas, or on a filled page
+      const page = v >= 0.5, ink = page ? '#14110f' : ICON.ink;
+      if (page) ICON.rect(g, 3, 2, w - 6, h - 4, '#e8dec8');
+      else { g.save(); g.setLineDash([3, 2]); g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(3.5, 2.5, w - 7, h - 5); g.restore(); }
+      ICON.line(g, 8, 18, 18, 9, ink, 1.1); ICON.line(g, 18, 9, 31, 17, ink, 1.1);
+      ICON.dot(g, 18, 9, 2.2, ink); ICON.dot(g, 31, 17, 2.6, page ? ICON.red : ICON.gold);
+    },
     web(g, v, w, h) {                        // a few stars; joined by thin straight lines as it turns up
       const P = [[5, 19], [13, 6], [20, 16], [29, 5], [35, 20], [26, 23]];
       const E = [[0, 1], [1, 2], [2, 3], [3, 4], [2, 5], [4, 5], [0, 2], [1, 3]];
@@ -126,7 +135,7 @@
 
   TOOLS.push({
     id: 'miro', name: 'Miró', tag: 'new',
-    blurb: 'After Miró\'s Constellations: the melody draws one thin black line that wanders over a pale washed sheet, leaving stars and dots along it. Short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents, and where shapes overlap their colours flip.',
+    blurb: 'After Miró\'s Constellations: the melody draws one thin black line that wanders over a pale washed sheet, leaving stars and dots along it. Short notes drop dots, held notes swell into red, blue, yellow and black blobs, loud deep notes set crescents, and where shapes overlap their colours flip. <b>See-through or sheet</b> drops the page so the line and shapes sit in pale ink over other widgets.',
     params: [
       { key: 'life', label: 'how long the sky stays', min: 4, max: 40, value: 16, less: 5,
         hint: 'How long the shapes and the line stay on the page. Left: a few seconds, the sheet keeps clearing. Right: the whole passage builds up into one crowded sky.',
@@ -143,6 +152,9 @@
       { key: 'web', label: 'lines between the stars', min: 0, max: 1, value: 0.5, less: 0.05,
         hint: 'Thin straight lines tying together the notes of a chord, and each new star to a neighbour. Left: only the one wandering line. Right: a dense web of constellations.',
         icon: ICONS.web },
+      { key: 'sheet', perNote: false, label: 'see-through or sheet', min: 0, max: 1, step: 1, value: 1,
+        hint: 'Whether it paints its own pale page. Left: no page, only the line and shapes on whatever is drawn below, in pale ink. Right: the washed sheet, which covers what is below.',
+        icon: ICONS.sheet },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much sky it fills: how long the shapes stay, how many lines tie the stars, how big the blobs swell. Left: a few small marks that clear within seconds. Right: the whole crowded constellation. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
@@ -237,7 +249,8 @@
     },
     frame(x) {
       if (!pen) this.reset(x);
-      const g = x.g;
+      const g = x.g, sheet = x.p('sheet') >= 0.5;
+      for (let i = 0; i < 3; i++) { INK[i] = (sheet ? DARK : PALE)[i]; PAPER[i] = (sheet ? PALE : DARK)[i]; }
       const dt = x.dt, life = x.p('life'), wander = x.p('wander');
       clock += dt; stainCool -= dt;
       // the pen moves on: faster when the music is loud and busy; its turning relaxes, with a slow wobble of its own
@@ -255,9 +268,9 @@
       if (!last || Math.hypot(pen.x - last.x, pen.y - last.y) > 3) trail.push({ x: pen.x, y: pen.y, t: clock, w: 1.3 + 1.4 * f.level });
       while (trail.length && clock - trail[0].t > life) trail.shift();
 
-      // the sheet and its stains
+      // the sheet (if on) and its stains
       g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
-      g.drawImage(wash, 0, 0, x.W, x.H);
+      if (sheet) g.drawImage(wash, 0, 0, x.W, x.H);
       for (const s of stains) {
         s.age += dt; const a = Math.min(1, s.age / 1.2) * Math.max(0, 1 - s.age / s.life) * 0.16, r = s.r * (0.7 + 0.3 * Math.min(1, s.age / 3));
         if (a <= 0) continue;

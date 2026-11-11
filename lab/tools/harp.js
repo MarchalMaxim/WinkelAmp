@@ -2,15 +2,15 @@
 // which reverberates with a soft aura"). One upright string per note. On its attack the string is pulled aside and let go:
 // it swings, less and less, for as long as the note rings, inside a soft glow that blooms just after the pull and outlasts
 // the swing. Notes close in time are one sweep: its strings are pulled the way the sweep runs, and they take their colour
-// from its chord, gold when it is major, a pale silver blue when it is minor. The 'how dreamy' knob dissolves the drawn
-// line into a soft band of light (the user: "blur them to really give that dreamy feeling").
+// from its chord, gold when it is major, a pale silver blue when it is minor. The 'how dreamy' knob replaces the drawn
+// line by a distribution of light, widest where the string swings most (the user: "blur them to really give that dreamy feeling").
 // A string stands where Ivory stands a lone key of that pitch, and reaches as high (the ground, the place across the width
 // and the height all follow the note's register in the whole piece), so a sweep can lead to a key in the same picture.
 // Nothing happens between attacks: a string only swings down and fades. Stateless: every frame is worked out from CHORDS
 // and the song time, so a seek needs no replay.
 (() => {
   const W = 1280, H = 720, BASE = H * 0.88, TOP = BASE * 0.9;          // Ivory's ground and its tallest key
-  const GAP = 0.8, MAX_LIVE = 24, SEG = 24, SOFT = 4;                            // seconds of silence that end a sweep; strings drawn at once; pieces per string
+  const GAP = 0.8, MAX_LIVE = 24, SEG = 24;                            // seconds of silence that end a sweep; strings drawn at once; pieces per string
   const FLASH = 0.033, BLOOM = 0.12;                                   // seconds: the strike holds two steps; the glow opens
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (v) => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
@@ -21,6 +21,7 @@
     open: { core: [246, 230, 196], aura: [176, 136, 72] },             // neither third is there: a paler gold
   };
   const BONE = [255, 247, 228];
+  const LEVELS = 28;                                                   // steps of the bell curve across a dreamy string
 
   /** The piece's pitch range, as Ivory reads it (2nd to 98th percentile note); null when it is not known. */
   function pieceRange() {
@@ -76,7 +77,7 @@
         hint: 'The soft glow around a string. Left: the bare string. Right: a wide halo.',
         icon: (g, v, w, h) => { const e = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, 2 + v * (w / 2 - 2)); e.addColorStop(0, ICON.gold); e.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = e; g.fillRect(0, 0, w, h); ICON.line(g, w / 2, 3, w / 2, h - 3, ICON.ink, 1); } },
       { key: 'dream', label: 'how dreamy', min: 0, max: 1, value: 0.6,
-        hint: 'How much the string dissolves into light. Left: a sharp, drawn string. Right: no line at all, only a soft band of light that sways.',
+        hint: 'How much the string dissolves into light. Left: a sharp, drawn string. Right: no line at all, only a cloud of light, widest where the string swings most, that narrows as it comes to rest.',
         icon: (g, v, w, h) => { const e = g.createLinearGradient(w / 2 - 2 - v * (w / 2 - 4), 0, w / 2 + 2 + v * (w / 2 - 4), 0); e.addColorStop(0, 'rgba(0,0,0,0)'); e.addColorStop(0.5, ICON.gold); e.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = e; g.fillRect(0, 3, w, h - 6); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much each note leaves: how far its string swings, how long it rings and how wide it glows. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
@@ -129,18 +130,28 @@
         const Es = peak * Math.max(flash, 0.3 + 0.7 * Math.exp(-age / tau)) * out;
         if (Es * 255 < 3) continue;
         const c = [0, 1, 2].map((i) => p.look.core[i] + (BONE[i] - p.look.core[i]) * flash);
-        // How dreamy: the line becomes a band of light, bright in the middle and falling off to nothing. It is the same
-        // path stroked four times, wide and faint to narrow and bright. A real blur (the canvas filter) took 64 ms a frame.
-        g.beginPath(); g.moveTo(p.x, BASE);
-        for (let k = 1; k <= SEG; k++) {
-          const s = k / SEG;
-          g.lineTo(p.x + p.dir * (a1 * Math.sin(Math.PI * s) + a2 * Math.sin(2 * Math.PI * s)), BASE - p.h * s);
+        // How dreamy: the line gives way to a distribution of light, a bell curve across the string with no core, as wide
+        // as the string is swinging at that height.
+        const off = (s) => p.dir * (a1 * Math.sin(Math.PI * s) + a2 * Math.sin(2 * Math.PI * s));
+        const line = Es * (1 - smooth(dream / 0.5));
+        if (line * 255 >= 3) {
+          g.beginPath(); g.moveTo(p.x, BASE);
+          for (let k = 1; k <= SEG; k++) g.lineTo(p.x + off(k / SEG), BASE - p.h * k / SEG);
+          g.strokeStyle = rgb(c, line); g.lineWidth = 1.8 + 2.4 * flash; g.stroke();
         }
-        const coreW = 1.8 + 2.4 * flash * (1 - dream) + 7 * dream, bright = Es * (1 - 0.3 * dream), n = dream > 0.02 ? SOFT : 1;
-        for (let q = n - 1; q >= 0; q--) {
-          const o = n > 1 ? q / (n - 1) : 0;
-          g.strokeStyle = rgb(c, bright * Math.exp(-1.9 * o * o)); g.lineWidth = coreW + o * 52 * dream;
-          g.stroke();
+        const cloud = Es * smooth(dream / 0.4) * (1 - 0.25 * dream);
+        if (cloud * 255 < 3) continue;
+        // Nested lenses, wide and faint to narrow and bright: the levels of the bell curve (a blur filter took 64 ms a frame).
+        const cx = [], sd = [];
+        // The cloud does not swing: it is where the string has been, leaning the way it was pulled and narrowing as it rests.
+        const sway = 1 - smooth(dream / 0.5), lean = p.dir * 0.35 * amp * (1 - sway);
+        for (let k = 0; k <= SEG; k++) { const s = k / SEG, bell = Math.sin(Math.PI * s); cx.push(p.x + off(s) * sway + lean * bell); sd.push(dream * (7 + 17 * dream + 0.6 * amp) * bell); }
+        for (let q = 0; q < LEVELS; q++) {
+          const z = 3 * (1 - q / LEVELS);
+          g.beginPath(); g.moveTo(cx[0], BASE);
+          for (let k = 1; k <= SEG; k++) g.lineTo(cx[k] + z * sd[k], BASE - p.h * k / SEG);
+          for (let k = SEG - 1; k >= 0; k--) g.lineTo(cx[k] - z * sd[k], BASE - p.h * k / SEG);
+          g.fillStyle = rgb(c, cloud * Math.exp(-0.5 * z * z)); g.fill();
         }
       }
       g.restore();

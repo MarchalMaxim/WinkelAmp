@@ -11,6 +11,7 @@ import { heardSets } from '../show/note-values';
 import { FAMILIES, LINES, listenOf, picksId, type Layer, type Show } from '../show/show';
 import type { Span, WaLayers } from '../../widgets/layers';
 import type { Family, Line, Listen, Region, TrackId } from '../../widgets/types';
+import { icon, listenIconName } from './icons';
 import { impulseWords } from './picker-logic';
 
 export interface ListenOption { group: string; value: Listen; label: string }
@@ -171,7 +172,7 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
   box.innerHTML = `
     <section class="lc-part">
       <h4>Listens to</h4>
-      <div class="lc-listen"><select aria-label="What this layer listens to"></select><canvas class="lc-spark" width="${SPARK_W}" height="${SPARK_H}" aria-hidden="true"></canvas></div>
+      <div class="lc-listen"><span class="lc-ico" aria-hidden="true"></span><select aria-label="What this layer listens to"></select><canvas class="lc-spark" width="${SPARK_W}" height="${SPARK_H}" aria-hidden="true"></canvas></div>
       <p class="lc-picks small" hidden><span></span> <button type="button" data-edit-picks>Edit picks</button></p>
       <p class="lc-note small"></p>
       <p class="lc-usual small" hidden><span></span> <button type="button" class="link" data-usual></button></p>
@@ -298,6 +299,9 @@ export function mountLayerControls(box: HTMLElement, d: LayerControlsDeps): { sy
     const set = picksId(listen);
     if (set === null) fillSelect(listen ?? 'all');   // also when focused: an undo right after a choice
     $<HTMLElement>('.lc-listen').hidden = set !== null;
+    const pic = listenIconName(listen ?? 'all'), ico = $<HTMLElement>('.lc-ico');   // a native option cannot hold a picture: the chosen part's goes beside the select
+    ico.hidden = !pic;
+    ico.innerHTML = pic ? icon(pic) : '';
     $<HTMLElement>('.lc-picks').hidden = set === null;
     if (set !== null) $<HTMLElement>('.lc-picks span').textContent = impulseWords(d.picks()?.[set]?.notes ?? []);
     drawSpark(listen, span);

@@ -15,6 +15,7 @@
 
 .lc-listen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .lc-listen select { flex: 1 1 150px; min-width: 0; max-width: 100%; }
+.lc-ico { display: inline-flex; color: var(--dim); flex: none; margin-right: -4px; }
 .lc-spark { width: 120px; height: 14px; flex: none; background: #0a080a; border-radius: 2px; }
 
 .lc-seg { display: flex; width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }

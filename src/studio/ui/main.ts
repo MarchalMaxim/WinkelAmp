@@ -24,6 +24,7 @@ import type { WidgetMeta } from '../../widgets/types';
 import { SongAdder, takeFlash } from './add-song';
 import { ApiError, connectStore, type LibraryEntry, type ShowStore } from './api';
 import { duplicateSelected, removeSelected, splitAt } from './clip-actions';
+import { icon } from './icons';
 import { installKeys } from './keys';
 import { Library, splitTitle } from './library';
 import { Panel, type CatalogueEntry } from './panel';
@@ -42,8 +43,8 @@ const lsSet = (k: string, v: string): void => { try { localStorage.setItem(k, v)
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
 const ICONS = {
-  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
-  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>',
+  play: icon('play'),
+  pause: icon('pause'),
   full: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
   hide: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 15h17" stroke="currentColor" stroke-width="1.6"/></svg>',
   undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16M5 11.5h9a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
@@ -106,7 +107,7 @@ function renderNotices(box: HTMLElement, notices: Notice[], store: Store, action
       b.addEventListener('click', () => { act.run(); store.dispatch({ type: 'dismiss', id: n.id }); });
       div.append(b);
     }
-    const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', textContent: '✕' });
+    const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', innerHTML: icon('close') });
     x.setAttribute('aria-label', 'Dismiss');
     x.addEventListener('click', () => store.dispatch({ type: 'dismiss', id: n.id }));
     div.append(x);

@@ -181,7 +181,7 @@
 
   TOOLS.push({
     id: 'score', name: 'Graphic score', tag: 'new',
-    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. Turn <b>how present</b> down for a sparse, plain page with only the strongest attacks written, soon drifting off.',
+    blurb: 'The music writes its own abstract score, drifting slowly to the left like a page of Cardew’s Treatise: high notes sit high, held notes draw beams, loud notes are heavy and filled, soft ones hollow; chords stand on stems (a loud cluster is a black block, a soft one an open box), sometimes bracketed with a small numeral; deep loud bass leaves black discs, the biggest chords throw a large circle, and a silence starts a new line. <b>See-through or sheet</b> drops the page so the marks sit over other widgets. Turn <b>how present</b> down for a sparse, plain page with only the strongest attacks written, soon drifting off.',
     params: [
       { key: 'speed', label: 'how fast the page moves', min: 20, max: 140, value: 48, less: 100, drive: '+rate',
         hint: 'How fast the writing drifts to the left. Left: slow, the marks crowd together. Right: fast, they spread far apart.',
@@ -207,6 +207,12 @@
         icon: (g, v, w, h) => { const night = v < 0.5, bg = night ? '#0d0c0b' : '#e9e1cf', ink = night ? '#e6dcca' : '#16130f';
           ICON.rect(g, 2, 2, w - 4, h - 4, bg); if (night) { g.strokeStyle = '#4a4038'; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); }
           ICON.dot(g, 10, 15, 3, ink); ICON.ring(g, 21, 9, 3, ink, 1); ICON.rect(g, 21, 17, 14, 1.6, ink); } },
+      { key: 'sheet', perNote: false, label: 'see-through or sheet', min: 0, max: 1, step: 1, value: 1,
+        hint: 'Whether it paints its own page. Left: no page, only the marks on whatever is drawn below; night gives pale marks, paper dark ones for a bright widget. Right: the page itself, which covers what is below.',
+        icon: (g, v, w, h) => { const page = v >= 0.5, ink = page ? '#16130f' : '#e6dcca';
+          if (page) ICON.rect(g, 2, 2, w - 4, h - 4, '#e9e1cf');
+          else { g.save(); g.setLineDash([3, 2]); g.strokeStyle = ICON.dim; g.lineWidth = 1; g.strokeRect(2.5, 2.5, w - 5, h - 5); g.restore(); }
+          ICON.dot(g, 10, 15, 3, ink); ICON.ring(g, 21, 9, 3, ink, 1); ICON.rect(g, 21, 17, 14, 1.6, ink); } },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much is on the page: how many attacks are written in full, how ornate the notation is, how soon the writing drifts off the page. Left: only the strongest few, plain dots and lines, and they leave quickly. Right: a well-filled page with brackets, discs and circles. Moving it sets those knobs; set one by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
@@ -215,12 +221,12 @@
     onChord(ch, x) { write(ch, x, 0); },
     frame(x) {
       const g = x.g;
-      const W = x.W, H = x.H, night = x.p('paper') < 0.5, P = night ? NIGHT : PAPER;
-      const k = night ? 0 : 1; tex[k] ??= page(W, H, night);   // both pages are kept, so a driven flip never stutters
+      const W = x.W, H = x.H, night = x.p('paper') < 0.5, P = night ? NIGHT : PAPER, sheet = x.p('sheet') >= 0.5;
+      const k = night ? 0 : 1; if (sheet) tex[k] ??= page(W, H, night);   // both pages are kept, so a driven flip never stutters
       advance(x.dt, x.p('speed'), x);
       pop *= Math.pow(0.5, x.dt / 0.08);
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none'; g.shadowBlur = 0;
-      g.drawImage(tex[k], 0, 0);
+      if (sheet) g.drawImage(tex[k], 0, 0);
       // the continuous line through the page, swelling with the loudness
       const ly = H * 0.535, wt = x.p('weight');
       if (life.length > 1) {
@@ -233,7 +239,8 @@
       // the pen: a faint hairline that darkens on each attack
       const px = W * WRITE;
       g.fillStyle = rgba(P.ink, 0.1 + 0.35 * pop); g.fillRect(px - 0.5, H * 0.08, 1, H * 0.84);
-      // the left margin fades the page out
+      // the left margin fades the page out (no page, nothing to fade)
+      if (!sheet) return;
       const fade = g.createLinearGradient(0, 0, 60, 0);
       fade.addColorStop(0, rgba(P.bg, 0.9)); fade.addColorStop(1, rgba(P.bg, 0));
       g.fillStyle = fade; g.fillRect(0, 0, 60, H);

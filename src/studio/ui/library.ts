@@ -6,6 +6,7 @@
 import { isChecking } from '../ingest/ears-client';
 import type { TranscriberStatus } from '../ingest/ears-types';
 import type { LibraryEntry } from './api';
+import { icon } from './icons';
 import { clock } from './timeline';
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -62,7 +63,7 @@ export class Library {
     this.el.hidden = true;
     this.el.innerHTML = `<div class="library-scrim" data-close></div>
       <nav class="library-sheet" aria-label="Songs">
-        <header><h2>Songs</h2><button type="button" class="icon" data-close aria-label="Close">✕</button></header>
+        <header><h2>Songs</h2><button type="button" class="icon" data-close aria-label="Close">${icon('close')}</button></header>
         <div class="add-song">
           <label class="add-btn"><input type="file" accept="audio/*,video/*" data-file>Add a recording…</label>
           <p class="add-how dim small"></p>

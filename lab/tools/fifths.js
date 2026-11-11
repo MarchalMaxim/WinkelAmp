@@ -7,6 +7,8 @@
 // has been using lately; a bare octave (the prelude's tolling As, the fate motif) is a ray along its own spoke instead of
 // nothing. 'line' replaces 'weight' (new key: loudness now thickens by itself, the old saved drive would count it twice);
 // 'shiver' replaces 'sink' (now fixed at 0.55).
+// 'soft' rounds the outlines into petals (smoothed sampled loops), swaps hard strokes for a blurred bloom laid in the figure
+// canvas, fills with a silky gradient, sways the old weave and swells a loud attack; 0 draws the crisp web.
 // How present (the user, 2026-11-01: sliders should dim, not only boost): moving it sets the knobs it leads.
 (() => {
   const STEP = Math.PI * 2 / 12, TAU = Math.PI * 2;
@@ -21,6 +23,10 @@
   // max(faded previous frame, figure) settles on exactly the figure's brightness (no 8x pile-up from the slow shared
   // fade), leaves a short motion trail when it turns, and lets other tools show wherever they are brighter.
   const off = document.createElement('canvas'); off.width = 1280; off.height = 720; const og = off.getContext('2d');
+  // The bloom: the figure shrunk and blurred at two scales, added back onto itself (cheap next to wide strokes).
+  const mini = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const b4 = mini(320, 180), b4g = b4.getContext('2d'), b8 = mini(160, 90), b8g = b8.getContext('2d');
+  const BX = new Float32Array(640), BY = new Float32Array(640), TX = new Float32Array(640), TY = new Float32Array(640), SX = new Float32Array(640), SY = new Float32Array(640);
   let polys = [], trail = [], node = new Float32Array(12), nodeR = new Float32Array(12).fill(1), hist = new Float32Array(12);
   let prevPc = -1, prevM = 60, prevT = -9;
   let keyRot = 0, keyKnown = false, tonic = 0, minor = false, spinAcc = 0, flash = 0, scale = 1;
@@ -57,7 +63,37 @@
   // sweet intervals sway, clashing ones ripple.
   // A bare octave or unison (one note name only, nothing held) is a ray along its own spoke instead: from past its
   // highest octave down to below its lowest, the deeper the louder, swaying in a single half-wave.
-  function trace(g, P, Rpx, bow, k = 1, tw = 0, shake = 0) {
+  // One running-sum box blur pass (closed loop wraps, an open curve repeats its ends and keeps them).
+  function box(s, o, N, r, closed) {
+    const at = (i) => (closed ? s[((i % N) + N) % N] : s[Math.max(0, Math.min(N - 1, i))]), w = 2 * r + 1;
+    let acc = 0; for (let i = -r; i <= r; i++) acc += at(i);
+    for (let i = 0; i < N; i++) { o[i] = acc / w; acc += at(i + r + 1) - at(i - r); }
+    if (!closed) { o[0] = s[0]; o[N - 1] = s[N - 1]; }
+  }
+  // The soft outline: the same bowed (and shivering) strings sampled into points, then smoothed so corners become lobes.
+  function roundedTrace(g, P, ps, bow, shake, soft, sg) {
+    const v = P.v, n = v.length, edges = n === 2 ? 1 : n, closed = n > 2; let N = 0;
+    SX[0] = SY[0] = 0; BX[N] = ps[0][0]; BY[N++] = ps[0][1];
+    for (let i = 0; i < edges; i++) {
+      const a = ps[i], b = ps[(i + 1) % n], kb = 1 - bow, cx = (a[0] + b[0]) / 2 * kb, cy = (a[1] + b[1]) / 2 * kb;
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      let d = Math.abs(v[i].f - v[(i + 1) % n].f) % 12; d = (Math.min(d, 12 - d) || 1) + 1;
+      const ring = Math.abs(shake) >= 1, amp = ring ? shake / Math.sqrt(0.6 + 0.4 * d) * Math.min(1, L / 140) : 0;
+      const segs = ring ? Math.max(sg, Math.min(40, 8 + d * 5)) : sg;
+      for (let s = 1; s <= segs; s++) {
+        const u = s / segs, w0 = (1 - u) * (1 - u), w1 = 2 * (1 - u) * u, w2 = u * u, o = amp * Math.sin(Math.PI * d * u);
+        SX[N] = nx * o; SY[N] = ny * o; BX[N] = w0 * a[0] + w1 * cx + w2 * b[0]; BY[N++] = w0 * a[1] + w1 * cy + w2 * b[1];
+      }
+    }
+    if (closed) N--; // the last sample is the first point again
+    const r = Math.max(1, Math.round(soft * 7 * sg / 24));
+    for (let pass = 0; pass < 2; pass++) { box(BX, TX, N, r, closed); box(BY, TY, N, r, closed); BX.set(TX.subarray(0, N)); BY.set(TY.subarray(0, N)); }
+    // the shiver is added after smoothing, or the blur would wipe its ripples out
+    g.moveTo(BX[0] + SX[0], BY[0] + SY[0]);
+    for (let i = 1; i < N; i++) g.lineTo(BX[i] + SX[i], BY[i] + SY[i]);
+    if (closed) g.closePath();
+  }
+  function trace(g, P, Rpx, bow, k = 1, tw = 0, shake = 0, soft = 0, sg = 24) {
     const v = P.v, n = v.length;
     if (n === 1) {
       const a = pt(v[0].f, P.rout * k, Rpx, tw), b = pt(v[0].f, P.rin * k, Rpx, tw);
@@ -68,6 +104,7 @@
       return;
     }
     const ps = v.map((q) => pt(q.f, q.r * k, Rpx, tw));
+    if (soft > 0) { roundedTrace(g, P, ps, bow, shake, soft, sg); return; }
     g.moveTo(ps[0][0], ps[0][1]);
     const edges = n === 2 ? 1 : n;
     for (let i = 0; i < edges; i++) {
@@ -101,9 +138,19 @@
     g.strokeStyle = col; g.lineWidth = lw; g.stroke();
   }
 
+  // Knob picture for 'soft': a chord triangle with corners rounded by v, thickening and glowing as it goes.
+  function softTri(g, cx, cy, r, v) {
+    const ps = [0, 4, 7].map((f) => [cx + Math.cos(f * STEP - Math.PI / 2) * r, cy + Math.sin(f * STEP - Math.PI / 2) * r]);
+    g.save(); g.shadowColor = PINK; g.shadowBlur = v * 9; g.fillStyle = PINK; g.strokeStyle = PINK; g.lineWidth = 0.9 + 1.5 * v; g.lineJoin = 'round';
+    g.beginPath();
+    const m0 = [(ps[0][0] + ps[1][0]) / 2, (ps[0][1] + ps[1][1]) / 2]; g.moveTo(m0[0], m0[1]);
+    for (let i = 1; i <= 3; i++) g.arcTo(ps[i % 3][0], ps[i % 3][1], ps[(i + 1) % 3][0], ps[(i + 1) % 3][1], v * 12);
+    g.closePath(); g.globalAlpha = v * 0.3; g.fill(); g.globalAlpha = 1; g.stroke(); g.restore();
+  }
+
   TOOLS.push({
     id: 'fifths', name: 'Harmonic web', tag: 'v2',
-    blurb: 'The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.',
+    blurb: 'The 12 notes sit on a circle of fifths; every attack strings a glowing polygon between the notes sounding, and old chords thin and sink inward into a woven web; the key it hears turns the loom so the home note is on top. New: low notes pull a corner deep inside and high ones break through the rim, soft chords are fine bright lines and loud ones thick lit cords. The hard-or-soft slider melts the crisp string art into rounded, glowing petals. A struck chord shivers for a moment, calmly for sweet intervals and in fine ripples for clashing ones; a bare octave is a ray along its spoke.',
     params: [
       { key: 'decay', label: 'how long the web remembers', min: 0.5, max: 30, value: 9, less: 0.8,
         hint: 'How long old chords stay in the web before they vanish. Left: only the chord you hear now. Right: half a minute of harmony woven together.',
@@ -121,6 +168,9 @@
       { key: 'fill', label: 'filled shapes', min: 0, max: 1, value: 0.2, drive: '+level',
         hint: 'How much colour fills the shape of each chord. Left: only the strings. Right: glowing coloured shapes.',
         icon: (g, v, w, h) => tri(g, w / 2, h / 2 + 1, 11, 0.2, 1, 0, PINK, 1.4, v) },
+      { key: 'soft', label: 'hard or soft', min: 0, max: 1, value: 0.5,
+        hint: 'How the web is drawn. Left: crisp thin strings with sharp corners. Right: rounded glowing petals in soft light, the old weave slowly breathing.',
+        icon: (g, v, w, h) => softTri(g, w / 2, h / 2 + 1.5, 11, v) },
       { key: 'presence', label: 'how present', min: 0, max: 1, value: 1, leads: true,
         hint: 'How much web it keeps: how long old chords linger before they sink away. Left: only the chords just struck, gone within a second. Right: the whole woven web. Moving it sets that knob; set it by hand afterwards and it holds until you move this again.',
         icon: (g, v, w, h) => ICON.much(g, v, w, h) },
@@ -190,7 +240,7 @@
       scale += (1 + 0.05 * flash - scale) * Math.min(1, dt * 30);
       // Base radius: a high note at REG 1.10 stays inside the frame even at the peak of a flash.
       const Rpx = 268 * scale, W2 = x.W / 2, H2 = x.H / 2;
-      const weight = x.p('line'), fillA = x.p('fill'), bowNow = x.p('bow'), shiver = x.p('shiver');
+      const weight = x.p('line'), fillA = x.p('fill'), bowNow = x.p('bow'), shiver = x.p('shiver'), soft = x.p('soft');
 
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.fillRect(0, 0, x.W, x.H);
       g.save(); g.translate(W2, H2); g.rotate(keyRot + spinAcc);
@@ -201,7 +251,7 @@
       let hmax = 1e-3; for (let i = 0; i < 12; i++) hmax = Math.max(hmax, hist[i]);
       for (let pc = 0; pc < 12; pc++) {
         const h = Math.sqrt(hist[pc] / hmax), a0 = FIFTH(pc) * STEP - Math.PI / 2, col = fnColour(pc, FUNC);
-        g.strokeStyle = rgba(col, 0.07 + 0.22 * h); g.lineWidth = 1 + 4 * h;
+        g.strokeStyle = rgba(col, (0.07 + 0.22 * h) * (1 - 0.35 * soft)); g.lineWidth = (1 + 4 * h) * (1 + 0.5 * soft);
         g.beginPath(); g.arc(0, 0, Rpx, a0 - STEP * 0.42, a0 + STEP * 0.42); g.stroke();
       }
       // The weave: oldest first, thinning and darkening with age. A dense weave (agitato, long memory) is dimmed so the
@@ -212,25 +262,40 @@
       const lit = (P) => { const atk = Math.exp(-P.age / 0.3), sus = Math.pow(Math.max(0, 1 - P.age / P.hold), 0.7); return atk + (1 - atk) * 0.45 * sus; };
       let freshSum = 0; for (const P of polys) if (P.v.length > 0) freshSum += lit(P);
       const kf = 1 / Math.pow(Math.max(1, freshSum / 1.3), 0.75), skf = Math.sqrt(kf);
-      const beads = [];
+      const beads = [], fills = []; // soft: fills wait until the bloom is laid, so the bloom comes from the strings alone
       for (const P of polys) {
         P.age += dt;
         const life = Math.max(0, 1 - P.age / decay); if (life <= 0 || !P.v.length) continue;
         const fresh = lit(P), atk = Math.exp(-P.age / 0.3), a = Math.pow(life, 1.4);
-        const col = P.col, bow = P.bow * 0.7 + bowNow * 0.3 + P.j * 0.14;
-        const sk = sinkK(P.age, decay), tw = (1 - sk) * 0.5 * Math.sign(P.j + 0.3);
+        const col = P.col; let bow = P.bow * 0.7 + bowNow * 0.3 + P.j * 0.14;
+        const sk = sinkK(P.age, decay); let tw = (1 - sk) * 0.5 * Math.sign(P.j + 0.3);
+        // The old weave breathes: a slow sway of each polygon's bow and twist, from the song clock and its own phase.
+        if (soft > 0) { bow += soft * 0.1 * Math.sin(x.t * 0.45 + P.j * 4 + P.ph * 7); tw += soft * 0.04 * Math.sin(x.t * 0.3 + P.j * 5 + P.ph * 3); }
         if (fresh < 0.03) {                                    // the weave: one thin line, a whisper of fill
-          g.beginPath(); trace(g, P, Rpx, bow, sk, tw);
-          if (P.v.length > 2 && fillA > 0) { g.fillStyle = rgba(col, fillA * 0.06 * a * dens); g.fill(); }
+          g.beginPath(); trace(g, P, Rpx, bow, sk, tw, 0, soft, 12);
+          if (P.v.length > 2 && fillA > 0) {
+            if (soft > 0) { const fp = new Path2D(); trace(fp, P, Rpx, bow, sk, tw, 0, soft, 12); fills.push([fp, rgba(col, fillA * 0.06 * a * dens * (1 + 0.5 * soft))]); }
+            else { g.fillStyle = rgba(col, fillA * 0.06 * a * dens); g.fill(); }
+          }
           g.strokeStyle = rgba(col, (0.14 + 0.4 * a) * dens, 20); g.lineWidth = weight * (0.55 + 0.6 * P.loud); g.stroke();
           continue;
         }
         // A lit chord. The shiver: a damped standing wave on every string, quicker for high chords than for low ones.
         const ring = Math.exp(-P.age / (0.22 + 0.25 * P.loud));
         const shake = shiver * (24 + 36 * P.loud) * ring * Math.cos(TAU * (P.ph + P.age * (3.5 + 5 * P.reg)));
-        const path = new Path2D(); trace(path, P, Rpx, bow, sk, tw, shake);
-        const land = Math.max(0, 1 - P.age / 0.16);        // the first instants of an attack: a white-hot stroke
-        if (P.v.length > 2 && fillA > 0) { g.fillStyle = rgba(col, Math.min(0.26, fillA * (0.25 * fresh + 0.75 * atk)) * kf); g.fill(path); }
+        // A loud attack swells its shape at once and settles: sharp in time, soft only in look.
+        const swell = soft * (0.02 + 0.07 * P.loud) * Math.exp(-P.age / 0.2), skl = sk * (1 + swell), hard = 1 - 0.6 * soft;
+        const path = new Path2D(); trace(path, P, Rpx, bow, skl, tw, shake, soft);
+        const land = Math.max(0, 1 - P.age / 0.16) * (1 - 0.75 * soft); // the first instants of an attack: a white-hot stroke
+        if (P.v.length > 2 && fillA > 0) {
+          const fa = Math.min(0.26 + 0.03 * soft, fillA * (1 + 0.4 * soft) * (0.25 * fresh + 0.75 * atk)) * kf;
+          if (soft > 0) { // silk: from the chord's centre of gravity outward, fuller toward the edge
+            let cx = 0, cy = 0; const ps = P.v.map((q) => pt(q.f, q.r * skl, Rpx, tw)); for (const p of ps) { cx += p[0]; cy += p[1]; } cx /= ps.length; cy /= ps.length;
+            let rr = 1; for (const p of ps) rr = Math.max(rr, Math.hypot(p[0] - cx, p[1] - cy));
+            const gr = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gr.addColorStop(0, rgba(col, fa * (1 - 0.5 * soft))); gr.addColorStop(1, rgba(col, fa * (1 + 0.2 * soft)));
+            fills.push([path, gr]);
+          } else { g.fillStyle = rgba(col, fa); g.fill(path); }
+        }
         // Glow: wide and soft for loud chords, capped so a climax stays a shape, not a cloud.
         // Only around the attack (wide strokes are what costs time in a dense passage); a ringing chord keeps its core.
         if (atk > 0.06 && (0.05 + 0.1 * P.loud) * atk * kf > 0.006) {
@@ -238,10 +303,10 @@
         }
         if ((0.12 + 0.12 * P.loud) * fresh * kf > 0.01) { g.strokeStyle = rgba(col, (0.12 + 0.12 * P.loud) * fresh * kf); g.lineWidth = Math.min(7, weight * (1.6 + 3.6 * P.loud)) * (0.6 + 0.4 * fresh); g.stroke(path); }
         // Core: as bright for a soft chord as for a loud one (only thinner), so every attack lands.
-        g.strokeStyle = rgba(col, ((0.14 + 0.4 * a) * dens + (0.6 + 0.3 * P.loud) * fresh * skf), 30 + 40 * fresh);
-        g.lineWidth = weight * (0.5 + (0.6 + 1.8 * P.loud) * fresh); g.stroke(path);
+        g.strokeStyle = rgba(col, ((0.14 + 0.4 * a) * dens + (0.6 + 0.3 * P.loud) * fresh * skf * hard), 30 + 40 * fresh);
+        g.lineWidth = weight * (0.5 + (0.6 + 1.8 * P.loud) * fresh) * (1 - 0.25 * soft); g.stroke(path);
         if (land > 0) { g.strokeStyle = rgba([255, 240, 228], 0.55 * land * skf); g.lineWidth = weight * (0.6 + 1.2 * P.loud) * land; g.stroke(path); }
-        if (atk > 0.05) for (const q of P.octs || P.v) if (q.new) beads.push([q, sk, tw, fresh, P.loud, col]);
+        if (atk > 0.05) for (const q of P.octs || P.v) if (q.new) beads.push([q, skl, tw, fresh, P.loud, col]);
       }
       polys = polys.filter((P) => P.age < decay);
       // Beads on the corners just struck, sized by how hard each note was played.
@@ -274,7 +339,7 @@
           g.strokeStyle = rgba(col, Math.min(1, e)); g.lineWidth = 1 + 5 * e * Math.sqrt(weight / 1.2);
           g.beginPath(); g.arc(0, 0, Rpx, a0 - hw, a0 + hw); g.stroke();
           const [sx, sy] = pt(f, nodeR[pc], Rpx);
-          g.strokeStyle = rgba(col, 0.35 * Math.min(1, e)); g.lineWidth = 1;
+          g.strokeStyle = rgba(col, 0.35 * Math.min(1, e) * (1 - 0.4 * soft)); g.lineWidth = 1 + soft;
           g.beginPath(); g.moveTo(px, py); g.lineTo(sx, sy); g.stroke();
           const rad = 6 + 30 * Math.min(1, e);
           const gr = g.createRadialGradient(sx, sy, 0, sx, sy, rad);
@@ -290,6 +355,16 @@
         }
       }
       g.restore();
+      if (soft > 0) { // the bloom: two blurred, shrunken copies of the strings added back, then the fills under no bloom
+        b4g.clearRect(0, 0, 320, 180); b4g.filter = `blur(${(0.6 + 1.0 * soft).toFixed(2)}px)`; b4g.drawImage(off, 0, 0, 320, 180); b4g.filter = 'none';
+        b8g.clearRect(0, 0, 160, 90); b8g.filter = `blur(${(0.5 + 0.7 * soft).toFixed(2)}px)`; b8g.drawImage(b4, 0, 0, 160, 90); b8g.filter = 'none';
+        g.imageSmoothingQuality = 'high'; g.globalCompositeOperation = 'lighter';
+        const bk = soft * (0.55 + 0.75 * Math.min(kf, dens)); // less when the web is crowded, so a climax does not burn
+        g.globalAlpha = Math.min(1, bk); g.drawImage(b4, 0, 0, 1280, 720); g.globalAlpha = Math.min(1, 0.85 * bk); g.drawImage(b8, 0, 0, 1280, 720); g.globalAlpha = 1;
+        g.save(); g.translate(W2, H2); g.rotate(keyRot + spinAcc);
+        for (const [fp, st] of fills) { g.fillStyle = st; g.fill(fp); }
+        g.restore(); g.globalCompositeOperation = 'source-over';
+      }
       x.g.globalCompositeOperation = 'lighten'; x.g.drawImage(off, 0, 0);
     },
   });

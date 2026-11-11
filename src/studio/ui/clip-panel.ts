@@ -6,6 +6,7 @@
 import { edgeSeconds } from '../show/schedule';
 import { DEFAULT_FADE, MAX_FADE, type Clip } from '../show/show';
 import { selectedClip, duplicateSelected, removeSelected, splitAt } from './clip-actions';
+import { icon } from './icons';
 import type { Store } from './store';
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -28,8 +29,8 @@ export const clipHtml = (o: ClipPanelOptions): string => `
     <button type="button" data-act="duplicate" title="A copy of its own (Ctrl+D)">Duplicate</button>
     <button type="button" data-act="split" title="Split it at the playhead (S)">Split at playhead</button>
     <button type="button" data-act="remove" title="Delete">Delete</button>
-    <button type="button" data-act="up" class="icon" aria-label="One track up" title="One track up: draws later, on top">↑</button>
-    <button type="button" data-act="down" class="icon" aria-label="One track down" title="One track down: draws earlier, beneath">↓</button>
+    <button type="button" data-act="up" class="icon" aria-label="One track up" title="One track up: draws later, on top">${icon('up')}</button>
+    <button type="button" data-act="down" class="icon" aria-label="One track down" title="One track down: draws earlier, beneath">${icon('down')}</button>
   </div>
   <label class="fade"><span>Fades in and out over</span>
     <input type="range" min="0" max="${MAX_FADE}" step="0.25" aria-label="Fade"><output></output></label>

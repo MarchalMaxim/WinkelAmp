@@ -6,6 +6,7 @@
  * a new selection: amber is only what is being picked now, and the file keeps every earlier mark apart from it.
  */
 import './picker.css';
+import { icon, instrumentIcon, withIcon } from './icons';
 import type { PickNote } from '../show/note-values';
 import type { SongPack } from '../pack/pack';
 import { emptyMelody, validateMelody, type Mark } from '../show/melody';
@@ -85,7 +86,7 @@ export class Picker {
     this.el.innerHTML = `
       <header class="np-head"><button type="button" data-back>Back to the studio</button><b class="np-title"></b><span class="dim">Pick notes</span></header>
       <div class="np-tools">
-        <button type="button" data-play title="Space">▶ Play</button>
+        <button type="button" data-play title="Space">${withIcon('play', 'Play')}</button>
         <span class="np-time" data-time>0:00</span>
         <button type="button" data-out aria-label="Zoom out">−</button>
         <button type="button" data-in aria-label="Zoom in">+</button>
@@ -369,7 +370,7 @@ export class Picker {
     for (const n of this.d.store.state.notices) {   // now, as ending an adding above says so
       const div = Object.assign(document.createElement('div'), { className: `notice ${n.level}` });
       div.append(Object.assign(document.createElement('span'), { className: 'notice-text', textContent: n.text }));
-      const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', textContent: '✕' });
+      const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', innerHTML: icon('close') });
       x.setAttribute('aria-label', 'Dismiss');
       x.addEventListener('click', () => this.d.store.dispatch({ type: 'dismiss', id: n.id }));
       div.append(x);
@@ -401,7 +402,7 @@ export class Picker {
           title: `${r.neverHeard} of these picks lie outside the clips using this set, or right at their end, so the widget misses them. A clip may have moved: edit the picks to span them again.`,
         }));
       }
-      const x = Object.assign(document.createElement('button'), { type: 'button', textContent: '✕', title: 'Remove' });
+      const x = Object.assign(document.createElement('button'), { type: 'button', className: 'icon', innerHTML: icon('close'), title: 'Remove' });
       x.setAttribute('aria-label', `Remove ${name}`);
       x.addEventListener('click', () => { this.sceneEdited = true; this.d.store.dispatch({ type: 'edit', edit: { kind: 'removePicks', id: r.id } }); });
       row.append(x);
@@ -462,11 +463,12 @@ export class Picker {
     instruments.forEach((x, k) => {
       const el = Object.assign(document.createElement('span'), { className: 'np-inst' });
       const show = Object.assign(document.createElement('button'), { type: 'button', className: 'np-show', title: `${counts[k]} notes. Click to hide or show them.` });
-      const dot = document.createElement('i');
-      dot.style.background = x.color;
+      const dot = document.createElement('i');   // the instrument's picture, in its colour on the roll
+      dot.innerHTML = instrumentIcon(x.label, x.key);
+      dot.style.color = x.color;
       show.append(dot, `${x.label} `, Object.assign(document.createElement('span'), { className: 'dim', textContent: String(counts[k]) }));
       show.setAttribute('aria-pressed', 'true');
-      const hear = Object.assign(document.createElement('button'), { type: 'button', className: 'np-hear', textContent: '♪', title: `Play a tone on each ${x.label} note, with the recording turned down` });
+      const hear = Object.assign(document.createElement('button'), { type: 'button', className: 'np-hear', innerHTML: icon('hear'), title: `Play a tone on each ${x.label} note, with the recording turned down` });
       hear.setAttribute('aria-pressed', 'false');
       hear.setAttribute('aria-label', `Hear ${x.label}`);
       show.addEventListener('click', () => {
@@ -536,7 +538,7 @@ export class Picker {
     }
     const sec = Math.floor(t);
     if (sec !== this.second) { this.second = sec; this.$('[data-time]').textContent = `${clock(t)} / ${clock(player.duration || pack.duration)}`; }
-    if (player.playing !== this.wasPlaying) { this.wasPlaying = player.playing; this.$('[data-play]').textContent = player.playing ? '❚❚ Pause' : '▶ Play'; }
+    if (player.playing !== this.wasPlaying) { this.wasPlaying = player.playing; this.$('[data-play]').innerHTML = player.playing ? withIcon('pause', 'Pause') : withIcon('play', 'Play'); }
   };
 
   /** Every key first, or the studio's would act on the show underneath. Space plays, Esc closes the popup and then the
